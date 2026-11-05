@@ -3,6 +3,7 @@ using System.Globalization;
 using AdaptiveWorkout.Core;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Playground.Kit;
 
 namespace AdaptiveWorkout.UI.Storage;
 
@@ -11,7 +12,7 @@ namespace AdaptiveWorkout.UI.Storage;
 /// All work runs on a background thread, one piece at a time in call order: the screen never waits on SQLite,
 /// a write can be started without waiting for it, and every read sees the writes started before it.
 /// </summary>
-public sealed class WorkoutStore(string databasePath)
+public sealed class WorkoutStore(string databasePath) : ISettingStore
 {
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS Routine (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL);

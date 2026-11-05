@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using AdaptiveWorkout.Core;
 using AdaptiveWorkout.UI.Storage;
-using AdaptiveWorkout.UI.Themes;
 using AdaptiveWorkout.UI.Watch;
 using Android.Content;
 using Android.Gms.Extensions;
@@ -10,6 +9,7 @@ using Android.Gms.Wearable;
 using Android.OS;
 using Android.Runtime;
 using Android.Util;
+using Playground.Kit.Themes;
 using Application = Android.App.Application;
 
 namespace AdaptiveWorkout.Phone;

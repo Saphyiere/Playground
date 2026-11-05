@@ -1,0 +1,23 @@
+@inject ThemeSetting ThemeSetting
+@* The looks to choose from, for an app's Settings: each with a sample in its own paper, ink and figures, whichever look the page
+   is in now. Choosing one switches the whole app at once. *@
+
+<div class="ledger">
+    @foreach (var theme in Theme.All)
+    {
+        var chosen = theme == ThemeSetting.Current;
+        <button type="button" class="row" aria-pressed="@(chosen ? "true" : "false")" @onclick="() => ThemeSetting.Choose(theme)">
+            <span class="status">
+                @if (chosen)
+                {
+                    <Mark Kind="MarkKind.Tick" Size="28" />
+                }
+            </span>
+            <span class="row-text">
+                <span class="name">@theme.Name</span>
+                <span class="note">@theme.Description</span>
+            </span>
+            <span class="theme-sample" data-theme="@theme.Id" aria-hidden="true">1:12</span>
+        </button>
+    }
+</div>

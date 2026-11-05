@@ -1,8 +1,8 @@
 ﻿using AdaptiveWorkout.UI;
-using AdaptiveWorkout.UI.Themes;
 using AdaptiveWorkout.UI.Watch;
 using AdaptiveWorkout.UI.Workouts;
 using Microsoft.Extensions.Logging;
+using Playground.Kit.Themes;
 
 namespace AdaptiveWorkout.Phone;
 

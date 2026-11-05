@@ -1,11 +1,11 @@
-namespace AdaptiveWorkout.UI.Themes;
+namespace Playground.Kit.Themes;
 
 /// <summary>
-/// A look the app can wear. app.css holds its colors, fonts and shapes under [data-theme="<see cref="Id"/>"]; the few
+/// A look the apps can wear. kit.css holds its colors, fonts and shapes under [data-theme="<see cref="Id"/>"]; the few
 /// components that draw differently per theme (a pen tick, or a ruler under a number) get the theme in use as a cascading value.
 /// </summary>
 /// <param name="Dark">Light text on a dark page, so the host's status bar icons go light too.</param>
-/// <param name="Ground">The page's background (app.css's --ground), for the host to show behind the page while it loads.</param>
+/// <param name="Ground">The page's background (kit.css's --ground), for the host to show behind the page while it loads.</param>
 /// <param name="TodayFormat">Today's date over its title: "Sunday, October 18", or "Sun 18 Oct".</param>
 /// <param name="DayFormat">A past workout's date in a row: "Fri, Oct 9", or "Fri 09 Oct".</param>
 public sealed record Theme(string Id, string Name, string Description, bool Dark, string Ground, string TodayFormat, string DayFormat)

@@ -2,6 +2,9 @@
   <Folder Name="/build/">
     <Project Path="build/AdaptiveWorkout.Build/AdaptiveWorkout.Build.csproj" />
   </Folder>
+  <Folder Name="/kit/">
+    <Project Path="../Kit/Playground.Kit/Playground.Kit.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/AdaptiveWorkout.Core/AdaptiveWorkout.Core.csproj" />
     <Project Path="src/AdaptiveWorkout.UI/AdaptiveWorkout.UI.csproj" />

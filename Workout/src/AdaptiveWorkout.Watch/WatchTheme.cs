@@ -4,11 +4,11 @@ using Android.OS;
 
 namespace AdaptiveWorkout.Watch;
 
-/// <summary>A font and its variation axes as the phone's app.css sets them, and whether its words go in capitals, like the phone's labels.</summary>
+/// <summary>A font and its variation axes as the Kit's kit.css sets them, and whether its words go in capitals, like the phone's labels.</summary>
 public sealed record WatchFont(int Font, string Axes, bool Caps = false);
 
 /// <summary>
-/// The phone's theme on the watch: its colors and fonts, from the phone's app.css tokens. The phone says which theme it wears;
+/// The phone's theme on the watch: its colors and fonts, from the Kit's kit.css tokens. The phone says which theme it wears;
 /// the watch keeps the last one it heard. Dimmed, every theme goes to light print on black, to spare the screen.
 /// </summary>
 /// <param name="Heart">The heart rate's color: ink in a logbook, the heart channel's coral on an instrument panel.</param>

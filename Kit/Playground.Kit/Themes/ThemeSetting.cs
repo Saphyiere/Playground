@@ -1,13 +1,12 @@
 using System.Diagnostics;
-using AdaptiveWorkout.UI.Storage;
 
-namespace AdaptiveWorkout.UI.Themes;
+namespace Playground.Kit.Themes;
 
 /// <summary>
-/// The theme in use, kept with the other settings. The page follows it through MainLayout; a host overrides
+/// The theme in use, kept with the app's other settings. The page follows it through MainLayout; a host overrides
 /// <see cref="ApplyToShell"/> to dress its own parts to match, like the phone's status bar icons.
 /// </summary>
-public class ThemeSetting(WorkoutStore store)
+public class ThemeSetting(ISettingStore store)
 {
     private const string Key = "Theme";
     private Task? loading;
@@ -25,7 +24,7 @@ public class ThemeSetting(WorkoutStore store)
         if (theme == Current) return;
 
         Current = theme;
-        store.SetSettingAsync(Key, theme.Id).ContinueWith(t => Debug.WriteLine($"AdaptiveWorkout: saving the theme failed: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+        store.SetSettingAsync(Key, theme.Id).ContinueWith(t => Debug.WriteLine($"Playground.Kit: saving the theme failed: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
         ApplyToShell(theme);
         Changed?.Invoke();
     }

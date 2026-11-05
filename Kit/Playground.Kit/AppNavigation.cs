@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 
-namespace AdaptiveWorkout.UI;
+namespace Playground.Kit;
 
 /// <summary>
 /// The way back, the same for a screen's back link and the phone's back gesture, which walks the web view's history. Opening a

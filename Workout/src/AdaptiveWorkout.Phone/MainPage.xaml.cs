@@ -1,5 +1,5 @@
 using AdaptiveWorkout.UI;
-using AdaptiveWorkout.UI.Themes;
+using Playground.Kit.Themes;
 
 namespace AdaptiveWorkout.Phone;
 
@@ -14,7 +14,7 @@ public partial class MainPage : ContentPage
 		blazorWebView.BlazorWebViewInitialized += (_, _) => IPlatformApplication.Current!.Services.GetRequiredService<AppLaunch>().Step("web view");
 	}
 
-	/// <summary>The theme's background (app.css's ground) behind the page and in its web view, seen while the page loads.</summary>
+	/// <summary>The theme's background (kit.css's ground) behind the page and in its web view, seen while the page loads.</summary>
 	public void ShowTheme(Theme theme)
 	{
 		var ground = Color.FromArgb(theme.Ground);

@@ -1,6 +1,6 @@
 using AdaptiveWorkout.UI.Storage;
-using AdaptiveWorkout.UI.Themes;
 using AndroidX.Core.View;
+using Playground.Kit.Themes;
 
 namespace AdaptiveWorkout.Phone;
 

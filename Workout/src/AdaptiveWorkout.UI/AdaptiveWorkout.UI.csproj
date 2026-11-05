@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AdaptiveWorkout.Core\AdaptiveWorkout.Core.csproj" />
+    <ProjectReference Include="..\..\..\Kit\Playground.Kit\Playground.Kit.csproj" />
   </ItemGroup>
 
 </Project>

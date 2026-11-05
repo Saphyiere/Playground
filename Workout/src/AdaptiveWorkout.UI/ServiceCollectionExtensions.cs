@@ -1,10 +1,11 @@
 using AdaptiveWorkout.Core;
 using AdaptiveWorkout.UI.Storage;
-using AdaptiveWorkout.UI.Themes;
 using AdaptiveWorkout.UI.Watch;
 using AdaptiveWorkout.UI.Workouts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Playground.Kit;
+using Playground.Kit.Themes;
 
 namespace AdaptiveWorkout.UI;
 
@@ -20,6 +21,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton(new AppSettings());
         services.AddSingleton(new WorkoutStore(databasePath));
+        services.AddSingleton<ISettingStore>(sp => sp.GetRequiredService<WorkoutStore>());
         services.TryAddSingleton<WatchLink>();
         services.TryAddSingleton<WorkoutNotice>();
         services.TryAddSingleton<ThemeSetting>();

@@ -90,28 +90,14 @@ If an Android build ever fails over output paths, temporarily remove the two art
 
 ## Design
 
-The phone app has two looks, switched in **Settings** (the icon at the top right of Today, after Stats). The switch applies at once and is remembered.
+The app wears the [Kit](../Kit/README.md)'s two looks, Logbook and Telemetry, switched in **Settings** (the icon at the top right of Today, after Stats). The Kit has the themes' tokens, fonts and shared pieces, and how they work; `src/AdaptiveWorkout.UI/wwwroot/app.css` has this app's own screens, in the same tokens.
 
-- **Logbook:** a printed training log on warm paper, kept like a journal. Serif words and big serif numbers in fixed-width figures, no cards or boxes: each section is set apart by space and a heading the pen underlines once, rows sit on hairlines, and a faint tint inside a field says it's a place to write. The one vermilion pen also marks what you did: a tick on each gym day, a circle around today, tally strokes for the streak and the sets done, a tick over Hit goal, and a bracket down a superset. The pen marks; it never grades a number.
-- **Telemetry:** the body as live instrument channels on a dark panel. Monospace readouts that never jitter (Martian Mono, slashed zero), words in Atkinson Hyperlegible Next, tiles, and every number on its own ruler in its channel's color: lime for training, amber for food, blue for body weight, coral for heart rate. The set's time fills a minute of seconds, the rest drains its countdown, calories sit on a ruler with the goal and maintenance marked, and the heart rate shows its last minute as a line.
+- **Logbook** here: the pen ticks each gym day, circles today, and keeps tally strokes for the streak and the sets done; it ticks Hit goal, and brackets a superset down its left edge.
+- **Telemetry** here: lime for training, amber for food, blue for body weight, coral for heart rate. The set's time fills a minute of seconds, the rest drains its countdown, calories sit on a ruler with the goal and maintenance marked, and the heart rate shows its last minute as a line.
+- **Pieces that draw differently** in this app branch on the cascading theme inside their own component: `SecondsRuler`, the rest and calorie rulers, the heart rate line, the workout header, Today's tiles, the improvement chart (`TrendChart`, on Gym and Stats), and the calorie chart.
+- **The phone around the page** follows too (`PhoneThemeSetting`): the status and navigation bar icons go light on a dark theme, and the background behind the page while it loads matches. Both start in the last theme, kept in the phone's preferences. The splash and app icon stay Logbook's (vermilion on paper), since Android draws them before the app can choose. They're SVGs in `src/AdaptiveWorkout.Phone/Resources`.
 
-Design links:
-
-- Style directions, with both looks' mockups: https://claude.ai/artifact/2Z6jpTXARxNPY9AWAS2hxQ
-- The first design system (the mark and app icon): https://claude.ai/artifact/H9wJAoBQE834PEQ9qG4wmq
-
-**How themes work.** `Themes/Theme.cs` lists the themes (id, name, whether it's dark, its background, its date style). `ThemeSetting` keeps the one in use with the other settings, and `MainLayout` puts its id in `data-theme` on `<html>` and hands the theme to every component as a cascading value. The theme also goes into local storage, which `index.html` reads before the first paint.
-
-- **Colors, fonts and line weights** are tokens in `src/AdaptiveWorkout.UI/wwwroot/app.css`, one block per theme under its `[data-theme]`. Fonts go by role: words, figures, labels, controls.
-- **Shapes** that differ are rules under the theme's own `[data-theme]` (Telemetry's tiles, boxed fields, chips, filled tick boxes), so neither theme's rules touch the other's.
-- **Pieces that draw differently** branch on the cascading theme inside their own component: the pen marks against Telemetry's checks (`Mark`), its rulers (`RulerTicks`, `SecondsRuler`, the rest and calorie rulers), the heart rate line, the workout header, Today's tiles, the improvement chart (`TrendChart`, on Gym and Stats), and the calorie chart.
-- **The phone around the page** follows too (`PhoneThemeSetting`): the status and navigation bar icons go light on a dark theme, and the background behind the page while it loads matches. Both start in the last theme, kept in the phone's preferences. The splash and app icon stay Logbook's (vermilion on paper), since Android draws them before the app can choose.
-
-To add a theme: add it to `Theme.All`, give it a token block (and any shapes) in `app.css`, add its fonts to `wwwroot/fonts`, and branch the components above where it should draw differently.
-
-Fonts are in `src/AdaptiveWorkout.UI/wwwroot/fonts`, each under the SIL Open Font License (`OFL-*.txt`): Newsreader and Schibsted Grotesk for Logbook, Martian Mono and Atkinson Hyperlegible Next for Telemetry. The app icon and splash are SVGs in `src/AdaptiveWorkout.Phone/Resources`.
-
-The watch wears the phone's theme too. The phone sends its theme's id with each workout, when the watch says hello, and when it changes; the watch keeps the last one. `src/AdaptiveWorkout.Watch/WatchTheme.cs` has each theme's colors (from the `app.css` tokens) and fonts: the same four, cut down to Latin as TTFs in `Resources/font` (Newsreader at a fixed optical size), with their licenses in `src/AdaptiveWorkout.Watch/OFL-*.txt`. Dimmed, the watch goes to light print on black, whatever the theme, to spare the screen. To add a theme there, add its `WatchTheme` and the fonts it needs.
+The watch wears the phone's theme too. The phone sends its theme's id with each workout, when the watch says hello, and when it changes; the watch keeps the last one. `src/AdaptiveWorkout.Watch/WatchTheme.cs` has each theme's colors (from the Kit's `kit.css` tokens) and fonts: the same four, cut down to Latin as TTFs in `Resources/font` (Newsreader at a fixed optical size), with their licenses in `src/AdaptiveWorkout.Watch/OFL-*.txt`. Dimmed, the watch goes to light print on black, whatever the theme, to spare the screen. To add a theme there, add its `WatchTheme` and the fonts it needs.
 
 ## Tests
 

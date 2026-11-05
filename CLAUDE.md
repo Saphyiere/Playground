@@ -54,6 +54,7 @@ the task is about; a change to the shared root files or another app's folder nee
 
 ## The look
 
-The apps share two looks, **Logbook** (a printed training log: warm paper, serif print, a red pen) and **Telemetry** (a dark
-instrument panel, mono readouts on rulers), switched in each app's Settings. How they're built is under **Design** in
-[Workout/README.md](Workout/README.md).
+The apps share two looks, **Logbook** (a printed log: warm paper, serif print, a red pen) and **Telemetry** (a dark instrument
+panel, mono readouts on rulers), switched in each app's Settings. They live in [Kit](Kit/README.md): the themes' tokens, fonts and
+shared pieces in `kit.css`, and the shared components. An app's own screens get their rules in the app's stylesheet, in the Kit's
+tokens. A change to the Kit reaches every app: check each app's screens, and say so in the commit message.

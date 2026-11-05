@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    What every app shares: the Logbook and Telemetry looks (wwwroot/kit.css and their fonts), the theme in use and its picker, the
+    way back, and the common pieces of a screen. An app references this project and loads _content/Playground.Kit/kit.css before
+    its own stylesheet.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
+  </ItemGroup>
+
+</Project>
