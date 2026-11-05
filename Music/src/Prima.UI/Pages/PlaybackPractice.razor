@@ -1,0 +1,150 @@
+@page "/drills/playback"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject IScreen Screen
+@inject Click Click
+@inject SessionRegistry Registry
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using Prima.Core.Scoring
+@using DrillMaterial = Prima.Core.Generation.Drills
+
+<PageTitle>Listen and play back · Prima</PageTitle>
+
+<PageHead Title="Listen and play back" Kicker="@($"Step {track.Step} of 3")"><KeyboardLamp /></PageHead>
+
+@if (!(Keyboard.CanSend && Settings.SendToPiano))
+{
+    <p class="page-note">This drill needs the piano to play notes from the tablet. Plug it in, and check Settings → Keyboard.</p>
+}
+else
+{
+    <section class="reading-bar" aria-label="Where you are">
+        <div class="mu-readout"><span class="mu-readout-label">Now</span><span class="mu-readout-value">@StageName()</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
+        @if (result is not null)
+        {
+            <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.InTimeAccuracy:P0}")</span></div>
+        }
+        @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
+        {
+            <button type="button" class="mu-btn mu-primary" @onclick="Advance">@ButtonName()</button>
+        }
+    </section>
+    <p class="page-note">@Words()</p>
+    @if (stage is Stage.Shown or Stage.Answer)
+    {
+        <div class="sheet-frame">
+            <Sheet @ref="sheet" Mei="@mei" />
+        </div>
+    }
+}
+
+@code {
+    private enum Stage { Ready, Listen, PlayBack, Shown, Answer }
+
+    private const int Tempo = 72;
+    private Stage stage = Stage.Ready;
+    private DrillTrack track = DrillTrack.Start;
+    private Passage? passage;
+    private string mei = "";
+    private PlaySession? session;
+    private PassageResult? result;
+    private Sheet? sheet;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    protected override async Task OnInitializedAsync() => track = await Store.GetTrackAsync<DrillTrack>("drill:playback") ?? DrillTrack.Start;
+
+    private string StageName() => stage switch { Stage.Listen => "Listen", Stage.PlayBack => "Your turn", Stage.Shown => "Written", Stage.Answer => "Your answer", _ => "Ready" };
+
+    private string ButtonName() => stage switch { Stage.Ready => "Listen", Stage.Listen => "Play it back", Stage.Shown => "Answer it", _ => "Next phrase" };
+
+    private string Words() => stage switch
+    {
+        Stage.Ready => "The piano plays a short phrase after a bar of count-in. Listen without the music, then play it back in time.",
+        Stage.Listen => "Listening… When it's done, play it back: a bar of count-in, then the same phrase.",
+        Stage.PlayBack => "Play it back in time.",
+        Stage.Shown => "Here it is written, marked against what you played. Then, if you like, improvise an answer to it: it's recorded, not scored.",
+        _ => "Your answer is kept. Next phrase when you're ready.",
+    };
+
+    private IReadOnlyList<(int Midi, double Beat, double Beats)> Notes() => [.. passage!.Score.Expected().Select(e => (e.Midi, e.Tick / (double)passage.Score.Meter.BeatTicks, e.Length / (double)passage.Score.Meter.BeatTicks))];
+
+    private double Beats => passage!.Score.Bars.Count * passage.Score.Meter.BarTicks / (double)passage.Score.Meter.BeatTicks;
+
+    private void Advance()
+    {
+        switch (stage)
+        {
+            case Stage.Ready or Stage.Answer:
+                passage = DrillMaterial.Playback(track.Step, (ulong)DateTime.Now.Ticks);
+                mei = MeiWriter.Write(passage.Score, Tempo);
+                result = null;
+                Run(Stage.Listen, [], Notes());
+                break;
+            case Stage.Listen:
+                Run(Stage.PlayBack, Notes(), null);
+                break;
+            case Stage.Shown:
+                Run(Stage.Answer, [], null);
+                break;
+        }
+    }
+
+    private void Run(Stage next, IReadOnlyList<(int Midi, double Beat, double Beats)> expected, IReadOnlyList<(int Midi, double Beat, double Beats)>? piano)
+    {
+        stage = next;
+        session?.Dispose();
+        session = new PlaySession(Click, Keyboard, Clock, Registry);
+        session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Ended) : InvokeAsync(StateHasChanged);
+        Screen.KeepOn(true);
+        session.Start(new ClickPlan(Tempo, passage!.Score.Meter.Beats, 1), Beats, expected, piano);
+    }
+
+    private async Task Ended()
+    {
+        if (session is null || session.Phase != Phase.Done) return;
+
+        Screen.KeepOn(false);
+        if (stage == Stage.PlayBack)
+        {
+            var meter = passage!.Score.Meter;
+            var beatNs = 60e9 / Tempo;
+            var s = session;
+            result = PassageScorer.Score(passage.Score.Expected(), b => s.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs);
+            stage = Stage.Shown;
+            StateHasChanged();
+            await Task.Delay(300);
+            var key = passage.Score.Key;
+            await (sheet?.ShowMarks(result.Notes.Select(n => n.Outcome switch
+            {
+                Outcome.Wrong when n.Played is { } p => new SheetMark(n.Id, "wrong", key.Spell(p).ToString(), key.Spell(p).Diatonic - key.Spell(n.Midi).Diatonic),
+                Outcome.Missed => new SheetMark(n.Id, "missed"),
+                _ when n.Band == Band.Off => new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late"),
+                _ => null,
+            }).OfType<SheetMark>()) ?? Task.CompletedTask);
+            var (step, last) = DrillLadder.After(track.Step, track.LastShare, result.InTimeAccuracy, 3);
+            track = new DrillTrack(step, last, result.InTimeAccuracy, Today);
+            await Store.SaveTrackAsync("drill:playback", track);
+            var measures = new { inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, keptGoing = result.KeptGoing };
+            await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "playback", null, null, track.Step, Tempo, (long)passage.Seed, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
+        }
+        else if (stage == Stage.Answer)
+        {
+            var zero = session.TimeAt(0);
+            var played = session.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
+            await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "playback-answer", null, null, track.Step, Tempo, (long)passage!.Seed, null, System.Text.Json.JsonSerializer.Serialize(played), null, "{}", null, false, null));
+        }
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        session?.Dispose();
+        Screen.KeepOn(false);
+    }
+}

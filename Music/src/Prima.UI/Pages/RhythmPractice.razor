@@ -1,0 +1,170 @@
+@page "/drills/rhythm"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject IScreen Screen
+@inject Click Click
+@inject SessionRegistry Registry
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using Prima.Core.Scoring
+
+<PageTitle>Rhythm · Prima</PageTitle>
+
+<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")"><KeyboardLamp /></PageHead>
+
+<p class="page-note">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
+
+<section class="reading-bar" aria-label="Where you are">
+    <div class="mu-readout"><span class="mu-readout-label">Click</span><span class="mu-readout-value">@StageName(state.StageForTry(tryIndex))</span></div>
+    <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
+    @if (result is not null)
+    {
+        <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.Accuracy:P0}")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
+    }
+    @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
+    {
+        <button type="button" class="mu-btn mu-primary" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
+    }
+</section>
+
+<div class="sheet-frame">
+    <Sheet @ref="sheet" Mei="@mei" />
+</div>
+
+@if (result is not null)
+{
+    <ul class="summary-words">
+        @if (result.DriftPercent is { } drift && state.StageForTry(tryIndex - 1) != ClickStage.Throughout)
+        {
+            <li>Without the click you drifted @($"{Math.Abs(drift):0}%") @(drift > 0 ? "faster" : "slower").</li>
+        }
+        <li>The bar of beat: lean @($"{result.PulseLeanPercent:+0;−0;0}%") of the beat, steady to ±@($"{result.PulseSteadinessPercent:0}")%.</li>
+        @if (result.Missed > 0)
+        {
+            <li>@result.Missed missed, @result.Extra extra.</li>
+        }
+        @if (tryIndex >= Tries)
+        {
+            <li>@SetWords()</li>
+        }
+    </ul>
+}
+
+@code {
+    private const int Tries = 3;
+    private const int Tempo = 72;
+
+    private RhythmState state = RhythmState.Start;
+    private int tryIndex;
+    private Score? score;
+    private string mei = "";
+    private PlaySession? session;
+    private RhythmResult? result;
+    private Sheet? sheet;
+    private readonly List<double> accuracies = [];
+    private RhythmState? before;
+    private DateTime started;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private static string StageName(ClickStage s) => s switch { ClickStage.Throughout => "On", ClickStage.CountInOnly => "Count-in", _ => "Silent" };
+
+    private static string StageWords(ClickStage s) => s switch
+    {
+        ClickStage.Throughout => "The click plays throughout.",
+        ClickStage.CountInOnly => "The click plays the count-in only: keep the pulse yourself.",
+        _ => "No click: the count-in shows on the screen, and the pulse is yours.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        state = await Store.GetTrackAsync<RhythmState>("rhythm") ?? RhythmState.Start;
+        started = DateTime.Now;
+        NewRhythm();
+    }
+
+    private void NewRhythm()
+    {
+        score = RhythmDrill.Generate(state.Level, (ulong)DateTime.Now.Ticks);
+        mei = MeiWriter.Write(score, Tempo);
+    }
+
+    private async Task Next()
+    {
+        if (tryIndex >= Tries)
+        {
+            (tryIndex, result) = (0, null);
+            accuracies.Clear();
+            NewRhythm();
+            return;
+        }
+
+        if (result is not null) NewRhythm();
+        result = null;
+        await (sheet?.ClearMarks() ?? Task.CompletedTask);
+        StateHasChanged();
+        await Task.Delay(300);
+        Start();
+    }
+
+    private void Start()
+    {
+        session?.Dispose();
+        session = new PlaySession(Click, Keyboard, Clock, Registry);
+        var meter = score!.Meter;
+        var expected = score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
+        var beats = score.Bars.Count * meter.BarTicks / (double)meter.BeatTicks;
+        session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
+        Screen.KeepOn(true);
+        session.Start(new ClickPlan(Tempo, meter.Beats, 1, state.StageForTry(tryIndex)), beats, expected);
+        _ = Cursor(meter);
+    }
+
+    private async Task Cursor(Meter meter)
+    {
+        await Task.Delay(50);
+        if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000.0 / Tempo * Ticks.Quarter / meter.BeatTicks, 0);
+    }
+
+    private async Task Scored()
+    {
+        if (session is null || score is null || session.Phase != Phase.Done) return;
+
+        await (sheet?.StopCursor() ?? Task.CompletedTask);
+        Screen.KeepOn(false);
+        var meter = score.Meter;
+        var expected = score.Expected();
+        var beatNs = 60e9 / Tempo;
+        var onsets = expected.Select(e => session.TimeAt(e.Tick / (double)meter.BeatTicks)).ToList();
+        var taps = session.Played.Select(p => p.OnNs).ToList();
+        result = RhythmScorer.Score(onsets, [.. expected.Select(e => e.Id)], meter.Beats, taps, beatNs, beatNs * meter.Beats, Settings.TimingOffsetMs);
+        await (sheet?.ShowMarks(result.Notes.Select(n => n.Outcome != Outcome.Right ? new SheetMark(n.Id, "missed") : n.Band == Band.Off ? new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late") : null).OfType<SheetMark>()) ?? Task.CompletedTask);
+        accuracies.Add(result.Accuracy);
+        var measures = new { accuracy = result.Accuracy, lean = result.LeanPercent, steadiness = result.SteadinessPercent, drift = result.DriftPercent, missed = result.Missed, extra = result.Extra, stage = state.StageForTry(tryIndex).ToString() };
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "rhythm", state.StageForTry(tryIndex).ToString(), null, state.Level, Tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Accuracy, result.Missed == 0 && result.Extra == 0, null));
+        tryIndex++;
+        if (tryIndex >= Tries)
+        {
+            before = state;
+            state = state.After(accuracies.Average());
+            await Store.SaveTrackAsync("rhythm", state);
+            await Store.MarkStepAsync(Today, StepKind.Rhythm);
+            await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+            started = DateTime.Now;
+        }
+        StateHasChanged();
+    }
+
+    private string SetWords() => before is null ? "" : state.Level > before.Level ? $"On to rhythm level {state.Level}." : state.Level < before.Level ? $"Back to level {state.Level} for now." : state.Stage != before.Stage ? $"Next set starts with the click {StageName(state.Stage).ToLowerInvariant()}." : "Same again next time.";
+
+    public void Dispose()
+    {
+        session?.Dispose();
+        Screen.KeepOn(false);
+    }
+}

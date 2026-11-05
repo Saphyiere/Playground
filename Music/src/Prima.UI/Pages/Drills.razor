@@ -1,8 +1,44 @@
 @page "/drills"
+@inject PrimaStore Store
+@inject IKeyboard Keyboard
+@inject PrimaSettings Settings
 
 <PageTitle>Drills · Prima</PageTitle>
 
-<PageHead Title="Drills" Kicker="Short, focused practice" />
+<PageHead Title="Drills" Kicker="Short, focused practice"><KeyboardLamp /></PageHead>
 
-<p class="page-note">Notes, ledger lines, intervals, chords, key signatures, rhythm, keyboard geography, listen and play back, scales,
-    arpeggios and finger independence come here.</p>
+@foreach (var group in DrillCatalog.All.GroupBy(d => d.Group))
+{
+    <section class="settings-section" aria-labelledby="@($"group-{group.Key}")">
+        <h2 id="@($"group-{group.Key}")" class="section-title">@group.Key</h2>
+        <div class="tool-grid">
+            @foreach (var drill in group)
+            {
+                var off = drill.NeedsPiano && !(Keyboard.CanSend && Settings.SendToPiano);
+                <a class="tool-card @(off ? "tool-card-off" : "")" href="@(off ? null : $"drills/{drill.Key}")">
+                    <span class="tool-card-name">@drill.Name</span>
+                    <span class="tool-card-text">@drill.Does</span>
+                    <span class="tool-card-meta">@(off ? "Needs the piano to play notes from the tablet" : Meta(drill))</span>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private Dictionary<string, string> tracks = [];
+    private Dictionary<string, AttemptRecord> last = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        tracks = await Store.GetTracksAsync("drill:");
+        last = (await Store.GetAttemptsAsync(DateOnly.FromDateTime(DateTime.Now).AddDays(-60))).GroupBy(a => a.Kind).ToDictionary(g => g.Key, g => g.Last());
+    }
+
+    private string Meta(DrillInfo drill)
+    {
+        var step = tracks.TryGetValue($"drill:{drill.Key}", out var json) ? System.Text.Json.JsonSerializer.Deserialize<DrillTrack>(json, PrimaStore.Json)?.Step : null;
+        var result = last.GetValueOrDefault(drill.Key) is { Headline: { } h } attempt ? $"last {h:P0}, {attempt.Day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not tried yet";
+        return drill.Top > 1 && step is { } s ? $"Step {s} of {drill.Top} · {result}" : result;
+    }
+}

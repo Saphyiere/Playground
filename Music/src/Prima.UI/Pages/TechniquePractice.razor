@@ -1,0 +1,227 @@
+@page "/drills/scales"
+@page "/drills/arpeggios"
+@page "/drills/independence"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject IScreen Screen
+@inject Click Click
+@inject SessionRegistry Registry
+@inject NavigationManager Nav
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using Prima.Core.Scoring
+
+<PageTitle>@Title · Prima</PageTitle>
+
+<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")"><KeyboardLamp /></PageHead>
+
+<div class="control-row">
+    <span class="control-label">Hands</span>
+    @foreach (var h in HandChoices())
+    {
+        <button type="button" class="mu-toggle" aria-pressed="@(hands == h ? "true" : "false")" @onclick="() => Choose(h)"><span class="mu-led"></span>@HandName(h)</button>
+    }
+    <span class="control-note">Runs @runs of @TechniqueState.RunsPerSet. Stop if anything hurts.</span>
+</div>
+
+<section class="reading-bar" aria-label="Where you are">
+    <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@(state.Tempo?.ToString("0", CultureInfo.InvariantCulture) ?? "Yours")</span></div>
+    <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
+    @if (session?.Phase is not (Phase.CountIn or Phase.Playing) && !capturing)
+    {
+        <button type="button" class="mu-btn mu-primary" disabled="@(runs >= TechniqueState.RunsPerSet)" @onclick="Go">@(state.Tempo is null ? "Play it at your own speed" : "Run")</button>
+    }
+    else if (capturing)
+    {
+        <button type="button" class="mu-btn mu-primary" @onclick="EndComfortable">Done</button>
+    }
+</section>
+
+@if (state.Tempo is null && !capturing)
+{
+    <p class="page-note">First, play it once at a comfortable speed, without the click. The runs then start a little slower than that, which is how speed is built.</p>
+}
+
+<div class="sheet-frame">
+    <Sheet @ref="sheet" Mei="@mei" Scale="0.9" />
+</div>
+
+@if (result is not null)
+{
+    <section class="mu-screen summary-figures" aria-label="The run">
+        <div class="mu-readouts">
+            @foreach (var (hand, run) in new[] { ("Right", result.Right), ("Left", result.Left) }.Where(r => r.Item2 is not null))
+            {
+                <div class="mu-readout @(run!.Valid ? "" : "miss")"><span class="mu-readout-label">@hand evenness</span><span class="mu-readout-value">@(run.Valid ? $"±{run.IoiSdPercent:0.0}%" : $"{run.WrongNotes} wrong")</span></div>
+            }
+            @if (result.SyncMeanMs is { } sync)
+            {
+                <div class="mu-readout"><span class="mu-readout-label">Hands apart</span><span class="mu-readout-value">@($"{Math.Abs(sync):0} ms")</span></div>
+            }
+        </div>
+    </section>
+    <ul class="summary-words">
+        @foreach (var line in Words())
+        {
+            <li>@line</li>
+        }
+    </ul>
+}
+
+@code {
+    private string Key => new Uri(Nav.Uri).Segments[^1].Trim('/');
+
+    private string Title => Key switch { "arpeggios" => "Arpeggios", "independence" => "Finger independence", _ => "Scales" };
+
+    private TechniqueItem? item;
+    private string mei = "";
+    private HandUse hands = HandUse.Right;
+    private TechniqueState state = TechniqueState.New;
+    private PlaySession? session;
+    private TechniqueResult? result;
+    private Sheet? sheet;
+    private int runs;
+    private int level = 1;
+    private bool capturing;
+    private readonly List<long> freeOnsets = [];
+    private DateTime started;
+    private double? noiseFloor;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private string StateKey => $"technique:{Key}:{item?.Name}:{hands}";
+
+    private IEnumerable<HandUse> HandChoices() => level >= 5 ? [HandUse.Right, HandUse.Left, HandUse.Together] : [HandUse.Right, HandUse.Left];
+
+    private static string HandName(HandUse h) => h switch { HandUse.Right => "Right", HandUse.Left => "Left", _ => "Together" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        level = (await Store.GetTrackAsync<ReadingState>("reading"))?.Level ?? 1;
+        noiseFloor = Keyboard.Sensing.JitterMs;
+        Keyboard.Received += OnFree;
+        started = DateTime.Now;
+        await Build();
+    }
+
+    private async Task Choose(HandUse h)
+    {
+        hands = h;
+        await Build();
+    }
+
+    // The scale or arpeggio of the day (from the day's plan), at the octaves the level allows.
+    private async Task Build()
+    {
+        var plan = DailyPlan.Build(Today, Settings.DailyMinutes, level, false);
+        var octaves = level <= 2 ? 1 : level <= 6 ? 2 : level <= 9 ? 3 : 4;
+        var drill = await Store.GetTrackAsync<DrillTrack>("drill:independence") ?? DrillTrack.Start;
+        item = Key switch
+        {
+            "arpeggios" => level <= 1 ? Technique.Arpeggio(plan.ArpeggioKey, 1, hands, brokenTriad: true) : Technique.Arpeggio(plan.ArpeggioKey, Math.Min(octaves, 2 + level / 6), hands),
+            "independence" => Technique.FingerPattern(plan.ScaleKey with { Minor = false }, drill.Step, hands),
+            _ => Technique.Scale(plan.ScaleKey, plan.ScaleKey.Minor ? (level >= 6 && Today.DayNumber % 2 == 1 ? ScaleKind.MelodicMinor : ScaleKind.HarmonicMinor) : ScaleKind.Major, octaves, hands),
+        };
+        mei = MeiWriter.Write(item.Score, 72);
+        state = await Store.GetTrackAsync<TechniqueState>(StateKey) ?? TechniqueState.New;
+        result = null;
+    }
+
+    private void Go()
+    {
+        if (state.Tempo is null)
+        {
+            lock (freeOnsets) freeOnsets.Clear();
+            capturing = true;
+            return;
+        }
+
+        result = null;
+        session?.Dispose();
+        session = new PlaySession(Click, Keyboard, Clock, Registry);
+        var meter = item!.Score.Meter;
+        var expected = item.Score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
+        var beats = expected.Max(e => e.Item2 + e.Item3);
+        session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
+        Screen.KeepOn(true);
+        session.Start(new ClickPlan(state.Tempo.Value, 4, 1), beats, expected);
+    }
+
+    private void OnFree(MidiEvent e)
+    {
+        if (capturing && e.Kind == MidiKind.NoteOn) lock (freeOnsets) freeOnsets.Add(e.TimeNs);
+    }
+
+    // The comfortable speed: the run's own gap between notes, as beats a minute at the item's notes to a beat.
+    private async Task EndComfortable()
+    {
+        capturing = false;
+        long[] onsets;
+        lock (freeOnsets) onsets = [.. freeOnsets];
+        if (onsets.Length < 4) return;
+
+        var gapMs = Stats.Median(onsets.Zip(onsets.Skip(1), (a, b) => (b - a) / 1e6).ToArray());
+        state = state.Comfortable(60_000 / (gapMs * item!.NotesPerBeat), Today);
+        await Store.SaveTrackAsync(StateKey, state);
+    }
+
+    private async Task Scored()
+    {
+        if (session is null || item is null || session.Phase != Phase.Done) return;
+
+        Screen.KeepOn(false);
+        result = TechniqueScorer.Score(item, session.Played);
+        runs++;
+        var runsValid = new[] { result.Right, result.Left }.Where(r => r is not null).ToList();
+        var sd = runsValid.Where(r => r!.Valid).Select(r => r!.IoiSdPercent).DefaultIfEmpty(0).Max();
+        state = state.After(result.Valid, result.Valid ? sd : null, Today);
+        await Store.SaveTrackAsync(StateKey, state);
+        var measures = new
+        {
+            valid = result.Valid,
+            right = result.Right is { Valid: true } r ? new { r.IoiSdMs, r.IoiSdPercent, r.PlainIoiSdMs, r.Bpm, r.CrossingMs, r.SeamMs, r.VelocitySd, r.LegatoMs } : null,
+            left = result.Left is { Valid: true } l ? new { l.IoiSdMs, l.IoiSdPercent, l.PlainIoiSdMs, l.Bpm, l.CrossingMs, l.SeamMs, l.VelocitySd, l.LegatoMs } : null,
+            sync = result.SyncMeanMs,
+            item = item.Name,
+            hands = hands.ToString(),
+        };
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "independence" ? "independence" : Key == "arpeggios" ? "arpeggio" : "scale", hands.ToString(), item.Name, level, state.Tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Valid ? sd : null, result.Valid, null));
+        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+        started = DateTime.Now;
+        if (runs >= 3) await Store.MarkStepAsync(Today, StepKind.Technique);
+        StateHasChanged();
+    }
+
+    private IEnumerable<string> Words()
+    {
+        if (result is null) yield break;
+
+        foreach (var (hand, run) in new[] { ("Right hand", result.Right), ("Left hand", result.Left) })
+        {
+            if (run is null) continue;
+            if (!run.Valid)
+            {
+                yield return $"{hand}: a wrong or missed note, so this run doesn't count for evenness.";
+                continue;
+            }
+
+            yield return $"{hand}: the gaps between notes varied by {TechniqueScorer.Describe(run.IoiSdMs, noiseFloor)} (±{run.IoiSdPercent:0.0}% of the gap) at {run.Bpm:0} beats a minute{(Math.Abs(run.SlopeMsPerNote) > 0.5 ? $", {(run.SlopeMsPerNote < 0 ? "speeding up" : "slowing down")} steadily" : "")}.";
+            if (run.CrossingMs is { } crossing) yield return $"{hand}, thumb crossings: {(Math.Abs(crossing) < TechniqueScorer.HearingMs ? TechniqueScorer.Describe(crossing, noiseFloor) : $"{Math.Abs(crossing):0} ms {(crossing > 0 ? "late" : "early")}")}.";
+            if (run.SeamMs is { } seam) yield return $"{hand}, across the octaves: {TechniqueScorer.Describe(seam, noiseFloor)}.";
+            var legato = run.LegatoMs >= 0 ? $"the keys overlapped {run.LegatoMs:0} ms on average" : $"a gap of {-run.LegatoMs:0} ms between keys on average";
+            yield return run.VelocitySd > 0 ? $"{hand}, touch: velocity varied by ±{run.VelocitySd:0}. Legato: {legato}." : $"{hand}, legato: {legato}.";
+        }
+        if (result.SyncSdMs is { } syncSd) yield return $"The hands landed {Math.Abs(result.SyncMeanMs ?? 0):0} ms apart on average, give or take {TechniqueScorer.Describe(syncSd, noiseFloor)}.";
+        if (state.InvalidInRow == 0 && !result.Valid && state.Tempo is { } t) yield return $"Next run a little slower: {t:0}.";
+    }
+
+    public void Dispose()
+    {
+        Keyboard.Received -= OnFree;
+        session?.Dispose();
+        Screen.KeepOn(false);
+    }
+}

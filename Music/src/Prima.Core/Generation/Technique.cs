@@ -129,6 +129,25 @@ public static class Technique
         return Build($"{key.Name} arpeggio", key, ScaleKind.Arpeggio, octaves, hands, degrees.Select((d, i) => (key.Degree(d, rightOctave), Finger(i, true))).ToList(), degrees.Select((d, i) => (key.Degree(d, leftOctave), Finger(i, false))).ToList(), 2);
     }
 
+    /// <summary>
+    /// Finger independence (plan): a five-finger pattern up and down from the tonic (step 1), then trills on the weaker pairs,
+    /// 3–4 (step 2) and 4–5 (step 3), each a bar of sixteenths with fixed fingering.
+    /// </summary>
+    public static TechniqueItem FingerPattern(Key key, int step, HandUse hands)
+    {
+        var (rightOctave, leftOctave) = Octaves(1);
+        (int[] Degrees, int[] Right, int[] Left, string Name) pattern = step switch
+        {
+            <= 1 => ([0, 1, 2, 3, 4, 3, 2, 1, 0], [1, 2, 3, 4, 5, 4, 3, 2, 1], [5, 4, 3, 2, 1, 2, 3, 4, 5], "five-finger pattern"),
+            2 => ([2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2], [3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3], [3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3], "trill, fingers 3 and 4"),
+            _ => ([3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3], [4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4], [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], "trill, fingers 4 and 5"),
+        };
+        // The left hand plays the same notes an octave down, so its trill pair is 3–2 or 2–1 by position; the right hand's are the weak ones.
+        var right = pattern.Degrees.Select((d, i) => (key.Degree(d, rightOctave), pattern.Right[i])).ToList();
+        var left = pattern.Degrees.Select((d, i) => (key.Degree(d, leftOctave), pattern.Left[i])).ToList();
+        return Build($"{key.Name} {pattern.Name}", key, ScaleKind.BrokenTriad, 1, hands, right, left, 4);
+    }
+
     // Where each hand starts, so runs stay near their staves: an octave apart for one octave, further apart for more.
     private static (int Right, int Left) Octaves(int octaves) => octaves switch { <= 1 => (4, 3), 2 => (4, 2), _ => (3, 1) };
 
