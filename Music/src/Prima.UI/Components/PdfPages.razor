@@ -1,0 +1,74 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* A PDF piece's pages, drawn with pdf.js, black on white in both looks: the view is a window onto the pages, moved by turns or scrolled. *@
+<div class="pdf @Class" @ref="element">
+    <div class="pdf-strip"></div>
+</div>
+
+@code {
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private byte[]? opened;
+
+    [Parameter, EditorRequired] public byte[] Data { get; set; } = [];
+
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>When the document's open: its pages' shapes (width ÷ height), one for each.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<double>> OnOpened { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (ReferenceEquals(opened, Data) || Data.Length == 0) return;
+
+        opened = Data;
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PdfPages.razor.js");
+            var result = await module.InvokeAsync<OpenResult>("open", element, Data);
+            await OnOpened.InvokeAsync(result.Ratios);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private sealed record OpenResult(int Pages, double[] Ratios);
+
+    /// <summary>A page's rows, each one's share of dark pixels, drawn 900 px wide: for finding its systems.</summary>
+    public async Task<double[]> Profile(int page) => module is null ? [] : await module.InvokeAsync<double[]>("profile", element, page);
+
+    /// <summary>The width pages are drawn at: the view's, or with <paramref name="fit"/> small enough for a whole page to show.</summary>
+    public async Task<double> PageWidth(bool fit) => module is null ? 0 : await module.InvokeAsync<double>("pageWidth", element, fit);
+
+    /// <summary>
+    /// Moves the view to <paramref name="y"/> px down the pages, over <paramref name="ms"/>. A half-page turn covers this page down
+    /// to <paramref name="cover"/> and shows page <paramref name="half"/>'s top down to <paramref name="shown"/> there.
+    /// </summary>
+    public async Task Show(double y, int ms = 0, bool fit = false, int? half = null, double cover = 0, double shown = 0)
+    {
+        if (module is not null) await module.InvokeVoidAsync("show", element, y, ms, fit, half, cover, shown);
+    }
+
+    /// <summary>A pale band across the system being played, from <paramref name="top"/> to <paramref name="bottom"/> px down the pages; null takes it away.</summary>
+    public async Task Band(double? top, double bottom = 0)
+    {
+        if (module is not null) await module.InvokeVoidAsync("band", element, top, bottom);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (module is not null)
+            {
+                await module.InvokeVoidAsync("close", element);
+                await module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

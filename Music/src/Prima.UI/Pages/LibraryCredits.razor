@@ -1,0 +1,35 @@
+@page "/library/credits"
+@inject PrimaStore Store
+
+<PageTitle>Where the music comes from · Prima</PageTitle>
+
+<PageHead Title="Credits" Kicker="Where the music comes from"><a class="mu-btn" href="library">Library</a></PageHead>
+
+<p class="page-note">The bundled pieces are public domain or openly licensed, and each is credited as its licence asks. Engravings from MuseScore users come through PDMX (Long et al., 2024, CC BY 4.0); the PDFs and their MIDI come from the Mutopia Project. Prima engraves the MusicXML itself with Verovio (LGPL), and draws the PDFs with pdf.js (Apache 2.0).</p>
+
+@foreach (var source in pieces.Where(p => !p.Imported).GroupBy(p => p.Source ?? "Other").OrderBy(g => g.Key))
+{
+    <section class="settings-section" aria-labelledby="@($"source-{source.Key}")">
+        <h2 id="@($"source-{source.Key}")" class="section-title">@source.Key</h2>
+        <table class="you-table credits-table">
+            <thead><tr><th>Piece</th><th>Composer</th><th>Credit</th><th>Licence</th></tr></thead>
+            <tbody>
+                @foreach (var p in source.OrderBy(p => p.Composer).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
+                {
+                    <tr>
+                        <td>@if (p.SourceUrl is { Length: > 0 } url) { <a href="@url" target="_blank" rel="noopener">@p.Title</a> } else { @p.Title }</td>
+                        <td>@p.Composer</td>
+                        <td>@p.Credit</td>
+                        <td>@if (p.LicenceUrl is { Length: > 0 } licence) { <a href="@licence" target="_blank" rel="noopener">@p.Licence</a> } else { @p.Licence }</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+@code {
+    private List<PieceRecord> pieces = [];
+
+    protected override async Task OnInitializedAsync() => pieces = await Store.GetPiecesAsync();
+}

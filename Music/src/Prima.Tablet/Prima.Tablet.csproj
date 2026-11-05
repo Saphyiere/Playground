@@ -38,4 +38,9 @@
         <ProjectReference Include="..\Prima.UI\Prima.UI.csproj" />
     </ItemGroup>
 
+    <!-- The Library's bundle, once it's been built into artifacts/library (Music/README.md): packed into the app as it is. -->
+    <ItemGroup Condition="Exists('$(ArtifactsPath)\library\manifest.json')">
+        <MauiAsset Include="$(ArtifactsPath)\library\**" LogicalName="library\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
 </Project>

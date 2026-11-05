@@ -1,7 +1,137 @@
 @page "/library"
+@implements IDisposable
+@inject PrimaStore Store
+@inject IFiles Files
+@inject Prima.UI.Library.LibraryPrep Prep
+@inject NavigationManager Nav
+@using Prima.Core.Practice
 
 <PageTitle>Library · Prima</PageTitle>
 
-<PageHead Title="Library" Kicker="Real pieces" />
+<PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import a file</button></PageHead>
 
-<p class="page-note">The collection of real pieces, and the music you import, come here.</p>
+@if (Prep.Running)
+{
+    <section class="mu-screen library-prep" aria-live="polite">
+        <div class="mu-screen-head"><span>Preparing the collection</span><span>@Prep.Progress.Done of @Prep.Progress.Total</span></div>
+        <div class="mu-meter" role="img" aria-label="@($"{Prep.Progress.Done} of {Prep.Progress.Total} pieces ready")">
+            @for (var i = 0; i < 20; i++)
+            {
+                <span class="@(i < 20 * Prep.Progress.Done / Math.Max(1, Prep.Progress.Total) ? "on" : "")"></span>
+            }
+        </div>
+        <p class="page-panel-line">Once only: each piece is engraved, cut into excerpts and graded. The ones done are below already.</p>
+    </section>
+}
+@if (problem is not null)
+{
+    <p class="control-note" role="status">@problem</p>
+}
+
+<div class="control-row library-filters">
+    @foreach (var (key, label) in Filters)
+    {
+        <button type="button" class="mu-toggle" aria-pressed="@(filter == key ? "true" : "false")" @onclick="() => filter = key"><span class="mu-led"></span>@label</button>
+    }
+    <input class="text-field text-field-short" type="search" placeholder="Title or composer" aria-label="Find a piece" @bind="search" @bind:event="oninput" />
+</div>
+@if (filter == "near" && reading is not null)
+{
+    <p class="section-note">Pieces whose most of it reads at levels @Math.Max(1, reading.Level - 2) to @(reading.Level + 1); you read at @reading.Level. The collection starts around level 5.</p>
+}
+
+@foreach (var group in Shown().GroupBy(p => p.TypicalLevel ?? p.Level ?? 0).OrderBy(g => g.Key))
+{
+    <section class="settings-section" aria-labelledby="@($"level-{group.Key}")">
+        <h2 id="@($"level-{group.Key}")" class="section-title">@(group.Key == 0 ? "Not graded" : $"Level {group.Key}")</h2>
+        <ul class="piece-list">
+            @foreach (var piece in group.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
+            {
+                <li>
+                    <a class="piece-row" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
+                        <span class="piece-title">@piece.Title</span>
+                        <span class="piece-meta">@Meta(piece)</span>
+                        <span class="piece-level">@(piece.Level is { } l ? (piece.IsPdf ? $"~{l}" : $"{l}") : "–")</span>
+                        @if (piece.IsPdf || piece.Imported)
+                        {
+                            <span class="piece-tags">@if (piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (piece.Imported) { <span class="piece-tag">Yours</span> }</span>
+                        }
+                    </a>
+                </li>
+            }
+        </ul>
+    </section>
+}
+@if (pieces.Count > 0 && !Shown().Any())
+{
+    <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : ""). </p>
+}
+else if (pieces.Count == 0 && !Prep.Running)
+{
+    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import a MusicXML, MEI, ABC or PDF file meanwhile.</p>
+}
+
+<p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
+
+@code {
+    private static readonly (string Key, string Label)[] Filters = [("all", "Everything"), ("near", "Near my level"), ("notation", "To play along"), ("pdf", "PDFs"), ("mine", "Imported")];
+
+    private List<PieceRecord> pieces = [];
+    private ReadingState? reading;
+    private string filter = "all";
+    private string? search;
+    private string? problem;
+    private DateTime lastLoad;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reading = await Store.GetTrackAsync<ReadingState>("reading");
+        pieces = await Store.GetPiecesAsync();
+        Prep.Changed += Changed;
+        _ = Prep.EnsureAsync();
+    }
+
+    // While the collection's prepared, the list fills in, a second at a time at most.
+    private void Changed() => _ = InvokeAsync(async () =>
+    {
+        if (DateTime.Now - lastLoad > TimeSpan.FromSeconds(1) || !Prep.Running)
+        {
+            lastLoad = DateTime.Now;
+            pieces = await Store.GetPiecesAsync();
+        }
+        StateHasChanged();
+    });
+
+    private IEnumerable<PieceRecord> Shown() => pieces.Where(p => filter switch
+    {
+        "near" => reading is not null && (p.TypicalLevel ?? p.Level) is { } l && l >= reading.Level - 2 && l <= reading.Level + 1,
+        "notation" => !p.IsPdf,
+        "pdf" => p.IsPdf,
+        "mine" => p.Imported,
+        _ => true,
+    }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
+
+    private async Task Import()
+    {
+        problem = null;
+        if (await Files.PickAsync() is not { } picked)
+        {
+            problem = "No file chosen.";
+            return;
+        }
+
+        problem = $"Reading {picked.Name}…";
+        StateHasChanged();
+        var (id, why) = await Prep.ImportAsync(picked.Name, picked.Data);
+        if (id is null)
+        {
+            problem = why;
+            return;
+        }
+        Nav.NavigateTo($"library/{Uri.EscapeDataString(id)}");
+    }
+
+    public void Dispose() => Prep.Changed -= Changed;
+}

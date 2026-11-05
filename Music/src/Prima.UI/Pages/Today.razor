@@ -54,7 +54,7 @@
         <div class="mu-screen-head"><span><span class="mu-studio-only">Sight-read ▸ up next</span><span class="mu-vinyl-only">Up next</span></span><span>@NextPassage?.Description</span></div>
         @if (NextPassage is not null)
         {
-            <Sheet Mei="@nextMei" Scale="0.8" Class="today-sheet" />
+            <Sheet Mei="@nextMei" Measures="@nextMeasures" Scale="0.8" Class="today-sheet" />
         }
         <div class="today-foot">
             <div class="mu-readouts">
@@ -107,6 +107,7 @@
     private double todayMinutes;
     private Passage? NextPassage;
     private string nextMei = "";
+    private string? nextMeasures;
     private List<AttemptRecord> todayPassages = [];
     private bool pausing;
     private int pauseLeft;
@@ -134,9 +135,9 @@
             plan = DailyPlan.Build(Day0, Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
             await Store.SavePlanAsync(Day0, System.Text.Json.JsonSerializer.Serialize(plan, PrimaStore.Json));
         }
-        // The next passage, shown small: the one Sight-read gives next.
-        NextPassage = DayPassages.Next((reading ?? ReadingState.Start).Spec, Day0, todayPassages.Count, DayPassages.KeyOf(todayPassages.LastOrDefault()));
-        nextMei = MeiWriter.Write(NextPassage.Score, reading?.Tempo ?? 60);
+        // The next passage, shown small: the one Sight-read gives next, generated or a stretch of a real piece.
+        var next = await DayPassages.NextAsync(Store, reading ?? ReadingState.Start, Day0, todayPassages.Count, DayPassages.KeyOf(todayPassages.LastOrDefault()), reading?.Tempo ?? 60);
+        (NextPassage, nextMei, nextMeasures) = (next.Passage, next.Mei, next.Measures);
     }
 
     private bool Done(StepKind kind) => day?.StepsDone.Contains(kind + ";") == true;

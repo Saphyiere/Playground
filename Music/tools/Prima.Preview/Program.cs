@@ -16,10 +16,17 @@ using Prima.UI.Storage;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+// The MEI the browser makes from a MusicXML file comes back over SignalR, and a piece's is far bigger than its 32 KB default.
+builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddHubOptions(o => o.MaximumReceiveMessageSize = 16 * 1024 * 1024);
 builder.Services.AddSingleton<IClock, StopwatchClock>();
 builder.Services.AddSingleton<SimulatedKeyboard>();
 builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<SimulatedKeyboard>());
+// The Library's bundle, as the Library tool builds it (artifacts/library at the repo's root), and a file picker /files/next fills.
+var root = new DirectoryInfo(AppContext.BaseDirectory);
+while (root is not null && !File.Exists(Path.Combine(root.FullName, "Directory.Build.props"))) root = root.Parent;
+builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root?.FullName ?? ".", "artifacts", "library")));
+builder.Services.AddSingleton<PreviewFiles>();
+builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>());
 builder.Services.AddPrima(dbPath);
 
 var app = builder.Build();
@@ -91,6 +98,36 @@ app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyb
     return Results.Text("answered");
 });
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
+// The next file "picked" for an import: a file on this machine, by path.
+app.MapGet("/files/next", (string path, PreviewFiles files) =>
+{
+    files.Next = File.Exists(path) ? (Path.GetFileName(path), File.ReadAllBytes(path)) : null;
+    return Results.Text(files.Next is null ? "no such file" : $"next pick: {files.Next.Value.Name}");
+});
+// Plays a piece's notes in order at a tempo, as if from the piano: for following along. From event "from", "count" of them.
+app.MapGet("/keys/piece", async (string id, int? from, int? count, double? bpm, int? skip, PrimaStore store, SimulatedKeyboard keys) =>
+{
+    if (await store.GetMeiAsync(id) is not { } mei) return Results.Text("no such piece");
+
+    var events = Prima.Core.Library.ScoreEvents.From(Prima.Core.Music.MeiReader.Read(mei)).Skip(from ?? 0).Take(count ?? 1000).ToList();
+    if (events.Count == 0) return Results.Text("nothing to play");
+
+    // Each chord when it's due, as a player would: the follower takes notes as they come.
+    var start = events[0].Beat;
+    var secondsPerBeat = 60 / (bpm ?? 72);
+    var chords = events.Where((_, i) => skip is null || i % skip != skip - 1).Select(e => (At: TimeSpan.FromSeconds((e.Beat - start) * secondsPerBeat + 0.2), e.Pitches)).ToList();
+    _ = Task.Run(async () =>
+    {
+        var began = DateTime.UtcNow;
+        foreach (var (at, pitches) in chords)
+        {
+            var wait = at - (DateTime.UtcNow - began);
+            if (wait > TimeSpan.Zero) await Task.Delay(wait);
+            keys.Play(pitches, 70, (int)(secondsPerBeat * 800));
+        }
+    });
+    return Results.Text($"playing {chords.Count} chords from bar {events[0].Bar}");
+});
 
 app.Run();
 
@@ -213,5 +250,20 @@ static class Seeds
             cards[(clef, midi)] = card;
             await store.SaveAnswerAsync(card, new NoteAnswer(new DateTimeOffset(at.AddSeconds(i * 6)), clef, midi, right, ms), right ? midi : midi + 2, "notes");
         }
+    }
+}
+
+/// <summary>The preview's file picker: it hands over whatever /files/next set, once.</summary>
+sealed class PreviewFiles : IFiles
+{
+    public (string Name, byte[] Data)? Next { get; set; }
+
+    public Task<bool> OfferAsync(string path, string title) => Task.FromResult(false);
+
+    public Task<(string Name, byte[] Data)?> PickAsync()
+    {
+        var next = Next;
+        Next = null;
+        return Task.FromResult(next);
     }
 }

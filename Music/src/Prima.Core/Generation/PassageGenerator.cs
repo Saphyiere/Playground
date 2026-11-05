@@ -96,16 +96,19 @@ public static class PassageGenerator
                 else events.Add(Single(note.Start, note.Length, Pitch(note.Degree, onRight ? 1 : 2, note.Raise), note.Tuplet));
             }
 
-            // Ties at the higher levels: a note held over the bar line into the next bar's first note, when it's the same pitch.
-            if (spec.Ties) TieRepeatedNotes(right);
+            // Ties at the higher levels: a note held over the bar line into the next bar's first note, when it's the same pitch. Until
+            // syncopation comes in, only a note that starts on a beat is tied over (one off the beat, held across it, is syncopation).
+            if (spec.Ties) TieRepeatedNotes(right, spec.Cells.Any(c => c.Name == "syncopation") ? 1 : meter.BeatTicks);
 
             if (spec.Hands == Hands.Together) Accompany(left, harmony, bars);
 
             var allBars = new List<Bar>();
             if (hasPickup)
             {
-                // The dominant below the tonic, leading into bar 1.
-                var pick = Single(0, meter.BeatTicks, Pitch(-3, 1, 0), null);
+                // The dominant leading into bar 1: the one nearest the tune's first note, from below when it's as near.
+                var first = right.SelectMany(b => b).OfType<Notes>().FirstOrDefault()?.Tones[0].Pitch.Diatonic ?? Pitch(0, 1, 0).Diatonic;
+                var dominant = new[] { -10, -3, 4, 11, 18 }.MinBy(d => Math.Abs(Pitch(d, 1, 0).Diatonic - first) + (Pitch(d, 1, 0).Diatonic > first ? 0.5 : 0));
+                var pick = Single(0, meter.BeatTicks, Pitch(dominant, 1, 0), null);
                 allBars.Add(new Bar(0, [new Voice(1, [pick]), new Voice(2, [new Rest(Id("r"), 0, meter.BeatTicks) { Hidden = true }])]) { Length = meter.BeatTicks });
             }
 
@@ -223,10 +226,24 @@ public static class PassageGenerator
             var lastStep = 0;
             var totalNotes = rhythms.Sum(r => r.Count(n => !n.IsRest));
             var index = 0;
-            var direction = previous <= (low + high) / 2 ? 1 : -1;
+
+            // Level 1 moves only by step, so it's planned backwards from the tonic it closes on: a step away from it, then on by
+            // steps, turning at the edges of the hand's position.
+            int[]? walk = null;
+            if (spec.Level == 1)
+            {
+                walk = new int[totalNotes];
+                walk[^1] = Nearest(low, d => ((d % 7) + 7) % 7 == 0, low, high);
+                var direction = rng.Chance(0.5) ? 1 : -1;
+                for (var i = totalNotes - 2; i >= 0; i--)
+                {
+                    if (walk[i + 1] + direction > high || walk[i + 1] + direction < low) direction = -direction;
+                    walk[i] = walk[i + 1] + direction;
+                }
+            }
+
             for (var b = 0; b < bars; b++)
             {
-                if (spec.Level == 1 && (previous + direction > high || previous + direction < low)) direction = -direction;
                 var start = 0;
                 foreach (var (length, rest, tuplet) in rhythms[b])
                 {
@@ -242,12 +259,8 @@ public static class PassageGenerator
                     var strong = start == 0 || (meter.Compound ? start % 720 == 0 : meter.Beats % 2 == 0 && start == meter.BarTicks / 2);
                     var chord = new[] { harmony[b], harmony[b] + 2, harmony[b] + 4 }.Select(d => ((d % 7) + 7) % 7).ToHashSet();
                     int degree;
-                    if (index == totalNotes) degree = Nearest(previous, d => ((d % 7) + 7) % 7 == 0, low, high);
-                    else if (spec.Level == 1)
-                    {
-                        if (previous + direction > high || previous + direction < low) direction = -direction;
-                        degree = previous + direction;
-                    }
+                    if (walk is not null) degree = walk[index - 1];
+                    else if (index == totalNotes) degree = Nearest(previous, d => ((d % 7) + 7) % 7 == 0, low, high);
                     else
                     {
                         var penultimate = index == totalNotes - 1;
@@ -309,16 +322,23 @@ public static class PassageGenerator
             {
                 while (low < high - 4 && LedgerLines(Pitch(low, 2, 0), 2) > spec.LedgerLines) low++;
                 while (high > low + 4 && LedgerLines(Pitch(high, 2, 0), 2) > spec.LedgerLines) high--;
+
+                // A five-note position still too high or low for either hand's staff moves as a whole, rather than shrinking, until
+                // it fits and still holds a tonic to close on.
+                bool Fits(int degree) => LedgerLines(Pitch(degree, 1, 0), 1) <= spec.LedgerLines && LedgerLines(Pitch(degree, 2, 0), 2) <= spec.LedgerLines;
+                bool HasTonic(int from, int to) => Enumerable.Range(from, to - from + 1).Any(d => ((d % 7) + 7) % 7 == 0);
+                if (!Fits(high)) while ((!Fits(high) || !HasTonic(low, high)) && Fits(low - 1)) (low, high) = (low - 1, high - 1);
+                if (!Fits(low)) while ((!Fits(low) || !HasTonic(low, high)) && Fits(high + 1)) (low, high) = (low + 1, high + 1);
             }
             return (low, high);
         }
 
-        private static void TieRepeatedNotes(List<Event>[] bars)
+        private static void TieRepeatedNotes(List<Event>[] bars, int onBeat)
         {
             for (var b = 0; b + 1 < bars.Length; b++)
             {
                 if (bars[b].LastOrDefault() is not Notes { Tones.Count: 1, Tuplet: null } last || bars[b + 1].FirstOrDefault() is not Notes { Tones.Count: 1, Tuplet: null } first) continue;
-                if (last.Tones[0].Pitch != first.Tones[0].Pitch || last.Length > Ticks.Half) continue;
+                if (last.Tones[0].Pitch != first.Tones[0].Pitch || last.Length > Ticks.Half || last.Start % onBeat != 0) continue;
 
                 bars[b][^1] = last with { Tones = [last.Tones[0] with { TieToNext = true }] };
                 bars[b + 1][0] = first with { Tones = [first.Tones[0] with { TiedFromPrevious = true }] };
@@ -420,9 +440,11 @@ public static class PassageGenerator
 
             if (style == Style.Dance && meter == new Meter(3, 4))
             {
+                // Oom-pah-pah: the bass, then the chord on beats two and three; one note of it until two-note chords come in (level 6).
+                int[] upper = spec.Texture >= Texture.TwoNoteChords ? [2, 4] : [4];
                 events.Add(Single(0, 480, BassPitch(root), null));
-                events.Add(Chord(480, 480, root, [2, 4]));
-                events.Add(Chord(960, 480, root, [2, 4]));
+                events.Add(Chord(480, 480, root, upper));
+                events.Add(Chord(960, 480, root, upper));
                 return;
             }
 

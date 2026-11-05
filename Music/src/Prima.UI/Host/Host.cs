@@ -136,3 +136,37 @@ public sealed class NoFiles : IFiles
 
     public Task<(string Name, byte[] Data)?> PickAsync() => Task.FromResult<(string, byte[])?>(null);
 }
+
+/// <summary>The Library's bundled music: the manifest and the files it names (built by Music/tools/Prima.Library).</summary>
+public interface ILibraryBundle
+{
+    /// <summary>The bundle's manifest, or null when the app was built without one.</summary>
+    Task<Prima.Core.Library.LibraryManifest?> ManifestAsync();
+
+    /// <summary>A bundled file's bytes, by its path in the manifest.</summary>
+    Task<byte[]?> ReadAsync(string path);
+}
+
+/// <summary>No bundle: the Library holds only what's imported.</summary>
+public sealed class NoBundle : ILibraryBundle
+{
+    public Task<Prima.Core.Library.LibraryManifest?> ManifestAsync() => Task.FromResult<Prima.Core.Library.LibraryManifest?>(null);
+
+    public Task<byte[]?> ReadAsync(string path) => Task.FromResult<byte[]?>(null);
+}
+
+/// <summary>A bundle in a folder on disk: the preview's, from artifacts/library.</summary>
+public sealed class FolderBundle(string folder) : ILibraryBundle
+{
+    public async Task<Prima.Core.Library.LibraryManifest?> ManifestAsync()
+    {
+        var path = Path.Combine(folder, "manifest.json");
+        return File.Exists(path) ? Prima.Core.Library.LibraryManifest.Read(await File.ReadAllTextAsync(path)) : null;
+    }
+
+    public async Task<byte[]?> ReadAsync(string path)
+    {
+        var full = Path.GetFullPath(Path.Combine(folder, path));
+        return full.StartsWith(Path.GetFullPath(folder), StringComparison.Ordinal) && File.Exists(full) ? await File.ReadAllBytesAsync(full) : null;
+    }
+}

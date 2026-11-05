@@ -17,6 +17,7 @@ src/
   Prima.Core/             The music, the generator, scoring and practice logic. No UI; tested.
   Prima.UI/               The screens, the look (wwwroot/prima.css and its fonts) and the store (SQLite).
   Prima.Tablet/           The Android app: hosts the screens in a web view, and talks to the piano.
+tools/Prima.Library/      Builds the Library's bundle of public-domain music into artifacts/library (below).
 tools/Prima.Preview/      The screens in a browser against sample data, for checking them from the cloud.
 tests/Prima.Core.Tests/   Tests for the Core.
 docs/                     How it works, the plan and the research.
@@ -26,6 +27,27 @@ docs/                     How it works, the plan and the research.
 
 Visual Studio 2026 with the **.NET Multi-platform App UI development** workload, which brings the .NET 10 SDK, the Android SDK
 and a JDK. The repo's [README](../README.md) has the details, and the Workout app's README has the CLI-only route.
+
+## The Library's music
+
+The Library comes with about 240 public-domain and openly licensed pieces: 133 engravings from MuseScore users (through PDMX,
+as MusicXML) and 104 PDFs with their MIDI from the Mutopia Project, chosen by the named works in
+[docs/library.md](docs/library.md) (Czerny, Lemoine, Duvernoy, Anna Magdalena's notebook, Mozart's first pieces, Schumann's
+and Tchaikovsky's albums, Clementi, Burgmüller, Bach's Little Preludes and Inventions, Satie, Chopin's Preludes, Joplin and
+more). The files aren't in the repo: build the bundle once before building the app, and again whenever the tool changes.
+
+```bash
+dotnet run --project Music/tools/Prima.Library
+```
+
+It takes about 15 minutes: it reads PDMX's index (225 MB) and one pass through its 1.9 GB archive of MusicXML, keeping only the
+chosen files, then crawls Mutopia for the PDFs and MIDI. Downloads are kept in `artifacts/library-cache`, so a second run only
+fetches what's missing; `-- pdmx` or `-- mutopia` runs one source. The bundle lands in `artifacts/library` (about 14 MB), and the
+tablet project packs it into the app when it's there. The first time the Library opens on the tablet, it engraves each
+MusicXML piece once, cuts it into excerpts and grades them (a minute or two, in the background).
+
+Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC and PDF. For MIDI, MuseScore files or Humdrum, export
+MusicXML on the PC first.
 
 ## Putting it on the tablet
 
@@ -79,7 +101,14 @@ TZ=America/Los_Angeles dotnet run --project Music/tools/Prima.Preview
 curl -s http://127.0.0.1:5299/seed/empty
 ```
 
+The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `months`. The Library uses the bundle in
+`artifacts/library` (built as above) and prepares it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
+in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine.
+
 ## Licences
 
 The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SIL Open Font License; their licences are next to
-them in `src/Prima.UI/wwwroot/fonts`.
+them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
+licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
+comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
+Mutopia Project.

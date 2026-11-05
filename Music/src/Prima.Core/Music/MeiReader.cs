@@ -43,7 +43,6 @@ public static class MeiReader
                 continue;
             }
 
-            number = int.TryParse((string?)element.Attribute("n"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : number + 1;
             var voices = new List<Voice>();
             var length = 0;
             foreach (var staff in element.Elements(Mei + "staff"))
@@ -63,11 +62,23 @@ public static class MeiReader
             if (length == 0) length = meter.BarTicks;
             voices = [.. voices.Select(v => v with { Events = [.. v.Events.Select(e => e is Rest { Length: 0 } bar ? bar with { Length = length } : e)] })];
             var pickup = (string?)element.Attribute("metcon") == "false" || (bars.Count == 0 && length < meter.BarTicks);
+            // Bars are numbered in order, a pickup 0, whatever the file says: files repeat numbers (two endings both 17) or skip
+            // them. Renumber puts the same numbers in the MEI, so the printed ones agree.
+            number = bars.Count == 0 ? (pickup ? 0 : 1) : number + 1;
             bars.Add(new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter });
             (newKey, newMeter) = (null, null);
         }
 
         return new Score(startKey, startMeter, bars) { Title = string.IsNullOrEmpty(title) ? null : title, RhythmOnly = staffCount == 1 };
+    }
+
+    /// <summary>The MEI with its bars numbered as <see cref="Read"/> numbers them, so the bar numbers printed are the ones Prima says.</summary>
+    public static string Renumber(string mei, Score score)
+    {
+        var document = XDocument.Parse(mei);
+        var measures = document.Descendants(Mei + "measure").ToList();
+        for (var i = 0; i < measures.Count && i < score.Bars.Count; i++) measures[i].SetAttributeValue("n", score.Bars[i].Number.ToString(CultureInfo.InvariantCulture));
+        return document.ToString(SaveOptions.DisableFormatting);
     }
 
     private static string Id(string? reference) => reference?.TrimStart('#') ?? "";

@@ -1,0 +1,49 @@
+// Builds the Library's bundle: public-domain and openly licensed piano music, chosen by the named works in Music/docs/library.md,
+// into artifacts/library with the manifest the app reads. The files are fetched, never committed.
+//
+//   dotnet run --project Music/tools/Prima.Library            both sources
+//   dotnet run --project Music/tools/Prima.Library -- pdmx    PDMX only (MusicXML from MuseScore users, about 10 minutes)
+//   dotnet run --project Music/tools/Prima.Library -- mutopia the Mutopia Project only (PDF and MIDI)
+//
+// What it downloads is kept in artifacts/library-cache, so a second run only fetches what's missing.
+using System.Diagnostics;
+using Prima.Core.Library;
+using Prima.Library;
+
+var root = FindRoot(AppContext.BaseDirectory) ?? FindRoot(Directory.GetCurrentDirectory()) ?? throw new InvalidOperationException("Run this inside the Playground repo.");
+var output = Path.Combine(root, "artifacts", "library");
+var cache = Path.Combine(root, "artifacts", "library-cache");
+Directory.CreateDirectory(Path.Combine(output, "pieces"));
+Directory.CreateDirectory(cache);
+
+var only = args.FirstOrDefault()?.ToLowerInvariant();
+using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+http.DefaultRequestHeaders.UserAgent.ParseAdd("Prima-Library/1.0");
+
+var manifestPath = Path.Combine(output, "manifest.json");
+var previous = File.Exists(manifestPath) ? LibraryManifest.Read(await File.ReadAllTextAsync(manifestPath)).Pieces : [];
+var pieces = new List<BundledPiece>();
+var clock = Stopwatch.StartNew();
+
+if (only is null or "pdmx") pieces.AddRange(await Pdmx.Fetch(http, cache, output));
+else pieces.AddRange(previous.Where(p => p.Source == Pdmx.Name));
+
+if (only is null or "mutopia") pieces.AddRange(await Mutopia.Fetch(http, output));
+else pieces.AddRange(previous.Where(p => p.Source == Mutopia.Name));
+
+// Files no piece names any more (a piece dropped from the selection) are removed, so the bundle holds only what's listed.
+var named = pieces.SelectMany(p => new[] { p.File, p.Midi }).OfType<string>().Select(f => Path.GetFullPath(Path.Combine(output, f))).ToHashSet();
+foreach (var file in Directory.EnumerateFiles(Path.Combine(output, "pieces")).Where(f => !named.Contains(Path.GetFullPath(f)))) File.Delete(file);
+
+var manifest = new LibraryManifest(1, DateTime.UtcNow.ToString("yyyy-MM-dd"), [.. pieces.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)]);
+await File.WriteAllTextAsync(manifestPath, manifest.Write());
+Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({manifest.Pieces.Count(p => p.Format == "mxl")} MusicXML, {manifest.Pieces.Count(p => p.Format == "pdf")} PDF), in {clock.Elapsed:m\\:ss}.");
+
+static string? FindRoot(string from)
+{
+    for (var dir = new DirectoryInfo(from); dir is not null; dir = dir.Parent)
+    {
+        if (File.Exists(Path.Combine(dir.FullName, "Directory.Build.props")) && Directory.Exists(Path.Combine(dir.FullName, "Music"))) return dir.FullName;
+    }
+    return null;
+}

@@ -19,6 +19,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IClick, AndroidClick>();
         builder.Services.AddSingleton<IScreen, AndroidScreen>();
         builder.Services.AddSingleton<IFiles, AndroidFiles>();
+        builder.Services.AddSingleton<ILibraryBundle, AndroidBundle>();
         builder.Services.AddPrima(Path.Combine(FileSystem.AppDataDirectory, "prima.db"));
 
 #if DEBUG

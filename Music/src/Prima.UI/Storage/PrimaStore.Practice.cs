@@ -138,8 +138,8 @@ public sealed partial class PrimaStore
         "INSERT INTO PracticeDay (Day, StepsDone, ShortDone) VALUES (@day, @step, @done) ON CONFLICT (Day) DO UPDATE SET StepsDone = CASE WHEN instr(StepsDone, @step) > 0 THEN StepsDone ELSE StepsDone || @step END, ShortDone = MAX(ShortDone, excluded.ShortDone)",
         new { day = Iso(day), step = step + ";", done = shortPlanDone ? 1 : 0 }));
 
-    /// <summary>Deletes everything practised, keeping the settings: "start over".</summary>
-    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay;"));
+    /// <summary>Deletes everything practised, keeping the settings and the Library's pieces: "start over".</summary>
+    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
 
     /// <summary>The database file, for backing up.</summary>
     public string DatabasePath => databasePath;

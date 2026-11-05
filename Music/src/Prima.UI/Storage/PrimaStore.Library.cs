@@ -1,0 +1,167 @@
+using System.Globalization;
+using Dapper;
+using Microsoft.Data.Sqlite;
+using Prima.Core.Library;
+
+namespace Prima.UI.Storage;
+
+/// <summary>
+/// A piece in the Library: bundled or imported, notation (kept as the MEI Verovio made from it) or a PDF (kept as a file, with the
+/// MIDI made from the same engraving when there is one). Its level is its hardest excerpt's; PDFs have none. Layout holds how a
+/// PDF plays out (its systems, metre and tempo), and Position where you were, both as JSON.
+/// </summary>
+public sealed record PieceRecord(
+    string Id,
+    string Origin,
+    string Title,
+    string Composer,
+    string? Work,
+    string Format,
+    string? File,
+    string? Midi,
+    int? Level,
+    int? TypicalLevel,
+    string? Reasons,
+    int? Bars,
+    string? Source,
+    string? SourceUrl,
+    string? Licence,
+    string? LicenceUrl,
+    string? Credit,
+    string? Tier,
+    double? Tempo,
+    string? Layout,
+    string? Position,
+    DateTimeOffset Added,
+    DateTimeOffset? Opened)
+{
+    public bool IsPdf => Format == "pdf";
+
+    public bool Imported => Origin == "import";
+}
+
+/// <summary>An excerpt of a piece for the sight-reading track: its bars, level, and when it was last read.</summary>
+public sealed record ExcerptRecord(long Id, string Piece, int FirstBar, int LastBar, int Level, double Within, int Used, DateOnly? LastUsed);
+
+public sealed partial class PrimaStore
+{
+    private const string LibrarySchema = """
+        CREATE TABLE IF NOT EXISTS Piece (
+            Id TEXT PRIMARY KEY,
+            Origin TEXT NOT NULL,
+            Title TEXT NOT NULL,
+            Composer TEXT NOT NULL,
+            Work TEXT,
+            Format TEXT NOT NULL,
+            File TEXT,
+            Midi TEXT,
+            Mei TEXT,
+            Level INTEGER,
+            TypicalLevel INTEGER,
+            Reasons TEXT,
+            Bars INTEGER,
+            Source TEXT,
+            SourceUrl TEXT,
+            Licence TEXT,
+            LicenceUrl TEXT,
+            Credit TEXT,
+            Tier TEXT,
+            Tempo REAL,
+            Layout TEXT,
+            Position TEXT,
+            Added TEXT NOT NULL,
+            Opened TEXT
+        );
+        CREATE TABLE IF NOT EXISTS Excerpt (
+            Id INTEGER PRIMARY KEY,
+            Piece TEXT NOT NULL REFERENCES Piece (Id) ON DELETE CASCADE,
+            FirstBar INTEGER NOT NULL,
+            LastBar INTEGER NOT NULL,
+            Level INTEGER NOT NULL,
+            Within REAL NOT NULL,
+            Used INTEGER NOT NULL DEFAULT 0,
+            LastUsed TEXT
+        );
+        CREATE INDEX IF NOT EXISTS ExcerptByLevel ON Excerpt (Level, LastUsed);
+        """;
+
+    private const string PieceColumns = "Id, Origin, Title, Composer, Work, Format, File, Midi, Level, TypicalLevel, Reasons, Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position, Added, Opened";
+
+    /// <summary>The folder imported files are kept in, beside the data file.</summary>
+    public string FilesPath => Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", "library");
+
+    /// <summary>Every piece, without its music: for the Library's list.</summary>
+    public Task<List<PieceRecord>> GetPiecesAsync() => RunAsync(async c => (await c.QueryAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece")).Select(r => r.ToRecord()).ToList());
+
+    public Task<PieceRecord?> GetPieceAsync(string id) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece WHERE Id = @id", new { id }))?.ToRecord());
+
+    /// <summary>A notation piece's MEI.</summary>
+    public Task<string?> GetMeiAsync(string id) => RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
+
+    /// <summary>The pieces already in the Library, by id: so a bundled piece is prepared once.</summary>
+    public Task<HashSet<string>> GetPieceIdsAsync() => RunAsync(async c => (await c.QueryAsync<string>("SELECT Id FROM Piece")).ToHashSet());
+
+    /// <summary>Saves a piece with its MEI (null for a PDF) and its excerpts, replacing any it had.</summary>
+    public Task SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<ExcerptCut> excerpts) => RunAsync(async c =>
+    {
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        await c.ExecuteAsync($"""
+            INSERT INTO Piece ({PieceColumns}, Mei) VALUES (@Id, @Origin, @Title, @Composer, @Work, @Format, @File, @Midi, @Level, @TypicalLevel, @Reasons, @Bars, @Source, @SourceUrl, @Licence, @LicenceUrl, @Credit, @Tier, @Tempo, @Layout, @Position, @Added, @Opened, @mei)
+            ON CONFLICT (Id) DO UPDATE SET Title = excluded.Title, Composer = excluded.Composer, Work = excluded.Work, Format = excluded.Format, File = excluded.File, Midi = excluded.Midi,
+                Level = excluded.Level, TypicalLevel = excluded.TypicalLevel, Reasons = excluded.Reasons, Bars = excluded.Bars, Source = excluded.Source, SourceUrl = excluded.SourceUrl,
+                Licence = excluded.Licence, LicenceUrl = excluded.LicenceUrl, Credit = excluded.Credit, Tier = excluded.Tier, Mei = excluded.Mei
+            """, PieceRow.From(piece, mei), transaction);
+        await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id", new { id = piece.Id }, transaction);
+        foreach (var cut in excerpts)
+        {
+            await c.ExecuteAsync("INSERT INTO Excerpt (Piece, FirstBar, LastBar, Level, Within) VALUES (@piece, @first, @last, @level, @within)",
+                new { piece = piece.Id, first = cut.FirstBar, last = cut.LastBar, level = cut.Grade.Level, within = cut.Grade.Within }, transaction);
+        }
+        await transaction.CommitAsync();
+    });
+
+    /// <summary>A bundled piece's details from a newer bundle; a PDF's level comes with them (a notation piece's is graded).</summary>
+    public Task RefreshPieceAsync(string id, string title, string composer, string work, string credit, string licence, string licenceUrl, string sourceUrl, int? pdfLevel) => RunAsync(c => c.ExecuteAsync(
+        """
+        UPDATE Piece SET Title = @title, Composer = @composer, Work = @work, Credit = @credit, Licence = @licence, LicenceUrl = @licenceUrl, SourceUrl = @sourceUrl,
+            Level = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE TypicalLevel END
+        WHERE Id = @id AND Origin = 'bundle'
+        """, new { id, title, composer, work, credit, licence, licenceUrl, sourceUrl, pdfLevel }));
+
+    public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
+
+    /// <summary>What you set for a piece: its tempo, its PDF layout, where you were. Null leaves a value as it is.</summary>
+    public Task SetPieceAsync(string id, double? tempo = null, string? layout = null, string? position = null) => RunAsync(c => c.ExecuteAsync(
+        "UPDATE Piece SET Tempo = COALESCE(@tempo, Tempo), Layout = COALESCE(@layout, Layout), Position = COALESCE(@position, Position), Opened = @opened WHERE Id = @id",
+        new { id, tempo, layout, position, opened = Iso(DateTimeOffset.Now) }));
+
+    /// <summary>
+    /// Excerpts a reader at <paramref name="level"/> can be given: at or below it (and at least level 4, since levels 1–3 are the
+    /// generator's), of about the passage length for the level, and not read in the last <paramref name="restDays"/> days, least
+    /// used and hardest first.
+    /// </summary>
+    public Task<List<ExcerptRecord>> GetExcerptsAsync(int level, int bars, DateOnly today, int restDays = 21) => RunAsync(async c => (await c.QueryAsync<(long Id, string Piece, long FirstBar, long LastBar, long Level, double Within, long Used, string? LastUsed)>(
+        "SELECT Id, Piece, FirstBar, LastBar, Level, Within, Used, LastUsed FROM Excerpt WHERE Level <= @level AND Level >= 4 AND (LastUsed IS NULL OR LastUsed < @rested) AND (LastBar - MAX(FirstBar, 1) + 1) = @bars ORDER BY Used, Level DESC, Within DESC, Id",
+        new { level, bars, rested = Iso(today.AddDays(-restDays)) }))
+        .Select(r => new ExcerptRecord(r.Id, r.Piece, (int)r.FirstBar, (int)r.LastBar, (int)r.Level, r.Within, (int)r.Used, r.LastUsed is null ? null : DateOnly.Parse(r.LastUsed, CultureInfo.InvariantCulture))).ToList());
+
+    public Task<ExcerptRecord?> GetExcerptAsync(long id) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<(long Id, string Piece, long FirstBar, long LastBar, long Level, double Within, long Used, string? LastUsed)?>(
+        "SELECT Id, Piece, FirstBar, LastBar, Level, Within, Used, LastUsed FROM Excerpt WHERE Id = @id", new { id })) is { } r
+        ? new ExcerptRecord(r.Id, r.Piece, (int)r.FirstBar, (int)r.LastBar, (int)r.Level, r.Within, (int)r.Used, r.LastUsed is null ? null : DateOnly.Parse(r.LastUsed, CultureInfo.InvariantCulture)) : null);
+
+    public Task MarkExcerptReadAsync(long id, DateOnly day) => RunAsync(c => c.ExecuteAsync("UPDATE Excerpt SET Used = Used + 1, LastUsed = @day WHERE Id = @id", new { id, day = Iso(day) }));
+
+    // Dapper's view of a row: dates as text.
+    private sealed record PieceRow(string Id, string Origin, string Title, string Composer, string? Work, string Format, string? File, string? Midi, long? Level, long? TypicalLevel, string? Reasons, long? Bars,
+        string? Source, string? SourceUrl, string? Licence, string? LicenceUrl, string? Credit, string? Tier, double? Tempo, string? Layout, string? Position, string Added, string? Opened)
+    {
+        public PieceRecord ToRecord() => new(Id, Origin, Title, Composer, Work, Format, File, Midi, (int?)Level, (int?)TypicalLevel, Reasons, (int?)Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position,
+            DateTimeOffset.Parse(Added, CultureInfo.InvariantCulture), Opened is null ? null : DateTimeOffset.Parse(Opened, CultureInfo.InvariantCulture));
+
+        public static object From(PieceRecord p, string? mei) => new
+        {
+            p.Id, p.Origin, p.Title, p.Composer, p.Work, p.Format, p.File, p.Midi, p.Level, p.TypicalLevel, p.Reasons, p.Bars, p.Source, p.SourceUrl, p.Licence, p.LicenceUrl, p.Credit, p.Tier, p.Tempo, p.Layout, p.Position,
+            Added = Iso(p.Added), Opened = p.Opened is { } o ? Iso(o) : null, mei,
+        };
+    }
+}

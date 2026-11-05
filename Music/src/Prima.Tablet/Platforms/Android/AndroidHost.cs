@@ -44,3 +44,24 @@ public sealed class AndroidFiles : IFiles
         return (picked.FileName, memory.ToArray());
     }
 }
+
+/// <summary>The Library's bundle, packed into the app under library/ when it was built.</summary>
+public sealed class AndroidBundle : ILibraryBundle
+{
+    public async Task<Prima.Core.Library.LibraryManifest?> ManifestAsync() => await ReadAsync("manifest.json") is { } bytes ? Prima.Core.Library.LibraryManifest.Read(System.Text.Encoding.UTF8.GetString(bytes)) : null;
+
+    public async Task<byte[]?> ReadAsync(string path)
+    {
+        try
+        {
+            await using var stream = await FileSystem.OpenAppPackageFileAsync("library/" + path);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            return memory.ToArray();
+        }
+        catch (System.Exception e) when (e is FileNotFoundException or Java.IO.FileNotFoundException)
+        {
+            return null;
+        }
+    }
+}

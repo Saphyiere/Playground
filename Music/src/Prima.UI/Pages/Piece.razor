@@ -1,0 +1,718 @@
+@page "/library/{Id}"
+@implements IAsyncDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject IScreen Screen
+@inject Click Click
+@inject ILibraryBundle Bundle
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@using System.Text.Json
+@using Prima.Core.Library
+@using Prima.Core.Scoring
+
+<PageTitle>@(piece?.Title ?? "Piece") · Prima</PageTitle>
+
+@if (piece is null)
+{
+    <PageHead Title="Library" Kicker="@(missing ? "Not in the Library" : "Opening…")" />
+}
+else
+{
+    <div class="piece">
+        <header class="reading-head">
+            <div>
+                <p class="page-kicker">@Kicker()</p>
+                <h1 class="page-title">@piece.Title</h1>
+            </div>
+            <KeyboardLamp />
+        </header>
+
+        <section class="reading-bar piece-bar" aria-label="The piece">
+            <p class="piece-bar-title">@piece.Title</p>
+            <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">@(piece.IsPdf && view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
+            <div class="piece-actions">
+                <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
+                <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
+                @if (!piece.IsPdf)
+                {
+                    <button type="button" class="mu-btn @(following ? "mu-primary" : "")" @onclick="ToggleFollow">@(following ? "Stop" : "Follow me")</button>
+                }
+                else if (view == View.Scroll)
+                {
+                    <button type="button" class="mu-btn mu-primary" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                }
+            </div>
+        </section>
+
+        <div class="piece-frame @(piece.IsPdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !piece.IsPdf ? "piece-frame-scroll" : "")" @ref="frame"
+             @onpointerdown="Down" @onpointerup="Up">
+            @if (piece.IsPdf)
+            {
+                @if (pdfBytes is not null)
+                {
+                    <PdfPages @ref="pdf" Data="pdfBytes" Class="piece-pdf" OnOpened="Opened" />
+                }
+            }
+            else if (mei is not null)
+            {
+                <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="piece-sheet" OnPages="Pages" OnPainted="Painted" />
+            }
+            @if (view == View.Pages)
+            {
+                <button type="button" class="turn-zone turn-back" aria-label="Back a page" @onclick="() => Tapped(-1)"></button>
+                <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
+            }
+        </div>
+
+        @if (summary is not null)
+        {
+            <section class="summary" aria-label="How it went">
+                <ul class="summary-words">
+                    @foreach (var line in summary)
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
+            </section>
+        }
+
+        <section class="settings-section piece-controls" aria-label="Playing it">
+            <div class="control-row">
+                <span class="control-label">View</span>
+                <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
+                <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(piece.IsPdf ? "Scroll at the tempo" : "Scroll")</button>
+                @if (piece.IsPdf && view == View.Pages)
+                {
+                    <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
+                }
+            </div>
+            <div class="control-row">
+                <span class="control-label">Tempo</span>
+                <button type="button" class="mu-btn" aria-label="Slower" @onclick="() => SetTempo(tempo - 4)">−</button>
+                <span class="control-value">@tempo.ToString("0", CultureInfo.InvariantCulture) a minute</span>
+                <button type="button" class="mu-btn" aria-label="Faster" @onclick="() => SetTempo(tempo + 4)">+</button>
+                @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
+                {
+                    <button type="button" class="mu-btn" @onclick="ToggleHear">@(hearing ? "Stop" : "Hear it on the piano")</button>
+                }
+            </div>
+            @if (piece.IsPdf)
+            {
+                <div class="control-row">
+                    <span class="control-label">Bars</span>
+                    <button type="button" class="mu-btn" aria-label="Fewer beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar - 1)">−</button>
+                    <span class="control-value">@pdfLayout.BeatsPerBar beats a bar</span>
+                    <button type="button" class="mu-btn" aria-label="More beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar + 1)">+</button>
+                    <button type="button" class="mu-btn" aria-label="Fewer bars a line" @onclick="() => SetBarsPerSystem(-1)">−</button>
+                    <span class="control-value">@BarsPerSystemText() a line</span>
+                    <button type="button" class="mu-btn" aria-label="More bars a line" @onclick="() => SetBarsPerSystem(1)">+</button>
+                </div>
+                <p class="section-note">Scrolling moves a line at a time, after a bar of count-in, at the tempo: bars a line × beats a bar × 60 ÷ tempo seconds a line. @(midi is not null ? "The tempo and metre start from the piece's MIDI." : "")</p>
+            }
+            else
+            {
+                <div class="control-row">
+                    <span class="control-label">Practise bars</span>
+                    <button type="button" class="mu-btn" aria-label="Start a bar earlier" @onclick="() => SetBars(from - 1, to)">−</button>
+                    <span class="control-value">@from to @to</span>
+                    <button type="button" class="mu-btn" aria-label="End a bar later" @onclick="() => SetBars(from, to + 1)">+</button>
+                    <button type="button" class="mu-btn" aria-label="Move on four bars" @onclick="() => SetBars(from + 4, to + 4)">Next four</button>
+                    <a class="mu-btn mu-primary" href="@PractiseHref()">Practise them</a>
+                </div>
+                <p class="section-note">Practise opens the reading screen on just those bars: a bar of count-in, the click, and the same marks and timing after. Follow me listens as you play the whole piece at your own pace, keeps your bar lit and turns the page early, about two seconds before the music runs out; the marks come after.</p>
+            }
+        </section>
+
+        <section class="settings-section" aria-labelledby="about-heading">
+            <h2 id="about-heading" class="section-title">About this piece</h2>
+            <ul class="summary-words">
+                @if (piece.Reasons is { Length: > 0 } reasons)
+                {
+                    <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
+                }
+                else if (piece.IsPdf && piece.Level is { } anchor)
+                {
+                    <li>About level @anchor, where its collection sits; a PDF's notes can't be read to grade it.</li>
+                }
+                @if (piece.Credit is { Length: > 0 } credit)
+                {
+                    <li>@credit @if (piece.LicenceUrl is { Length: > 0 }) { <a href="@piece.LicenceUrl" target="_blank" rel="noopener">@piece.Licence</a> } @if (piece.SourceUrl is { Length: > 0 }) { <span> · </span><a href="@piece.SourceUrl" target="_blank" rel="noopener">Source</a> }</li>
+                }
+                else if (piece.Imported)
+                {
+                    <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture) from @piece.File.</li>
+                }
+            </ul>
+            @if (piece.Imported)
+            {
+                <div class="control-row">
+                    @if (removing)
+                    {
+                        <button type="button" class="mu-btn mu-primary" @onclick="Remove">Remove it</button>
+                        <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private enum View { Pages, Scroll }
+
+    [Parameter] public string Id { get; set; } = "";
+
+    private PieceRecord? piece;
+    private bool missing;
+    private string? mei;
+    private Score? score;
+    private byte[]? pdfBytes;
+    private MidiFile? midi;
+    private Sheet? sheet;
+    private PdfPages? pdf;
+    private ElementReference frame;
+    private View view = View.Pages;
+    private int page = 1;
+    private int pages = 1;
+    private double tempo = 72;
+    private int from = 1;
+    private int to = 4;
+    private bool removing;
+    private List<string>? summary;
+    private IJSObjectReference? turns;
+    private IJSObjectReference? keys;
+    private DotNetObjectReference<Piece>? self;
+    private double pointerX;
+    private bool swiped;
+
+    // Following.
+    private bool following;
+    private Follower? follower;
+    private IReadOnlyList<ScoreEvent> events = [];
+    private readonly List<(int Midi, long OnNs)> played = [];
+    private HashSet<string> onThisPage = [];
+    private Timer? ticker;
+    private DateTime followStarted;
+
+    // A PDF's pdfLayout, kept with the piece: each page's systems (in px at 900 wide), its metre and bars a line.
+    private sealed record PdfLayoutState(List<List<PageSystem>> Pages, int BeatsPerBar, double Bpm);
+
+    private PdfLayoutState pdfLayout = new([], 4, 72);
+    private IReadOnlyList<double> ratios = [];
+    private double drawnWidth;
+    private double y;
+    private bool halfTurns = true;
+    private int? half;
+    private bool scrolling;
+    private bool hearing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        piece = await Store.GetPieceAsync(Id);
+        if (piece is null)
+        {
+            missing = true;
+            return;
+        }
+
+        tempo = piece.Tempo ?? 72;
+        if (piece.IsPdf)
+        {
+            pdfBytes = await ReadFile(piece.File);
+            if (piece.Midi is not null && await ReadFile(piece.Midi) is { } bytes)
+            {
+                try
+                {
+                    midi = MidiFile.Read(bytes);
+                }
+                catch (FormatException)
+                {
+                }
+            }
+            if (piece.Layout is { } json) pdfLayout = JsonSerializer.Deserialize<PdfLayoutState>(json, PrimaStore.Json) ?? pdfLayout;
+            else if (midi is not null) pdfLayout = pdfLayout with { BeatsPerBar = midi.BeatsPerBar, Bpm = Math.Round(midi.Bpm) };
+            tempo = piece.Tempo ?? pdfLayout.Bpm;
+        }
+        else
+        {
+            mei = await Store.GetMeiAsync(Id);
+            if (mei is not null)
+            {
+                score = MeiReader.Read(mei);
+                events = ScoreEvents.From(score);
+                var lastBar = score.Bars[^1].Number;
+                (from, to) = (1, Math.Min(lastBar, 4));
+            }
+        }
+
+        if (piece.Position is { } position && JsonSerializer.Deserialize<Dictionary<string, double>>(position) is { } saved)
+        {
+            page = (int)saved.GetValueOrDefault("page", 1);
+            y = saved.GetValueOrDefault("y", 0);
+        }
+        await Store.SetPieceAsync(Id);
+    }
+
+    // A bundled file, or one imported into the Library's folder.
+    private async Task<byte[]?> ReadFile(string? file)
+    {
+        if (file is null) return null;
+        if (piece!.Imported)
+        {
+            var path = Path.Combine(Store.FilesPath, file);
+            return File.Exists(path) ? await File.ReadAllBytesAsync(path) : null;
+        }
+        return await Bundle.ReadAsync(file);
+    }
+
+    private bool listening;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Once: a render while the import below is awaited mustn't listen to the piano a second time.
+        if (piece is null || listening) return;
+
+        listening = true;
+        turns = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/turns.js");
+        self = DotNetObjectReference.Create(this);
+        keys = await turns.InvokeAsync<IJSObjectReference>("listenKeys", self);
+        Keyboard.Received += Heard;
+    }
+
+    private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
+
+    private string LevelText() => piece!.Level is { } level ? (piece.IsPdf ? $"~{level}" : $"{level}") : "–";
+
+    private string PlaceText() => piece!.IsPdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    private string PractiseHref() => $"sight-read?piece={Uri.EscapeDataString(Id)}&bars={from}-{to}&tempo={tempo:0}";
+
+    // Turning: buttons, the screen's thirds, a swipe, keys, the soft and sostenuto pedals, or the keyboard's top and bottom keys.
+    [JSInvokable]
+    public async Task Turn(int by)
+    {
+        if (piece is null) return;
+        if (piece.IsPdf) await TurnPdf(by);
+        else if (view == View.Pages) page = Math.Clamp(page + by, 1, pages);
+        await SavePosition();
+        StateHasChanged();
+    }
+
+    private Task Tapped(int by)
+    {
+        if (swiped)
+        {
+            swiped = false;
+            return Task.CompletedTask;
+        }
+        return Turn(by);
+    }
+
+    private void Down(PointerEventArgs e) => (pointerX, swiped) = (e.ClientX, false);
+
+    private async Task Up(PointerEventArgs e)
+    {
+        var dx = e.ClientX - pointerX;
+        if (Math.Abs(dx) < 80) return;
+
+        swiped = true;
+        await Turn(dx < 0 ? 1 : -1);
+    }
+
+    private void Heard(MidiEvent e)
+    {
+        var by = e switch
+        {
+            { Kind: MidiKind.Control, Data1: MidiEvent.Soft, Data2: >= 64 } => 1,
+            { Kind: MidiKind.Control, Data1: MidiEvent.Sostenuto, Data2: >= 64 } => -1,
+            { Kind: MidiKind.NoteOn, Data1: NoteName.HighestKey } => 1,
+            { Kind: MidiKind.NoteOn, Data1: NoteName.LowestKey } => -1,
+            _ => 0,
+        };
+        if (by != 0)
+        {
+            _ = InvokeAsync(() => Turn(by));
+            return;
+        }
+
+        if (following && e.Kind == MidiKind.NoteOn) _ = InvokeAsync(() => Follow(e.Data1, e.TimeNs));
+    }
+
+    private Task Pages(int count)
+    {
+        pages = Math.Max(1, count);
+        page = Math.Clamp(page, 1, pages);
+        return Task.CompletedTask;
+    }
+
+    private async Task Painted(long _)
+    {
+        // What's on this page, for the turn rule; and the bar lit, if following.
+        if (sheet is null || events.Count == 0) return;
+
+        onThisPage = [.. await sheet.OnPage(events.Select(e => e.Ids[0]))];
+        if (following && follower is not null) await Light();
+    }
+
+    private async Task SetView(View to)
+    {
+        StopScroll();
+        view = to;
+        if (piece!.IsPdf) await ShowPdf();
+    }
+
+    private async Task SetTempo(double bpm)
+    {
+        tempo = Math.Clamp(bpm, 20, 240);
+        await Store.SetPieceAsync(Id, tempo: tempo);
+    }
+
+    private void SetBars(int first, int last)
+    {
+        var lastBar = score?.Bars[^1].Number ?? 1;
+        from = Math.Clamp(first, 1, lastBar);
+        to = Math.Clamp(Math.Max(last, from), from, Math.Min(lastBar, from + 15));
+    }
+
+    private Task SavePosition() => Store.SetPieceAsync(Id, position: JsonSerializer.Serialize(new Dictionary<string, double> { ["page"] = page, ["y"] = y }));
+
+    // ——— Following a notation piece ———
+
+    private async Task ToggleFollow()
+    {
+        if (following)
+        {
+            await StopFollowing();
+            return;
+        }
+
+        (following, summary, follower) = (true, null, new Follower(events, tempo));
+        played.Clear();
+        followStarted = DateTime.Now;
+        Screen.KeepOn(true);
+        if (sheet is not null) await sheet.ClearMarks();
+        ticker = new Timer(_ => InvokeAsync(TurnIfDue), null, 250, 250);
+        await Light();
+    }
+
+    private async Task Follow(int midi, long timeNs)
+    {
+        if (follower is null) return;
+
+        played.Add((midi, timeNs));
+        if (follower.NoteOn(midi, timeNs)) await Light();
+    }
+
+    // The bar of the next note to play is lit; if it's on another page (a restart, a skip), that page shows.
+    private async Task Light()
+    {
+        if (sheet is null || follower is null || events.Count == 0) return;
+
+        var next = events[Math.Min(follower.Position, events.Count - 1)];
+        var id = next.Ids[0];
+        if (view == View.Pages && !onThisPage.Contains(id) && await sheet.PageOf(id) is > 0 and var where && where != page)
+        {
+            page = where;
+            StateHasChanged();
+            return;
+        }
+        await sheet.Highlight(id);
+        if (view == View.Scroll && turns is not null) await turns.InvokeVoidAsync("scrollToSystemOf", frame, id);
+    }
+
+    // The page turns when what's left on it at the followed tempo is under max(2 s, 2 beats): a second of eye–hand span and a
+    // second to spare (library.md §6), and never later than its last bar's start.
+    private async Task TurnIfDue()
+    {
+        if (!following || follower is null || view != View.Pages || page >= pages || onThisPage.Count == 0) return;
+
+        var lastHere = events.LastOrDefault(e => onThisPage.Contains(e.Ids[0]));
+        if (lastHere is null || follower.Position < events.FirstOrDefault(e => onThisPage.Contains(e.Ids[0]))?.Index) return;
+
+        var secondsPerBeat = 60 / follower.Tempo;
+        var left = (lastHere.Beat - follower.BeatAt(Clock.NowNs)) * secondsPerBeat;
+        if (left < Math.Max(2, 2 * secondsPerBeat) || follower.Position >= events.First(e => e.Bar == lastHere.Bar).Index)
+        {
+            page++;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopFollowing()
+    {
+        following = false;
+        ticker?.Dispose();
+        ticker = null;
+        Screen.KeepOn(false);
+        if (sheet is not null) await sheet.Highlight(null);
+        if (score is null || played.Count == 0 || follower is null) return;
+
+        // Only as far as the player got (the notes before the next one to play) is lined up: against the whole piece, a take that
+        // stopped early could be matched to the same music coming round again later.
+        var limit = follower.Finished ? double.MaxValue : events[follower.Position].Beat;
+        var (reached, extra) = Alignment.Align([.. score.Expected().Where(n => n.Tick / (double)Ticks.Quarter < limit)], played);
+        var right = reached.Count(n => n.Outcome == Played.Right);
+        var wrong = reached.Count(n => n.Outcome == Played.Wrong);
+        var missed = reached.Count(n => n.Outcome == Played.Missed);
+        summary =
+        [
+            $"{right} of {reached.Count} notes right{(follower.Finished ? "" : $", as far as bar {events[Math.Min(follower.Position, events.Count - 1)].Bar}")}; {wrong} wrong, {missed} not played, {extra} extra.",
+            $"You played at about {follower.Tempo:0} a minute (quarter notes), against {tempo:0} set.",
+        ];
+        if (sheet is not null) await sheet.ShowMarks(reached.Where(n => n.Outcome != Played.Right).Select(n => new SheetMark(n.Id, n.Outcome == Played.Wrong ? "wrong" : "missed", n.Instead is { } m ? score.Key.Spell(m).ToString() : null, n.Instead is { } p ? score.Key.Spell(p).Diatonic - score.Key.Spell(n.Midi).Diatonic : 0)));
+
+        var measures = new { right, wrong, missed, extra, notes = reached.Count, tempo = follower.Tempo, finished = follower.Finished };
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", "follow", Id, piece!.Level, tempo, null, null, JsonSerializer.Serialize(played.Select(p => new[] { p.Midi, (p.OnNs - played[0].OnNs) / 1e6 })), null, JsonSerializer.Serialize(measures), reached.Count == 0 ? null : right / (double)reached.Count, missed == 0 && wrong == 0 && extra == 0, null));
+        await Store.AddMinutesAsync(today, (DateTime.Now - followStarted).TotalMinutes);
+    }
+
+    // ——— A PDF piece ———
+
+    private async Task Opened(IReadOnlyList<double> shapes)
+    {
+        ratios = shapes;
+        if (pdf is null) return;
+
+        // Each page's systems are found once and kept: staff lines, five to a staff, paired into grand staves.
+        if (pdfLayout.Pages.Count != shapes.Count)
+        {
+            var found = new List<List<PageSystem>>();
+            for (var n = 1; n <= shapes.Count; n++) found.Add([.. PdfLayout.FindSystems(await pdf.Profile(n))]);
+            var systems = found.Sum(p => p.Count);
+            var barsPerSystem = midi is { Bars: > 0 } && systems > 0 ? Math.Max(1, (int)Math.Round(midi.Bars / (double)systems)) : 4;
+            pdfLayout = pdfLayout with { Pages = [.. found.Select(p => p.Select(s => s with { Bars = barsPerSystem }).ToList())] };
+            await SaveLayout();
+        }
+        pages = shapes.Count;
+        await ShowPdf();
+    }
+
+    private Task SaveLayout() => Store.SetPieceAsync(Id, layout: JsonSerializer.Serialize(pdfLayout, PrimaStore.Json));
+
+    // Portrait shows a page at a time, whole; landscape a window down the pages, moved a screen of systems at a time.
+    private double frameHeight;
+    private double frameWidth;
+
+    private async Task Measure()
+    {
+        if (turns is null) return;
+
+        var box = await turns.InvokeAsync<double[]>("size", frame);
+        (frameWidth, frameHeight) = (box[0], box[1]);
+    }
+
+    private async Task ShowPdf()
+    {
+        if (pdf is null || ratios.Count == 0) return;
+
+        await Measure();
+        var fit = view == View.Pages && frameHeight >= frameWidth / ratios.Min();
+        var portraitFit = view == View.Pages && frameWidth < frameHeight;
+        drawnWidth = await pdf.PageWidth(portraitFit || fit);
+        if (portraitFit || fit) y = PageTop(Math.Clamp(page, 1, pages));
+        var (cover, shown) = half is { } h ? HalfSplit(h - 1) : (0, 0);
+        await pdf.Show(y, 0, portraitFit || fit, half, cover, shown);
+        await pdf.Band(null);
+    }
+
+    private double PageHeight(int n) => drawnWidth / ratios[n - 1];
+
+    private double PageTop(int n) => Enumerable.Range(1, n - 1).Sum(PageHeight);
+
+    private double Scale => drawnWidth / 900;
+
+    // Every system down the pages, in px at the drawn width, with its bars.
+    private List<(int Page, double Top, double Bottom, int Bars)> Systems() => [.. pdfLayout.Pages.SelectMany((systems, i) => systems.Select(s => (i + 1, PageTop(i + 1) + s.Top * Scale, PageTop(i + 1) + s.Bottom * Scale, s.Bars)))];
+
+    // A half-page turn from page current to the next, in px as drawn (the systems were found on pages drawn 900 wide).
+    private (double Cover, double Shown) HalfSplit(int current)
+    {
+        if (current < 1 || current >= pdfLayout.Pages.Count) return (PageHeight(Math.Max(1, current)) / 2, PageHeight(Math.Max(1, current)) / 2);
+
+        var (cover, shown) = PdfLayout.HalfTurn(pdfLayout.Pages[current - 1], 900 / ratios[current - 1], pdfLayout.Pages[current]);
+        return (cover * Scale, shown * Scale);
+    }
+
+    private async Task TurnPdf(int by)
+    {
+        if (pdf is null || ratios.Count == 0) return;
+
+        await Measure();
+        var whole = view == View.Pages && frameWidth < frameHeight;
+        if (whole)
+        {
+            // Half-page turns: on, the next page's top shows over this one's bottom; on again, the next page whole.
+            if (by > 0 && halfTurns && half is null && page < pages) half = page + 1;
+            else if (by > 0 && page < pages) (page, half) = (page + 1, null);
+            else if (by < 0 && half is not null) half = null;
+            else if (by < 0 && page > 1) page--;
+            await ShowPdf();
+            return;
+        }
+
+        // A window down the pages: on to the first system that isn't wholly in sight, or back by a screen.
+        var systems = Systems();
+        var total = PageTop(pages) + PageHeight(pages);
+        if (by > 0) y = systems.FirstOrDefault(s => s.Bottom > y + frameHeight - 4).Top is var top && top > y ? top - 12 : Math.Min(total - frameHeight, y + frameHeight * 0.8);
+        else y = systems.LastOrDefault(s => s.Top < y - frameHeight * 0.6).Top is var back && back < y ? Math.Max(0, back - 12) : Math.Max(0, y - frameHeight * 0.8);
+        y = Math.Clamp(y, 0, Math.Max(0, total - frameHeight / 2));
+        page = systems.LastOrDefault(s => s.Top <= y + frameHeight / 3).Page is > 0 and var p ? p : page;
+        await pdf.Show(y, 300);
+    }
+
+    private async Task ToggleHalf()
+    {
+        halfTurns = !halfTurns;
+        half = null;
+        await ShowPdf();
+    }
+
+    private async Task SetBeats(int beats)
+    {
+        pdfLayout = pdfLayout with { BeatsPerBar = Math.Clamp(beats, 1, 12) };
+        await SaveLayout();
+    }
+
+    private async Task SetBarsPerSystem(int by)
+    {
+        pdfLayout = pdfLayout with { Pages = [.. pdfLayout.Pages.Select(p => p.Select(s => s with { Bars = Math.Clamp(s.Bars + by, 1, 12) }).ToList())] };
+        await SaveLayout();
+    }
+
+    private string BarsPerSystemText()
+    {
+        var counts = pdfLayout.Pages.SelectMany(p => p.Select(s => s.Bars)).Distinct().ToList();
+        return counts.Count == 0 ? "4 bars" : counts.Count == 1 ? $"{counts[0]} {(counts[0] == 1 ? "bar" : "bars")}" : $"{counts.Min()}–{counts.Max()} bars";
+    }
+
+    // ——— Scrolling a PDF at the tempo ———
+
+    private int CurrentSystem()
+    {
+        var systems = Systems();
+        return Math.Max(0, systems.FindLastIndex(s => s.Top <= y + frameHeight / 3 + 1));
+    }
+
+    private int scrollSystem = -1;
+
+    private async Task ToggleScroll()
+    {
+        if (scrolling)
+        {
+            StopScroll();
+            await pdf!.Band(null);
+            return;
+        }
+
+        var systems = Systems();
+        if (systems.Count == 0) return;
+
+        await Measure();
+        scrolling = true;
+        scrollSystem = -1;
+        Screen.KeepOn(true);
+        // A bar of count-in on the click, then the music; the click goes quiet after the count-in.
+        Click.Start(new ClickPlan(tempo, pdfLayout.BeatsPerBar, 1, ClickStage.CountInOnly));
+        ticker = new Timer(_ => InvokeAsync(ScrollOn), null, 0, 100);
+    }
+
+    private async Task ScrollOn()
+    {
+        if (!scrolling || pdf is null || Click.Plan is null) return;
+
+        var systems = Systems();
+        var beat = (Clock.NowNs - Click.BeatTime(0)) / (double)Click.Plan.BeatNs - Click.Plan.FirstMusicBeat;
+        if (beat < 0) return;
+
+        // Which system the music is in: each lasts its bars × beats a bar.
+        var elapsed = 0.0;
+        var index = 0;
+        while (index < systems.Count && elapsed + systems[index].Bars * pdfLayout.BeatsPerBar <= beat) elapsed += systems[index++].Bars * pdfLayout.BeatsPerBar;
+        if (index >= systems.Count)
+        {
+            StopScroll();
+            await pdf.Band(null);
+            StateHasChanged();
+            return;
+        }
+        if (index == scrollSystem) return;
+
+        scrollSystem = index;
+        var system = systems[index];
+        y = Math.Max(0, system.Top - frameHeight / 3);
+        page = system.Page;
+        await pdf.Show(y, 400);
+        await pdf.Band(system.Top, system.Bottom);
+        StateHasChanged();
+    }
+
+    private void StopScroll()
+    {
+        if (!scrolling) return;
+
+        scrolling = false;
+        ticker?.Dispose();
+        ticker = null;
+        Click.Stop();
+        Screen.KeepOn(false);
+    }
+
+    // ——— Hearing a PDF's MIDI on the piano, on Prima's channel ———
+
+    private void ToggleHear()
+    {
+        if (hearing)
+        {
+            Keyboard.Silence();
+            hearing = false;
+            return;
+        }
+        if (midi is null) return;
+
+        var start = Clock.NowNs + 300_000_000;
+        var speed = tempo / midi.Bpm;
+        foreach (var note in midi.Notes)
+        {
+            Keyboard.Send([0x9F, (byte)note.Midi, (byte)Math.Clamp(note.Velocity, 1, 127)], start + (long)(note.Start / speed * 1e9));
+            Keyboard.Send([0x8F, (byte)note.Midi, 0], start + (long)(note.End / speed * 1e9));
+        }
+        hearing = true;
+    }
+
+    private async Task Remove()
+    {
+        if (piece is { Imported: true, IsPdf: true, File: { } file }) File.Delete(Path.Combine(Store.FilesPath, file));
+        await Store.DeletePieceAsync(Id);
+        Nav.NavigateTo("library");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Keyboard.Received -= Heard;
+        ticker?.Dispose();
+        StopScroll();
+        if (hearing) Keyboard.Silence();
+        if (following) Screen.KeepOn(false);
+        try
+        {
+            if (keys is not null) await keys.InvokeVoidAsync("dispose");
+            if (turns is not null) await turns.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        self?.Dispose();
+    }
+}

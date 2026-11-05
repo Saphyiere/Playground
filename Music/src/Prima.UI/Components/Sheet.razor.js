@@ -26,6 +26,19 @@ function toolkit() {
     return toolkitPromise;
 }
 
+// Imported and bundled music in, MEI out: a toolkit of its own, so a conversion never disturbs a sheet on screen. `kind` is the
+// file's: "mxl" (zipped MusicXML), "musicxml", "xml", "mei" or "abc". Ids are made from the content, so they're the same every time.
+let converter;
+export async function toMei(bytes, kind) {
+    await toolkit();
+    converter ??= new verovio.toolkit();
+    converter.setOptions({ xmlIdChecksum: true });
+    const loaded = kind === "mxl"
+        ? converter.loadZipDataBuffer(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+        : converter.loadData(new TextDecoder().decode(bytes));
+    return loaded ? converter.getMEI({ removeIds: false }) : null;
+}
+
 export function pixelsPerMm() {
     return Math.max(screen.width, screen.height) / 280;
 }
@@ -58,7 +71,7 @@ function draw(element, state) {
     const unitsPerPx = 72 / staffPx;
     state.width = element.clientWidth;
     state.height = element.clientHeight;
-    tk.setOptions({
+    state.loaded = {
         font: options.font,
         scale: 100,
         pageWidth: Math.max(600, Math.round(state.width * unitsPerPx)),
@@ -74,8 +87,9 @@ function draw(element, state) {
         pageMarginBottom: 24,
         svgViewBox: true,
         svgHtml5: true,
-    });
-    tk.loadData(state.mei);
+    };
+    tk.setOptions(state.loaded);
+    load(tk, state, state.mei);
     state.pages = tk.getPageCount();
     music.innerHTML = tk.renderToSVG(Math.min(options.page ?? 1, state.pages));
     // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own.
@@ -83,7 +97,7 @@ function draw(element, state) {
     const bars = music.querySelectorAll(".measure").length;
     if (options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
         tk.setOptions({ breaks: "encoded" });
-        tk.loadData(withSystemBreaks(state.mei, Math.ceil(bars / systems.length)));
+        load(tk, state, withSystemBreaks(state.mei, Math.ceil(bars / systems.length), firstMeasure(options)));
         music.innerHTML = tk.renderToSVG(1);
     }
     state.timemap = tk.renderToTimemap({ includeMeasures: true });
@@ -94,13 +108,70 @@ function draw(element, state) {
     requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
 }
 
-// The MEI with a system break before every `perSystem`th bar.
-function withSystemBreaks(mei, perSystem) {
+// Loads music into the toolkit, and when the sheet shows only some bars of it ("6-9", by position from 1), selects them: the key,
+// clefs and metre in force there are drawn at their start.
+function load(tk, state, mei) {
+    tk.loadData(mei);
+    if (state.options.measures) {
+        tk.select({ measureRange: state.options.measures });
+        tk.redoLayout();
+    }
+    tk.current = state;
+}
+
+function firstMeasure(options) {
+    return options.measures ? parseInt(options.measures, 10) - 1 : 0;
+}
+
+// The MEI with a system break before every `perSystem`th bar, counting from the first shown.
+function withSystemBreaks(mei, perSystem, from = 0) {
     const ns = "http://www.music-encoding.org/ns/mei";
     const doc = new DOMParser().parseFromString(mei, "application/xml");
     const measures = [...doc.getElementsByTagNameNS(ns, "measure")];
-    for (let i = perSystem; i < measures.length; i += perSystem) measures[i].parentNode.insertBefore(doc.createElementNS(ns, "sb"), measures[i]);
+    for (let i = from + perSystem; i < measures.length; i += perSystem) measures[i].parentNode.insertBefore(doc.createElementNS(ns, "sb"), measures[i]);
     return new XMLSerializer().serializeToString(doc);
+}
+
+// The toolkit is shared by every sheet: before asking it about this sheet's music, make sure it's this sheet's that's loaded.
+function ensureLoaded(state) {
+    if (state.tk.current === state) return;
+    state.tk.setOptions(state.loaded);
+    load(state.tk, state, state.mei);
+}
+
+// The page a note is on (1 for the first), or 0 if it isn't in the music.
+export function pageOf(element, id) {
+    const state = sheets.get(element);
+    if (!state) return 0;
+    ensureLoaded(state);
+    return state.tk.getPageWithElement(id);
+}
+
+// Which of these notes are on the page showing.
+export function onPage(element, ids) {
+    return ids.filter(id => element.querySelector(`.sheet-music [data-id="${id}"]`));
+}
+
+// The bar a note is in, as a pale box behind it, as on a part a teacher has marked; none when the note isn't on this page.
+export function highlight(element, id) {
+    const state = sheets.get(element);
+    if (!state) return;
+    element.querySelector(".sheet-bar")?.remove();
+    const note = id ? element.querySelector(`.sheet-music [data-id="${id}"]`) : null;
+    const measure = note?.closest(".measure");
+    if (!measure) return;
+    const box = element.getBoundingClientRect();
+    const staves = [...measure.querySelectorAll(".staff")].map(s => s.getBoundingClientRect());
+    const r = measure.getBoundingClientRect();
+    const top = Math.min(...staves.map(s => s.top)) - box.top - 10;
+    const bottom = Math.max(...staves.map(s => s.bottom)) - box.top + 10;
+    const rect = document.createElementNS(svgNs, "rect");
+    rect.setAttribute("class", "sheet-bar");
+    rect.setAttribute("x", r.left - box.left - 2);
+    rect.setAttribute("y", top);
+    rect.setAttribute("width", r.width + 4);
+    rect.setAttribute("height", bottom - top);
+    element.querySelector(".sheet-overlay").prepend(rect);
 }
 
 // Where each moment of the music is on the sheet: for every onset in Verovio's time map that's on this page, its time in quarter
@@ -108,6 +179,18 @@ function withSystemBreaks(mei, perSystem) {
 function positions(element, state) {
     const box = element.getBoundingClientRect();
     const points = [];
+    // Onsets given by .NET (a stretch of a real piece, where Verovio's time map is the whole piece's) take its place.
+    if (state.options.onsets) {
+        for (const [id, q] of state.options.onsets) {
+            const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
+            if (!head) continue;
+            const system = head.closest(".system");
+            const h = head.getBoundingClientRect();
+            const s = system.getBoundingClientRect();
+            points.push({ q, x: h.left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6, system });
+        }
+        return points;
+    }
     for (const entry of state.timemap) {
         const id = (entry.on ?? []).find(i => element.querySelector(`.sheet-music [data-id="${i}"] .notehead, .sheet-music .rest[data-id="${i}"]`));
         if (!id) continue;

@@ -12,6 +12,9 @@
       <Deploy />
     </Project>
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Prima.Library/Prima.Library.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Prima.Core.Tests/Prima.Core.Tests.csproj" />
   </Folder>

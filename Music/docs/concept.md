@@ -79,11 +79,40 @@ described under [Drills](#drills-1) below.
 
 ### Library
 
-A collection of real pieces, many of them public domain and bundled with the app, and music you import, PDFs included. Turned to
-portrait, a piece shows as a full page that turns or scrolls with the music. The sight-reading track also reads excerpts from the
-collection at your level. Practise a piece with the same reading screen: loop a bar, slow it down, and see the same timing
-summary. Finger-independence patterns are taken from these pieces where possible, because finger training carries over only
-partly to other patterns. A separate research, `library.md`, settles the sources, the formats and how a PDF plays out.
+A collection of real pieces bundled with the app, and music you import. `library.md` settles the sources, the formats and how
+a PDF plays out; this is what came of it.
+
+- **The collection**: about 240 public-domain and openly licensed pieces, chosen by named works published before 1931: 133
+  MuseScore users' engravings through PDMX, as MusicXML, and 104 PDFs with their MIDI from the Mutopia Project. Each is credited
+  as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near yours, those
+  to play along with, PDFs, or your imports.
+- **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
+  the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
+  accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
+  Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes, so it
+  shows about where its collection sits.
+- **A piece** shows as pages: two systems at a time in landscape, the whole page in portrait under a slim bar. It turns by the
+  screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals (forward and back),
+  or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. Or it scrolls, a system at
+  a time.
+- **Follow me** listens as you play a notation piece at your own pace: the bar you're in is lit, a wrong note never moves it
+  back, a skip or a restart is found again, and the page turns early, when what's left on it at your tempo is under two seconds
+  or two beats. The marks come afterwards, lining what you played up with the score as far as you got.
+- **Practise bars**: a stretch of the piece on the reading screen, with a bar of count-in, the click, and the same marks and
+  summary; then again, slower, faster, or the next bars. It doesn't move your level.
+- **A PDF** turns by the same means. Portrait shows a whole page, and by default a half-page turn first shows the next page's
+  top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
+  the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
+  × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can
+  also play (**Hear it on the piano**).
+- **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
+  level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
+  three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
+- **Imports**: MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages. MIDI, MuseScore and
+  Humdrum files need converting to MusicXML on the PC first.
+
+Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
+to other patterns; for now they're built-in five-finger figures.
 
 ### Tools
 
@@ -241,7 +270,10 @@ Everything lives in one SQLite file on the tablet.
 - **Attempts**: one per passage, rhythm or technique run, keeping its settings (the level's step, the key it was in and the key it
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
   passage can be made again (one spot does) and a result recomputed if the scoring changes.
-- **Pieces**: the collection and imported pieces, with their sources and licences, levels, and practice history.
+- **Pieces**: the collection and imported pieces, with their sources and licences, levels, and the MEI Verovio made from each
+  notation piece (bars numbered in order, a pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its
+  systems found on each page with their bars, its metre and tempo, and where you were. Imported files sit beside the data file.
+- **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Streak**: the days practised and the freezes used.
 
 ## How it's built
