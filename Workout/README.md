@@ -4,10 +4,13 @@ Personal workout app for an Android phone, with heart rate coming from a Samsung
 
 ## Layout
 
+The app lives in the `Workout` folder of the [Playground](../README.md) repo; the build settings it shares with the other apps
+(`Directory.Build.props`, `Directory.Build.targets`, `global.json`) are at the repo root. Commands below run from `Workout`.
+
 ```
 build/
-  AdaptiveWorkout.Build/    Solution items project (compiles nothing). Shows every repo-root file
-                            (README, Directory.Build.props, global.json, ...) in Solution Explorer.
+  AdaptiveWorkout.Build/    Solution items project (compiles nothing). Shows this folder's top-level files and the repo's
+                            shared ones (README, CLAUDE.md, Directory.Build.props, global.json, ...) in Solution Explorer.
                             Put local-dev files here.
 docs/                       The app concept and data model (concept.md).
 src/
@@ -17,10 +20,11 @@ src/
   AdaptiveWorkout.Watch/    Watch app: .NET for Android targeting Wear OS. Shows heart rate and sends it to the phone.
 tests/
   AdaptiveWorkout.Core.Tests/   xUnit v3 tests for Core. Business logic only.
-artifacts/                  All bin/obj output (git-ignored, set in Directory.Build.props).
 ```
 
-Open `AdaptiveWorkout.slnx` in Visual Studio 2026 or Rider.
+All bin/obj output goes to `artifacts/` at the repo root (git-ignored, set in the root `Directory.Build.props`).
+
+Open `Workout/AdaptiveWorkout.slnx` in Visual Studio 2026 or Rider.
 
 What the app does and how its data is shaped: [docs/concept.md](docs/concept.md).
 
@@ -82,7 +86,7 @@ The phone opens the watch app when a workout starts, and the watch sends heart r
 
 If the watch doesn't open, it should at least show a "Workout started" notification; tap it. Then check the phone's log with `adb logcat -s AdaptiveWorkout`: `Opening the watch app: done` or `failed (n)` says what the watch's companion app answered. **Open on watch** on the phone tries again.
 
-If an Android build ever fails over output paths, temporarily remove the two artifacts lines in `Directory.Build.props` to rule out the `artifacts/` output folder.
+If an Android build ever fails over output paths, temporarily remove the two artifacts lines in the repo root's `Directory.Build.props` to rule out the `artifacts/` output folder.
 
 ## Design
 

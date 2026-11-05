@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <!-- All bin/obj output goes to ./artifacts instead of next to each project. -->
+    <!-- All bin/obj output, every app's, goes to ./artifacts at the repo root instead of next to each project. -->
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
 
