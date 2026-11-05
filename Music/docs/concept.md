@@ -1,11 +1,14 @@
-# Music: how it works
+# Prima: how it works
 
-A sight-reading and piano practice app for the Lenovo tablet, held in landscape on the piano's music stand and played on a MIDI
-keyboard, or into the tablet's microphone for single notes. It's for one person, kept on the tablet, with no accounts and no
-cloud. Its name isn't settled; the candidates are on the [mockups canvas](https://claude.ai/artifact/UdQVrhTZHqqgsCk3WG7cmM).
+Prima is a sight-reading and piano practice app for the owner's Lenovo Idea Tab Pro (13 inches), standing on the piano's music
+stand. It's played on the owner's Yamaha P-225B (88 keys) over USB MIDI: no microphone, and no on-screen keyboard. Landscape is
+for practice; turned to portrait, it shows a full page of sheet music. It's for one person, kept on the tablet, with no accounts
+and no cloud. The name is from *prima vista*, Italian for sight-reading, and the icon is the LCD from the
+[mockups canvas](https://claude.ai/artifact/UdQVrhTZHqqgsCk3WG7cmM).
 
-This is the design before any code. Every rule below comes from [research.md](research.md), which says how strong each piece of
-evidence is; where something is a choice of ours rather than a finding, it says so.
+This is the design before any code; [plan.md](plan.md) is how it's built. Every rule below comes from
+[research.md](research.md), which says how strong each piece of evidence is; where something is a choice of ours rather than a
+finding, it says so.
 
 ## The idea in one paragraph
 
@@ -33,19 +36,20 @@ and progress shown as honest numbers over weeks.
 - **Short, accurate technique.** A few runs at a comfortable tempo, measured, then stop. Evenness is measured from MIDI the way
   the research does it.
 - **No colour-coded notes.** Colour-coded and simplified notation didn't help in the rhythm-reading studies that tried them.
+  The music looks like printed sheet music, black on paper, on the grand staff (the owner's choice).
 - **A forgiving streak and real numbers.** A streak that a missed day can't wipe out, and progress like "92% in time at
   level 6, up from 84%", not points or badges.
 
 ## Sections
 
 The rail down the left edge, in both looks: Today, Drills and Sight-read; Library, Tools and You; Settings at the foot. In
-Vinyl they're Side A and Side B.
+Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
 
 ### Today
 
 What to do now. The day's plan as five steps (below), with the next one ready to start; a shorter five-minute plan for busy
 days that still counts; this week's minutes and days; the streak; and the practice cue you set once ("When I sit down after
-dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on the screen, and the
+dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom.
 
 ### Sight-read
@@ -56,11 +60,11 @@ summary. Then the next passage, with the level and tempo already adjusted.
 
 Variants, one a day in the plan and any time here:
 
-- **Read ahead**: bars fade once the cursor reaches them, but at least a second of music ahead is always shown, since about a
-  second is how far everyone's eyes run ahead.
-- **Duet**: play one part while the app plays the other in time. It's how the research tests reading, and part of the piano
-  course that did best.
-- **Hear first**: hear the passage once, then read it.
+- **Read ahead**: the bars you've played are covered and the view ahead is limited, but at least a second and a half of music
+  ahead is always shown, since about a second is how far everyone's eyes run ahead.
+- **Duet**: play one part while the piano plays the other in time (Prima sends it over MIDI). It's how the research tests
+  reading, and part of the piano course that did best.
+- **Hear first**: the piano plays the passage once, then you read it.
 
 ### Drills
 
@@ -70,28 +74,30 @@ described under [Drills](#drills-1) below.
 
 ### Library
 
-Your own music, from MusicXML or MIDI files. Practise a piece with the same reading screen: loop a bar, slow it down, and see
-the same timing summary. Finger-independence patterns are taken from these pieces where possible, because finger training
-carries over only partly to other patterns.
+A collection of real pieces, many of them public domain and bundled with the app, and music you import, PDFs included. Turned to
+portrait, a piece shows as a full page that turns or scrolls with the music. The sight-reading track also reads excerpts from the
+collection at your level. Practise a piece with the same reading screen: loop a bar, slow it down, and see the same timing
+summary. Finger-independence patterns are taken from these pieces where possible, because finger training carries over only
+partly to other patterns. A separate research, `library.md`, settles the sources, the formats and how a PDF plays out.
 
 ### Tools
 
 - **Metronome**, with a count-in and a click that can fade to silence.
-- **Keyboard check**: shows each key you press and its velocity, and measures how steady the keyboard's timing is.
-- **Microphone calibration**: measures the delay of the tablet's microphone and the lowest note it can hear on your
-  instrument.
+- **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
+  C8). No picture of a keyboard.
+- **Timing**: play any key with the click for 16 beats. The delay is taken off every note from then on, and the spread shows how
+  much timing noise the piano and the tablet add.
 
 ### You
 
-The local profile and progress. Name, instrument, which clefs you read, daily goal, the practice cue, and the look. Progress is
-shown as trends over days and weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick early
-gains is normal.
+The local profile and progress. Name, which clefs you drill, daily goal and the practice cue. Progress is shown as trends over
+days and weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick early gains is normal.
 
 ### Settings
 
-Look (Studio or Vinyl), input (MIDI device or microphone, and their calibration), notation (letter names, which clefs), practice
-(session length, count-in, the click's sound, hints), sound, and data (export and back up). Nothing leaves the tablet unless
-you export it.
+Look (Studio or Vinyl), keyboard (the device, sending notes to the piano, timing), notation (the music font, the sheet's size,
+letter names after a wrong answer), practice (daily minutes, count-in, the click's sound and volume and where it sounds), and
+data (back up and restore). Nothing leaves the tablet unless you back it up.
 
 ## The sight-reading flow
 
@@ -99,9 +105,9 @@ you export it.
    is scored.
 2. **Count in.** One bar of clicks at the passage's tempo.
 3. **Play.** The click keeps time and never waits. The screen shows the music and a cursor on the beat. Nothing is marked yet.
-   The on-screen keyboard is hidden while reading, so your eyes stay on the staff; it's there in drills and on demand.
 4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, and the passage again
-   with each note marked right or wrong and early or late. A wrong note names what you played instead (G4→A4).
+   with each note marked right or wrong and early or late. A wrong note names what you played instead (G4→A4) and shows it on
+   the staff.
 5. **Next.** The level and tempo adjust and the next passage comes up.
 
 ### How a passage is scored
@@ -149,12 +155,12 @@ success.
 | Notes | A note, or a short group, on the staff; play the key | Right or wrong, and the time from seeing to playing, per note | Landmarks first (middle C, treble G, bass F, the outer Cs), then their neighbours, then both clefs and a wider range |
 | Ledger lines | Notes on one to four ledger lines; play them | As Notes, kept per ledger position | One line, then two, from the C anchors, then by thirds |
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
-| Chords | A stack of notes; play it at once (MIDI only) | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
+| Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
-| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key (or clap) | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
+| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
 | Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position, then out of it, octave jumps, larger leaps, both hands |
-| Listen and play back | Hear a short phrase, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys |
-| Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click (MIDI only) | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
+| Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys |
+| Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
 | Arpeggios | As Scales | As Scales, with a close look at the crossings | A fifth's range, then one octave hands separate, two, hands together, inversions |
 | Finger independence | Five-finger patterns, trills (3–4, 4–5), held notes; patterns from your pieces where possible | Each finger's timing and touch, trill rate and steadiness, whether held keys stay down | Slow and even, then faster, then the weak pairs, then both hands |
 
@@ -194,59 +200,55 @@ judged.
 - **Habit**: minutes this week and days practised out of the last seven. The streak can be repaired: a missed day can be covered
   by a freeze, and the week counts as kept at five days out of seven. A break is described plainly, never as a failure.
 
-## Input
+## The keyboard
 
-- **MIDI is the main input.** It gives exact notes, chords, velocity and timing, in every drill. USB or Bluetooth.
-- **The microphone** works for single notes from about C3 up, in a quiet room, with headphones so the app's own sound doesn't
-  leak in, after a one-time calibration. It can do Notes, Ledger lines above C3, Intervals played one note at a time, Key
-  signatures, Rhythm (clapping, onsets only) and single-line Sight-read passages above C3. It can't do Chords, Scales, Arpeggios, Finger
-  independence or anything below its lowest reliable note.
-- **Latency** is calibrated once for each input (play along to a click; the median offset is taken out). How much timing
-  jitter the owner's keyboard and the tablet add is unknown until measured; differences smaller than that aren't shown.
+- **MIDI over USB** from the P-225B is the only input. It gives exact notes, chords, velocity, the pedals and timing, in every
+  drill. There's no microphone and no on-screen keyboard.
+- **Sound from the piano.** Prima sends notes back to the piano over MIDI, so Duet, Hear first and Listen and play back play
+  through the piano itself.
+- **Latency** is calibrated once (play along to a click; the median offset is taken out). How much timing jitter the keyboard
+  and the tablet add is unknown until measured; differences smaller than that aren't shown.
 
 ## How the data is shaped
 
 Everything lives in one SQLite file on the tablet.
 
-- **Profile**: name, instrument, clefs read, daily goal, practice cue, look, input settings, and calibration offsets (MIDI,
-  microphone, and your own tapping lean).
+- **Profile**: name, clefs drilled, daily goal, practice cue, look, the keyboard's settings and the timing offset.
 - **Levels**: the current reading level and tempo, the rhythm level, and per scale and arpeggio the current tempo and target.
 - **Note cards**: one per note and clef, with its review box, when it's next due, its recent answers and response times.
 - **Sessions**: each day's practice, its steps and minutes.
 - **Attempts**: one per passage, rhythm or technique run, keeping its settings, the generator's seed, the notes played with
   their times and velocities, and the measures worked out from them, so a result can be recomputed if the scoring changes.
-- **Pieces**: Library files and their practice history.
+- **Pieces**: the collection and imported pieces, with their sources and licences, levels, and practice history.
 - **Streak**: the days practised and the freezes used.
 
 ## How it's built
 
-Like the workout app: .NET 10 MAUI Blazor, with the logic in a plain library tested with xUnit.
+Like the workout app: .NET 10 MAUI Blazor, with the logic in a plain library tested with xUnit. [plan.md](plan.md) has the
+details.
 
 - **Core**: the music model, the passage generator, the note-review schedule, scoring (matching played notes to the score,
   timing, evenness), levels and progress. No UI, all tested.
 - **UI**: the Razor screens.
-- **Tablet**: the Android app: MIDI through Android's MIDI API, the microphone through `AudioRecord` with a YIN or MPM pitch
-  detector in C#, and the tablet's screen kept on during practice.
+- **Tablet**: the Android app: USB MIDI in and out through Android's MIDI API, the click through `AudioTrack`, and the tablet's
+  screen kept on during practice.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
-- **Notation** is drawn as SVG: Noto Music for clefs, accidentals, notes and rests, with lines, stems and beams drawn.
+- **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
+  looks, with the look around it and the cursor and marks drawn on top.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
-  the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans, Noto
-  Music) ship with the app as woff2 files, so it works offline.
+  the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
+  the app as woff2 files, so it works offline; Verovio brings its own music fonts.
 
 ## Open questions
 
-For the owner:
-
-- The app's name and icon.
-- Tablet only, as you said, though the repo's README lists it for tablet and phone.
-- Which keyboard, and how many keys: it sets the generator's range and the Scales drill's octaves.
-- Whether the microphone is for the piano too, or for voice or another instrument.
-
 Only the devices can settle:
 
-- How much timing jitter the keyboard and Android's MIDI path add, and whether USB and Bluetooth differ.
-- The tablet microphone's delay, its lowest reliable note, and how it copes with the pedal, fast repeated notes and room noise.
+- How much timing jitter the keyboard and Android's MIDI path add.
+- Where the click sounds (the tablet's speaker, or the piano as a USB audio device) and its delay.
+- Whether the piano plays the notes Prima sends it, and whether it echoes them back.
+
+Being researched: the Library's public-domain sources, importing PDFs, and page turns (`library.md`).
 
 Open in the research: how best to step difficulty up, whether read-ahead and rhythm-only drills carry over to full reading in
 adults, whether spaced note review helps staff reading itself, and whether streaks help adult music learners keep going.
