@@ -1,0 +1,65 @@
+@inherits LayoutComponentBase
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject AppLaunch Launch
+@inject ThemeSetting ThemeSetting
+@inject AppSettings Settings
+@inject WorkoutStore Store
+@inject IJSRuntime JS
+
+@* Pages wait for the saved theme, so the components that draw per theme don't start in the wrong one, and for the saved calorie
+   goal and body details. *@
+@if (themeLoaded)
+{
+    <CascadingValue Value="ThemeSetting.Current">
+        <main>
+            @Body
+        </main>
+    </CascadingValue>
+}
+
+@code {
+    private bool themeLoaded;
+    private string? shownTheme;
+    private IJSObjectReference? page;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The opening's timing (AppLaunch): Blazor is running, then the saved settings are read.
+        Launch.Step("Blazor");
+        ThemeSetting.Changed += OnThemeChanged;
+        await Task.WhenAll(ThemeSetting.LoadAsync(), Store.LoadAsync(Settings));
+        Launch.Step("settings");
+        themeLoaded = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The page's colors, fonts and shapes follow data-theme on <html>, which index.html restores before the first paint.
+        if (!themeLoaded || shownTheme == ThemeSetting.Current.Id) return;
+
+        shownTheme = ThemeSetting.Current.Id;
+        try
+        {
+            page ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AdaptiveWorkout.UI/Layout/MainLayout.razor.js");
+            await page.InvokeVoidAsync("showTheme", shownTheme);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void OnThemeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        ThemeSetting.Changed -= OnThemeChanged;
+        try
+        {
+            if (page is not null) await page.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

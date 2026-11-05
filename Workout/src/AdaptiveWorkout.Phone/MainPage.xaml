@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:AdaptiveWorkout.Phone"
+             xmlns:ui="clr-namespace:AdaptiveWorkout.UI;assembly=AdaptiveWorkout.UI"
+             x:Class="AdaptiveWorkout.Phone.MainPage">
+
+    <!-- Its background and the page's follow the theme (MainPage.ShowTheme). -->
+    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
+        <BlazorWebView.RootComponents>
+            <RootComponent Selector="#app" ComponentType="{x:Type ui:Routes}" />
+        </BlazorWebView.RootComponents>
+    </BlazorWebView>
+
+</ContentPage>

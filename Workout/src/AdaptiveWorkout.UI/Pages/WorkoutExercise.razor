@@ -1,0 +1,58 @@
+@page "/workout/exercise"
+@inject WorkoutFlow Flow
+@inject AppNavigation Navigation
+
+<PageTitle>Pick an exercise</PageTitle>
+
+@if (state is not null)
+{
+    var stillToDo = state.StillToDo().Select(id => state.Exercises[id]).ToList();
+    <div class="screen">
+        @* Before the first set there's no workout screen to go back to, only Today. *@
+        <PageHeader Back="@(state.Sets.Count == 0 ? "" : "workout")" BackText="@(state.Sets.Count == 0 ? "Today" : state.Name)" Label="@(state.Sets.Count == 0 ? state.Name : null)"
+                    Title="@(state.Sets.Count == 0 ? "First exercise" : "Different exercise")" Small="true" Live="true" />
+
+        <ExercisePicker State="state" OnPick="StartAsync" Exclude="@stillToDo.Select(e => e.Id).ToHashSet()" NewAction="Start set">
+            <BeforeTyping>
+                @if (stillToDo.Count > 0)
+                {
+                    <section class="stack" aria-labelledby="still-heading">
+                        <h2 id="still-heading" class="label">Still to do in @state.Name</h2>
+                        <ExerciseList Exercises="stillToDo" State="state" OnPick="StartAsync" />
+                    </section>
+                }
+            </BeforeTyping>
+        </ExercisePicker>
+
+        @if (state.Sets.Count == 0)
+        {
+            <div class="push-down">
+                <button type="button" class="btn-ghost" @onclick="CancelAsync">Cancel workout</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private WorkoutState? state;
+
+    protected override async Task OnInitializedAsync()
+    {
+        state = Flow.Current ?? await Flow.LoadAsync();
+        if (state is null) await Navigation.HomeAsync();
+        else if (state.Running.Count > 0) await Navigation.ReturnToAsync("workout");
+    }
+
+    // Back to the workout this was opened from, or, before the first set, on to it in this screen's place.
+    private Task StartAsync(Exercise exercise)
+    {
+        Flow.StartPicked(exercise);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task CancelAsync()
+    {
+        Flow.Cancel();
+        return Navigation.HomeAsync();
+    }
+}

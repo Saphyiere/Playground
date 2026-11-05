@@ -1,0 +1,90 @@
+@page "/workout/change"
+@inject WorkoutFlow Flow
+@inject AppNavigation Navigation
+
+<PageTitle>Change</PageTitle>
+
+@if (state is not null && targetId is long id)
+{
+    var target = state.Exercises[id];
+    // Its own superset's other exercises start with it, so doing one of them first is no choice.
+    var partners = WorkoutPlan.Blocks(state.Plan).Find(b => b.Any(e => e.ExerciseId == id))?.Select(e => e.ExerciseId).ToHashSet() ?? [id];
+    var others = state.StillToDo().Where(other => !partners.Contains(other)).Select(other => state.Exercises[other]).ToList();
+    <div class="screen">
+        <PageHeader Back="workout" BackText="@state.Name" Label="Today only" Title="@($"Change {target.Name}")" Small="true" Live="true" />
+        <p class="note">@(state.Running.Count == 0 ? "The session itself stays as it is." : $"The running {(state.Running.Count > 1 ? "round" : "set")} starts over with whatever you pick. The session itself stays as it is.")</p>
+
+        @* With Superset, what I pick goes with this one instead: rounds of both, back to back. It needs this one in today's plan. *@
+        @if (state.Plan.Any(e => e.ExerciseId == id))
+        {
+            <label class="goal">
+                <input type="checkbox" @bind="superset" />
+                <span class="row-text">
+                    <span class="name">Superset</span>
+                    <span class="note">Do the one you pick together with @target.Name, back to back in rounds, instead of in its place.</span>
+                </span>
+            </label>
+        }
+
+        @if (others.Count > 0)
+        {
+            <section class="stack" aria-labelledby="first-heading">
+                <div class="row-text">
+                    <h2 id="first-heading" class="label">@(superset ? "Superset with one still to do" : "Do another one first")</h2>
+                    <p class="note">@(superset ? $"It leaves its own spot and goes with {target.Name} in each round left." : $"{target.Name} waits until it's done.")</p>
+                </div>
+                <ExerciseList Exercises="others" State="state" OnPick="exercise => superset ? SupersetAsync(exercise) : DoFirstAsync(exercise)" />
+            </section>
+        }
+
+        <ExercisePicker State="state" OnPick="exercise => superset ? SupersetAsync(exercise) : SwapAsync(exercise)" Exclude="@state.Plan.Select(e => e.ExerciseId).ToHashSet()" Id="swap-name"
+                        Label="@(superset ? $"Superset {target.Name} with" : $"Swap {target.Name} for")" NewAction="@(superset ? "Superset it" : "Swap it in")" />
+
+        @if (state.Plan.Any(e => e.ExerciseId == id))
+        {
+            <div class="push-down">
+                <button type="button" class="btn-ghost" @onclick="DropAsync">Drop @target.Name today</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private WorkoutState? state;
+    private long? targetId;
+    private bool superset;
+
+    /// <summary>The exercise to change, e.g. one of a superset's; without it, the running set's, else the next step's.</summary>
+    [SupplyParameterFromQuery] public long? Exercise { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        state = Flow.Current ?? await Flow.LoadAsync();
+        targetId = Exercise is long id && state?.Exercises.ContainsKey(id) == true ? id : state?.ChangeTarget;
+        if (targetId is null) await Navigation.ReturnToAsync(state is null ? "" : "workout");
+    }
+
+    private Task DoFirstAsync(Exercise exercise)
+    {
+        Flow.DoFirst(exercise, targetId!.Value);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task SwapAsync(Exercise exercise)
+    {
+        Flow.SwapFor(exercise, targetId!.Value);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task SupersetAsync(Exercise exercise)
+    {
+        Flow.SupersetWith(exercise, targetId!.Value);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task DropAsync()
+    {
+        Flow.Drop(targetId!.Value);
+        return Navigation.ReturnToAsync("workout");
+    }
+}

@@ -1,0 +1,29 @@
+@implements IDisposable
+@* Time since a moment, ticking once a second. Only this text re-renders. Past 9:59 it's marked long, so a big readout can shrink to fit. *@
+@{ var text = TimeText.Format(DateTimeOffset.Now - Since); }
+<span class="@Class @(text.Length > 5 ? "longer" : text.Length > 4 ? "long" : "")">@text</span>
+
+@code {
+    private readonly CancellationTokenSource stop = new();
+
+    [Parameter, EditorRequired] public DateTimeOffset Since { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    protected override void OnInitialized() => _ = Task.Run(async () =>
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stop.Token)) await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    });
+
+    public void Dispose()
+    {
+        stop.Cancel();
+        stop.Dispose();
+    }
+}

@@ -1,0 +1,200 @@
+@page "/workout/advanced"
+@implements IDisposable
+@inject WorkoutFlow Flow
+@inject AppNavigation Navigation
+
+<PageTitle>@(state?.Name ?? "Workout")</PageTitle>
+
+@if (state is not null)
+{
+    var next = state.Next;
+    var running = state.Running;
+    var stopped = state.Sets.Where(s => s.StoppedAt is not null).ToList();
+    var blocks = WorkoutPlan.Blocks(state.Plan);
+    var counted = state.CountedSets();
+    var extra = stopped.Where(s => !counted.Any(c => c.Contains(s))).ToList();
+
+    // The entry on now: the running set's (or round's), else the next step's. An exercise can be in the plan twice.
+    var currentBlock = state.WarmingUp || state.CoolingDown ? -1 : running.Count > 0 ? counted.FindIndex(c => c.Contains(running[0])) : state.NextBlock ?? -1;
+    HashSet<long> current = running.Count > 0 ? [.. running.Select(s => s.ExerciseId)] : [.. next?.ExerciseIds ?? []];
+    <div class="screen">
+        <WorkoutHeader State="state" Advanced="true" OnFinish="FinishAsync" />
+
+        @* Each exercise's box: ticked in pen once it has sets, the pen's dot while it's the one now, empty until then. A warm-up and a
+           cool-down are boxes of their own at either end. *@
+        @if (state.Plan.Count > 0 || state.Session.WarmUp || state.Session.CoolDown)
+        {
+            <section class="ledger" aria-label="Plan">
+                @if (state.Session.WarmUp)
+                {
+                    <div class="row @(state.WarmingUp ? "picked" : "")">
+                        <span class="status">
+                            @if (state.WarmingUp)
+                            {
+                                <span class="live-dot"></span>
+                            }
+                            else
+                            {
+                                <Mark Kind="MarkKind.Tick" Size="28" />
+                            }
+                        </span>
+                        <span class="row-text">
+                            <span class="name">Warm-up</span>
+                            @if (state.Session.WarmUpEndedAt is { } warmedUpAt)
+                            {
+                                <span class="caption">@TimeText.Format(warmedUpAt - state.Session.StartedAt)</span>
+                            }
+                            else
+                            {
+                                <span class="caption"><Clock Since="state.Session.StartedAt" /> · now</span>
+                            }
+                        </span>
+                    </div>
+                }
+                @for (var b = 0; b < blocks.Count; b++)
+                {
+                    var block = blocks[b];
+                    var blockSets = counted[b];
+                    var isCurrentBlock = b == currentBlock;
+                    <div class="@(block.Count > 1 ? "superset" : "")">
+                        @if (block.Count > 1)
+                        {
+                            <p class="label">Superset@(block[0].PlannedSets is int rounds ? $" · {rounds} rounds" : "")</p>
+                        }
+                        @foreach (var entry in block)
+                        {
+                            var exercise = state.Exercises[entry.ExerciseId];
+                            var done = blockSets.Where(s => s.ExerciseId == entry.ExerciseId && s.StoppedAt is not null).ToList();
+                            var isCurrent = isCurrentBlock && current.Contains(entry.ExerciseId);
+                            var last = done.Count == 0 ? state.History(entry.ExerciseId).FirstOrDefault() : null;
+                            <div class="row @(isCurrent ? "picked" : "")">
+                                <span class="status">
+                                    @if (isCurrent)
+                                    {
+                                        <span class="live-dot"></span>
+                                    }
+                                    else if (done.Count > 0)
+                                    {
+                                        <Mark Kind="MarkKind.Tick" Size="28" />
+                                    }
+                                </span>
+                                <span class="row-text">
+                                    <span class="name">@exercise.Name</span>
+                                    <span class="caption">
+                                        @if (state.Skipped.Contains(entry.ExerciseId))
+                                        {
+                                            @("Skipped")
+                                        }
+                                        else if (done.Count > 0)
+                                        {
+                                            @($"{SetSummary.Format(done, exercise.Measure)}{(isCurrent ? " · now" : "")}")
+                                        }
+                                        else
+                                        {
+                                            @(last is null ? "Not done before" : $"Last: {SetSummary.Format(last.Sets, exercise.Measure)}")
+                                        }
+                                    </span>
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (state.Session.CoolDown)
+                {
+                    <div class="row @(state.CoolingDown ? "picked" : "")">
+                        <span class="status">
+                            @if (state.CoolingDown)
+                            {
+                                <span class="live-dot"></span>
+                            }
+                        </span>
+                        <span class="row-text">
+                            <span class="name">Cool-down</span>
+                            @if (state.Session.CoolDownStartedAt is { } coolingSince)
+                            {
+                                <span class="caption"><Clock Since="coolingSince" /> · now</span>
+                            }
+                            else
+                            {
+                                <span class="caption">After the last exercise</span>
+                            }
+                        </span>
+                    </div>
+                }
+            </section>
+        }
+
+        @if (extra.Count > 0)
+        {
+            <section class="stack" aria-labelledby="extra-heading">
+                <h2 id="extra-heading" class="label">@(state.Plan.Count > 0 ? "Also done" : "Done so far")</h2>
+                <div class="ledger">
+                    @foreach (var sets in extra.GroupBy(s => s.ExerciseId))
+                    {
+                        var exercise = state.Exercises[sets.Key];
+                        <div class="row">
+                            <span class="status"><Mark Kind="MarkKind.Tick" Size="28" /></span>
+                            <span class="row-text">
+                                <span class="name">@exercise.Name</span>
+                                <span class="caption">@SetSummary.Format([.. sets], exercise.Measure)</span>
+                            </span>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        <div class="grid-2">
+            <button type="button" class="btn tall" disabled="@(running.Count > 0 || stopped.Count == 0)" @onclick="AddSet">Add a set</button>
+            <button type="button" class="btn tall" disabled="@(running.Count > 0)" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
+            <button type="button" class="btn tall" disabled="@(running.Count > 0 || next is null || state.Plan.Count == 0)" @onclick="() => Flow.Skip(next!.ExerciseIds)">Skip @(next is null ? "exercise" : state.Names(next.ExerciseIds))</button>
+            <a class="btn tall" href="workout" @onclick="@(() => Navigation.Replace("workout"))" @onclick:preventDefault>Back to simple</a>
+        </div>
+
+        <div class="push-down">
+            @if (running.Count > 0)
+            {
+                <button type="button" class="btn-primary stop" @onclick="Stop">Stop @state.Names(running.Select(s => s.ExerciseId))</button>
+            }
+            else
+            {
+                <NextStepButton State="state" OnStarted="@(() => Navigation.Replace("workout"))" OnFinish="FinishAsync" />
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private WorkoutState? state;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Flow.Changed += OnFlowChanged;
+        state = Flow.Current ?? await Flow.LoadAsync();
+        if (state is null) await Navigation.HomeAsync();
+    }
+
+    // A change made elsewhere, e.g. a set started from the watch.
+    private void OnFlowChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Flow.Changed -= OnFlowChanged;
+
+    // Another set of the last exercise, or another round of its superset.
+    private void AddSet()
+    {
+        Flow.StartAnother();
+        Navigation.Replace("workout");
+    }
+
+    private void Stop()
+    {
+        Flow.StopSet();
+        Navigation.Replace("workout");
+    }
+
+    private Task FinishAsync()
+    {
+        Flow.Finish();
+        return Navigation.HomeAsync();
+    }
+}

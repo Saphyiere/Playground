@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <!-- API 30 = Wear OS 3, the oldest Wear OS on a Galaxy Watch (Watch4). -->
+    <SupportedOSPlatformVersion>30</SupportedOSPlatformVersion>
+    <!-- Galaxy Watch4/5 run 32-bit Android (armeabi-v7a) on a 64-bit chip, so ship 32-bit ARM too. x64 is for the emulator. -->
+    <RuntimeIdentifiers>android-arm;android-arm64;android-x64</RuntimeIdentifiers>
+    <OutputType>Exe</OutputType>
+    <!-- Same id as the phone app: the Wear OS Data Layer only pairs apps with matching ids and signing keys. -->
+    <ApplicationId>com.saphyiere.adaptiveworkout</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);XA4218</MSBuildWarningsAsMessages>
+    <TrimMode>full</TrimMode>
+    <!-- Debug builds otherwise run on Mono's interpreter (for Hot Reload): slow, and harder on the battery. -->
+    <UseInterpreter>false</UseInterpreter>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Xamarin.AndroidX.Wear" Version="1.4.0.2" />
+    <!-- Keeps the heart rate screen up during a workout instead of going back to the watch face, with a way back on the watch face. -->
+    <PackageReference Include="Xamarin.AndroidX.Wear.Ongoing" Version="1.1.0.3" />
+    <!-- Same version as the phone app. -->
+    <PackageReference Include="Xamarin.GooglePlayServices.Wearable" Version="119.0.0.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AdaptiveWorkout.Core\AdaptiveWorkout.Core.csproj" />
+  </ItemGroup>
+</Project>

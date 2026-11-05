@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <!-- Android only. iOS/Mac/Windows targets from the MAUI template were removed on purpose. -->
+        <TargetFramework>net10.0-android</TargetFramework>
+        <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+
+        <OutputType>Exe</OutputType>
+        <RootNamespace>AdaptiveWorkout.Phone</RootNamespace>
+        <UseMaui>true</UseMaui>
+        <SingleProject>true</SingleProject>
+        <!-- Disable MAUI CSS handling so Blazor can handle it -->
+        <EnableDefaultCssItems>false</EnableDefaultCssItems>
+        <MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+        <ApplicationTitle>AdaptiveWorkout</ApplicationTitle>
+        <!-- The watch app uses the same id: the Wear OS Data Layer only pairs apps with matching ids and signing keys. -->
+        <ApplicationId>com.saphyiere.adaptiveworkout</ApplicationId>
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+        <!-- Debug builds otherwise run on Mono's interpreter (for Hot Reload), which makes every tap visibly slow. -->
+        <UseInterpreter>false</UseInterpreter>
+        <!-- Release compiles the whole app ahead of time, so it opens fast. By default it only compiles what MAUI's startup profiles
+             list, which leaves almost all of this app's screens, storage and logic to be compiled on the phone every time it opens.
+             The app gets about 15 MB bigger. -->
+        <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#F3EFE6" />
+        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#F3EFE6" BaseSize="128,128" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+        <!-- Wear OS Data Layer: opens the watch app and takes its heart rate.
+             119.0.0.4 asks for the same AndroidX versions as MAUI 10; newer ones pull in a Fragment that clashes with MAUI's Fragment.Ktx. -->
+        <PackageReference Include="Xamarin.GooglePlayServices.Wearable" Version="119.0.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AdaptiveWorkout.UI\AdaptiveWorkout.UI.csproj" />
+    </ItemGroup>
+
+</Project>

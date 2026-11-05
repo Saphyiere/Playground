@@ -1,0 +1,64 @@
+@page "/workout/add"
+@inject WorkoutFlow Flow
+@inject WorkoutStore Store
+@inject AppNavigation Navigation
+
+<PageTitle>Add to today</PageTitle>
+
+@if (state is not null)
+{
+    <div class="screen">
+        <PageHeader Back="workout" BackText="@state.Name" Title="Add to today" Small="true" Live="true" />
+        <p class="note">It goes after everything else in today's workout. The session itself stays as it is.</p>
+
+        @if (sessions.Count > 0)
+        {
+            <section class="stack" aria-labelledby="sessions-heading">
+                <h2 id="sessions-heading" class="label">A whole session</h2>
+                <div class="ledger">
+                    @foreach (var (template, exerciseCount) in sessions)
+                    {
+                        <button type="button" class="row" @onclick="() => AddSessionAsync(template)">
+                            <span class="row-text">
+                                <span class="name">@template.Name</span>
+                                <span class="caption">@exerciseCount @(exerciseCount == 1 ? "exercise" : "exercises")</span>
+                            </span>
+                            <Icon Name="plus" />
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+
+        <ExercisePicker State="state" OnPick="AddExerciseAsync" Exclude="@state.Plan.Select(e => e.ExerciseId).ToHashSet()" Id="add-name" Label="One exercise" NewAction="Add it" />
+    </div>
+}
+
+@code {
+    private WorkoutState? state;
+    private List<(SessionTemplate Template, int ExerciseCount)> sessions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        state = Flow.Current ?? await Flow.LoadAsync();
+        if (state is null)
+        {
+            await Navigation.HomeAsync();
+            return;
+        }
+
+        foreach (var template in await Store.GetTemplatesAsync()) sessions.Add((template, (await Store.GetTemplateExercisesAsync(template.Id)).Count));
+    }
+
+    private async Task AddSessionAsync(SessionTemplate template)
+    {
+        await Flow.AddSessionAsync(template.Id);
+        await Navigation.ReturnToAsync("workout");
+    }
+
+    private Task AddExerciseAsync(Exercise exercise)
+    {
+        Flow.AddExercise(exercise);
+        return Navigation.ReturnToAsync("workout");
+    }
+}

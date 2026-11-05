@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keeps the top and bottom lines inside a round screen's curve. -->
+    <dimen name="edge_margin">26dp</dimen>
+</resources>

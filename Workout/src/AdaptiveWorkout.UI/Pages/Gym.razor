@@ -1,0 +1,98 @@
+@page "/gym"
+@inject WorkoutStore Store
+@inject WorkoutFlow Flow
+
+<PageTitle>Gym</PageTitle>
+
+@if (loaded)
+{
+    var trend = Progress.Trend(sessions, exercisesDone);
+    var shown = trend.Count == 0 ? null : trend.Find(p => p.Session == picked)?.Session ?? trend[^1].Session;
+    var telemetry = Theme == Theme.Telemetry;
+    <div class="screen">
+        <PageHeader Back="" BackText="Today" Label="@($"{sessions.Count} {(sessions.Count == 1 ? "workout" : "workouts")}")" Title="Gym" />
+
+        @* Am I getting better? Each workout's improvement, worked out once after Finish, adds up to one line. *@
+        @{
+            var note = telemetry ? "Better than your first time, on average"
+                : $"How much better your exercises are than the first time, on average, over {trend.Count} {(trend.Count == 1 ? "workout" : "workouts")}.";
+        }
+        <TrendChart Points="trend" @bind-Picked="picked" NameOf="NameOf" Note="@note" Empty="Your trend starts once you repeat an exercise from an earlier workout." />
+        <a class="btn" href="routines">Edit routine</a>
+
+        @if (sessions.Count == 0)
+        {
+            <p class="note">No finished workouts yet. Each one shows up here after Finish workout.</p>
+        }
+
+        @foreach (var month in sessions.GroupBy(s => s.StartedAt.ToString("MMMM yyyy", CultureInfo.CurrentCulture)))
+        {
+            var editing = editingMonth == month.Key;
+            <section class="stack tight" aria-label="@month.Key">
+                <div class="spread">
+                    <h2 class="month">@month.Key</h2>
+                    <button type="button" class="btn-ghost" aria-label="@(editing ? "Done editing" : $"Edit {month.Key}")" @onclick="() => editingMonth = editing ? null : month.Key">@(editing ? "Done" : "Edit")</button>
+                </div>
+                <div class="ledger">
+                    @foreach (var session in month)
+                    {
+                        var name = NameOf(session);
+                        var setCount = setCounts.GetValueOrDefault(session.Id);
+                        @* Keyed, so a deleted row's "Delete?" doesn't carry over to the row that takes its place. *@
+                        <div class="history-row @(session == shown ? "picked" : "")" @key="session.Id">
+                            <span class="caption">@session.StartedAt.ToString("ddd d", CultureInfo.CurrentCulture)</span>
+                            <a class="row-text" href="history/@session.Id">
+                                <span class="name">@name</span>
+                                <span class="caption">@(telemetry ? $"{session.StartedAt.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)} · " : "")@TimeText.Format(session.FinishedAt!.Value - session.StartedAt) · @setCount @(setCount == 1 ? "set" : "sets")</span>
+                            </a>
+                            @if (editing)
+                            {
+                                <ConfirmDelete Label="@($"Delete {name} on {session.StartedAt.ToString("MMM d", CultureInfo.CurrentCulture)}")" OnDelete="() => DeleteAsync(session)" />
+                            }
+                            else if (session.Improvement is { } change)
+                            {
+                                <Delta Change="change" />
+                            }
+                            else
+                            {
+                                <span></span>
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private bool loaded;
+    private List<WorkoutSession> sessions = [];
+    private List<(long SessionId, long ExerciseId)> exercisesDone = [];
+    private Dictionary<long, int> setCounts = [];
+    private Dictionary<long, string> templateNames = [];
+    private WorkoutSession? picked;
+    private string? editingMonth;
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Flow.ScoreSessionsAsync();
+        sessions = [.. (await Store.GetSessionsAsync()).Where(s => s.FinishedAt is not null).OrderByDescending(s => s.StartedAt)];
+        // Each workout's exercises and how many sets of each: all the trend and the list need, rather than every set ever logged.
+        var counts = await Store.GetExerciseSetCountsAsync();
+        exercisesDone = [.. counts.Select(c => (c.SessionId, c.ExerciseId))];
+        setCounts = counts.GroupBy(c => c.SessionId).ToDictionary(g => g.Key, g => g.Sum(c => c.Sets));
+        templateNames = (await Store.GetTemplatesAsync()).ToDictionary(t => t.Id, t => t.Name);
+        loaded = true;
+    }
+
+    private string NameOf(WorkoutSession session) => session.TemplateId is long id && templateNames.TryGetValue(id, out var name) ? name : "Workout";
+
+    private async Task DeleteAsync(WorkoutSession session)
+    {
+        sessions.Remove(session);
+        await Flow.DeleteSessionAsync(session);
+    }
+}
