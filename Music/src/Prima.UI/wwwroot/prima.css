@@ -1593,3 +1593,142 @@ a.mu-btn {
 .settings-sheet {
     max-width: 680px;
 }
+
+.sheet-cover {
+    fill: var(--mu-sheet);
+}
+
+/* Sight-read: the heading and readouts above the sheet, the look's bar, and the summary under it. */
+.reading {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reading-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.reading-on .page-title {
+    font-size: 26px;
+    line-height: 32px;
+}
+
+[data-theme="vinyl"] .reading-on .page-title {
+    font-size: 48px;
+    line-height: 46px;
+}
+
+.reading-start {
+    max-width: 760px;
+}
+
+.reading-bar {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 12px 18px;
+    border-radius: var(--mu-r-panel);
+    background: var(--screen);
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .reading-bar {
+    background: var(--surface);
+}
+
+.reading-bar .mu-readout-value {
+    font-size: 22px;
+    line-height: 26px;
+}
+
+.reading-look {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--meter-off);
+    overflow: hidden;
+}
+
+.reading-look > span {
+    display: block;
+    height: 100%;
+    background: var(--meter-on);
+}
+
+.reading-bar .mu-btn {
+    margin-left: auto;
+}
+
+.summary {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.summary-figures {
+    padding: 16px 22px;
+}
+
+.summary-figures .mu-readouts {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.summary-words {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 16px;
+    line-height: 23px;
+}
+
+.timeline {
+    margin: 0;
+}
+
+.timeline svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+    border-radius: var(--radius-display);
+    background: var(--mu-sheet);
+}
+
+.timeline-band.audible {
+    fill: rgba(183, 101, 12, 0.10);
+}
+
+.timeline-band.in-time {
+    fill: rgba(70, 120, 60, 0.14);
+}
+
+.timeline-zero {
+    stroke: var(--mu-sheet-faint);
+    stroke-width: 1;
+}
+
+.timeline-note {
+    fill: var(--mu-sheet-ink);
+}
+
+.timeline-note.off {
+    fill: #b7650c;
+}
+
+.timeline-miss {
+    stroke: #c8361b;
+    stroke-width: 2;
+}
+
+@media (orientation: portrait) {
+    .reading-bar {
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+}

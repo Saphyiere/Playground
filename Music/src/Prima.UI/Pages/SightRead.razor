@@ -1,7 +1,456 @@
 @page "/sight-read"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject IScreen Screen
+@inject Click Click
+@inject SessionRegistry Registry
+@inject NavigationManager Nav
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using Prima.Core.Scoring
+@using Prima.UI.Practice
 
 <PageTitle>Sight-read · Prima</PageTitle>
 
-<PageHead Title="Sight-read" Kicker="New music, in time" />
+<div class="reading @(stage == Stage.Choose ? "" : "reading-on")">
+    <header class="reading-head">
+        <div>
+            <p class="page-kicker">@Kicker()</p>
+            <h1 class="page-title">@(passage?.Description ?? "Sight-read")</h1>
+        </div>
+        <KeyboardLamp />
+    </header>
 
-<p class="page-note">New passages at your level, read in time with the click, come here.</p>
+    @if (stage == Stage.Choose)
+    {
+        <section class="mu-screen reading-start" aria-label="Before starting">
+            <div class="mu-screen-head"><span>@(reading is null ? "First time" : $"Level {reading.Level}")</span><span>@(reading is null ? "" : $"{reading.Tempo:0} bpm")</span></div>
+            <p class="page-panel-line">@(reading is null
+                ? "Find your level: two short passages from each level, from the start, until they fall under 80% in time. Or start at level 1."
+                : "A new passage at your level: thirty seconds to look, a bar of count-in, then play in time. The click never waits.")</p>
+            <div class="mu-readouts">
+                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@(reading?.Level.ToString(CultureInfo.InvariantCulture) ?? "–")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Reading score</span><span class="mu-readout-value">@(reading?.Score.ToString("0.0", CultureInfo.InvariantCulture) ?? "–")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Today</span><span class="mu-readout-value">@passagesToday</span></div>
+            </div>
+        </section>
+        <div class="control-row">
+            <span class="control-label">Variant</span>
+            @foreach (var v in Variants)
+            {
+                var disabled = v is Variant.Duet or Variant.HearFirst && !PianoPlays;
+                <button type="button" class="mu-toggle" disabled="@disabled" aria-pressed="@(variant == v ? "true" : "false")" @onclick="() => variant = variant == v ? null : v"><span class="mu-led"></span>@VariantName(v)</button>
+            }
+        </div>
+        <div class="control-row control-row-play">
+            @if (reading is null)
+            {
+                <button type="button" class="mu-btn mu-primary" @onclick="FindLevel">Find my level</button>
+                <button type="button" class="mu-btn" @onclick="StartAtOne">Start at level 1</button>
+            }
+            else
+            {
+                <button type="button" class="mu-play" aria-label="New passage" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
+            }
+            @if (!PianoPlays)
+            {
+                <p class="control-note">Duet and Hear first need the piano to play notes from the tablet.</p>
+            }
+        </div>
+    }
+    else if (passage is not null)
+    {
+        <section class="reading-bar" aria-label="Where you are">
+            <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
+            @if (stage == Stage.Look)
+            {
+                <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
+                <button type="button" class="mu-btn mu-primary" @onclick="Run">Start</button>
+            }
+        </section>
+
+        <div class="sheet-frame">
+            <Sheet @ref="sheet" Mei="@mei" OnNoteTapped="Tapped" />
+        </div>
+
+        @if (stage == Stage.Summary && result is not null)
+        {
+            <section class="summary" aria-label="How it went">
+                <div class="mu-screen summary-figures">
+                    <div class="mu-readouts">
+                        <div class="mu-readout @(result.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.InTimeAccuracy:P0}")</span></div>
+                        <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@result.CorrectPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
+                        <div class="mu-readout"><span class="mu-readout-label">Kept going</span><span class="mu-readout-value">@(result.KeptGoing ? "Yes" : "No")</span></div>
+                        <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@Lean()</span></div>
+                    </div>
+                </div>
+                <ul class="summary-words">
+                    @foreach (var line in Words())
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
+                @if (tapped is not null)
+                {
+                    <p class="control-note">@tapped</p>
+                }
+                @if (showTimeline)
+                {
+                    <Timeline Result="result" />
+                }
+                <div class="control-row">
+                    @if (finding)
+                    {
+                        <button type="button" class="mu-btn mu-primary" @onclick="NewPassage">Next</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="mu-play" aria-label="Next passage" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                        <button type="button" class="mu-btn" @onclick="Slower">Slower</button>
+                        <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
+                    }
+                    <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide details" : "Details")</button>
+                    <button type="button" class="mu-btn" @onclick="Done">Done</button>
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private enum Stage { Choose, Hear, Look, Run, Summary }
+
+    private static readonly Variant[] Variants = [Variant.ReadAhead, Variant.Duet, Variant.HearFirst];
+    private const double LookSeconds = 30;
+
+    [SupplyParameterFromQuery(Name = "variant")] public string? VariantQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+
+    private Stage stage = Stage.Choose;
+    private ReadingState? reading;
+    private Passage? passage;
+    private string mei = "";
+    private Variant? variant;
+    private double tempo;
+    private PlaySession? session;
+    private PassageResult? result;
+    private Sheet? sheet;
+    private DateTime lookStarted;
+    private DateTime runStarted;
+    private Timer? ticker;
+    private bool finding;
+    private int findLevel;
+    private readonly List<double> findResults = [];
+    private int passagesToday;
+    private Key? lastKey;
+    private string? tapped;
+    private bool showTimeline;
+    private bool pianoPart;
+
+    private bool PianoPlays => Keyboard.CanSend && Settings.SendToPiano;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reading = await Store.GetTrackAsync<ReadingState>("reading");
+        passagesToday = (await Store.GetAttemptsAsync(Today, "passage")).Count(a => a.Day == Today);
+        variant = Enum.TryParse<Variant>(VariantQuery, true, out var v) ? v : null;
+    }
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private static string VariantName(Variant v) => v switch { Variant.ReadAhead => "Read ahead", Variant.Duet => "Duet", _ => "Hear first" };
+
+    private string Kicker() => stage == Stage.Choose ? "New music, in time" : finding ? $"Finding your level · level {findLevel}" : variant is { } v ? VariantName(v) : "Sight-read";
+
+    private void FindLevel()
+    {
+        (finding, findLevel) = (true, 1);
+        findResults.Clear();
+        NewPassage();
+    }
+
+    private async Task StartAtOne()
+    {
+        reading = ReadingState.Start;
+        await Store.SaveTrackAsync("reading", reading);
+        NewPassage();
+    }
+
+    private void NewPassage()
+    {
+        StopRun();
+        reading ??= ReadingState.Start;
+        var spec = finding ? Ladder.Level(findLevel) : reading.Spec;
+        tempo = finding ? spec.Tempo.Min : reading.Tempo;
+        if (variant is Variant.Duet or Variant.HearFirst && !PianoPlays) variant = null;
+        passage = PassageGenerator.Generate(spec, (ulong)DateTime.Now.Ticks, lastKey);
+        lastKey = passage.Score.Key;
+        mei = MeiWriter.Write(passage.Score, tempo);
+        (result, tapped, showTimeline) = (null, null, false);
+        if (variant == Variant.HearFirst) Hear();
+        else BeginLook();
+    }
+
+    private double BeatTicks => passage!.Score.Meter.BeatTicks;
+
+    private double MsPerQuarter => 60_000 / tempo * Ticks.Quarter / BeatTicks;
+
+    // Read ahead's view in quarters: its width in bars, never under 1.5 s at the tempo.
+    private double ReadAheadQuarters => (reading?.ReadAheadBars ?? 2) * passage!.Score.Meter.BarTicks / (double)Ticks.Quarter;
+
+    private void BeginLook()
+    {
+        stage = Stage.Look;
+        lookStarted = DateTime.Now;
+        Screen.KeepOn(true);
+        StartTicker();
+        if (variant == Variant.ReadAhead) _ = ShowOpeningSoon();
+    }
+
+    private async Task ShowOpeningSoon()
+    {
+        await Task.Delay(400);
+        if (sheet is not null) await sheet.ShowOpening(ReadAheadQuarters);
+    }
+
+    // Hear first: the piano plays the passage once with the click, then the look.
+    private void Hear()
+    {
+        stage = Stage.Hear;
+        var all = Beats(passage!.Score.Expected());
+        StartSession(all, all, () => InvokeAsync(BeginLook));
+    }
+
+    private void Run()
+    {
+        stage = Stage.Run;
+        runStarted = DateTime.Now;
+        var expected = passage!.Score.Expected();
+        var mine = variant == Variant.Duet && expected.Any(e => e.Staff == 2) && passage.Spec.Hands == Hands.Together ? expected.Where(e => e.Staff == 1).ToList() : expected;
+        var others = variant == Variant.Duet ? (mine.Count < expected.Count ? Beats(expected.Where(e => e.Staff == 2).ToList()) : Accompaniment()) : null;
+        StartSession(Beats(mine), others, () => InvokeAsync(Score));
+        _ = StartCursorSoon();
+    }
+
+    private void StartSession(IReadOnlyList<(int Midi, double Beat, double Beats)> expected, IReadOnlyList<(int Midi, double Beat, double Beats)>? piano, Func<Task> whenDone)
+    {
+        session?.Dispose();
+        session = new PlaySession(Click, Keyboard, Clock, Registry);
+        pianoPart = piano is not null && stage == Stage.Hear;
+        var meter = passage!.Score.Meter;
+        var beats = passage.Score.Bars.Where(b => b.Number > 0).Sum(b => b.Length ?? meter.BarTicks) / BeatTicks;
+        session.Changed += () =>
+        {
+            if (session?.Phase == Phase.Done) _ = whenDone();
+            else _ = InvokeAsync(StateHasChanged);
+        };
+        session.Start(new ClickPlan(tempo, meter.Beats, Math.Max(1, Settings.CountInBars)), beats, stage == Stage.Hear ? [] : expected, piano);
+    }
+
+    private async Task StartCursorSoon()
+    {
+        await Task.Delay(50);
+        if (sheet is null || session is null || passage is null) return;
+
+        var pickup = passage.Score.Bars[0].Number == 0 ? (passage.Score.Bars[0].Length ?? 0) / BeatTicks : 0;
+        await sheet.StartCursor(session.MsUntil(-pickup), MsPerQuarter, 0, variant == Variant.ReadAhead ? ReadAheadQuarters : null);
+    }
+
+    private IReadOnlyList<(int Midi, double Beat, double Beats)> Beats(IReadOnlyList<ExpectedNote> notes) => [.. notes.Select(n => (n.Midi, n.Tick / BeatTicks, n.Length / BeatTicks))];
+
+    // At one-hand levels the piano plays a bass note a bar: the tonic, or the dominant where the bar leans on it.
+    private IReadOnlyList<(int Midi, double Beat, double Beats)> Accompaniment()
+    {
+        var key = passage!.Score.Key;
+        var meter = passage.Score.Meter;
+        var tonic = key.Degree(0, 2).Midi + 12;
+        var dominant = key.Degree(4, 2).Midi;
+        var barBeats = meter.BarTicks / BeatTicks;
+        return passage.Score.Bars.Where(b => b.Number > 0).Select(b =>
+        {
+            var classes = b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones)).Select(t => ((t.Pitch.Midi - key.TonicPitchClass) % 12 + 12) % 12).ToList();
+            var leansOnFive = classes.Count(c => c is 7 or 11 or 2) > classes.Count(c => c is 0 or 4);
+            return (leansOnFive ? dominant : tonic, (b.Number - 1) * barBeats, barBeats);
+        }).ToList();
+    }
+
+    private async Task Score()
+    {
+        if (session is null || passage is null || stage != Stage.Run) return;
+
+        await (sheet?.StopCursor() ?? Task.CompletedTask);
+        var meter = passage.Score.Meter;
+        var expected = passage.Score.Expected();
+        if (variant == Variant.Duet && passage.Spec.Hands == Hands.Together && expected.Any(e => e.Staff == 2)) expected = [.. expected.Where(e => e.Staff == 1)];
+        var beatNs = 60e9 / tempo;
+        var ornamented = passage.Score.Marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
+        var session1 = session;
+        result = PassageScorer.Score(expected, b => session1.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs, ornamented);
+        stage = Stage.Summary;
+        Screen.KeepOn(false);
+        StateHasChanged();
+        await ShowMarks();
+        await Save(expected);
+    }
+
+    private async Task ShowMarks()
+    {
+        if (sheet is null || result is null || passage is null) return;
+
+        var written = passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
+        var key = passage.Score.Key;
+        var marks = result.Notes.Select(n => n.Outcome switch
+        {
+            Outcome.Wrong when n.Played is { } played => new SheetMark(n.Id, "wrong", key.Spell(played).ToString(), key.Spell(played).Diatonic - written[n.Id].Diatonic),
+            Outcome.Missed => new SheetMark(n.Id, "missed"),
+            _ when n.Band == Band.Off => new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late"),
+            _ => null,
+        }).OfType<SheetMark>().ToList();
+        await sheet.ShowMarks(marks);
+    }
+
+    private async Task Save(IReadOnlyList<ExpectedNote> expected)
+    {
+        if (result is null || passage is null || session is null) return;
+
+        var zero = session.TimeAt(0);
+        var measures = new
+        {
+            inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, extra = result.Extra, audible = result.Audible, off = result.Off,
+            leanMs = result.LeanMs, leanPercent = result.LeanPercent, steadiness = result.SteadinessPercent, perMinute = result.CorrectPerMinute, keptGoing = result.KeptGoing,
+            drift = result.TempoDriftPercent, rmsMs = result.RmsMs, lost = result.LostOnKeyboard, worstBar = result.WorstBar, bars = passage.Score.Bars.Count(b => b.Number > 0), notes = expected.Count,
+        };
+        var played = session.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
+        var beats = Enumerable.Range(-Math.Max(1, Settings.CountInBars) * passage.Score.Meter.Beats, (int)(measures.bars * passage.Score.Meter.Beats) + 8).Select(b => (session.TimeAt(b) - zero) / 1e6);
+        var kind = finding ? "find" : "passage";
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, kind, variant?.ToString(), null, passage.Spec.Level, tempo, (long)passage.Seed,
+            System.Text.Json.JsonSerializer.Serialize(new { step = reading?.Step ?? 4, style = passage.Style.ToString() }), System.Text.Json.JsonSerializer.Serialize(played), System.Text.Json.JsonSerializer.Serialize(beats), System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
+        await Store.AddMinutesAsync(Today, (DateTime.Now - lookStarted).TotalMinutes);
+
+        if (finding)
+        {
+            findResults.Add(result.InTimeAccuracy);
+            if (findResults.Count == 2)
+            {
+                var (next, found) = Reading.FindLevel(findLevel, findResults);
+                findResults.Clear();
+                if (found is { } level)
+                {
+                    finding = false;
+                    reading = ReadingState.Start with { Level = level, Step = 4, Tempo = Ladder.Level(level).Tempo.Min };
+                    await Store.SaveTrackAsync("reading", reading);
+                }
+                else findLevel = next!.Value;
+            }
+            return;
+        }
+
+        passagesToday++;
+        reading ??= ReadingState.Start;
+        if (variant == Variant.ReadAhead)
+        {
+            var verdict = result.InTimeAccuracy > 0.9 && result.KeptGoing ? Verdict.Good : result.InTimeAccuracy < 0.8 || !result.KeptGoing ? Verdict.TooHard : Verdict.Hold;
+            reading = reading with { ReadAheadBars = Reading.ReadAheadAfter(reading.ReadAheadBars, verdict, tempo, passage.Score.Meter.Beats) };
+        }
+        else if (variant is null) reading = Reading.After(reading, result.InTimeAccuracy, result.KeptGoing).State;
+        await Store.SaveTrackAsync("reading", reading);
+        if (passagesToday >= 4) await Store.MarkStepAsync(Today, StepKind.SightReading);
+    }
+
+    private async Task Slower()
+    {
+        if (reading is null) return;
+
+        reading = reading with { Tempo = Math.Max(Ladder.Level(reading.Level).Tempo.Min, Math.Round(reading.Tempo * 0.9)), Recent = [] };
+        await Store.SaveTrackAsync("reading", reading);
+        NewPassage();
+    }
+
+    private void Done()
+    {
+        StopRun();
+        if (From == "today") Nav.NavigateTo("");
+        else (stage, passage) = (Stage.Choose, null);
+    }
+
+    private void Tapped(string id)
+    {
+        var note = result?.Notes.FirstOrDefault(n => n.Id == id);
+        if (note is null) return;
+
+        var name = passage!.Score.Key.Spell(note.Midi).ToString();
+        tapped = note.Outcome switch
+        {
+            Outcome.Right => $"{name}: right, {Math.Abs(note.ErrorMs ?? 0):0} ms {(note.ErrorMs < 0 ? "early" : "late")} ({Math.Abs(note.ErrorPercent ?? 0):0}% of the beat after your lean, {note.Band switch { Band.InTime => "in time", Band.Audible => "audible", _ => "off" }}).",
+            Outcome.Wrong => $"{name}: you played {passage.Score.Key.Spell(note.Played ?? 0)}.",
+            _ => $"{name}: not played.",
+        };
+    }
+
+    private string Lean() => result is null ? "–" : Math.Abs(result.LeanMs) < 5 ? "Even" : $"{Math.Abs(result.LeanMs):0} ms {(result.LeanMs < 0 ? "early" : "late")}";
+
+    private IEnumerable<string> Words()
+    {
+        if (result is null || passage is null) yield break;
+
+        var key = passage.Score.Key;
+        if (result.Clean && result.Off == 0) yield return "Every note right, and you kept going.";
+        foreach (var wrong in result.Notes.Where(n => n.Outcome == Outcome.Wrong).Take(4)) yield return $"Bar {wrong.Bar}: played {key.Spell(wrong.Played ?? 0)} for {key.Spell(wrong.Midi)}{(wrong.Wrong == WrongKind.LostOnKeyboard ? ", a key or two away: lost on the keyboard" : wrong.Wrong == WrongKind.Octave ? ", an octave away" : "")}.";
+        if (result.Missed > 0) yield return $"{result.Missed} {(result.Missed == 1 ? "note" : "notes")} not played.";
+        if (result.Extra > 0) yield return $"{result.Extra} extra {(result.Extra == 1 ? "note" : "notes")}.";
+        if (result.Audible + result.Off > 0) yield return $"{result.Off} off the beat and {result.Audible} just audibly early or late, after your lean.";
+        if (!result.KeptGoing) yield return "You stopped for more than a bar. Next time keep the beat going, even past a wrong note.";
+        if (Math.Abs(result.LeanPercent) >= 5) yield return $"You leaned {Math.Abs(result.LeanMs):0} ms {(result.LeanMs < 0 ? "early" : "late")}, measured from your timing calibration.";
+        if (result.WorstBar is { } bar && !result.Clean) yield return $"Bar {bar} had the most to fix.";
+    }
+
+    private string PhaseName() => stage switch
+    {
+        Stage.Hear => "Listen",
+        Stage.Look => "Look",
+        _ when session?.Phase == Phase.CountIn => "Count-in",
+        Stage.Run => "Bar",
+        _ => "Bars",
+    };
+
+    private string PhaseValue()
+    {
+        if (stage == Stage.Look) return $"{Math.Max(0, LookSeconds - (DateTime.Now - lookStarted).TotalSeconds):0}s";
+        if (session is null || passage is null || stage is not (Stage.Run or Stage.Hear)) return result is null ? "–" : $"{passage!.Score.Bars.Count(b => b.Number > 0)}";
+
+        var barNs = 60e9 / tempo * passage.Score.Meter.Beats;
+        var since = Clock.NowNs - session.TimeAt(0);
+        var bars = passage.Score.Bars.Count(b => b.Number > 0);
+        return since < 0 ? $"{(int)(since / (60e9 / tempo)) + passage.Score.Meter.Beats}" : $"{Math.Min(bars, (int)(since / barNs) + 1)} of {bars}";
+    }
+
+    private double LookShare() => Math.Min(100, (DateTime.Now - lookStarted).TotalSeconds / LookSeconds * 100);
+
+    private void StartTicker()
+    {
+        ticker?.Dispose();
+        ticker = new Timer(_ =>
+        {
+            if (stage == Stage.Look && (DateTime.Now - lookStarted).TotalSeconds >= LookSeconds) _ = InvokeAsync(Run);
+            else if (stage is Stage.Look or Stage.Run or Stage.Hear) _ = InvokeAsync(StateHasChanged);
+        }, null, 250, 250);
+    }
+
+    private void StopRun()
+    {
+        ticker?.Dispose();
+        ticker = null;
+        session?.Dispose();
+        session = null;
+        Screen.KeepOn(false);
+    }
+
+    public void Dispose() => StopRun();
+}

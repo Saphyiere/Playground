@@ -69,9 +69,15 @@
     public Task NoteTapped(string id) => OnNoteTapped.InvokeAsync(id);
 
     /// <summary>Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter <paramref name="startQuarter"/> of the music.</summary>
-    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter)
+    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double? readAheadQuarters = null)
     {
-        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter);
+        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters);
+    }
+
+    /// <summary>Read ahead's look: only the opening view of <paramref name="quarters"/> shows.</summary>
+    public async Task ShowOpening(double quarters)
+    {
+        if (module is not null) await module.InvokeVoidAsync("showOpening", element, quarters);
     }
 
     public async Task StopCursor()

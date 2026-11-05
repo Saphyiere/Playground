@@ -1,0 +1,34 @@
+@using Prima.Core.Scoring
+
+@* The details on demand: every note's timing after the lean, in % of the beat, left to right through the passage. The bands
+   are shaded: in time within 5%, audible to 10%. Wrong and missed notes sit on the line in the miss color. *@
+<figure class="timeline">
+    <svg viewBox="0 0 @Width 120" preserveAspectRatio="none" role="img" aria-label="Each note's timing, in % of the beat">
+        <rect class="timeline-band audible" x="0" y="@Y(10)" width="@Width" height="@(Y(-10) - Y(10))" />
+        <rect class="timeline-band in-time" x="0" y="@Y(5)" width="@Width" height="@(Y(-5) - Y(5))" />
+        <line class="timeline-zero" x1="0" x2="@Width" y1="@Y(0)" y2="@Y(0)" />
+        @for (var i = 0; i < Result.Notes.Count; i++)
+        {
+            var note = Result.Notes[i];
+            var x = (i + 0.5) * Width / Result.Notes.Count;
+            if (note.Outcome == Outcome.Right)
+            {
+                <circle class="timeline-note @(note.Band == Band.Off ? "off" : "")" cx="@x" cy="@Y(note.ErrorPercent ?? 0)" r="3.5" />
+            }
+            else
+            {
+                <path class="timeline-miss" d="M@(x - 3.5) @(Y(0) - 3.5)L@(x + 3.5) @(Y(0) + 3.5)M@(x + 3.5) @(Y(0) - 3.5)L@(x - 3.5) @(Y(0) + 3.5)" />
+            }
+        }
+    </svg>
+    <figcaption class="control-note">Each note, in order: above the line late, below early, in % of the beat after your lean. The darker band is in time (under 5%), the lighter one audible (to 10%).</figcaption>
+</figure>
+
+@code {
+    private const double Width = 800;
+
+    [Parameter, EditorRequired] public PassageResult Result { get; set; } = default!;
+
+    // 20% of the beat early to 20% late, top to bottom.
+    private static double Y(double percent) => 60 - Math.Clamp(percent, -20, 20) * 2.6;
+}

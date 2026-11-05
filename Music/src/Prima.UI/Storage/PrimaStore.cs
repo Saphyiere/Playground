@@ -10,7 +10,7 @@ namespace Prima.UI.Storage;
 /// Prima's data, in one SQLite file on the tablet. Every piece of work runs in turn on one lane, each on a background thread with
 /// its own connection, so a read started after a write sees it.
 /// </summary>
-public sealed class PrimaStore(string databasePath) : ISettingStore
+public sealed partial class PrimaStore(string databasePath) : ISettingStore
 {
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS Setting (
@@ -28,6 +28,13 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
     private const string SendToPianoKey = "Keyboard.SendToPiano";
     private const string MusicFontKey = "Notation.Font";
     private const string SheetSizeKey = "Notation.SheetSize";
+    private const string NameKey = "Profile.Name";
+    private const string MinutesKey = "Profile.DailyMinutes";
+    private const string CueKey = "Profile.Cue";
+    private const string ClefsKey = "Profile.Clefs";
+    private const string CountInKey = "Practice.CountInBars";
+    private const string LetterNamesKey = "Practice.LetterNames";
+    private const string WelcomedKey = "Profile.Welcomed";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -56,6 +63,13 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
         settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
         settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? settings.MusicFont;
         settings.SheetSize = (int?)Number(SheetSizeKey) ?? settings.SheetSize;
+        settings.Name = saved.GetValueOrDefault(NameKey) ?? settings.Name;
+        settings.DailyMinutes = (int?)Number(MinutesKey) ?? settings.DailyMinutes;
+        settings.Cue = saved.GetValueOrDefault(CueKey) ?? settings.Cue;
+        settings.Clefs = saved.GetValueOrDefault(ClefsKey) ?? settings.Clefs;
+        settings.CountInBars = (int?)Number(CountInKey) ?? settings.CountInBars;
+        settings.LetterNames = saved.GetValueOrDefault(LetterNamesKey) == "true";
+        settings.Welcomed = saved.GetValueOrDefault(WelcomedKey) == "true";
     }
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
@@ -72,6 +86,13 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
             (SendToPianoKey, settings.SendToPiano ? "true" : "false"),
             (MusicFontKey, settings.MusicFont),
             (SheetSizeKey, settings.SheetSize.ToString(CultureInfo.InvariantCulture)),
+            (NameKey, settings.Name),
+            (MinutesKey, settings.DailyMinutes.ToString(CultureInfo.InvariantCulture)),
+            (CueKey, settings.Cue),
+            (ClefsKey, settings.Clefs),
+            (CountInKey, settings.CountInBars.ToString(CultureInfo.InvariantCulture)),
+            (LetterNamesKey, settings.LetterNames ? "true" : "false"),
+            (WelcomedKey, settings.Welcomed ? "true" : "false"),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)
@@ -94,7 +115,7 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
                 await connection.OpenAsync();
                 if (!schemaReady)
                 {
-                    await connection.ExecuteAsync(Schema);
+                    await connection.ExecuteAsync(Schema + PracticeSchema);
                     schemaReady = true;
                 }
 

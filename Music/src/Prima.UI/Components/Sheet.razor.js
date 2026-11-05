@@ -122,12 +122,13 @@ function positions(element, state) {
 
 // Moves a cursor in the look's accent with the music: bar 1 starts `msUntilStart` from now, at `msPerQuarter`, from quarter
 // `startQuarter` of the music (later than 0 after a pickup). A guide only: nothing is scored from it.
-export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter) {
+export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters) {
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
     const points = positions(element, state);
     if (points.length === 0) return;
+    const bars = windowQuarters ? measures(element, state) : null;
     const overlay = element.querySelector(".sheet-overlay");
     const line = document.createElementNS(svgNs, "rect");
     line.setAttribute("class", "sheet-cursor");
@@ -145,6 +146,7 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter) {
         line.setAttribute("x", x);
         line.setAttribute("y", here.top);
         line.setAttribute("height", here.bottom - here.top);
+        if (bars) for (const bar of bars) bar.cover.style.display = bar.end <= q - 0.05 || bar.start > q + windowQuarters ? "" : "none";
         state.raf = requestAnimationFrame(frame);
     };
     state.raf = requestAnimationFrame(frame);
@@ -156,6 +158,37 @@ export function cursorStop(element) {
     cancelAnimationFrame(state.raf);
     state.cursor?.remove();
     state.cursor = null;
+    element.querySelectorAll(".sheet-cover").forEach(c => c.remove());
+}
+
+// Read ahead: each bar with its span in quarters and a cover the colour of the paper, drawn over it when it's hidden.
+function measures(element, state) {
+    const box = element.getBoundingClientRect();
+    const overlay = element.querySelector(".sheet-overlay");
+    const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, start: e.qstamp }));
+    const last = Math.max(...state.timemap.map(e => e.qstamp));
+    return starts.map((m, i) => {
+        const g = element.querySelector(`.sheet-music [data-id="${m.id}"]`);
+        if (!g) return null;
+        const r = g.getBoundingClientRect();
+        const cover = document.createElementNS(svgNs, "rect");
+        cover.setAttribute("class", "sheet-cover");
+        cover.setAttribute("x", r.left - box.left);
+        cover.setAttribute("y", r.top - box.top - 8);
+        cover.setAttribute("width", r.width + 1);
+        cover.setAttribute("height", r.height + 16);
+        cover.style.display = "none";
+        overlay.appendChild(cover);
+        return { start: m.start, end: starts[i + 1]?.start ?? last + 4, cover };
+    }).filter(Boolean);
+}
+
+// Read ahead's look: only the opening view shows, so the passage can't be learned before it's hidden.
+export function showOpening(element, windowQuarters) {
+    const state = sheets.get(element);
+    if (!state) return;
+    element.querySelectorAll(".sheet-cover").forEach(c => c.remove());
+    for (const bar of measures(element, state)) bar.cover.style.display = bar.start > windowQuarters ? "" : "none";
 }
 
 // Marks notes after the passage. Each mark: id, kind ("wrong", "missed", "early", "late"), and for a wrong note what was played

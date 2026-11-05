@@ -33,4 +33,23 @@ public sealed class PrimaSettings
 
     /// <summary>The sheet's size: -1 smaller, 0 the printed 7 mm staff, 1 larger.</summary>
     public int SheetSize { get; set; }
+
+    public string? Name { get; set; }
+
+    /// <summary>The daily goal. The app never raises it by itself.</summary>
+    public int DailyMinutes { get; set; } = 20;
+
+    /// <summary>The practice cue, "When I ___, I'll open the app": an if-then plan (Gollwitzer &amp; Sheeran).</summary>
+    public string? Cue { get; set; }
+
+    /// <summary>The clefs the note review drills: "both", "treble" or "bass".</summary>
+    public string Clefs { get; set; } = "both";
+
+    public int CountInBars { get; set; } = 1;
+
+    /// <summary>Letter names after a wrong answer in drills.</summary>
+    public bool LetterNames { get; set; } = true;
+
+    /// <summary>Whether the first run's welcome is done.</summary>
+    public bool Welcomed { get; set; }
 }

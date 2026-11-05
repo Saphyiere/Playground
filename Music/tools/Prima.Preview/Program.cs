@@ -7,6 +7,7 @@ using Prima.Preview;
 using Prima.Preview.Components;
 using Prima.UI;
 using Prima.UI.Host;
+using Prima.UI.Practice;
 using Prima.UI.Storage;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
@@ -29,7 +30,7 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "Setting" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
+        foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     await store.LoadAsync(settings);
     return Results.Text(scenario);
@@ -54,6 +55,34 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
         keys.PlayAt(NoteName.MiddleC, 70, at, at + 150_000_000);
     }
     return Results.Text($"tapped {count} beats");
+});
+// Plays the run in progress in one go and ends it: a share of notes right (the rest a key away), a lean and a spread in ms, and
+// optionally nothing from a bar on (a stop), so a summary can be screenshotted without waiting.
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, SessionRegistry registry) =>
+{
+    var session = registry.Current;
+    if (session?.Plan is null) return Results.Text("no run in progress");
+
+    var random = new Random(9);
+    var beatsPerBar = session.Plan.BeatsPerBar;
+    var notes = session.Expected
+        .Where(e => stop is null || e.Beat < (stop.Value - 1) * beatsPerBar)
+        .Select(e =>
+        {
+            var midi = random.NextDouble() < (right ?? 0.95) ? e.Midi : e.Midi + (random.NextDouble() < 0.5 ? 1 : 2);
+            var on = session.TimeAt(e.Beat) + (long)(((lean ?? -15) + (random.NextDouble() - 0.5) * 2 * (spread ?? 12)) * 1e6);
+            return new Prima.Core.Scoring.PlayedNote(midi, on, session.TimeAt(e.Beat + e.Beats) - 30_000_000, 60 + random.Next(20));
+        }).ToList();
+    session.Perform(notes);
+    return Results.Text($"performed {notes.Count} notes");
+});
+// Answers the drill item on screen: right, or wrong.
+app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyboard keys) =>
+{
+    if (registry.DrillAnswer is not { } answer) return Results.Text("no drill item");
+
+    foreach (var step in answer(right ?? true)) keys.Play(step, 70, 200);
+    return Results.Text("answered");
 });
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 
