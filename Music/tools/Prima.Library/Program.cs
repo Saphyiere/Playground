@@ -1,5 +1,6 @@
-// Builds the Library's bundle: public-domain and openly licensed piano music, chosen by the named works in Music/docs/library.md,
-// into artifacts/library with the manifest the app reads. The files are fetched, never committed.
+// Builds the Library's music: public-domain and openly licensed piano music, chosen by the named works in Music/docs/library.md,
+// into Music/library with the manifest the app reads. The result is kept in the repo, so the app builds with it as it is; run
+// this again only to change the selection.
 //
 //   dotnet run --project Music/tools/Prima.Library            both sources
 //   dotnet run --project Music/tools/Prima.Library -- pdmx    PDMX only (MusicXML from MuseScore users, about 10 minutes)
@@ -11,7 +12,7 @@ using Prima.Core.Library;
 using Prima.Library;
 
 var root = FindRoot(AppContext.BaseDirectory) ?? FindRoot(Directory.GetCurrentDirectory()) ?? throw new InvalidOperationException("Run this inside the Playground repo.");
-var output = Path.Combine(root, "artifacts", "library");
+var output = Path.Combine(root, "Music", "library");
 var cache = Path.Combine(root, "artifacts", "library-cache");
 Directory.CreateDirectory(Path.Combine(output, "pieces"));
 Directory.CreateDirectory(cache);
@@ -37,7 +38,7 @@ foreach (var file in Directory.EnumerateFiles(Path.Combine(output, "pieces")).Wh
 
 var manifest = new LibraryManifest(1, DateTime.UtcNow.ToString("yyyy-MM-dd"), [.. pieces.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)]);
 await File.WriteAllTextAsync(manifestPath, manifest.Write());
-Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({manifest.Pieces.Count(p => p.Format == "mxl")} MusicXML, {manifest.Pieces.Count(p => p.Format == "pdf")} PDF), in {clock.Elapsed:m\\:ss}.");
+Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({manifest.Pieces.Count(p => p.Format == "mxl")} MusicXML, {manifest.Pieces.Count(p => p.Format == "pdf")} PDF), in {clock.Elapsed:m\\:ss}. Commit them, then build the app.");
 
 static string? FindRoot(string from)
 {

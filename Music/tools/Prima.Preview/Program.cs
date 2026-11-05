@@ -21,10 +21,10 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddHubOpt
 builder.Services.AddSingleton<IClock, StopwatchClock>();
 builder.Services.AddSingleton<SimulatedKeyboard>();
 builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<SimulatedKeyboard>());
-// The Library's bundle, as the Library tool builds it (artifacts/library at the repo's root), and a file picker /files/next fills.
+// The Library's music (Music/library), and a file picker /files/next fills.
 var root = new DirectoryInfo(AppContext.BaseDirectory);
 while (root is not null && !File.Exists(Path.Combine(root.FullName, "Directory.Build.props"))) root = root.Parent;
-builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root?.FullName ?? ".", "artifacts", "library")));
+builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root?.FullName ?? ".", "Music", "library")));
 builder.Services.AddSingleton<PreviewFiles>();
 builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>());
 builder.Services.AddPrima(dbPath);

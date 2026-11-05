@@ -21,6 +21,7 @@ tools/Prima.Library/      Builds the Library's bundle of public-domain music int
 tools/Prima.Preview/      The screens in a browser against sample data, for checking them from the cloud.
 tests/Prima.Core.Tests/   Tests for the Core.
 docs/                     How it works, the plan and the research.
+library/                  The Library's music (MusicXML, PDF and MIDI) and its manifest, packed into the app.
 ```
 
 ## One-time setup (Windows)
@@ -34,17 +35,20 @@ The Library comes with about 240 public-domain and openly licensed pieces: 133 e
 as MusicXML) and 104 PDFs with their MIDI from the Mutopia Project, chosen by the named works in
 [docs/library.md](docs/library.md) (Czerny, Lemoine, Duvernoy, Anna Magdalena's notebook, Mozart's first pieces, Schumann's
 and Tchaikovsky's albums, Clementi, Burgmüller, Bach's Little Preludes and Inventions, Satie, Chopin's Preludes, Joplin and
-more). The files aren't in the repo: build the bundle once before building the app, and again whenever the tool changes.
+more). They're in the repo, in `library/` (about 14 MB), and the tablet build packs them into the app, so there's nothing to
+run first. The first time the Library opens on the tablet, it engraves each MusicXML piece once, cuts it into excerpts and grades
+them (a minute or two, in the background).
+
+To change the selection, edit the tool and run it; it rewrites `library/`, printing its progress as it goes, and then the
+changes are committed like any others:
 
 ```bash
 dotnet run --project Music/tools/Prima.Library
 ```
 
-It takes about 15 minutes: it reads PDMX's index (225 MB) and one pass through its 1.9 GB archive of MusicXML, keeping only the
-chosen files, then crawls Mutopia for the PDFs and MIDI. Downloads are kept in `artifacts/library-cache`, so a second run only
-fetches what's missing; `-- pdmx` or `-- mutopia` runs one source. The bundle lands in `artifacts/library` (about 14 MB), and the
-tablet project packs it into the app when it's there. The first time the Library opens on the tablet, it engraves each
-MusicXML piece once, cuts it into excerpts and grades them (a minute or two, in the background).
+A full run takes about 15 minutes: PDMX's index (225 MB), one pass through its 1.9 GB archive of MusicXML keeping only the chosen
+files, then Mutopia's PDFs and MIDI. Downloads are kept in `artifacts/library-cache`, so a second run only fetches what's missing;
+`-- pdmx` or `-- mutopia` runs one source.
 
 Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC and PDF. For MIDI, MuseScore files or Humdrum, export
 MusicXML on the PC first.

@@ -42,9 +42,8 @@ go to `settings` and tap `Telemetry` or `Logbook`. Telemetry writes dates "Sat 3
 script doesn't blur a field the way a finger does, so tap a form's Save with `realTap`. A new app gets a preview host of its own
 the same way.
 
-Prima's is `Music/tools/Prima.Preview` on http://127.0.0.1:5299, with its scenarios in its Program.cs. Its Library needs the
-bundle built first (`dotnet run --project Music/tools/Prima.Library`, about 15 minutes, once), and prepares it the first time
-it's opened. Its looks are switched in `settings` with `{"tapSel": ".look-option[data-theme=vinyl]"}` (or `studio`). Build it
+Prima's is `Music/tools/Prima.Preview` on http://127.0.0.1:5299, with its scenarios in its Program.cs. Its Library reads the
+music in `Music/library` (kept in the repo) and prepares it the first time it's opened. Its looks are switched in `settings` with `{"tapSel": ".look-option[data-theme=vinyl]"}` (or `studio`). Build it
 with `dotnet build Music/src/Prima.Tablet/Prima.Tablet.csproj`, and test with `dotnet test --project Music/tests/Prima.Core.Tests`.
 
 ## Working alongside other sessions

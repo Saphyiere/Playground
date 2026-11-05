@@ -30,6 +30,7 @@ internal static class Mutopia
 
     public static async Task<List<BundledPiece>> Fetch(HttpClient http, string output)
     {
+        Console.WriteLine("Mutopia: fetching each piece's PDF and MIDI (a few minutes)…");
         var pieces = new List<BundledPiece>();
         foreach (var (folder, work, composer, anchor) in Folders)
         {

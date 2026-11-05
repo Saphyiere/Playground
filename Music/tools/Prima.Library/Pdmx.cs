@@ -85,7 +85,10 @@ internal static class Pdmx
             Console.WriteLine($"PDMX: reading the MusicXML archive for {missing.Count} files (1.9 GB, read once)…");
             using var response = await http.GetAsync($"{Files}/mxl.tar.gz/content", HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
-            await using var gzip = new GZipStream(await response.Content.ReadAsStreamAsync(), CompressionMode.Decompress);
+            var total = response.Content.Headers.ContentLength;
+            var wanted = missing.Count;
+            await using var body = new Progress(await response.Content.ReadAsStreamAsync(), total, 100, read => $"PDMX: {read} of {total / 1_000_000 ?? 0} MB read, {wanted - missing.Count} of {wanted} found…");
+            await using var gzip = new GZipStream(body, CompressionMode.Decompress);
             using var tar = new TarReader(gzip);
             while (missing.Count > 0 && await tar.GetNextEntryAsync() is { } entry)
             {
@@ -192,10 +195,51 @@ internal static class Pdmx
         using (var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
         {
             response.EnsureSuccessStatusCode();
+            var total = response.Content.Headers.ContentLength;
             await using var file = File.Create(part);
-            await response.Content.CopyToAsync(file);
+            await using var body = new Progress(await response.Content.ReadAsStreamAsync(), total, 25, read => $"  {read} of {total / 1_000_000 ?? 0} MB…");
+            await body.CopyToAsync(file);
         }
         File.Move(part, path, overwrite: true);
+    }
+}
+
+/// <summary>A download read through, printing a line every <c>everyMb</c> megabytes, so a long one is seen to be moving.</summary>
+internal sealed class Progress(Stream inner, long? total, int everyMb, Func<long, string> line) : Stream
+{
+    private long read;
+    private long nextMb = everyMb;
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => total ?? 0;
+    public override long Position { get => read; set => throw new NotSupportedException(); }
+
+    public override int Read(byte[] buffer, int offset, int count) => Count(inner.Read(buffer, offset, count));
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => Count(await inner.ReadAsync(buffer, cancellationToken));
+
+    private int Count(int n)
+    {
+        read += n;
+        if (read / 1_000_000 >= nextMb)
+        {
+            Console.WriteLine(line(read / 1_000_000));
+            nextMb += everyMb;
+        }
+        return n;
+    }
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) inner.Dispose();
+        base.Dispose(disposing);
     }
 }
 
