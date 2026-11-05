@@ -1627,16 +1627,18 @@ a.mu-btn {
     fill: var(--mark-timing);
 }
 
-/* Where a sheet sits: Studio's dark bezel around the paper; Vinyl's paper on the teal ground. */
+/* Where a sheet sits: on its own, as wide as the bar above it and with its corners. Studio lays the paper straight on the
+   panel with a soft shadow; Vinyl on the teal with the sleeve's. */
 .sheet-frame {
-    padding: 14px;
     border-radius: var(--mu-r-panel);
-    background: var(--screen-edge);
 }
 
-[data-theme="vinyl"] .sheet-frame {
-    padding: 0;
-    background: none;
+.sheet-frame .sheet {
+    border-radius: var(--mu-r-panel);
+    box-shadow: 0 0 0 1px var(--sheet-edge), 0 3px 10px var(--sheet-edge);
+}
+
+[data-theme="vinyl"] .sheet-frame .sheet {
     box-shadow: var(--shadow-sleeve);
 }
 
@@ -1834,11 +1836,6 @@ a.mu-btn {
     font-size: 17px;
     line-height: 24px;
     font-weight: 600;
-}
-
-.drill-frame .sheet {
-    max-width: 720px;
-    margin: 0 auto;
 }
 
 .drill-feedback {
@@ -2257,17 +2254,6 @@ a.mu-btn {
 .spot-frame .sheet {
     max-width: 640px;
     margin: 0 auto;
-}
-
-/* Where the sheet is narrower than its frame, Vinyl's sleeve shadow goes on the sheet itself. */
-[data-theme="vinyl"] .spot-frame,
-[data-theme="vinyl"] .drill-frame {
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .spot-frame .sheet,
-[data-theme="vinyl"] .drill-frame .sheet {
-    box-shadow: var(--shadow-sleeve);
 }
 
 /* The bar being played, while following a piece: a pale box behind it, as on a marked part. */

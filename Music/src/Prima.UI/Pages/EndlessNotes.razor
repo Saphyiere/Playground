@@ -23,7 +23,7 @@
         <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
         <button type="button" class="mu-btn" data-piano="go" @onclick="Stop">Stop</button>
     </section>
-    <div class="sheet-frame drill-frame">
+    <div class="sheet-frame">
         <Sheet @ref="sheet" Mei="@mei" Scale="1.7" OnPainted="Shown" />
     </div>
     <p class="drill-feedback wrong" aria-live="polite">@feedback</p>

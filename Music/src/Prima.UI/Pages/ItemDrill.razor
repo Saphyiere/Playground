@@ -30,7 +30,7 @@ else if (index < items.Count)
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@results.Count(r => r.Right)</span></div>
         <p class="drill-prompt">@items[index].Item.Prompt</p>
     </section>
-    <div class="sheet-frame drill-frame">
+    <div class="sheet-frame">
         <Sheet Mei="@mei" Scale="@(items[index].Item.Answer.Count > 1 ? 1.25 : 1.7)" OnPainted="Shown" />
     </div>
     <p class="drill-feedback @(feedbackRight ? "right" : "wrong")" aria-live="polite">@feedback</p>
