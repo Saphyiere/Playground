@@ -30,7 +30,7 @@ Each app's screens have a preview host: its real UI as a Blazor Server page, aga
 workout app, `Workout/tools/AdaptiveWorkout.Preview`:
 
 ```bash
-TZ=America/New_York dotnet run --project Workout/tools/AdaptiveWorkout.Preview > <scratch>/preview.log 2>&1 &   # http://127.0.0.1:5199
+TZ=America/Los_Angeles dotnet run --project Workout/tools/AdaptiveWorkout.Preview > <scratch>/preview.log 2>&1 &   # http://127.0.0.1:5199
 curl -s http://127.0.0.1:5199/seed/today    # the scenarios are in Seed, in its Program.cs
 node tools/screens/screens.mjs steps.json <scratch>/shots
 ```
