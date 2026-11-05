@@ -18,6 +18,10 @@
 <p class="page-note">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
 
 <section class="reading-bar" aria-label="Where you are">
+    @if (session is { Phase: Phase.CountIn })
+    {
+        <CountIn Session="session" />
+    }
     <div class="mu-readout"><span class="mu-readout-label">Click</span><span class="mu-readout-value">@StageName(state.StageForTry(tryIndex))</span></div>
     <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
     @if (result is not null)
@@ -128,7 +132,7 @@
     private async Task Cursor(Meter meter)
     {
         await Task.Delay(50);
-        if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000.0 / Tempo * Ticks.Quarter / meter.BeatTicks, 0);
+        if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000.0 / Tempo * Ticks.Quarter / meter.BeatTicks, 0, 60_000.0 / Tempo, session.MsUntil(0));
     }
 
     private async Task Scored()

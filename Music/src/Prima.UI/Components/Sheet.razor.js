@@ -48,6 +48,8 @@ export function pixelsPerMm() {
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
     const state = sheets.get(element) ?? {};
+    // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's).
+    if (state.mei !== mei) state.marks = null;
     Object.assign(state, { mei, options, dotnet, tk });
     sheets.set(element, state);
     draw(element, state);
@@ -104,6 +106,7 @@ function draw(element, state) {
     const overlay = element.querySelector(".sheet-overlay");
     overlay.replaceChildren();
     state.cursor = null;
+    state.points = null;
     if (state.marks) showMarks(element, state.marks);
     requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
 }
@@ -204,12 +207,14 @@ function positions(element, state) {
 }
 
 // Moves a cursor in the look's accent with the music: bar 1 starts `msUntilStart` from now, at `msPerQuarter`, from quarter
-// `startQuarter` of the music (later than 0 after a pickup). A guide only: nothing is scored from it.
-export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters) {
+// `startQuarter` of the music (later than 0 after a pickup). Until then (the count-in) it waits at the first note and pulses
+// with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. A guide only: nothing is scored from it.
+export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat) {
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
     const points = positions(element, state);
+    state.points = points;
     if (points.length === 0) return;
     const bars = windowQuarters ? measures(element, state) : null;
     const overlay = element.querySelector(".sheet-overlay");
@@ -219,6 +224,7 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     overlay.appendChild(line);
     state.cursor = line;
     const start = performance.now() + msUntilStart;
+    const beat = performance.now() + (msUntilBeat ?? msUntilStart);
     const frame = now => {
         const q = startQuarter + (now - start) / msPerQuarter;
         let i = 0;
@@ -229,6 +235,11 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
         line.setAttribute("x", x);
         line.setAttribute("y", here.top);
         line.setAttribute("height", here.bottom - here.top);
+        // The count-in: bright on each click, fading towards the next.
+        if (now < start && beatMs > 0) {
+            const phase = (((now - beat) / beatMs) % 1 + 1) % 1;
+            line.style.opacity = String(0.3 + 0.7 * (1 - phase) * (1 - phase));
+        } else line.style.opacity = "";
         if (bars) for (const bar of bars) bar.cover.style.display = bar.end <= q - 0.05 || bar.start > q + windowQuarters ? "" : "none";
         state.raf = requestAnimationFrame(frame);
     };
@@ -274,41 +285,75 @@ export function showOpening(element, windowQuarters) {
     for (const bar of measures(element, state)) bar.cover.style.display = bar.start > windowQuarters ? "" : "none";
 }
 
-// Marks notes after the passage. Each mark: id, kind ("wrong", "missed", "early", "late"), and for a wrong note what was played
-// ("G4") and how many staff positions away it is, so a small grey note head shows it on the staff.
+// Marks notes after the passage, all at once. Each mark: id, kind ("right", "wrong", "missed", "early", "late", or a heat-map
+// shade), for a wrong note what was played ("G4") and how many staff positions away it is, so a small grey note head shows it
+// there; and for an early or late one `q`, when it was played in quarters, so a grey head shows it there.
 export function showMarks(element, marks) {
     const state = sheets.get(element);
     if (!state) return;
     state.marks = marks;
     clearDrawnMarks(element);
+    for (const mark of marks) drawMark(element, state, mark);
+}
+
+// Marks notes during a run, as each is judged: a note marked again (a slip put right) loses its earlier mark.
+export function markLive(element, marks) {
+    const state = sheets.get(element);
+    if (!state) return;
+    for (const mark of marks) drawMark(element, state, mark);
+}
+
+const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3"];
+
+function drawMark(element, state, mark) {
+    const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);
+    if (!note) return;
+    note.classList.remove(...markKinds);
+    element.querySelectorAll(`.sheet-overlay [data-for="${mark.id}"]`).forEach(n => n.remove());
+    note.classList.add(`mark-${mark.kind}`);
     const box = element.getBoundingClientRect();
     const overlay = element.querySelector(".sheet-overlay");
-    for (const mark of marks) {
-        const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);
-        if (!note) continue;
-        note.classList.add(`mark-${mark.kind}`);
-        const head = note.querySelector(".notehead") ?? note;
-        const h = head.getBoundingClientRect();
-        const cx = h.left - box.left + h.width / 2;
-        const cy = h.top - box.top + h.height / 2;
-        if (mark.kind === "wrong" && mark.played) {
-            const space = staffSpace(note) ?? h.height;
-            const gy = cy - mark.steps * space / 2;
-            const ghost = document.createElementNS(svgNs, "ellipse");
-            ghost.setAttribute("class", "sheet-ghost");
-            ghost.setAttribute("cx", cx + h.width * 1.3);
-            ghost.setAttribute("cy", gy);
-            ghost.setAttribute("rx", h.width * 0.5);
-            ghost.setAttribute("ry", space * 0.42);
-            ghost.setAttribute("transform", `rotate(-20 ${cx + h.width * 1.3} ${gy})`);
-            overlay.appendChild(ghost);
-            label(overlay, mark.played, cx + h.width * 2.1, gy + space * 0.4);
-        }
-        if (mark.kind === "early" || mark.kind === "late") {
-            const top = note.closest(".staff")?.getBoundingClientRect().top - box.top ?? h.top - box.top;
-            label(overlay, mark.kind === "early" ? "←" : "→", cx, Math.min(top, h.top - box.top) - 6, "sheet-arrow");
-        }
+    const head = note.querySelector(".notehead") ?? note;
+    const h = head.getBoundingClientRect();
+    const cx = h.left - box.left + h.width / 2;
+    const cy = h.top - box.top + h.height / 2;
+    const space = staffSpace(note) ?? h.height;
+    // Words go above the note, or above its staff when it's lower.
+    const above = Math.min((note.closest(".staff")?.getBoundingClientRect().top ?? h.top) - box.top, h.top - box.top) - 6;
+    if (mark.kind === "wrong" && mark.played) {
+        const gy = cy - mark.steps * space / 2;
+        overlay.appendChild(ghost(mark.id, cx + h.width * 1.3, gy, h.width, space));
+        label(overlay, mark.played, cx, Math.min(above, gy - space - 6), "sheet-label", mark.id);
     }
+    if (mark.kind === "early" || mark.kind === "late") {
+        // Where it was played: on the note's line, at that moment's place along the system.
+        const at = mark.q == null ? null : xAt(element, state, mark.q, note.closest(".system"));
+        if (at != null && Math.abs(at - cx) > h.width * 0.6) overlay.appendChild(ghost(mark.id, at, cy, h.width, space, "sheet-ghost sheet-when"));
+        label(overlay, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id);
+    }
+}
+
+function ghost(id, cx, cy, headWidth, space, kind = "sheet-ghost") {
+    const g = document.createElementNS(svgNs, "ellipse");
+    g.setAttribute("class", kind);
+    g.dataset.for = id;
+    g.setAttribute("cx", cx);
+    g.setAttribute("cy", cy);
+    g.setAttribute("rx", headWidth * 0.5);
+    g.setAttribute("ry", space * 0.42);
+    g.setAttribute("transform", `rotate(-20 ${cx} ${cy})`);
+    return g;
+}
+
+// Where a moment of the music falls along a system, in px from the sheet's left: between the onsets around it.
+function xAt(element, state, q, system) {
+    const points = (state.points ?? positions(element, state)).filter(p => p.system === system);
+    if (points.length === 0) return null;
+    if (q <= points[0].q) return points[0].x - (points.length > 1 ? (points[1].x - points[0].x) * (points[0].q - q) / Math.max(0.01, points[1].q - points[0].q) : 0);
+    for (let i = 0; i < points.length - 1; i++) {
+        if (q <= points[i + 1].q) return points[i].x + (points[i + 1].x - points[i].x) * (q - points[i].q) / Math.max(0.01, points[i + 1].q - points[i].q);
+    }
+    return points[points.length - 1].x;
 }
 
 export function clearMarks(element) {
@@ -319,18 +364,30 @@ export function clearMarks(element) {
 }
 
 function clearDrawnMarks(element) {
-    element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove("mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3"));
+    element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove(...markKinds));
     element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow").forEach(n => n.remove());
 }
 
-function label(overlay, text, x, y, kind = "sheet-label") {
+// Words centred at x with their baseline at y, moved up clear of any already there (neighbouring notes' marks).
+function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     const t = document.createElementNS(svgNs, "text");
     t.setAttribute("class", kind);
+    if (forId) t.dataset.for = forId;
     t.setAttribute("x", x);
     t.setAttribute("y", y);
-    if (kind === "sheet-arrow") t.setAttribute("text-anchor", "middle");
+    t.setAttribute("text-anchor", "middle");
     t.textContent = text;
     overlay.appendChild(t);
+    const others = [...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox());
+    for (let tries = 0; tries < others.length; tries++) {
+        const b = t.getBBox();
+        const hit = others.find(r => r.x < b.x + b.width && b.x < r.x + r.width && r.y < b.y + b.height && b.y < r.y + r.height);
+        if (!hit) break;
+        t.setAttribute("y", Number(t.getAttribute("y")) - (b.y + b.height - hit.y) - 2);
+    }
+    // Never above the paper.
+    const top = t.getBBox().y;
+    if (top < 1) t.setAttribute("y", Number(t.getAttribute("y")) - top + 1);
 }
 
 // The distance between a staff's lines, in px, from its five line paths.

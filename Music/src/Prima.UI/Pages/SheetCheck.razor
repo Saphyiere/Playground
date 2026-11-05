@@ -65,7 +65,7 @@
     private async Task ToggleCursor()
     {
         cursor = !cursor;
-        if (cursor) await sheet!.StartCursor(1500, 750, 0);
+        if (cursor) await sheet!.StartCursor(1500, 750, 0, 750, 1500);
         else await sheet!.StopCursor();
     }
 }

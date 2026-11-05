@@ -23,6 +23,10 @@
 else
 {
     <section class="reading-bar" aria-label="Where you are">
+        @if (session is { Phase: Phase.CountIn })
+        {
+            <CountIn Session="session" />
+        }
         <div class="mu-readout"><span class="mu-readout-label">Now</span><span class="mu-readout-value">@StageName()</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
         @if (result is not null)

@@ -91,7 +91,14 @@
     else if (passage is not null)
     {
         <section class="reading-bar" aria-label="Where you are">
-            <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
+            @if (stage is Stage.Run or Stage.Hear && session is { Phase: Phase.CountIn })
+            {
+                <CountIn Session="session" />
+            }
+            else
+            {
+                <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
+            }
             <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
             @if (stage == Stage.Look)
@@ -197,6 +204,10 @@
     private PlaySession? session;
     private PassageResult? result;
     private Sheet? sheet;
+
+    // The run's notes judged as they're played, and each note's written pitch and time on the sheet, in quarters from its start.
+    private LiveJudge? judge;
+    private Dictionary<string, (Spelled Written, double Quarter)> onSheet = [];
     private DateTime lookStarted;
     private DateTime runStarted;
     private Timer? ticker;
@@ -383,6 +394,7 @@
     {
         stage = Stage.Look;
         lookStarted = DateTime.Now;
+        _ = sheet?.ClearMarks();
         Screen.KeepOn(true);
         StartTicker();
         if (variant == Variant.ReadAhead) _ = ShowOpeningSoon();
@@ -410,7 +422,35 @@
         var mine = variant == Variant.Duet && expected.Any(e => e.Staff == 2) && passage.Spec.Hands == Hands.Together ? expected.Where(e => e.Staff == 1).ToList() : expected;
         var others = variant == Variant.Duet ? (mine.Count < expected.Count ? Beats(expected.Where(e => e.Staff == 2).ToList()) : Accompaniment()) : null;
         StartSession(Beats(mine), others, () => InvokeAsync(Score));
+        // Each note is judged as it's played and marked on the sheet at once; the summary's marks replace these.
+        var pickup = passage.Score.Bars[0].Number == 0 ? passage.Score.Bars[0].Length ?? 0 : 0;
+        var pitches = passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
+        onSheet = expected.ToDictionary(n => n.Id, n => (pitches[n.Id], (n.Tick + pickup) / (double)Ticks.Quarter));
+        var run = session!;
+        var live = judge = new LiveJudge(mine, run.TimeAt, passage.Score.Meter.BeatTicks, 60e9 / tempo, Settings.TimingOffsetMs);
+        run.KeyDown += (key, at) => _ = InvokeAsync(() => MarkLive(live.Play(key, at) is { } mark ? [mark] : []));
         _ = StartCursorSoon();
+    }
+
+    private async Task MarkLive(IReadOnlyList<LiveMark> marks)
+    {
+        if (sheet is null || stage != Stage.Run || marks.Count == 0) return;
+
+        await sheet.MarkLive(marks.Select(m => Mark(m.Id, m.Kind, m.Played, m.ErrorPercent)));
+    }
+
+    // A note's mark on the sheet, during the run or after it. A wrong one shows what was played, a grey head that many staff
+    // positions from the written one; an early or late one when it was played, a ring on its line.
+    private SheetMark Mark(string id, LiveKind kind, int? played, double errorPercent)
+    {
+        var (written, quarter) = onSheet[id];
+        var name = kind.ToString().ToLowerInvariant();
+        if (kind == LiveKind.Wrong && played is { } key)
+        {
+            var spelled = passage!.Score.Key.Spell(key);
+            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic);
+        }
+        return kind is LiveKind.Early or LiveKind.Late ? new SheetMark(id, name, Quarter: quarter + errorPercent / 100 * BeatTicks / Ticks.Quarter) : new SheetMark(id, name);
     }
 
     private void StartSession(IReadOnlyList<(int Midi, double Beat, double Beats)> expected, IReadOnlyList<(int Midi, double Beat, double Beats)>? piano, Func<Task> whenDone)
@@ -434,7 +474,7 @@
         if (sheet is null || session is null || passage is null) return;
 
         var pickup = passage.Score.Bars[0].Number == 0 ? (passage.Score.Bars[0].Length ?? 0) / BeatTicks : 0;
-        await sheet.StartCursor(session.MsUntil(-pickup), MsPerQuarter, 0, variant == Variant.ReadAhead ? ReadAheadQuarters : null);
+        await sheet.StartCursor(session.MsUntil(-pickup), MsPerQuarter, 0, 60_000 / tempo, session.MsUntil(0), variant == Variant.ReadAhead ? ReadAheadQuarters : null);
     }
 
     private IReadOnlyList<(int Midi, double Beat, double Beats)> Beats(IReadOnlyList<ExpectedNote> notes) => [.. notes.Select(n => (n.Midi, n.Tick / BeatTicks, n.Length / BeatTicks))];
@@ -478,13 +518,12 @@
     {
         if (sheet is null || result is null || passage is null) return;
 
-        var written = passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
-        var key = passage.Score.Key;
         var marks = result.Notes.Select(n => n.Outcome switch
         {
-            Outcome.Wrong when n.Played is { } played => new SheetMark(n.Id, "wrong", key.Spell(played).ToString(), key.Spell(played).Diatonic - written[n.Id].Diatonic),
-            Outcome.Missed => new SheetMark(n.Id, "missed"),
-            _ when n.Band == Band.Off => new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late"),
+            Outcome.Wrong when n.Played is { } played => Mark(n.Id, LiveKind.Wrong, played, 0),
+            Outcome.Missed => Mark(n.Id, LiveKind.Missed, null, 0),
+            _ when n.Band == Band.Off => Mark(n.Id, n.ErrorPercent < 0 ? LiveKind.Early : LiveKind.Late, null, n.ErrorPercent ?? 0),
+            Outcome.Right => Mark(n.Id, LiveKind.Right, null, 0),
             _ => null,
         }).OfType<SheetMark>().ToList();
         await sheet.ShowMarks(marks);
@@ -602,7 +641,6 @@
     {
         Stage.Hear => "Listen",
         Stage.Look => "Look",
-        _ when session?.Phase == Phase.CountIn => "Count-in",
         Stage.Run => "Bar",
         _ => "Bars",
     };
@@ -615,7 +653,7 @@
         var barNs = 60e9 / tempo * passage.Score.Meter.Beats;
         var since = Clock.NowNs - session.TimeAt(0);
         var bars = passage.Score.Bars.Count(b => b.Number > 0);
-        return since < 0 ? $"{(int)(since / (60e9 / tempo)) + passage.Score.Meter.Beats}" : $"{Math.Min(bars, (int)(since / barNs) + 1)} of {bars}";
+        return $"{Math.Clamp((int)Math.Floor(since / barNs) + 1, 1, bars)} of {bars}";
     }
 
     private double LookShare() => Math.Min(100, (DateTime.Now - lookStarted).TotalSeconds / LookSeconds * 100);
@@ -627,6 +665,8 @@
         {
             if (stage == Stage.Look && (DateTime.Now - lookStarted).TotalSeconds >= LookSeconds) _ = InvokeAsync(Run);
             else if (stage is Stage.Look or Stage.Run or Stage.Hear) _ = InvokeAsync(StateHasChanged);
+            // Notes whose time has passed with nothing played for them.
+            if (stage == Stage.Run && judge is { } live) _ = InvokeAsync(() => MarkLive(live.Due(Clock.NowNs)));
         }, null, 250, 250);
     }
 

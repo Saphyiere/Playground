@@ -26,8 +26,10 @@ and progress shown as honest numbers over weeks.
   writes tonal music from those pieces.
 - **Keep going.** The click never waits during a passage; a wrong note is left behind, as it would be in an exam or when
   accompanying someone. There is no "wait for me" mode.
-- **Feedback after the phrase, not during it.** Live visual feedback on timing didn't help in two controlled studies, and may
-  load the eyes. While you play, the screen shows the music and the cursor; the marks come after the last bar.
+- **Feedback during the phrase as well as after it: the owner's call.** Live visual feedback on timing didn't help in two
+  controlled studies, and may load the eyes, so the research put the marks after the last bar. The owner wants to see how it's
+  going while playing, so each note is marked on the sheet as it's played; the click still never waits, and the summary after
+  the last bar lines up the whole take and replaces those marks. Worth watching whether reading suffers.
 - **Rhythm gets its own drill.** It's where sight-reading breaks most. Timing is graded as a share of the beat, after taking
   out your own habit of playing a little early or late.
 - **About 85% success.** Each drill and the reading level adjust so that you get most things right. When a passage falls
@@ -59,8 +61,8 @@ calibration or straight to Today.
 ### Sight-read
 
 The reading screen, and the way to read more than the plan asks for. A passage at your level: thirty seconds to look it over
-(you can tap its rhythm or try a bar), one bar of count-in, then play it in time with the click. After the last bar, the
-summary. Then the next passage, with the level and tempo already adjusted.
+(you can tap its rhythm or try a bar), one bar of count-in, then play it in time with the click, each note marked as you
+play it. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
 
 Variants, one a day in the plan and any time here:
 
@@ -144,11 +146,17 @@ asking. Nothing leaves the tablet unless you back it up.
 
 1. **Look.** The passage appears with thirty seconds on a bar at the top. You can tap its rhythm on any key or try a bar; nothing
    is scored.
-2. **Count in.** One bar of clicks at the passage's tempo.
-3. **Play.** The click keeps time and never waits. The screen shows the music and a cursor on the beat. Nothing is marked yet.
+2. **Count in.** One bar of clicks at the passage's tempo (two, in Settings), seen as well as heard: a cell for each beat
+   lights on its click, and the cursor waits at the first note, pulsing with it. The timed drills (rhythm, scales, arpeggios,
+   finger independence, listen and play back) show the same cells.
+3. **Play.** The click keeps time and never waits. The cursor moves with the beat, and each note is marked as it's played:
+   green when it's right, red when it's another key (a grey head on the staff shows the one you played, and its name above),
+   amber when it's more than 10% of a beat early or late (a ring on its line shows when you played it, an arrow which way),
+   and outlined red once its time has passed with nothing played. A slip put right at once takes the right key's mark. These
+   are judged note by note, before your lean is known.
 4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, and the passage again
-   with each note marked right or wrong and early or late. A wrong note names what you played instead (G4→A4) and shows it on
-   the staff.
+   with each note marked the same way, now from the whole take lined up and your lean taken out, so a note can change from
+   the mark it had while playing. A wrong note names what you played instead (G4→A4) and shows it on the staff.
 5. **Next.** The level and tempo adjust and the next passage comes up.
 
 ### How a passage is scored

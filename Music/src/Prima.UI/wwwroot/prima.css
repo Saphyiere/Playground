@@ -198,13 +198,15 @@
   --font-sans: "Work Sans", system-ui, sans-serif;
 }
 
-/* The sheet: printed music, the same in both looks, and what's marked on it: wrong and missed notes, early and late ones,
-   and the heat map of missed notes on You (one hue, darker for more often). */
+/* The sheet: printed music, the same in both looks, and what's marked on it: right, wrong and missed notes, early and late
+   ones, and the heat map of missed notes on You (one hue, darker for more often). The right notes' green is a blue-green, so it
+   stays apart from the red for red-green colour blindness too. */
 :root {
   --sheet: #fffdf8;
   --sheet-ink: #161412;
   --sheet-edge: rgba(22, 20, 18, 0.14);
   --sheet-faint: #8a857c;
+  --mark-right: #0f7b5f;
   --mark-wrong: #c8361b;
   --mark-timing: #b7650c;
   --heat-1: #de735a;
@@ -1518,6 +1520,12 @@ a.mu-btn {
     fill: var(--accent-2);
 }
 
+.sheet-music .mark-right,
+.sheet-music .mark-right g {
+    fill: var(--mark-right);
+    color: var(--mark-right);
+}
+
 .sheet-music .mark-wrong,
 .sheet-music .mark-wrong g {
     fill: var(--mark-wrong);
@@ -1541,6 +1549,14 @@ a.mu-btn {
 .sheet-ghost {
     fill: var(--sheet-faint);
     opacity: 0.85;
+}
+
+/* When an early or late note was played: a ring on its line. */
+.sheet-when {
+    fill: none;
+    stroke: var(--mark-timing);
+    stroke-width: 1.6px;
+    opacity: 1;
 }
 
 .sheet-label,
@@ -1649,6 +1665,42 @@ a.mu-btn {
 
 .reading-bar .mu-btn {
     margin-left: auto;
+}
+
+/* The count-in: a cell for each beat, lit on its click and staying lit, so the row fills out to the music. */
+.count-in-beats {
+    display: flex;
+    gap: 6px;
+}
+
+.count-in-beat {
+    width: 34px;
+    border-radius: var(--radius-key);
+    background: var(--meter-off);
+    color: var(--on-screen-muted);
+    font-family: var(--mu-figure);
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.count-in-beat.past {
+    background: var(--meter-on);
+    color: var(--screen);
+    opacity: 0.5;
+}
+
+.count-in-beat.now {
+    background: var(--meter-on);
+    color: var(--screen);
+    box-shadow: 0 0 10px var(--meter-on);
+}
+
+[data-theme="vinyl"] .count-in-beat {
+    border-radius: 0;
+    font-size: 24px;
+    font-weight: 400;
 }
 
 .summary {

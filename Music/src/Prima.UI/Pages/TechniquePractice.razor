@@ -28,6 +28,10 @@
 </div>
 
 <section class="reading-bar" aria-label="Where you are">
+    @if (session is { Phase: Phase.CountIn })
+    {
+        <CountIn Session="session" />
+    }
     <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@(state.Tempo?.ToString("0", CultureInfo.InvariantCulture) ?? "Yours")</span></div>
     <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing) && !capturing)
@@ -147,7 +151,14 @@
         var beats = expected.Max(e => e.Item2 + e.Item3);
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
         Screen.KeepOn(true);
-        session.Start(new ClickPlan(state.Tempo.Value, 4, 1), beats, expected);
+        var tempo = state.Tempo.Value;
+        session.Start(new ClickPlan(tempo, 4, 1), beats, expected);
+        // The cursor with the click, once its beat times are set.
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(50);
+            if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000 / tempo * Ticks.Quarter / meter.BeatTicks, 0, 60_000 / tempo, session.MsUntil(0));
+        });
     }
 
     private void OnFree(MidiEvent e)
@@ -172,6 +183,7 @@
     {
         if (session is null || item is null || session.Phase != Phase.Done) return;
 
+        await (sheet?.StopCursor() ?? Task.CompletedTask);
         Screen.KeepOn(false);
         result = TechniqueScorer.Score(item, session.Played);
         runs++;

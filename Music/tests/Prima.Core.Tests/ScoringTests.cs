@@ -298,3 +298,77 @@ public class ScoringTests
         Assert.Equal(0, random, 6);
     }
 }
+
+public class LiveJudgeTests
+{
+    private const double BeatNs = 1e9;
+
+    private static ExpectedNote N(string id, int midi, int beat) => new(id, midi, 1, 1, beat * Ticks.Quarter, Ticks.Quarter, null);
+
+    private static long At(double beats) => (long)(beats * BeatNs);
+
+    [Fact]
+    public void AKeyOnTimeIsRightAndOffTheBeatIsEarlyOrLate()
+    {
+        var judge = new LiveJudge([N("a", 60, 0), N("b", 62, 1), N("c", 64, 2)], At, Ticks.Quarter, BeatNs, 0);
+
+        Assert.Equal(LiveKind.Right, judge.Play(60, At(0.05))!.Kind);
+        Assert.Equal(LiveKind.Early, judge.Play(62, At(0.8))!.Kind);
+        var late = judge.Play(64, At(2.2))!;
+        Assert.Equal((LiveKind.Late, "c"), (late.Kind, late.Id));
+        Assert.Equal(20, late.ErrorPercent, 3);
+    }
+
+    [Fact]
+    public void AWrongKeyIsMarkedAndPutRightByTheRightKeyAMomentLater()
+    {
+        var judge = new LiveJudge([N("a", 60, 0), N("b", 62, 1)], At, Ticks.Quarter, BeatNs, 0);
+
+        var slip = judge.Play(61, At(0))!;
+        Assert.Equal((LiveKind.Wrong, "a", 61), (slip.Kind, slip.Id, slip.Played));
+        Assert.Equal(LiveKind.Right, judge.Play(60, At(0.08))!.Kind);
+        // The next note is untouched by the slip, and a wrong note isn't also counted missed.
+        Assert.Equal(LiveKind.Right, judge.Play(62, At(1))!.Kind);
+        Assert.Empty(judge.Due(At(3)));
+    }
+
+    [Fact]
+    public void ANoteWithNothingPlayedIsMissedOnceItsWindowCloses()
+    {
+        var judge = new LiveJudge([N("a", 60, 0), N("b", 62, 1)], At, Ticks.Quarter, BeatNs, 0);
+
+        Assert.Empty(judge.Due(At(0.2)));
+        Assert.Equal(["a"], judge.Due(At(0.5)).Select(m => m.Id));
+        Assert.Null(judge.Play(70, At(5)));
+    }
+
+    [Fact]
+    public void AWrongKeyInAChordGoesToTheNoteNearestInPitch()
+    {
+        var chord = new[] { N("low", 48, 0) with { ChordId = "c" }, N("mid", 52, 0) with { ChordId = "c" }, N("high", 55, 0) with { ChordId = "c" } };
+        var judge = new LiveJudge(chord, At, Ticks.Quarter, BeatNs, 0);
+
+        Assert.Equal(LiveKind.Right, judge.Play(48, At(0.01))!.Kind);
+        Assert.Equal("mid", judge.Play(53, At(0.02))!.Id);
+    }
+
+    [Fact]
+    public void TheTimingOffsetIsTakenOffWhatIsPlayed()
+    {
+        // The piano's notes arrive 30 ms late: a note 30 ms after its time is on it.
+        var judge = new LiveJudge([N("a", 60, 0)], At, Ticks.Quarter, BeatNs, 30);
+
+        Assert.Equal(0, judge.Play(60, 30_000_000)!.ErrorPercent, 6);
+    }
+
+    [Fact]
+    public void TheClicksTimesAreAskedForAsEachKeyComes()
+    {
+        // The click's beat times settle once its audio is running: a note is judged against them as they are when it's played.
+        var settled = 0L;
+        var judge = new LiveJudge([N("a", 60, 1)], b => At(b) + settled, Ticks.Quarter, BeatNs, 0);
+        settled = 200_000_000;
+
+        Assert.Equal(LiveKind.Right, judge.Play(60, At(1) + 200_000_000)!.Kind);
+    }
+}

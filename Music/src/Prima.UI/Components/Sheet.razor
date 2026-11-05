@@ -75,10 +75,14 @@
     [JSInvokable]
     public Task NoteTapped(string id) => OnNoteTapped.InvokeAsync(id);
 
-    /// <summary>Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter <paramref name="startQuarter"/> of the music.</summary>
-    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double? readAheadQuarters = null)
+    /// <summary>
+    /// Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter
+    /// <paramref name="startQuarter"/> of the music. Until then it waits at the first note, pulsing with the click's beats: one
+    /// every <paramref name="beatMs"/>, one of them <paramref name="msUntilBeat"/> from now.
+    /// </summary>
+    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null)
     {
-        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters);
+        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat);
     }
 
     /// <summary>Read ahead's look: only the opening view of <paramref name="quarters"/> shows.</summary>
@@ -92,9 +96,16 @@
         if (module is not null) await module.InvokeVoidAsync("cursorStop", element);
     }
 
+    /// <summary>The marks after a run, in place of any before.</summary>
     public async Task ShowMarks(IEnumerable<SheetMark> marks)
     {
-        if (module is not null) await module.InvokeVoidAsync("showMarks", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps }));
+        if (module is not null) await module.InvokeVoidAsync("showMarks", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter }));
+    }
+
+    /// <summary>Marks during a run, as notes are judged, added to those already shown (a note marked again takes its new mark).</summary>
+    public async Task MarkLive(IEnumerable<SheetMark> marks)
+    {
+        if (module is not null) await module.InvokeVoidAsync("markLive", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter }));
     }
 
     public async Task ClearMarks()

@@ -1,0 +1,47 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IClock Clock
+
+@* The count-in, seen as well as heard: a cell for each of its beats, lit on its click, numbered by the beat of the bar. It's drawn
+   by the browser at each frame from the click's own beat times, so it stays with the click. *@
+<div class="mu-readout count-in">
+    <span class="mu-readout-label">Count-in</span>
+    <span class="count-in-beats" @ref="beats" aria-hidden="true"></span>
+</div>
+
+@code {
+    private ElementReference beats;
+    private IJSObjectReference? module;
+
+    /// <summary>The run whose count-in this is: its click plan says how many beats, and its clock when they sound.</summary>
+    [Parameter, EditorRequired] public PlaySession Session { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Session.Plan is not { } plan) return;
+
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/CountIn.razor.js");
+            await module.InvokeVoidAsync("start", beats, (Session.TimeAt(-plan.FirstMusicBeat) - Clock.NowNs) / 1e6, plan.BeatNs / 1e6, plan.FirstMusicBeat, plan.BeatsPerBar);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (module is not null)
+            {
+                await module.InvokeVoidAsync("stop", beats);
+                await module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

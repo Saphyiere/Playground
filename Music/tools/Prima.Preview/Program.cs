@@ -71,9 +71,10 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
     }
     return Results.Text($"tapped {count} beats");
 });
-// Plays the run in progress in one go and ends it: a share of notes right (the rest a key away), a lean and a spread in ms, and
-// optionally nothing from a bar on (a stop), so a summary can be screenshotted without waiting.
-app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, SessionRegistry registry) =>
+// Plays the run in progress: a share of notes right (the rest a key away), a lean and a spread in ms, and optionally nothing from
+// a bar on (a stop). In one go, ending the run, so a summary can be screenshotted without waiting; or with "live", each note
+// when it's due, as from the piano, so the sheet marks them during the run.
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, SessionRegistry registry, SimulatedKeyboard keys, IClock clock) =>
 {
     var session = registry.Current;
     if (session?.Plan is null) return Results.Text("no run in progress");
@@ -88,8 +89,22 @@ app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? s
             var on = session.TimeAt(e.Beat) + (long)(((lean ?? -15) + (random.NextDouble() - 0.5) * 2 * (spread ?? 12)) * 1e6);
             return new Prima.Core.Scoring.PlayedNote(midi, on, session.TimeAt(e.Beat + e.Beats) - 30_000_000, 60 + random.Next(20));
         }).ToList();
-    session.Perform(notes);
-    return Results.Text($"performed {notes.Count} notes");
+    if (live != true)
+    {
+        session.Perform(notes);
+        return Results.Text($"performed {notes.Count} notes");
+    }
+
+    _ = Task.Run(async () =>
+    {
+        foreach (var note in notes.OrderBy(n => n.OnNs))
+        {
+            var wait = (note.OnNs - clock.NowNs) / 1e6;
+            if (wait > 0) await Task.Delay(TimeSpan.FromMilliseconds(wait));
+            keys.PlayAt(note.Midi, note.Velocity, note.OnNs, note.OffNs);
+        }
+    });
+    return Results.Text($"playing {notes.Count} notes live");
 });
 // Answers the drill item on screen: right, or wrong.
 app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyboard keys) =>

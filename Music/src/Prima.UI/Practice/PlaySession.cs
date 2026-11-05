@@ -46,6 +46,9 @@ public sealed class PlaySession : IDisposable
     /// <summary>Raised on a background thread when the phase changes.</summary>
     public event Action? Changed;
 
+    /// <summary>Raised on a background thread for each key that goes down during the run: its key and when, on the system clock.</summary>
+    public event Action<int, long>? KeyDown;
+
     public IReadOnlyList<PlayedNote> Played
     {
         get { lock (played) return [.. played]; }
@@ -152,6 +155,7 @@ public sealed class PlaySession : IDisposable
             if (e.Kind == MidiKind.NoteOn) held[e.Note] = (e.TimeNs, e.Velocity);
             else if (e.Kind == MidiKind.NoteOff && held.Remove(e.Note, out var down)) played.Add(new PlayedNote(e.Note, down.On, e.TimeNs, down.Velocity));
         }
+        if (e.Kind == MidiKind.NoteOn) KeyDown?.Invoke(e.Note, e.TimeNs);
     }
 
     private void SetPhase(Phase phase)
