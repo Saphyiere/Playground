@@ -16,13 +16,19 @@
 //   {shot: "name", height?: px}      a PNG at out-dir/name.png, the page that tall
 // It uses the Chromium that comes with the machine, not Playwright.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const [stepsFile, shots, base = 'http://127.0.0.1:5199/'] = process.argv.slice(2);
 if (!stepsFile || !shots) throw new Error('usage: node tools/screens/screens.mjs steps.json out-dir [base-url]');
 const steps = JSON.parse(readFileSync(stepsFile, 'utf8'));
 mkdirSync(shots, { recursive: true });
-const shell = process.env.CHROME ?? `/opt/pw-browsers/${readdirSync('/opt/pw-browsers').filter(d => d.startsWith('chromium_headless_shell-')).sort().at(-1)}/chrome-linux/headless_shell`;
+// The browser is CHROME, or else the machine's newest headless shell, laid out the way its newer builds are or its older ones were.
+let shell = process.env.CHROME;
+if (!shell) {
+  const dir = `/opt/pw-browsers/${readdirSync('/opt/pw-browsers').filter(d => d.startsWith('chromium_headless_shell-')).sort().at(-1)}`;
+  shell = ['chrome-headless-shell-linux64/chrome-headless-shell', 'chrome-linux/headless_shell'].map(p => `${dir}/${p}`).find(existsSync);
+  if (!shell) throw new Error(`no headless Chromium in ${dir}: set CHROME to the browser to use`);
+}
 const browser = spawn(shell, ['--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--remote-debugging-port=9333', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let size = { width: 390, height: 844 };
