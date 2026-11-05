@@ -1765,3 +1765,412 @@ a.mu-btn {
 .tool-card-off {
     opacity: 0.55;
 }
+
+/* Today: the look's own piece and the week beside the next passage, the day's steps along the bottom. */
+.today-head {
+    justify-content: space-between;
+}
+
+[data-theme="vinyl"] .today-head {
+    justify-content: flex-end;
+}
+
+.today-hero {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+[data-theme="vinyl"] .today-hero {
+    grid-template-columns: 400px minmax(0, 1fr);
+    gap: 36px;
+}
+
+.today-art {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.today-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.today-note,
+.today-cue {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink-muted);
+}
+
+.today-cue {
+    font-style: italic;
+}
+
+.today-screen {
+    min-width: 0;
+}
+
+.today-sheet {
+    margin: 4px 0;
+}
+
+.today-foot {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+}
+
+.today-foot .mu-readouts {
+    flex: 1;
+}
+
+.today-step-detail {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink-muted);
+}
+
+.studio-knob {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.studio-knob .tick { stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; }
+.studio-knob .body { fill: var(--disc); }
+.studio-knob .cap { fill: var(--disc-detail); }
+.studio-knob .pointer { stroke: var(--label); stroke-width: 5; stroke-linecap: round; }
+
+.studio-knob-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.studio-print {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.studio-tempo {
+    margin: 0;
+    padding: 4px 10px;
+    border-radius: var(--radius-display);
+    background: var(--screen);
+    color: var(--on-screen);
+    font-family: var(--font-mono);
+    font-size: 22px;
+    line-height: 30px;
+    font-weight: 700;
+}
+
+.vinyl-art {
+    position: relative;
+    /* The record's right edge: it sits 100 px in from the sleeve and is 300 px across. */
+    width: 400px;
+    height: 320px;
+    flex: none;
+}
+
+.vinyl-record { position: absolute; left: 100px; top: 0; }
+.vinyl-record .disc { fill: var(--disc); }
+.vinyl-record .groove { fill: none; stroke: var(--disc-detail); stroke-width: 1.5; }
+.vinyl-record .arc { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; }
+.vinyl-record .label { fill: var(--label); }
+.vinyl-record .hole { fill: var(--ground); }
+
+.vinyl-sleeve {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 300px;
+    height: 300px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--card);
+    color: var(--on-card);
+    box-shadow: var(--shadow-sleeve);
+}
+
+.vinyl-sleeve .art { position: absolute; left: 0; top: 0; }
+.vinyl-sleeve .art-1 { fill: var(--accent-2); }
+.vinyl-sleeve .art-2 { fill: var(--accent); }
+.vinyl-sleeve p, .vinyl-sleeve h1 { position: relative; margin: 0; }
+.vinyl-sleeve .date { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+.vinyl-sleeve h1 { margin-top: 6px; font-family: var(--font-bebas); font-size: 104px; line-height: 88px; font-weight: 400; letter-spacing: 0.01em; }
+.vinyl-sleeve .line { margin-top: 10px; max-width: 190px; font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 600; }
+
+.text-field {
+    max-width: 560px;
+    min-height: 48px;
+    padding: 0 14px;
+    border: 1.5px solid var(--seam);
+    border-radius: var(--mu-r-control);
+    background: var(--surface);
+    color: var(--on-surface);
+    font: inherit;
+    font-size: 16px;
+}
+
+@media (orientation: portrait) {
+    .today-hero,
+    [data-theme="vinyl"] .today-hero {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .today-steps {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+/* You: figures and trends in a grid, the heat map's key, and the technique table. */
+.you-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (orientation: portrait) {
+    .you-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.you-figure {
+    justify-content: center;
+}
+
+.you-hero {
+    font-size: 48px;
+    line-height: 54px;
+}
+
+[data-theme="vinyl"] .you-hero {
+    font-size: 64px;
+    line-height: 60px;
+}
+
+.trend {
+    margin: 0;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-radius: var(--mu-r-panel);
+    background: var(--screen);
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .trend {
+    background: var(--surface);
+}
+
+.trend-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.trend-now {
+    font-family: var(--mu-figure);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+[data-theme="vinyl"] .trend-now {
+    font-weight: 400;
+    font-size: 30px;
+}
+
+.trend-chart {
+    display: block;
+    width: 100%;
+    height: 72px;
+    overflow: visible;
+}
+
+.trend-base {
+    stroke: var(--on-screen-muted);
+    stroke-width: 1;
+    opacity: 0.35;
+}
+
+.trend-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+.trend-point {
+    fill: var(--accent);
+    stroke: var(--screen);
+    stroke-width: 2;
+}
+
+[data-theme="vinyl"] .trend-point {
+    stroke: var(--surface);
+}
+
+.trend-text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--on-screen-muted);
+}
+
+.you-legend {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+    font-size: 14px;
+    color: var(--ink-muted);
+}
+
+.heat-key {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    border-radius: var(--radius-round);
+}
+
+.heat-key.heat0 { background: var(--mu-sheet-ink); box-shadow: 0 0 0 1px var(--mu-sheet); }
+.heat-key.heat1 { background: #e8a08f; }
+.heat-key.heat2 { background: #d4573d; }
+.heat-key.heat3 { background: #8f1d0b; }
+
+.sheet-music .mark-heat1, .sheet-music .mark-heat1 g { fill: #e8a08f; }
+.sheet-music .mark-heat2, .sheet-music .mark-heat2 g { fill: #d4573d; }
+.sheet-music .mark-heat3, .sheet-music .mark-heat3 g { fill: #8f1d0b; }
+
+.you-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+
+.you-table th {
+    padding: 6px 8px;
+    text-align: left;
+    font-family: var(--mu-print);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--seam);
+}
+
+.you-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--seam);
+    font-variant-numeric: tabular-nums;
+}
+
+.control-row .text-field {
+    flex: 1 1 320px;
+}
+
+.control-row .text-field-short {
+    flex-basis: 240px;
+    max-width: 320px;
+}
+
+/* Today's lamp is the rail's in landscape; in portrait the bottom bar has none, so the page shows it. */
+@media (orientation: landscape) {
+    .today-lamp {
+        display: none;
+    }
+}
+
+.today-screen .mu-screen-head > span:first-child {
+    white-space: nowrap;
+}
+
+.today-screen .mu-screen-head > span:last-child {
+    text-align: right;
+}
+
+/* The label column lines up in Settings, where the longest is "Sound from the piano". */
+.settings-section .control-label {
+    min-width: 172px;
+}
+
+.you-figure .mu-readout-label {
+    white-space: normal;
+}
+
+@media (orientation: portrait) {
+    /* The art and the week side by side, so the art doesn't leave half the width empty. */
+    .today-art {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 32px;
+    }
+
+    .today-controls {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
+
+/* In a narrow column the week's two figures each stay whole, the second under the first if need be. */
+.today-controls .mu-meter-head {
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+.today-controls .mu-meter-head > span {
+    white-space: nowrap;
+}
+
+/* A week still going: a dashed line to a hollow point. */
+.trend-partial {
+    stroke-dasharray: 4 4;
+}
+
+.trend-point-partial {
+    fill: var(--screen);
+    stroke: var(--accent);
+}
+
+[data-theme="vinyl"] .trend-point-partial {
+    fill: var(--surface);
+    stroke: var(--accent);
+}
+
+.spot-frame .sheet {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+/* Where the sheet is narrower than its frame, Vinyl's sleeve shadow goes on the sheet itself. */
+[data-theme="vinyl"] .spot-frame,
+[data-theme="vinyl"] .drill-frame {
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .spot-frame .sheet,
+[data-theme="vinyl"] .drill-frame .sheet {
+    box-shadow: var(--shadow-sleeve);
+}

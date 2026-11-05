@@ -1,14 +1,236 @@
 @page "/"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject NavigationManager Nav
+@using Prima.Core.Generation
+@using Prima.Core.Practice
 
 <PageTitle>Prima</PageTitle>
 
-<PageHead Title="Today" Kicker="@Look.Day(DateOnly.FromDateTime(DateTime.Now))" />
+<header class="page-head today-head">
+    <div class="mu-studio-only">
+        <p class="page-kicker">@Look.Day(Day0) · @(Settings.Name is { Length: > 0 } name ? name : "practice")</p>
+        <h1 class="page-title">Today</h1>
+    </div>
+    <KeyboardLamp Class="today-lamp" />
+</header>
 
-<section class="mu-screen page-panel" aria-label="Today's plan">
-    <div class="mu-screen-head"><span>Today's plan</span></div>
-    <p class="page-panel-line">The day's practice shows here once the drills and sight-reading are in.</p>
-</section>
+<div class="today-hero">
+    <div class="today-art">
+        <div class="studio-knob mu-studio-only">
+            <svg viewBox="0 0 128 128" width="120" height="120" role="img" aria-label="@($"Tempo knob at {reading?.Tempo ?? 60:0} beats a minute")"><path class="tick" d="M64 4V12M106.4 21.6L100.8 27.2M124 64H116M21.6 21.6L27.2 27.2M4 64H12M21.6 106.4L27.2 100.8M106.4 106.4L100.8 100.8"></path><circle class="body" cx="64" cy="64" r="46"></circle><circle class="cap" cx="64" cy="64" r="38"></circle><path class="pointer" d="@KnobPointer()"></path></svg>
+            <div class="studio-knob-text"><p class="studio-print">Tempo</p><p class="studio-tempo">@((reading?.Tempo ?? 60).ToString("000", CultureInfo.InvariantCulture))</p><p class="studio-print">Level @(reading?.Level ?? 1)</p></div>
+        </div>
+        <div class="vinyl-art mu-vinyl-only">
+            <svg class="vinyl-record" viewBox="0 0 300 300" width="300" height="300" aria-hidden="true"><circle class="disc" cx="150" cy="150" r="148"></circle><circle class="groove" cx="150" cy="150" r="138"></circle><circle class="groove" cx="150" cy="150" r="124"></circle><circle class="groove" cx="150" cy="150" r="110"></circle><circle class="groove" cx="150" cy="150" r="96"></circle><circle class="groove" cx="150" cy="150" r="82"></circle><circle class="groove" cx="150" cy="150" r="68"></circle><path class="arc" d="@RecordArc()"></path><circle class="label" cx="150" cy="150" r="50"></circle><circle class="hole" cx="150" cy="150" r="4"></circle></svg>
+            <div class="vinyl-sleeve">
+                <svg class="art" viewBox="0 0 300 300" width="300" height="300" aria-hidden="true"><circle class="art-1" cx="232" cy="304" r="100"></circle><path class="art-2" d="M0 300V212A88 88 0 0 1 88 300Z"></path></svg>
+                <p class="date">@Look.Day(Day0)</p>
+                <h1>Today</h1>
+                <p class="line">@SleeveLine()</p>
+            </div>
+        </div>
+        <div class="today-controls">
+            <div class="home-group">
+                <p class="mu-meter-head"><span>Week · @($"{streak?.MinutesThisWeek ?? 0:0}")/@(Settings.DailyMinutes * 7) min</span><span><span class="mu-studio-only">Streak @((streak?.Days ?? 0).ToString("00", CultureInfo.InvariantCulture))</span><span class="mu-vinyl-only">@(streak?.Days ?? 0) days in a row</span></span></p>
+                <div class="mu-meter" role="img" aria-label="@($"{streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week")">
+                    @for (var i = 0; i < 14; i++)
+                    {
+                        <span class="@(i < WeekSegments() ? "on" : "")"></span>
+                    }
+                </div>
+            </div>
+            <p class="today-note">@StreakWords()</p>
+            @if (Settings.Cue is { Length: > 0 } cue)
+            {
+                <p class="today-cue">@cue</p>
+            }
+        </div>
+    </div>
+
+    <section class="mu-screen today-screen" aria-label="Up next">
+        <div class="mu-screen-head"><span><span class="mu-studio-only">Sight-read ▸ up next</span><span class="mu-vinyl-only">Up next</span></span><span>@NextPassage?.Description</span></div>
+        @if (NextPassage is not null)
+        {
+            <Sheet Mei="@nextMei" Scale="0.8" Class="today-sheet" />
+        }
+        <div class="today-foot">
+            <div class="mu-readouts">
+                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@(reading?.Level ?? 1)</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">In time, last 3</span><span class="mu-readout-value">@RecentInTime()</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Today</span><span class="mu-readout-value">@($"{todayMinutes:0}") min</span></div>
+            </div>
+            <button type="button" class="mu-play" aria-label="Start the next step" @onclick="StartNext"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+        </div>
+    </section>
+</div>
+
+@if (plan is not null)
+{
+    <div class="mu-steps today-steps" style="grid-template-columns: repeat(@plan.Steps.Count, minmax(0, 1fr))">
+        @for (var i = 0; i < plan.Steps.Count; i++)
+        {
+            var step = plan.Steps[i];
+            var state = Done(step.Kind) ? "done" : step == NextStep ? "now" : null;
+            <a class="mu-step" href="@StepHref(step)" data-state="@state" @onclick="() => Clicked(step)" @onclick:preventDefault="step.Kind == StepKind.Pause">
+                <span class="mu-step-meta"><span class="mu-led"></span><span>@((i + 1).ToString("00", CultureInfo.InvariantCulture)) · <span class="mu-studio-only">@(step.Minutes)′</span><span class="mu-vinyl-only">@(step.Minutes):00</span></span><span class="mu-step-mark" aria-hidden="true"></span></span>
+                <span class="mu-step-name">@step.Name</span>
+                <span class="today-step-detail">@(pausing && step.Kind == StepKind.Pause ? $"{pauseLeft} s: stand up, shake out your hands, look away" : step.Detail)</span>
+            </a>
+        }
+    </div>
+    <div class="control-row">
+        @if (!plan.Short)
+        {
+            <button type="button" class="mu-btn" @onclick="ShortPlan">Five minutes today</button>
+        }
+        else
+        {
+            <button type="button" class="mu-btn" @onclick="FullPlan">The full plan</button>
+        }
+        @if (plan.Steps.All(s => Done(s.Kind)))
+        {
+            <p class="control-note">@DaySummary()</p>
+        }
+    </div>
+}
 
 @code {
     [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+
+    private ReadingState? reading;
+    private DayPlan? plan;
+    private DayRecord? day;
+    private StreakState? streak;
+    private double todayMinutes;
+    private Passage? NextPassage;
+    private string nextMei = "";
+    private List<AttemptRecord> todayPassages = [];
+    private bool pausing;
+    private int pauseLeft;
+    private Timer? pauseTimer;
+
+    private static DateOnly Day0 => DateOnly.FromDateTime(DateTime.Now);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Settings.Welcomed)
+        {
+            Nav.NavigateTo("welcome");
+            return;
+        }
+
+        reading = await Store.GetTrackAsync<ReadingState>("reading");
+        var days = await Store.GetDaysAsync(Day0.AddDays(-120));
+        day = days.FirstOrDefault(d => d.Day == Day0);
+        todayMinutes = day?.Minutes ?? 0;
+        streak = Streak.Compute(days.Select(d => new PracticeDayRecord(d.Day, d.Minutes, d.ShortDone)), Day0);
+        todayPassages = (await Store.GetAttemptsAsync(Day0, "passage")).Where(a => a.Day == Day0).ToList();
+        plan = day?.Plan is { } json ? System.Text.Json.JsonSerializer.Deserialize<DayPlan>(json, PrimaStore.Json) : null;
+        if (plan is null)
+        {
+            plan = DailyPlan.Build(Day0, Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
+            await Store.SavePlanAsync(Day0, System.Text.Json.JsonSerializer.Serialize(plan, PrimaStore.Json));
+        }
+        // The next passage, shown small: the one Sight-read gives next.
+        NextPassage = DayPassages.Next((reading ?? ReadingState.Start).Spec, Day0, todayPassages.Count, DayPassages.KeyOf(todayPassages.LastOrDefault()));
+        nextMei = MeiWriter.Write(NextPassage.Score, reading?.Tempo ?? 60);
+    }
+
+    private bool Done(StepKind kind) => day?.StepsDone.Contains(kind + ";") == true;
+
+    private PlanStep? NextStep => plan?.Steps.FirstOrDefault(s => !Done(s.Kind));
+
+    private string StepHref(PlanStep step) => step.Kind switch
+    {
+        StepKind.Technique => "drills/scales?from=today",
+        StepKind.Notes => "drills/notes?from=today",
+        StepKind.Rhythm => "drills/rhythm",
+        StepKind.SightReading => $"sight-read?from=today&variant={plan!.Variant}",
+        StepKind.OneSpot => "sight-read?from=today&spot=1",
+        _ => "",
+    };
+
+    private void StartNext()
+    {
+        if (NextStep is not { } step) Nav.NavigateTo("sight-read");
+        else if (step.Kind == StepKind.Pause) Clicked(step);
+        else Nav.NavigateTo(StepHref(step));
+    }
+
+    // The pause: a minute to stand up and look away, then it's done.
+    private void Clicked(PlanStep step)
+    {
+        if (step.Kind != StepKind.Pause || pausing) return;
+
+        (pausing, pauseLeft) = (true, 60);
+        pauseTimer = new Timer(_ => InvokeAsync(async () =>
+        {
+            pauseLeft--;
+            if (pauseLeft <= 0)
+            {
+                pausing = false;
+                pauseTimer?.Dispose();
+                await Store.MarkStepAsync(Day0, StepKind.Pause);
+                day = (await Store.GetDaysAsync(Day0)).FirstOrDefault();
+            }
+            StateHasChanged();
+        }), null, 1000, 1000);
+    }
+
+    private async Task ShortPlan()
+    {
+        plan = DailyPlan.Build(Day0, Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano, shortPlan: true);
+        await Store.SavePlanAsync(Day0, System.Text.Json.JsonSerializer.Serialize(plan, PrimaStore.Json));
+    }
+
+    private async Task FullPlan()
+    {
+        plan = DailyPlan.Build(Day0, Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
+        await Store.SavePlanAsync(Day0, System.Text.Json.JsonSerializer.Serialize(plan, PrimaStore.Json));
+    }
+
+    private int WeekSegments() => (int)Math.Round(Math.Min(1, (streak?.MinutesThisWeek ?? 0) / Math.Max(1.0, Settings.DailyMinutes * 7)) * 14);
+
+    private string StreakWords() => streak?.LastPractised is null ? "The first day. A freeze for a missed day comes every 7 practised days." : streak.BreakNote(Day0) ?? $"{streak.DaysThisWeek} of the last 7 days. {(streak?.FreezesBanked ?? 0) switch { 0 => "No freezes banked yet: one comes every 7 practised days.", 1 => "One freeze banked for a missed day.", var n => $"{n} freezes banked for missed days." }}";
+
+    private string SleeveLine() => streak?.LastPractised is null ? $"Side A, the first day: {Settings.DailyMinutes} minutes today." : streak.BreakNote(Day0) ?? $"{streak.Days} {(streak.Days == 1 ? "day" : "days")} in a row. {streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week.";
+
+    private string RecentInTime()
+    {
+        var recent = reading?.Recent ?? [];
+        return recent.Count == 0 ? "–" : $"{(recent.Average(r => r.InTime)) * 100:0}%";
+    }
+
+    private string KnobPointer()
+    {
+        // From 60 (left) to 132 (right), across 270°.
+        var t = Math.Clamp(((reading?.Tempo ?? 60) - 60) / 72.0, 0, 1);
+        var angle = (225 - 270 * t) * Math.PI / 180;
+        return FormattableString.Invariant($"M64 64L{64 + 34 * Math.Cos(angle):0.#} {64 - 34 * Math.Sin(angle):0.#}");
+    }
+
+    // The record's arc: how much of today's plan is done.
+    private string RecordArc()
+    {
+        var share = plan is null ? 0 : plan.Steps.Count(s => Done(s.Kind)) / (double)plan.Steps.Count;
+        // An arc that ends where it starts draws nothing, so the whole day done is two halves.
+        if (share >= 1) return "M150 5A145 145 0 1 1 150 295A145 145 0 1 1 150 5";
+
+        var angle = Math.Max(0.02, share) * 2 * Math.PI;
+        var (x, y) = (150 + 145 * Math.Sin(angle), 150 - 145 * Math.Cos(angle));
+        return FormattableString.Invariant($"M150 5A145 145 0 {(angle > Math.PI ? 1 : 0)} 1 {x:0.#} {y:0.#}");
+    }
+
+    private string DaySummary()
+    {
+        var passages = todayPassages.Count;
+        var inTime = todayPassages.Where(a => a.Headline is not null).Select(a => a.Headline!.Value).DefaultIfEmpty().Average();
+        var tomorrow = DailyPlan.Build(Day0.AddDays(1), Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
+        return $"Done for today: {todayMinutes:0} minutes, {passages} {(passages == 1 ? "passage" : "passages")} read{(passages > 0 ? $" at {(inTime) * 100:0}% in time" : "")}. Tomorrow starts with the {tomorrow.ScaleKey.Name} scale.";
+    }
+
+    public void Dispose() => pauseTimer?.Dispose();
 }

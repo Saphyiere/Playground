@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IKeyboard, NoKeyboard>();
         services.TryAddSingleton<IClick, GridClick>();
         services.TryAddSingleton<IScreen, NoScreen>();
+        services.TryAddSingleton<IFiles, NoFiles>();
         services.AddSingleton<Click>();
         services.AddSingleton<Practice.SessionRegistry>();
         services.AddScoped<AppNavigation>();

@@ -1,0 +1,70 @@
+@page "/welcome"
+@inject PrimaSettings Settings
+@inject PrimaStore Store
+@inject LookSetting LookSetting
+@inject NavigationManager Nav
+
+<PageTitle>Welcome · Prima</PageTitle>
+
+<PageHead Title="Welcome" Kicker="Prima: sight-reading and piano practice" />
+
+<p class="page-note">A few things, once. All of it stays on this tablet, and Settings changes any of it later.</p>
+
+<section class="settings-section" aria-labelledby="name-heading">
+    <h2 id="name-heading" class="section-title">Your name</h2>
+    <input class="text-field" type="text" @bind="name" placeholder="Optional" aria-label="Your name" />
+</section>
+
+<section class="settings-section" aria-labelledby="minutes-heading">
+    <h2 id="minutes-heading" class="section-title">Minutes a day</h2>
+    <div class="control-row">
+        @foreach (var m in new[] { 10, 15, 20, 30 })
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@(minutes == m ? "true" : "false")" @onclick="() => minutes = m"><span class="mu-led"></span>@m minutes</button>
+        }
+    </div>
+    <p class="section-note">About twenty minutes holds the whole plan; on a busy day the five-minute plan still counts.</p>
+</section>
+
+<section class="settings-section" aria-labelledby="cue-heading">
+    <h2 id="cue-heading" class="section-title">When will you practise?</h2>
+    <input class="text-field" type="text" @bind="cue" placeholder="When I sit down after dinner, I’ll open Prima" aria-label="Your practice cue" />
+    <p class="section-note">A plan of the form “when X, I’ll Y” makes it more likely to happen. It shows on Today.</p>
+</section>
+
+<section class="settings-section" aria-labelledby="look-heading">
+    <h2 id="look-heading" class="section-title">Look</h2>
+    <div class="look-picker">
+        @foreach (var look in Look.All)
+        {
+            <button type="button" class="look-option" data-theme="@look.Id" aria-pressed="@(look == LookSetting.Current ? "true" : "false")" @onclick="() => LookSetting.Choose(look)">
+                <span class="look-option-head"><span class="mu-led"></span><span class="look-option-name">@look.Name</span></span>
+                <span class="look-option-text">@look.Description</span>
+            </button>
+        }
+    </div>
+</section>
+
+<div class="control-row control-row-play">
+    <button type="button" class="mu-btn mu-primary" @onclick="Begin">Plug in the piano and set the timing</button>
+    <button type="button" class="mu-btn" @onclick="Later">Later: go to Today</button>
+</div>
+
+@code {
+    private string? name;
+    private string? cue;
+    private int minutes = 20;
+
+    protected override void OnInitialized() => (name, cue, minutes) = (Settings.Name, Settings.Cue, Settings.DailyMinutes);
+
+    private Task Begin() => Finish("tools/timing");
+
+    private Task Later() => Finish("");
+
+    private async Task Finish(string next)
+    {
+        (Settings.Name, Settings.Cue, Settings.DailyMinutes, Settings.Welcomed) = (string.IsNullOrWhiteSpace(name) ? null : name.Trim(), string.IsNullOrWhiteSpace(cue) ? null : cue.Trim(), minutes, true);
+        await Store.SaveAsync(Settings);
+        Nav.NavigateTo(next);
+    }
+}

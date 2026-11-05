@@ -146,4 +146,49 @@ public sealed partial class PrimaStore
 
     /// <summary>Waits for every piece of work started so far, so the file is complete (before a backup).</summary>
     public Task FlushAsync() => RunAsync(_ => Task.CompletedTask);
+
+    /// <summary>
+    /// Puts a backup in place of the data, after checking it's one of Prima's: false, and nothing changed, when it isn't. Runs on the
+    /// lane between pieces of work, with the pooled connections closed so the file can be replaced.
+    /// </summary>
+    public async Task<bool> RestoreAsync(byte[] backup)
+    {
+        var header = "SQLite format 3\0"u8;
+        if (backup.Length < 100 || !backup.AsSpan(0, header.Length).SequenceEqual(header)) return false;
+
+        var candidate = databasePath + ".restore";
+        await File.WriteAllBytesAsync(candidate, backup);
+        try
+        {
+            await using (var check = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = candidate, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
+            {
+                await check.OpenAsync();
+                var tables = (await check.QueryAsync<string>("SELECT name FROM sqlite_master WHERE type = 'table'")).ToHashSet();
+                if (!tables.IsSupersetOf(["Setting", "Track", "Attempt", "PracticeDay"])) return false;
+            }
+
+            // Its own place on the lane, without a connection: after everything before it, and before anything after.
+            Task replace;
+            lock (laneGate)
+            {
+                replace = lane.ContinueWith(_ =>
+                {
+                    SqliteConnection.ClearAllPools();
+                    File.Copy(candidate, databasePath, overwrite: true);
+                    schemaReady = false;
+                }, CancellationToken.None, TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
+                lane = replace;
+            }
+            await replace;
+            return true;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+        finally
+        {
+            File.Delete(candidate);
+        }
+    }
 }

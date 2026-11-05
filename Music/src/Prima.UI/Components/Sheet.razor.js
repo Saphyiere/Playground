@@ -236,7 +236,7 @@ export function clearMarks(element) {
 }
 
 function clearDrawnMarks(element) {
-    element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove("mark-wrong", "mark-missed", "mark-early", "mark-late"));
+    element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove("mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3"));
     element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow").forEach(n => n.remove());
 }
 

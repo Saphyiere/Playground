@@ -97,7 +97,7 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
 {
     public string? Title { get; init; }
 
-    /// <summary>Whether the time signature is printed: drill items show notes without one.</summary>
+    /// <summary>Whether the time signature is printed. Without one (drill items, the notes on You) there are no barlines or bar numbers either.</summary>
     public bool ShowMeter { get; init; } = true;
 
     /// <summary>A single-line rhythm staff instead of the grand staff.</summary>
@@ -162,6 +162,76 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
             }
             return total;
         }
+    }
+
+    /// <summary>
+    /// Bars <paramref name="first"/> to <paramref name="last"/> as music of their own, keeping their numbers as a printed excerpt
+    /// does: the key, metre and clefs in force at the first bar, ties into and out of it dropped so their notes are played, and the
+    /// marks on it, with spans that run in or out cut at its edges.
+    /// </summary>
+    public Score Excerpt(int first, int last)
+    {
+        var taken = WithSignatures().Where(s => s.Bar.Number >= first && s.Bar.Number <= last).ToList();
+        if (taken.Count == 0) throw new ArgumentOutOfRangeException(nameof(first), $"No bars from {first} to {last}.");
+
+        // Each staff's clef at the start is the last change before it; the grand staff starts treble over bass.
+        var clefs = new Dictionary<int, Clef>();
+        foreach (var (staff, clef) in Bars.Where(b => b.Number < first).SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<ClefChange>().Select(c => (v.Staff, c.Clef))))) clefs[staff] = clef;
+
+        var bars = taken.Select((s, i) => new Bar(s.Bar.Number, [.. s.Bar.Voices.Select(v =>
+        {
+            List<Event> events = [.. v.Events.Select(e => e is Notes n ? n with { Tones = [.. n.Tones.Select(t => t with { TiedFromPrevious = t.TiedFromPrevious && i > 0, TieToNext = t.TieToNext && i < taken.Count - 1 })] } : e)];
+            var inForce = clefs.TryGetValue(v.Staff, out var clef) ? clef : v.Staff == 1 ? Clef.Treble : Clef.Bass;
+            if (i == 0 && v.Layer == 1 && !RhythmOnly && inForce != (v.Staff == 1 ? Clef.Treble : Clef.Bass) && events.FirstOrDefault() is not ClefChange { Start: 0 }) events.Insert(0, new ClefChange(0, inForce));
+            return v with { Events = events };
+        })]) { Length = s.Bar.Length, NewKey = i == 0 ? null : s.Bar.NewKey, NewMeter = i == 0 ? null : s.Bar.NewMeter }).ToList();
+
+        // Where every note (and each of a chord's tones) is: its bar, its start, its staff, and its event's id.
+        var places = new Dictionary<string, (int Bar, int Start, int Staff, string Id)>();
+        foreach (var bar in Bars)
+        {
+            foreach (var voice in bar.Voices)
+            {
+                foreach (var n in voice.Events.OfType<Notes>())
+                {
+                    places[n.Id] = (bar.Number, n.Start, voice.Staff, n.Id);
+                    foreach (var t in n.Tones) places[t.Id] = (bar.Number, n.Start, voice.Staff, n.Id);
+                }
+            }
+        }
+
+        string? Edge(int barNumber, int staff, bool start)
+        {
+            var bar = Bars.First(b => b.Number == barNumber);
+            var notes = bar.Voices.OrderBy(v => v.Staff != staff).SelectMany(v => v.Events.OfType<Notes>().Where(n => !n.Grace).Select(n => (v.Staff, n))).ToList();
+            var onStaff = notes.Where(p => p.Staff == staff).Select(p => p.n).ToList();
+            var pool = onStaff.Count > 0 ? onStaff : notes.Select(p => p.n).ToList();
+            // The id the sheet carries: a single note's tone, or a chord's.
+            var edge = pool.Count == 0 ? null : start ? pool.MinBy(n => n.Start) : pool.MaxBy(n => n.Start);
+            return edge is null ? null : edge.Tones.Count == 1 ? edge.Tones[0].Id : edge.Id;
+        }
+
+        var (firstBar, lastBar) = (taken[0].Bar.Number, taken[^1].Bar.Number);
+        var marks = new List<Mark>();
+        foreach (var mark in Marks)
+        {
+            if (!places.TryGetValue(mark.StartId, out var from)) continue;
+            if (mark.EndId is null)
+            {
+                if (from.Bar >= firstBar && from.Bar <= lastBar) marks.Add(mark);
+                continue;
+            }
+
+            if (!places.TryGetValue(mark.EndId, out var to) || to.Bar < firstBar || from.Bar > lastBar) continue;
+
+            var startId = from.Bar >= firstBar ? mark.StartId : Edge(firstBar, from.Staff, start: true);
+            var endId = to.Bar <= lastBar ? mark.EndId : Edge(lastBar, to.Staff, start: false);
+            if (startId is null || endId is null || startId == endId && mark.Kind != MarkKind.OctaveUp) continue;
+
+            marks.Add(mark with { StartId = startId, EndId = endId });
+        }
+
+        return this with { Key = taken[0].Key, Meter = taken[0].Meter, Bars = bars, Marks = marks };
     }
 }
 

@@ -1,7 +1,238 @@
 @page "/you"
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@using System.Text.Json
+@using Prima.Core.Generation
+@using Prima.Core.Practice
 
 <PageTitle>You · Prima</PageTitle>
 
-<PageHead Title="You" Kicker="Profile and progress" />
+<PageHead Title="@(Settings.Name is { Length: > 0 } name ? name : "You")" Kicker="Profile and progress"><a class="mu-btn" href="settings">Profile in Settings</a></PageHead>
 
-<p class="page-note">Your profile and your progress over the weeks come here.</p>
+<p class="page-note">Progress shows as trends over weeks, not single sessions: mixed practice feels worse at the time and works better later. Timing usually improves fast at first and then levels off; a plateau after early gains is normal, not a sign of anything wrong.</p>
+
+<section class="settings-section" aria-labelledby="reading-heading">
+    <h2 id="reading-heading" class="section-title">Reading</h2>
+    <div class="you-grid">
+        <div class="mu-screen you-figure"><div class="mu-readout"><span class="mu-readout-label">Reading score</span><span class="mu-readout-value you-hero">@(reading?.Score.ToString("0.0", CultureInfo.InvariantCulture) ?? "–")</span><span class="mu-readout-label">Level @(reading?.Level ?? 1) at @(reading?.Tempo ?? 60) bpm</span></div></div>
+        <Trend Title="In time" Values="@Weekly(passages, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
+        <Trend Title="Correct notes a minute" Values="@Weekly(passages, a => Measure(a, "perMinute"))" Labels="weekLabels" />
+        <Trend Title="Passages a week" Values="@WeeklyCount(passages)" Labels="weekLabels" LastIsPartial="true" />
+    </div>
+    <ul class="summary-words">
+        <li>Kept going in @Share(passages.Where(ThisMonth), a => Measure(a, "keptGoing") == 1) of passages this month; clean (every note right, kept going) in @Share(passages.Where(ThisMonth), a => a.Clean).</li>
+        <li>Zhukov's four, this month: tempo drift @Mean(passages.Where(ThisMonth), a => Measure(a, "drift"), "0.0")%, @Mean(passages.Where(ThisMonth), a => Measure(a, "extra"), "0.0") extra and @Mean(passages.Where(ThisMonth), a => Measure(a, "missed") + Measure(a, "wrong"), "0.0") missed notes a passage, RMS timing @Mean(passages.Where(ThisMonth), a => Measure(a, "rmsMs"), "0") ms.</li>
+        <li>Lost on the keyboard (a key or two away): @Mean(passages.Where(ThisMonth), a => Measure(a, "lost"), "0.0") a passage, apart from reading errors.</li>
+        <li>@BarsThisWeek() bars read this week: volume is the main lever.</li>
+        @if (ReadAheadCompare() is { } compare)
+        {
+            <li>@compare</li>
+        }
+    </ul>
+</section>
+
+<section class="settings-section" aria-labelledby="notes-heading">
+    <h2 id="notes-heading" class="section-title">Notes</h2>
+    @if (cards.Count > 0)
+    {
+        <div class="sheet-frame">
+            <Sheet @ref="heatSheet" Mei="@heatMei" Scale="0.75" OnPainted="PaintHeat" />
+        </div>
+        <p class="you-legend"><span class="heat-key heat0"></span>Mostly right <span class="heat-key heat1"></span>Missed sometimes <span class="heat-key heat2"></span>Missed often <span class="heat-key heat3"></span>Missed most</p>
+    }
+    <ul class="summary-words">
+        <li>@fluent of @cards.Count notes fluent (right and fast in the last three answers, over two days).</li>
+        @if (MostMissed() is { Length: > 0 } missed)
+        {
+            <li>Most missed: @missed.</li>
+        }
+        @if (Slowest() is { Length: > 0 } slow)
+        {
+            <li>Slowest: @slow.</li>
+        }
+    </ul>
+</section>
+
+<section class="settings-section" aria-labelledby="rhythm-heading">
+    <h2 id="rhythm-heading" class="section-title">Rhythm</h2>
+    <div class="you-grid">
+        <Trend Title="In time" Values="@Weekly(rhythms, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
+        <Trend Title="Steadiness" Values="@Weekly(rhythms, a => Measure(a, "steadiness"))" Labels="weekLabels" Format="@(v => $"±{v:0.0}%")" />
+    </div>
+    <ul class="summary-words">
+        <li>This month you leaned @Mean(rhythms.Where(ThisMonth), a => Measure(a, "lean"), "+0.0;−0.0;0")% of the beat (measured from your calibration), steady to ±@Mean(rhythms.Where(ThisMonth), a => Measure(a, "steadiness"), "0.0")%.</li>
+        <li>Without the click you drifted @Mean(rhythms.Where(ThisMonth).Where(a => a.Variant != "Throughout"), a => Measure(a, "drift"), "+0.0;−0.0;0")% on average (positive is faster).</li>
+    </ul>
+</section>
+
+<section class="settings-section" aria-labelledby="technique-heading">
+    <h2 id="technique-heading" class="section-title">Technique</h2>
+    @if (techniqueRows.Count == 0)
+    {
+        <p class="section-note">Scales, arpeggios and finger patterns show here once you've run them.</p>
+    }
+    else
+    {
+        <table class="you-table">
+            <thead><tr><th>Item</th><th>Hands</th><th>Evenness</th><th>Even up to</th><th>Crossings</th><th>Octaves</th><th>Touch (velocity)</th><th>Legato</th><th>Hands apart</th></tr></thead>
+            <tbody>
+                @foreach (var row in techniqueRows)
+                {
+                    <tr><td>@row.Item</td><td>@row.Hands</td><td>@row.Evenness</td><td>@row.Best</td><td>@row.Crossings</td><td>@row.Octaves</td><td>@row.Touch</td><td>@row.Legato</td><td>@row.Sync</td></tr>
+                }
+            </tbody>
+        </table>
+        <p class="section-note">Compared only with your own earlier runs: there are no norms for amateurs. Under about 10 ms is below what anyone can hear.</p>
+    }
+</section>
+
+<section class="settings-section" aria-labelledby="habit-heading">
+    <h2 id="habit-heading" class="section-title">Habit</h2>
+    <div class="you-grid">
+        <Trend Title="Minutes a week" Values="@weeklyMinutes" Labels="weekLabels" LastIsPartial="true" />
+        <div class="mu-screen you-figure"><div class="mu-readout"><span class="mu-readout-label">Streak</span><span class="mu-readout-value you-hero">@(streak?.Days ?? 0)</span><span class="mu-readout-label">@(streak?.DaysThisWeek ?? 0) of the last 7 days</span><span class="mu-readout-label">@(streak?.FreezesBanked ?? 0) @(streak?.FreezesBanked == 1 ? "freeze" : "freezes") banked</span></div></div>
+    </div>
+</section>
+
+@code {
+    private ReadingState? reading;
+    private List<AttemptRecord> passages = [];
+    private List<AttemptRecord> rhythms = [];
+    private List<NoteCard> cards = [];
+    private List<NoteAnswer> answers = [];
+    private int fluent;
+    private StreakState? streak;
+    private IReadOnlyList<double?> weeklyMinutes = [];
+    private List<(string Item, string Hands, string Evenness, string Best, string Crossings, string Octaves, string Touch, string Legato, string Sync)> techniqueRows = [];
+    private string heatMei = "";
+    private Sheet? heatSheet;
+    private List<SheetMark> heatMarks = [];
+    private const int Weeks = 12;
+
+    private static DateOnly Day0 => DateOnly.FromDateTime(DateTime.Now);
+
+    // Weeks start on Monday; the last is this week.
+    private static DateOnly WeekStart(DateOnly day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+
+    private static DateOnly FirstWeek => WeekStart(Day0).AddDays(-7 * (Weeks - 1));
+
+    private readonly IReadOnlyList<string> weekLabels = [.. Enumerable.Range(0, Weeks).Select(w => FirstWeek.AddDays(7 * w).ToString("d MMM", CultureInfo.InvariantCulture))];
+
+    protected override async Task OnInitializedAsync()
+    {
+        reading = await Store.GetTrackAsync<ReadingState>("reading");
+        var all = await Store.GetAttemptsAsync(FirstWeek);
+        passages = [.. all.Where(a => a.Kind == "passage")];
+        rhythms = [.. all.Where(a => a.Kind == "rhythm")];
+        cards = await Store.GetCardsAsync();
+        answers = await Store.GetAnswersAsync(DateTimeOffset.Now.AddDays(-90));
+        var fast = NoteSchedule.FastMs(answers.Where(a => a.At >= DateTimeOffset.Now.AddDays(-14)));
+        fluent = cards.Count(c => NoteSchedule.Fluent(answers.Where(a => a.Clef == c.Clef && a.Midi == c.Midi), fast));
+        var days = await Store.GetDaysAsync(Day0.AddDays(-120));
+        streak = Streak.Compute(days.Select(d => new PracticeDayRecord(d.Day, d.Minutes, d.ShortDone)), Day0);
+        var started = days.Count == 0 ? (DateOnly?)null : WeekStart(days.Min(d => d.Day));
+        weeklyMinutes = [.. Enumerable.Range(0, Weeks).Select(w => FirstWeek.AddDays(7 * w)).Select(week => week < started || started is null ? null : (double?)days.Where(d => WeekStart(d.Day) == week).Sum(d => d.Minutes))];
+        BuildTechnique(all, await Store.GetTracksAsync("technique:"));
+        BuildHeat();
+    }
+
+    private static double Measure(AttemptRecord a, string name)
+    {
+        using var doc = JsonDocument.Parse(a.Measures);
+        if (!doc.RootElement.TryGetProperty(name, out var value)) return double.NaN;
+        return value.ValueKind switch { JsonValueKind.Number => value.GetDouble(), JsonValueKind.True => 1, JsonValueKind.False => 0, _ => double.NaN };
+    }
+
+    private IReadOnlyList<double?> Weekly(List<AttemptRecord> attempts, Func<AttemptRecord, double?> value) => [.. Enumerable.Range(0, Weeks).Select(w =>
+    {
+        var week = attempts.Where(a => WeekStart(a.Day) == FirstWeek.AddDays(7 * w)).Select(value).OfType<double>().Where(v => !double.IsNaN(v)).ToArray();
+        return week.Length == 0 ? (double?)null : week.Average();
+    })];
+
+    // Counts from the first week with any; the weeks before it have no value, rather than a zero.
+    private IReadOnlyList<double?> WeeklyCount(List<AttemptRecord> attempts) => [.. Enumerable.Range(0, Weeks).Select(w => FirstWeek.AddDays(7 * w)).Select(week => attempts.Count == 0 || week < WeekStart(attempts.Min(a => a.Day)) ? null : (double?)attempts.Count(a => WeekStart(a.Day) == week))];
+
+    private static bool ThisMonth(AttemptRecord a) => a.Day >= Day0.AddDays(-30);
+
+    private static string Share(IEnumerable<AttemptRecord> attempts, Func<AttemptRecord, bool> test)
+    {
+        var list = attempts.ToList();
+        return list.Count == 0 ? "–" : $"{(list.Count(test) / (double)list.Count) * 100:0}%";
+    }
+
+    private static string Mean(IEnumerable<AttemptRecord> attempts, Func<AttemptRecord, double> value, string format)
+    {
+        var values = attempts.Select(value).Where(v => !double.IsNaN(v)).ToArray();
+        return values.Length == 0 ? "–" : values.Average().ToString(format, CultureInfo.InvariantCulture);
+    }
+
+    private int BarsThisWeek() => (int)passages.Where(a => WeekStart(a.Day) == WeekStart(Day0)).Sum(a => Measure(a, "bars") is var b && double.IsNaN(b) ? 0 : b);
+
+    // Read ahead against plain reading: in-time accuracy at the same level and tempo, this month.
+    private string? ReadAheadCompare()
+    {
+        var month = passages.Where(ThisMonth).ToList();
+        var pairs = month.Where(a => a.Variant == "ReadAhead").Select(a => (a.Level, a.Tempo)).Distinct().ToList();
+        var ahead = month.Where(a => a.Variant == "ReadAhead" && a.Headline is not null).ToList();
+        var plain = month.Where(a => a.Variant is null && pairs.Contains((a.Level, a.Tempo)) && a.Headline is not null).ToList();
+        if (ahead.Count == 0 || plain.Count == 0) return null;
+
+        return $"Read ahead against plain reading at the same level and tempo: {(ahead.Average(a => a.Headline!.Value)) * 100:0}% in time against {(plain.Average(a => a.Headline!.Value)) * 100:0}%.";
+    }
+
+    private void BuildTechnique(List<AttemptRecord> all, Dictionary<string, string> tracks)
+    {
+        foreach (var group in all.Where(a => a.Kind is "scale" or "arpeggio" or "independence" && a.SetId is not null).GroupBy(a => (a.SetId, a.Variant)))
+        {
+            var valid = group.Where(a => a.Clean).ToList();
+            var last = valid.LastOrDefault();
+            var state = tracks.TryGetValue($"technique:{(group.First().Kind == "scale" ? "scales" : group.First().Kind == "arpeggio" ? "arpeggios" : "independence")}:{group.Key.SetId}:{group.Key.Variant}", out var json) ? JsonSerializer.Deserialize<TechniqueState>(json, PrimaStore.Json) : null;
+            string Hand(string field, string format, string unit)
+            {
+                if (last is null) return "–";
+                using var doc = JsonDocument.Parse(last.Measures);
+                var hand = doc.RootElement.TryGetProperty("right", out var r) && r.ValueKind == JsonValueKind.Object ? r : doc.RootElement.TryGetProperty("left", out var l) && l.ValueKind == JsonValueKind.Object ? l : default;
+                return hand.ValueKind == JsonValueKind.Object && hand.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble().ToString(format, CultureInfo.InvariantCulture) + unit : "–";
+            }
+            var sync = "–";
+            if (last is not null)
+            {
+                using var doc = JsonDocument.Parse(last.Measures);
+                if (doc.RootElement.TryGetProperty("sync", out var s) && s.ValueKind == JsonValueKind.Number) sync = $"{Math.Abs(s.GetDouble()):0} ms";
+            }
+            techniqueRows.Add((group.Key.SetId!, group.Key.Variant ?? "", last?.Headline is { } sd ? $"±{sd:0.0}%" : "–", state?.BestEvenTempo is { } best ? $"{best:0} bpm" : "–", Hand("CrossingMs", "+0;−0;0", " ms"), Hand("SeamMs", "+0;−0;0", " ms"), Hand("VelocitySd", "±0", ""), Hand("LegatoMs", "+0;−0;0", " ms"), sync));
+        }
+    }
+
+    // The heat map: every card's note on the grand staff, each bar one note, marked by how often it was missed this month.
+    private void BuildHeat()
+    {
+        var ordered = cards.OrderBy(c => c.Clef).ThenBy(c => c.Midi).ToList();
+        var bars = ordered.Select((c, i) =>
+        {
+            var id = $"h{i}";
+            var note = new Notes(id, 0, Ticks.Whole, [new Tone(id, new Key(0).Spell(c.Midi))]);
+            Event space = new Rest($"s{i}", 0, Ticks.Whole) { Hidden = true };
+            return new Bar(i + 1, c.Clef == Clef.Treble ? [new Voice(1, [note]), new Voice(2, [space])] : [new Voice(1, [space]), new Voice(2, [note])]);
+        }).ToList();
+        if (bars.Count == 0) return;
+
+        heatMei = MeiWriter.Write(new Score(new Key(0), new Meter(4, 4), bars) { ShowMeter = false });
+        var month = answers.Where(a => a.At >= DateTimeOffset.Now.AddDays(-30)).ToList();
+        heatMarks = [.. ordered.Select((c, i) =>
+        {
+            var mine = month.Where(a => a.Clef == c.Clef && a.Midi == c.Midi).ToList();
+            var missed = mine.Count == 0 ? 0 : mine.Count(a => !a.Right) / (double)mine.Count;
+            return missed switch { < 0.1 => null, < 0.25 => new SheetMark($"h{i}", "heat1"), < 0.45 => new SheetMark($"h{i}", "heat2"), _ => new SheetMark($"h{i}", "heat3") };
+        }).OfType<SheetMark>()];
+    }
+
+    private async Task PaintHeat(long _)
+    {
+        if (heatSheet is not null) await heatSheet.ShowMarks(heatMarks);
+    }
+
+    private string MostMissed() => string.Join(", ", answers.Where(a => a.At >= DateTimeOffset.Now.AddDays(-30) && !a.Right).GroupBy(a => (a.Clef, a.Midi)).OrderByDescending(g => g.Count()).Take(4).Select(g => $"{new Key(0).Spell(g.Key.Midi)} ({(g.Key.Clef == Clef.Treble ? "treble" : "bass")})"));
+
+    private string Slowest() => string.Join(", ", answers.Where(a => a.At >= DateTimeOffset.Now.AddDays(-30) && a.Right).GroupBy(a => (a.Clef, a.Midi)).Where(g => g.Count() >= 2).OrderByDescending(g => Stats.Median(g.Select(a => a.ResponseMs).ToArray())).Take(4).Select(g => $"{new Key(0).Spell(g.Key.Midi)} ({Stats.Median(g.Select(a => a.ResponseMs).ToArray()) / 1000:0.0} s)"));
+}

@@ -22,7 +22,7 @@
     <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
     @if (result is not null)
     {
-        <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.Accuracy:P0}")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.Accuracy) * 100:0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
     }

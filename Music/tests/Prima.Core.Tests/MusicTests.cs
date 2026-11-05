@@ -101,6 +101,41 @@ public class MusicTests
     }
 
     [Fact]
+    public void AnExcerptStandsOnItsOwn()
+    {
+        var sample = Sample();
+        var withClef = sample with
+        {
+            Bars = [sample.Bars[0], sample.Bars[1] with { Voices = [sample.Bars[1].Voices[0], sample.Bars[1].Voices[1] with { Events = [new ClefChange(0, Clef.Treble), .. sample.Bars[1].Voices[1].Events] }] }, sample.Bars[2]],
+            Marks = [.. sample.Marks, new Mark(MarkKind.Slur, "d1", "h1")],
+        };
+
+        var bar2 = withClef.Excerpt(2, 2);
+
+        // The key in force at bar 2, still numbered 2; the note tied from bar 1 is played; the bass staff is still in treble.
+        Assert.Equal(new Key(2), bar2.Key);
+        Assert.Equal(2, Assert.Single(bar2.Bars).Number);
+        Assert.Null(bar2.Bars[0].NewKey);
+        Assert.Equal(["g1", "h1", "i1"], bar2.Expected().Select(n => n.Id));
+        Assert.Equal(0, bar2.Expected()[0].Tick);
+        Assert.Equal(new ClefChange(0, Clef.Treble), bar2.Bars[0].Voices[1].Events[0]);
+        // The slur from bar 1 is cut at bar 2's first note; the marks wholly in bar 1 are gone.
+        Assert.Equal(new Mark(MarkKind.Slur, "g1", "h1"), Assert.Single(bar2.Marks));
+        Assert.Contains("startid=\"#g1\" endid=\"#h1\"", MeiWriter.Write(bar2));
+
+        var bar1 = withClef.Excerpt(1, 1);
+
+        // The tie out of bar 1 is dropped, so its last note sounds only as long as it's written.
+        Assert.Equal(Ticks.Half, bar1.Expected().Single(n => n.Id == "e1").Length);
+        Assert.Equal(new Key(1), bar1.Key);
+        Assert.Equal(3, bar1.Marks.Count);
+        Assert.Equal("e1", bar1.Marks[2].EndId);
+
+        // A pickup stays bar 0.
+        Assert.Equal([0, 1], withClef.Excerpt(0, 1).Bars.Select(b => b.Number));
+    }
+
+    [Fact]
     public void MeiWritesWhatAScoreShows()
     {
         var mei = MeiWriter.Write(Sample(), 90);
@@ -116,6 +151,17 @@ public class MusicTests
         Assert.Contains("<mRest xml:id=\"k\"", mei);
         Assert.Contains("<dynam staff=\"1\" startid=\"#a1\" place=\"below\">p</dynam>", mei);
         Assert.Contains("right=\"end\"", mei);
+    }
+
+    [Fact]
+    public void NotesWithoutAMetreHaveNoBarlinesOrNumbers()
+    {
+        var mei = MeiWriter.Write(Sample() with { ShowMeter = false });
+
+        Assert.DoesNotContain("meter.count", mei);
+        Assert.Contains("mnum.visible=\"false\"", mei);
+        Assert.Equal(3, mei.Split("right=\"invis\"").Length - 1);
+        Assert.DoesNotContain("right=\"end\"", mei);
     }
 
     [Fact]

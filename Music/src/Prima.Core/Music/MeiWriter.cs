@@ -35,6 +35,7 @@ public static class MeiWriter
 
             xml.WriteStartElement("scoreDef", Ns);
             WriteSignature(xml, score.Key, score.ShowMeter ? score.Meter : null);
+            if (!score.ShowMeter) xml.WriteAttributeString("mnum.visible", "false");
             xml.WriteAttributeString("midi.bpm", bpm.ToString("0.###", CultureInfo.InvariantCulture));
             xml.WriteStartElement("staffGrp", Ns);
             if (score.RhythmOnly) WriteStaffDef(xml, 1, null);
@@ -67,7 +68,8 @@ public static class MeiWriter
                 xml.WriteAttributeString("n", bar.Number.ToString(CultureInfo.InvariantCulture));
                 xml.WriteAttributeString("id", XmlNs, bar.Id);
                 if (length < meter.BarTicks) xml.WriteAttributeString("metcon", "false");
-                if (i == signatures.Count - 1) xml.WriteAttributeString("right", score.ShowMeter ? "end" : "invis");
+                if (!score.ShowMeter) xml.WriteAttributeString("right", "invis");
+                else if (i == signatures.Count - 1) xml.WriteAttributeString("right", "end");
                 foreach (var staff in bar.Voices.Select(v => v.Staff).Distinct().Order())
                 {
                     xml.WriteStartElement("staff", Ns);

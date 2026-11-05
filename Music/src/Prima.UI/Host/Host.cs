@@ -118,3 +118,21 @@ public sealed class NoScreen : IScreen
     {
     }
 }
+
+/// <summary>Files outside the app: backing the database up somewhere, and picking a file (a backup to restore, music to import).</summary>
+public interface IFiles
+{
+    /// <summary>Offers a file to be saved or sent elsewhere (the tablet's share sheet); false where the host can't.</summary>
+    Task<bool> OfferAsync(string path, string title);
+
+    /// <summary>Lets the owner pick a file; its name and bytes, or null if none was picked or the host can't.</summary>
+    Task<(string Name, byte[] Data)?> PickAsync();
+}
+
+/// <summary>No files outside the app: for a host without them, like the preview.</summary>
+public sealed class NoFiles : IFiles
+{
+    public Task<bool> OfferAsync(string path, string title) => Task.FromResult(false);
+
+    public Task<(string Name, byte[] Data)?> PickAsync() => Task.FromResult<(string, byte[])?>(null);
+}

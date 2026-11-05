@@ -19,12 +19,33 @@
     <header class="reading-head">
         <div>
             <p class="page-kicker">@Kicker()</p>
-            <h1 class="page-title">@(passage?.Description ?? "Sight-read")</h1>
+            <h1 class="page-title">@(passage?.Description ?? (Spot == 1 ? "One spot" : "Sight-read"))</h1>
         </div>
         <KeyboardLamp />
     </header>
 
-    @if (stage == Stage.Choose)
+    @if (stage == Stage.Choose && Spot == 1)
+    {
+        <section class="mu-screen reading-start" aria-label="One spot">
+            <div class="mu-screen-head"><span>One spot</span><span>@(spotFrom is null ? "" : $"Bar {spotBar}")</span></div>
+            <p class="page-panel-line">@(spotFrom is null
+                ? "Nothing to fix today: every passage so far was clean. Read one more instead, or pick a piece from the Library."
+                : $"Bar {spotBar} of the passage you read at {spotFrom.At.ToLocalTime():HH:mm} had the most to fix. Play it 20% slower, then the bars around it at its tempo.")</p>
+        </section>
+        <div class="control-row control-row-play">
+            @if (spotFrom is null)
+            {
+                <button type="button" class="mu-btn mu-primary" @onclick="() => { Spot = null; NewPassage(); }">Read one more</button>
+                <a class="mu-btn" href="library">Library</a>
+            }
+            else
+            {
+                <button type="button" class="mu-play" aria-label="Play the bar" @onclick="() => StartSpot(1)"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+            }
+            <button type="button" class="mu-btn" @onclick="Done">Back</button>
+        </div>
+    }
+    else if (stage == Stage.Choose)
     {
         <section class="mu-screen reading-start" aria-label="Before starting">
             <div class="mu-screen-head"><span>@(reading is null ? "First time" : $"Level {reading.Level}")</span><span>@(reading is null ? "" : $"{reading.Tempo:0} bpm")</span></div>
@@ -75,8 +96,9 @@
             }
         </section>
 
-        <div class="sheet-frame">
-            <Sheet @ref="sheet" Mei="@mei" OnNoteTapped="Tapped" />
+        @* One spot's single bar is shown larger, at about its printed width, not stretched across the sheet. *@
+        <div class="sheet-frame @(spotPart == 1 ? "spot-frame" : "")">
+            <Sheet @ref="sheet" Mei="@mei" Scale="@(spotPart == 1 ? 1.25 : 1)" OnNoteTapped="Tapped" />
         </div>
 
         @if (stage == Stage.Summary && result is not null)
@@ -84,7 +106,7 @@
             <section class="summary" aria-label="How it went">
                 <div class="mu-screen summary-figures">
                     <div class="mu-readouts">
-                        <div class="mu-readout @(result.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.InTimeAccuracy:P0}")</span></div>
+                        <div class="mu-readout @(result.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
                         <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@result.CorrectPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
                         <div class="mu-readout"><span class="mu-readout-label">Kept going</span><span class="mu-readout-value">@(result.KeptGoing ? "Yes" : "No")</span></div>
                         <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@Lean()</span></div>
@@ -105,7 +127,16 @@
                     <Timeline Result="result" />
                 }
                 <div class="control-row">
-                    @if (finding)
+                    @if (spotPart == 1)
+                    {
+                        <button type="button" class="mu-btn mu-primary" @onclick="() => StartSpot(2)">Now the bars around it</button>
+                        <button type="button" class="mu-btn" @onclick="() => StartSpot(1)">The bar again</button>
+                    }
+                    else if (spotPart == 2)
+                    {
+                        <button type="button" class="mu-btn" @onclick="() => StartSpot(2)">Again</button>
+                    }
+                    else if (finding)
                     {
                         <button type="button" class="mu-btn mu-primary" @onclick="NewPassage">Next</button>
                     }
@@ -127,11 +158,16 @@
     private enum Stage { Choose, Hear, Look, Run, Summary }
 
     private static readonly Variant[] Variants = [Variant.ReadAhead, Variant.Duet, Variant.HearFirst];
-    private const double LookSeconds = 30;
+
+    // Thirty seconds to look at a passage; ten at one spot's single bar.
+    private double LookSeconds => spotPart == 1 ? 10 : 30;
 
     [SupplyParameterFromQuery(Name = "variant")] public string? VariantQuery { get; set; }
 
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+
+    /// <summary>1 for Today's one-spot step: the bar with the most to fix today, slower, then the bars around it.</summary>
+    [SupplyParameterFromQuery(Name = "spot")] public int? Spot { get; set; }
 
     private Stage stage = Stage.Choose;
     private ReadingState? reading;
@@ -150,24 +186,68 @@
     private readonly List<double> findResults = [];
     private int passagesToday;
     private Key? lastKey;
+    private Key? avoidKey;
     private string? tapped;
     private bool showTimeline;
     private bool pianoPart;
+    private AttemptRecord? spotFrom;
+    private int spotBar;
+    private int spotPart;
+    private Passage? spotPassage;
+    private double spotTempo;
+    private int spotStep;
 
     private bool PianoPlays => Keyboard.CanSend && Settings.SendToPiano;
 
     protected override async Task OnInitializedAsync()
     {
         reading = await Store.GetTrackAsync<ReadingState>("reading");
-        passagesToday = (await Store.GetAttemptsAsync(Today, "passage")).Count(a => a.Day == Today);
+        var todays = (await Store.GetAttemptsAsync(Today, "passage")).Where(a => a.Day == Today).ToList();
+        (passagesToday, lastKey) = (todays.Count, DayPassages.KeyOf(todays.LastOrDefault()));
         variant = Enum.TryParse<Variant>(VariantQuery, true, out var v) ? v : null;
+        if (Spot == 1) FindSpot(todays);
+    }
+
+    // Today's passage with the most errors in one bar (the latest, on a tie), made again from its seed, level and step.
+    private void FindSpot(List<AttemptRecord> attempts)
+    {
+        var worst = attempts.Where(a => a.Day == Today && a.Seed is not null && a.Level is not null && a.Tempo is not null).Select(a =>
+        {
+            using var measures = System.Text.Json.JsonDocument.Parse(a.Measures);
+            var bar = measures.RootElement.TryGetProperty("worstBar", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.Number ? b.GetInt32() : (int?)null;
+            var errors = measures.RootElement.TryGetProperty("worstErrors", out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Number ? e.GetInt32() : 1;
+            return (Attempt: a, Bar: bar, Errors: errors);
+        }).Where(w => w.Bar is not null).OrderByDescending(w => w.Errors).ThenByDescending(w => w.Attempt.At).FirstOrDefault();
+        if (worst.Attempt is null) return;
+
+        using var settings = System.Text.Json.JsonDocument.Parse(worst.Attempt.Settings ?? "{}");
+        var step = settings.RootElement.TryGetProperty("step", out var s) ? s.GetInt32() : 4;
+        Key? avoid = settings.RootElement.TryGetProperty("avoid", out var k) && k.ValueKind == System.Text.Json.JsonValueKind.Object ? new Key(k.GetProperty("fifths").GetInt32(), k.GetProperty("minor").GetBoolean()) : null;
+        spotPassage = PassageGenerator.Generate(Ladder.Effective(worst.Attempt.Level!.Value, step), (ulong)worst.Attempt.Seed!.Value, avoid);
+        (spotFrom, spotBar, spotTempo, spotStep) = (worst.Attempt, worst.Bar!.Value, worst.Attempt.Tempo!.Value, step);
+    }
+
+    // Part 1 is the bar 20% slower (a pickup comes with its first full bar); part 2 the four-bar phrase it's in, at the tempo.
+    private void StartSpot(int part)
+    {
+        StopRun();
+        var score = spotPassage!.Score;
+        var lastBar = score.Bars[^1].Number;
+        var phrase = (Math.Max(1, spotBar) - 1) / 4 * 4 + 1;
+        var excerpt = part == 1 ? score.Excerpt(spotBar, spotBar == 0 ? 1 : spotBar) : score.Excerpt(phrase == 1 && score.Bars[0].Number == 0 ? 0 : phrase, Math.Min(lastBar, phrase + 3));
+        (spotPart, variant, finding) = (part, null, false);
+        tempo = part == 1 ? Math.Round(spotTempo * 0.8) : spotTempo;
+        passage = spotPassage with { Score = excerpt, Description = part == 1 ? $"Bar {spotBar}, slower" : $"Bars {Math.Max(1, phrase)} to {Math.Min(lastBar, phrase + 3)}" };
+        mei = MeiWriter.Write(passage.Score, tempo);
+        (result, tapped, showTimeline) = (null, null, false);
+        BeginLook();
     }
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
 
     private static string VariantName(Variant v) => v switch { Variant.ReadAhead => "Read ahead", Variant.Duet => "Duet", _ => "Hear first" };
 
-    private string Kicker() => stage == Stage.Choose ? "New music, in time" : finding ? $"Finding your level · level {findLevel}" : variant is { } v ? VariantName(v) : "Sight-read";
+    private string Kicker() => Spot == 1 && (stage == Stage.Choose || spotPart > 0) ? "One spot" : stage == Stage.Choose ? "New music, in time" : finding ? $"Finding your level · level {findLevel}" : variant is { } v ? VariantName(v) : "Sight-read";
 
     private void FindLevel()
     {
@@ -186,11 +266,13 @@
     private void NewPassage()
     {
         StopRun();
+        spotPart = 0;
         reading ??= ReadingState.Start;
         var spec = finding ? Ladder.Level(findLevel) : reading.Spec;
         tempo = finding ? spec.Tempo.Min : reading.Tempo;
         if (variant is Variant.Duet or Variant.HearFirst && !PianoPlays) variant = null;
-        passage = PassageGenerator.Generate(spec, (ulong)DateTime.Now.Ticks, lastKey);
+        avoidKey = lastKey;
+        passage = finding ? PassageGenerator.Generate(spec, (ulong)DateTime.Now.Ticks, avoidKey) : DayPassages.Next(spec, Today, passagesToday, avoidKey);
         lastKey = passage.Score.Key;
         mei = MeiWriter.Write(passage.Score, tempo);
         (result, tapped, showTimeline) = (null, null, false);
@@ -273,11 +355,11 @@
         var tonic = key.Degree(0, 2).Midi + 12;
         var dominant = key.Degree(4, 2).Midi;
         var barBeats = meter.BarTicks / BeatTicks;
-        return passage.Score.Bars.Where(b => b.Number > 0).Select(b =>
+        return passage.Score.Bars.Where(b => b.Number > 0).Select((b, i) =>
         {
             var classes = b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones)).Select(t => ((t.Pitch.Midi - key.TonicPitchClass) % 12 + 12) % 12).ToList();
             var leansOnFive = classes.Count(c => c is 7 or 11 or 2) > classes.Count(c => c is 0 or 4);
-            return (leansOnFive ? dominant : tonic, (b.Number - 1) * barBeats, barBeats);
+            return (leansOnFive ? dominant : tonic, i * barBeats, barBeats);
         }).ToList();
     }
 
@@ -325,14 +407,22 @@
         {
             inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, extra = result.Extra, audible = result.Audible, off = result.Off,
             leanMs = result.LeanMs, leanPercent = result.LeanPercent, steadiness = result.SteadinessPercent, perMinute = result.CorrectPerMinute, keptGoing = result.KeptGoing,
-            drift = result.TempoDriftPercent, rmsMs = result.RmsMs, lost = result.LostOnKeyboard, worstBar = result.WorstBar, bars = passage.Score.Bars.Count(b => b.Number > 0), notes = expected.Count,
+            drift = result.TempoDriftPercent, rmsMs = result.RmsMs, lost = result.LostOnKeyboard, worstBar = result.WorstBar, worstErrors = result.WorstBar is { } w ? result.ErrorsPerBar[w] : 0,
+            bars = passage.Score.Bars.Count(b => b.Number > 0), notes = expected.Count,
         };
         var played = session.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
         var beats = Enumerable.Range(-Math.Max(1, Settings.CountInBars) * passage.Score.Meter.Beats, (int)(measures.bars * passage.Score.Meter.Beats) + 8).Select(b => (session.TimeAt(b) - zero) / 1e6);
-        var kind = finding ? "find" : "passage";
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, kind, variant?.ToString(), null, passage.Spec.Level, tempo, (long)passage.Seed,
-            System.Text.Json.JsonSerializer.Serialize(new { step = reading?.Step ?? 4, style = passage.Style.ToString() }), System.Text.Json.JsonSerializer.Serialize(played), System.Text.Json.JsonSerializer.Serialize(beats), System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
+        var kind = spotPart > 0 ? "spot" : finding ? "find" : "passage";
+        var avoid = avoidKey is { } k ? new { fifths = k.Fifths, minor = k.Minor } : null;
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, kind, spotPart > 0 ? (spotPart == 1 ? "bar" : "phrase") : variant?.ToString(), null, passage.Spec.Level, tempo, (long)passage.Seed,
+            System.Text.Json.JsonSerializer.Serialize(new { step = spotPart > 0 ? spotStep : reading?.Step ?? 4, style = passage.Style.ToString(), avoid, key = new { fifths = passage.Score.Key.Fifths, minor = passage.Score.Key.Minor }, spotBar = spotPart > 0 ? spotBar : (int?)null }), System.Text.Json.JsonSerializer.Serialize(played), System.Text.Json.JsonSerializer.Serialize(beats), System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
         await Store.AddMinutesAsync(Today, (DateTime.Now - lookStarted).TotalMinutes);
+
+        if (spotPart > 0)
+        {
+            if (spotPart == 2) await Store.MarkStepAsync(Today, StepKind.OneSpot);
+            return;
+        }
 
         if (finding)
         {
@@ -408,7 +498,7 @@
         if (result.Audible + result.Off > 0) yield return $"{result.Off} off the beat and {result.Audible} just audibly early or late, after your lean.";
         if (!result.KeptGoing) yield return "You stopped for more than a bar. Next time keep the beat going, even past a wrong note.";
         if (Math.Abs(result.LeanPercent) >= 5) yield return $"You leaned {Math.Abs(result.LeanMs):0} ms {(result.LeanMs < 0 ? "early" : "late")}, measured from your timing calibration.";
-        if (result.WorstBar is { } bar && !result.Clean) yield return $"Bar {bar} had the most to fix.";
+        if (result.WorstBar is { } bar && !result.Clean && passage.Score.Bars.Count(b => b.Number > 0) > 1) yield return $"Bar {bar} had the most to fix.";
     }
 
     private string PhaseName() => stage switch

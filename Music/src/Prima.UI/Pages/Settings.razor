@@ -3,10 +3,54 @@
 @inject IKeyboard Keyboard
 @inject PrimaSettings Options
 @inject PrimaStore Store
+@inject IFiles Files
+@inject NavigationManager Nav
 
 <PageTitle>Settings · Prima</PageTitle>
 
 <PageHead Title="Settings" Kicker="Kept on this tablet" />
+
+<section class="settings-section" aria-labelledby="profile-heading">
+    <h2 id="profile-heading" class="section-title">Profile</h2>
+    <div class="control-row">
+        <label class="control-label" for="profile-name">Name</label>
+        <input id="profile-name" class="text-field text-field-short" type="text" @bind="name" @bind:after="SaveProfile" placeholder="Optional" />
+    </div>
+    <div class="control-row">
+        <span class="control-label">Minutes a day</span>
+        @foreach (var m in new[] { 5, 10, 15, 20, 30, 45 })
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.DailyMinutes == m)" @onclick="() => ChooseMinutes(m)"><span class="mu-led"></span>@m</button>
+        }
+    </div>
+    <p class="section-note">@(gradually ?? "Prima never raises this by itself. About twenty minutes holds the whole plan.")</p>
+    <div class="control-row">
+        <label class="control-label" for="profile-cue">Your cue</label>
+        <input id="profile-cue" class="text-field" type="text" @bind="cue" @bind:after="SaveProfile" placeholder="When I sit down after dinner, I’ll open Prima" />
+    </div>
+    <div class="control-row">
+        <span class="control-label">Note review</span>
+        @foreach (var (value, label) in ClefChoices)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Clefs == value)" @onclick="() => Save(() => Options.Clefs = value)"><span class="mu-led"></span>@label</button>
+        }
+    </div>
+</section>
+
+<section class="settings-section" aria-labelledby="practice-heading">
+    <h2 id="practice-heading" class="section-title">Practice</h2>
+    <div class="control-row">
+        <span class="control-label">Count-in</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.CountInBars == 1)" @onclick="() => Save(() => Options.CountInBars = 1)"><span class="mu-led"></span>One bar</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.CountInBars == 2)" @onclick="() => Save(() => Options.CountInBars = 2)"><span class="mu-led"></span>Two bars</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">After a wrong note</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = true)"><span class="mu-led"></span>Say its name</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = false)"><span class="mu-led"></span>Only show it</button>
+    </div>
+    <p class="section-note">In the note drills. Either way the right note shows on the staff.</p>
+</section>
 
 <section class="settings-section" aria-labelledby="look-heading">
     <h2 id="look-heading" class="section-title">Look</h2>
@@ -78,10 +122,78 @@
     </div>
 </section>
 
+<section class="settings-section" aria-labelledby="data-heading">
+    <h2 id="data-heading" class="section-title">Your data</h2>
+    <p class="section-note">Everything is in one file on this tablet: settings, levels, notes and every attempt. Nothing leaves it unless you send it.</p>
+    <div class="control-row">
+        <button type="button" class="mu-btn" @onclick="BackUp">Back up</button>
+        <button type="button" class="mu-btn" @onclick="Restore">Restore a backup</button>
+        @if (confirming)
+        {
+            <button type="button" class="mu-btn mu-primary" @onclick="StartOver">Clear my progress</button>
+            <button type="button" class="mu-btn" @onclick="() => confirming = false">Keep it</button>
+        }
+        else
+        {
+            <button type="button" class="mu-btn" @onclick="() => (confirming, dataNote) = (true, null)">Start over…</button>
+        }
+    </div>
+    <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up first if you might want it." : dataNote ?? "Back up opens the share sheet, to save the file to Drive or send it to the PC.")</p>
+</section>
+
 @code {
     [CascadingParameter] public Look Current { get; set; } = Look.Studio;
 
+    private string? name;
+    private string? cue;
+    private string? gradually;
+    private bool confirming;
+    private string? dataNote;
+
+    protected override void OnInitialized() => (name, cue) = (Options.Name, Options.Cue);
+
+    private Task SaveProfile() => Save(() => (Options.Name, Options.Cue) = (string.IsNullOrWhiteSpace(name) ? null : name.Trim(), string.IsNullOrWhiteSpace(cue) ? null : cue.Trim()));
+
+    private async Task ChooseMinutes(int minutes)
+    {
+        var lastWeek = await Store.GetDaysAsync(DateOnly.FromDateTime(DateTime.Now).AddDays(-7));
+        gradually = Prima.Core.Practice.DailyPlan.GoGradually(minutes, lastWeek.Sum(d => d.Minutes) / 7);
+        await Save(() => Options.DailyMinutes = minutes);
+    }
+
+    private async Task BackUp()
+    {
+        await Store.FlushAsync();
+        dataNote = await Files.OfferAsync(Store.DatabasePath, "Prima backup") ? "Backed up." : "Backing up works on the tablet.";
+    }
+
+    private async Task Restore()
+    {
+        if (await Files.PickAsync() is not { } picked)
+        {
+            dataNote = "No backup chosen.";
+            return;
+        }
+
+        if (!await Store.RestoreAsync(picked.Data))
+        {
+            dataNote = $"{picked.Name} isn't a Prima backup; nothing changed.";
+            return;
+        }
+
+        await Store.LoadAsync(Options);
+        Nav.NavigateTo("", forceLoad: true);
+    }
+
+    private async Task StartOver()
+    {
+        await Store.StartOverAsync();
+        (confirming, dataNote) = (false, "Cleared. Today starts from the beginning.");
+    }
+
     private static readonly string[] Fonts = ["Leipzig", "Bravura", "Leland"];
+
+    private static readonly (string Value, string Label)[] ClefChoices = [("both", "Both clefs"), ("treble", "Treble"), ("bass", "Bass")];
 
     // Two bars of a grand staff, to show the font and size.
     private static readonly string Sample = MeiWriter.Write(SheetSamples.TwoBars());

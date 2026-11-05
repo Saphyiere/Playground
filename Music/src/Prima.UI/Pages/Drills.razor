@@ -38,7 +38,7 @@
     private string Meta(DrillInfo drill)
     {
         var step = tracks.TryGetValue($"drill:{drill.Key}", out var json) ? System.Text.Json.JsonSerializer.Deserialize<DrillTrack>(json, PrimaStore.Json)?.Step : null;
-        var result = last.GetValueOrDefault(drill.Key) is { Headline: { } h } attempt ? $"last {h:P0}, {attempt.Day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not tried yet";
+        var result = last.GetValueOrDefault(drill.Key) is { Headline: { } h } attempt ? $"last {(h) * 100:0}%, {attempt.Day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not tried yet";
         return drill.Top > 1 && step is { } s ? $"Step {s} of {drill.Top} · {result}" : result;
     }
 }

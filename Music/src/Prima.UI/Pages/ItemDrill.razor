@@ -39,7 +39,7 @@ else
 {
     <section class="mu-screen summary-figures" aria-label="The set">
         <div class="mu-readouts">
-            <div class="mu-readout @(Share < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@($"{Share:P0}")</span></div>
+            <div class="mu-readout @(Share < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@($"{(Share) * 100:0}%")</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Typical answer</span><span class="mu-readout-value">@($"{Stats.Median(results.Where(r => r.Right).Select(r => r.Ms).ToArray()) / 1000:0.0} s")</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Step</span><span class="mu-readout-value">@track.Step of @info.Top</span></div>
         </div>

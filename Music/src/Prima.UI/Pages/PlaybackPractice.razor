@@ -27,7 +27,7 @@ else
         <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
         @if (result is not null)
         {
-            <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{result.InTimeAccuracy:P0}")</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
         }
         @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
         {

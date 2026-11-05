@@ -1,0 +1,83 @@
+@* A figure over the weeks: one series, so no legend (the heading names it). A 2 px line through the weekly values, an 8 px point for
+   each with its value on hover, the latest value printed big, and every value in text for anyone who can't read the chart.
+   Colors are the look's: the line in the accent, words in ink. A week still going (a count so far) is a hollow point on a dashed
+   line, and the figure printed big is the last whole week's. *@
+<figure class="trend">
+    <figcaption class="trend-head">
+        <span class="mu-readout-label">@Title</span>
+        <span class="trend-now">@(Latest is { } latest ? Format(latest) : "–")</span>
+    </figcaption>
+    @if (Values.Count(v => v is not null) >= 2)
+    {
+        <svg viewBox="0 0 @Width @Height" class="trend-chart" role="img" aria-label="@Summary()">
+            <line class="trend-base" x1="0" x2="@Width" y1="@(Height - 1)" y2="@(Height - 1)" />
+            <path class="trend-line" d="@Path(Partial ? Present[..^1] : Present)" />
+            @if (Partial && Present.Count >= 2)
+            {
+                <path class="trend-line trend-partial" d="@Path(Present[^2..])" />
+            }
+            @foreach (var i in Present)
+            {
+                var soFar = Partial && i == Values.Count - 1;
+                <circle class="trend-point @(soFar ? "trend-point-partial" : "")" cx="@X(i)" cy="@Y(Values[i]!.Value)" r="4"><title>@($"{Labels[i]}{(soFar ? " so far" : "")}: {Format(Values[i]!.Value)}")</title></circle>
+            }
+        </svg>
+    }
+    <p class="trend-text">@Summary()</p>
+</figure>
+
+@code {
+    private const double Width = 320;
+    private const double Height = 72;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    /// <summary>One value per week, oldest first; null for a week without one.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<double?> Values { get; set; } = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = [];
+
+    [Parameter] public Func<double, string> Format { get; set; } = v => v.ToString("0", CultureInfo.InvariantCulture);
+
+    /// <summary>A fixed range for the axis (like 0 to 1 for a share), or null to fit the values.</summary>
+    [Parameter] public (double Low, double High)? Range { get; set; }
+
+    /// <summary>The last week is still going: its value is a count so far.</summary>
+    [Parameter] public bool LastIsPartial { get; set; }
+
+    private bool Partial => LastIsPartial && Values.Count > 0 && Values[^1] is not null;
+
+    private List<int> Present => [.. Values.Select((v, i) => (v, i)).Where(p => p.v is not null).Select(p => p.i)];
+
+    private double? Latest => (Partial ? Values.Take(Values.Count - 1) : Values).LastOrDefault(v => v is not null);
+
+    private (double Low, double High) Bounds()
+    {
+        if (Range is { } range) return range;
+
+        var present = Values.OfType<double>().ToArray();
+        var (low, high) = (present.Min(), present.Max());
+        var pad = Math.Max(1e-6, (high - low) * 0.15);
+        return (low - pad, high + pad);
+    }
+
+    private double X(int i) => Values.Count <= 1 ? Width / 2 : 8 + i * (Width - 16) / (Values.Count - 1);
+
+    private double Y(double v)
+    {
+        var (low, high) = Bounds();
+        return 8 + (1 - (v - low) / Math.Max(1e-9, high - low)) * (Height - 16);
+    }
+
+    private string Path(IEnumerable<int> weeks) => string.Join("", weeks.Select((i, n) => FormattableString.Invariant($"{(n == 0 ? "M" : "L")}{X(i):0.#} {Y(Values[i]!.Value):0.#}")));
+
+    private string Summary()
+    {
+        var weeks = Values.Select((v, i) => (v, i)).Where(p => p.v is not null).ToList();
+        if (weeks.Count == 0) return "No weeks yet.";
+
+        var (first, last) = (weeks[0], weeks[^1]);
+        var lastLabel = Partial ? "this week so far" : Labels[last.i];
+        return weeks.Count == 1 ? $"{(Partial ? "This week so far" : Labels[first.i])}: {Format(first.v!.Value)}." : $"{Labels[first.i]}: {Format(first.v!.Value)}; {lastLabel}: {Format(last.v!.Value)}.";
+    }
+}

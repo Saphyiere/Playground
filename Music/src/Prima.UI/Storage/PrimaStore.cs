@@ -49,26 +49,27 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         ? c.ExecuteAsync("DELETE FROM Setting WHERE Key = @key", new { key })
         : c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @value) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value", new { key, value }));
 
-    /// <summary>Reads the saved settings into <paramref name="settings"/>; any not saved keep their defaults.</summary>
+    /// <summary>Reads the saved settings into <paramref name="settings"/>; any not saved take their defaults (after a restore too).</summary>
     public async Task LoadAsync(PrimaSettings settings)
     {
         var saved = await GetSettingsAsync();
+        var defaults = new PrimaSettings();
         double? Number(string key) => double.TryParse(saved.GetValueOrDefault(key), CultureInfo.InvariantCulture, out var n) ? n : null;
         settings.TimingOffsetMs = Number(OffsetKey) ?? 0;
         settings.TappingSpreadMs = Number(SpreadKey);
         settings.CalibratedOn = DateOnly.TryParse(saved.GetValueOrDefault(CalibratedKey), CultureInfo.InvariantCulture, out var day) ? day : null;
         settings.ClickOnPiano = saved.GetValueOrDefault(ClickOnPianoKey) == "true";
-        settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : settings.ClickSound;
-        settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? settings.ClickVolume;
+        settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : defaults.ClickSound;
+        settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? defaults.ClickVolume;
         settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
-        settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? settings.MusicFont;
-        settings.SheetSize = (int?)Number(SheetSizeKey) ?? settings.SheetSize;
-        settings.Name = saved.GetValueOrDefault(NameKey) ?? settings.Name;
-        settings.DailyMinutes = (int?)Number(MinutesKey) ?? settings.DailyMinutes;
-        settings.Cue = saved.GetValueOrDefault(CueKey) ?? settings.Cue;
-        settings.Clefs = saved.GetValueOrDefault(ClefsKey) ?? settings.Clefs;
-        settings.CountInBars = (int?)Number(CountInKey) ?? settings.CountInBars;
-        settings.LetterNames = saved.GetValueOrDefault(LetterNamesKey) == "true";
+        settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? defaults.MusicFont;
+        settings.SheetSize = (int?)Number(SheetSizeKey) ?? defaults.SheetSize;
+        settings.Name = saved.GetValueOrDefault(NameKey) ?? defaults.Name;
+        settings.DailyMinutes = (int?)Number(MinutesKey) ?? defaults.DailyMinutes;
+        settings.Cue = saved.GetValueOrDefault(CueKey) ?? defaults.Cue;
+        settings.Clefs = saved.GetValueOrDefault(ClefsKey) ?? defaults.Clefs;
+        settings.CountInBars = (int?)Number(CountInKey) ?? defaults.CountInBars;
+        settings.LetterNames = saved.GetValueOrDefault(LetterNamesKey) != "false";
         settings.Welcomed = saved.GetValueOrDefault(WelcomedKey) == "true";
     }
 

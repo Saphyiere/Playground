@@ -2,7 +2,11 @@
 // session can render and screenshot them (see CLAUDE.md). /seed/{scenario} sets up the data, and /keys/... plays a simulated piano.
 using System.Globalization;
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
+using Prima.Core.Generation;
 using Prima.Core.Keyboard;
+using Prima.Core.Music;
+using Prima.Core.Practice;
 using Prima.Preview;
 using Prima.Preview.Components;
 using Prima.UI;
@@ -23,7 +27,8 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(Routes).Assembly);
 
-// Clears the data, then fills it for a scenario: "empty" is the first run.
+// Clears the data, then fills it for a scenario (in Seeds, below): "empty" is the first run, "fresh" just after the welcome,
+// "today" six weeks in with today half done, "summary" today finished, "months" three months in.
 app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSettings settings) =>
 {
     await store.GetSettingsAsync(); // ensures the schema exists
@@ -33,6 +38,7 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
         foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     await store.LoadAsync(settings);
+    await Seeds.Fill(scenario, store, settings);
     return Results.Text(scenario);
 });
 
@@ -87,3 +93,125 @@ app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyb
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 
 app.Run();
+
+/// <summary>Sample history for the preview: weeks of practice that get gradually better, the way the screens expect it.</summary>
+static class Seeds
+{
+    public static async Task Fill(string scenario, PrimaStore store, PrimaSettings settings)
+    {
+        if (scenario == "empty") return;
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        (settings.Welcomed, settings.Cue, settings.TimingOffsetMs, settings.TappingSpreadMs, settings.CalibratedOn) = (true, "When I sit down after dinner, I’ll open Prima", 18, 14, today.AddDays(-20));
+        await store.SaveAsync(settings);
+        if (scenario == "fresh") return;
+
+        var weeks = scenario == "months" ? 13 : 6;
+        var rng = new Rng(11);
+        var first = today.AddDays(-7 * weeks);
+        var notes = new (Clef Clef, int Midi)[] { (Clef.Treble, 60), (Clef.Treble, 67), (Clef.Treble, 72), (Clef.Bass, 53), (Clef.Bass, 48), (Clef.Bass, 43), (Clef.Treble, 64), (Clef.Treble, 65), (Clef.Treble, 69), (Clef.Treble, 71), (Clef.Bass, 50), (Clef.Bass, 52), (Clef.Bass, 55), (Clef.Treble, 74), (Clef.Treble, 76), (Clef.Bass, 45), (Clef.Treble, 62), (Clef.Bass, 57), (Clef.Treble, 77), (Clef.Bass, 41) };
+        var cards = new Dictionary<(Clef, int), NoteCard>();
+        var scale = Technique.Scale(new Key(0), ScaleKind.Major, 2, HandUse.Right);
+        var arpeggio = Technique.Arpeggio(new Key(1), 2, HandUse.Right);
+        for (var day = first; day < today; day = day.AddDays(1))
+        {
+            // Five or six days a week, missing the odd one.
+            if (rng.Chance(0.24)) continue;
+
+            var progress = (day.DayNumber - first.DayNumber) / (double)(7 * weeks);
+            var at = day.ToDateTime(new TimeOnly(19, 10));
+            await store.AddMinutesAsync(day, 13 + rng.Int(11));
+            await Passages(store, rng, day, at.AddMinutes(12), progress, 4);
+            await Rhythm(store, rng, day, at.AddMinutes(8), progress);
+            await TechniqueRuns(store, rng, day, at, progress, scale, "scale", "scales");
+            if (day.DayNumber % 3 == 0) await TechniqueRuns(store, rng, day, at.AddMinutes(3), progress, arpeggio, "arpeggio", "arpeggios");
+            await NoteAnswers(store, rng, day, at.AddMinutes(5), progress, notes, cards);
+        }
+
+        var level = weeks > 6 ? 5 : 4;
+        await store.SaveTrackAsync("reading", new ReadingState(level, 3, weeks > 6 ? 76 : 72, [(0.86, true), (0.91, true), (0.83, true)], 0, 1.5));
+        await store.SaveTrackAsync("drill:intervals", new DrillTrack(3, 0.92, 0.92, today.AddDays(-2)));
+        await store.SaveTrackAsync("drill:chords", new DrillTrack(2, 0.84, 0.84, today.AddDays(-4)));
+        await store.SaveTrackAsync("drill:keys", new DrillTrack(4, 0.95, 0.95, today.AddDays(-1)));
+        await store.SaveTrackAsync("drill:ledger", new DrillTrack(1, 0.78, 0.78, today.AddDays(-6)));
+        if (scenario is not ("today" or "summary")) return;
+
+        // Today: the scale and the notes done, and one passage read with a bar to fix.
+        var start = today.ToDateTime(new TimeOnly(DateTime.Now.Hour < 9 ? 7 : 8, 30));
+        await store.AddMinutesAsync(today, 9);
+        await TechniqueRuns(store, rng, today, start, 1, scale, "scale", "scales");
+        await NoteAnswers(store, rng, today, start.AddMinutes(4), 1, notes, cards);
+        await Passages(store, rng, today, start.AddMinutes(7), 1, 1, worstBar: 3);
+        var plan = DailyPlan.Build(today, settings.DailyMinutes, level, pianoPlays: false);
+        await store.SavePlanAsync(today, JsonSerializer.Serialize(plan, PrimaStore.Json));
+        var done = scenario == "summary" ? plan.Steps.Select(s => s.Kind) : [StepKind.Technique, StepKind.Notes];
+        foreach (var step in done) await store.MarkStepAsync(today, step, shortPlanDone: scenario == "summary");
+        if (scenario == "summary") await store.AddMinutesAsync(today, 12);
+    }
+
+    private static async Task Passages(PrimaStore store, Rng rng, DateOnly day, DateTime at, double progress, int count, int? worstBar = null)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var level = 2 + (int)(progress * 2.6);
+            var tempo = 60 + Math.Round(progress * 12);
+            var inTime = Math.Clamp(0.72 + 0.17 * progress + (rng.Double() - 0.5) * 0.12, 0.45, 1);
+            var keptGoing = rng.Chance(0.75 + 0.2 * progress);
+            var noteCount = 22 + 4 * level;
+            var wrong = (int)Math.Round((1 - inTime) * noteCount * 0.45);
+            var errors = worstBar is null ? 1 + rng.Int(2) : 3;
+            var bar = worstBar ?? 1 + rng.Int(8);
+            var measures = new
+            {
+                inTime, right = noteCount - wrong, wrong, missed = keptGoing ? rng.Int(2) : 3 + rng.Int(3), extra = rng.Int(3), audible = rng.Int(5), off = (int)Math.Round((1 - inTime) * noteCount * 0.5),
+                leanMs = -14 + rng.Int(9), leanPercent = -2 - rng.Double() * 3, steadiness = 7 - 2.5 * progress + rng.Double(), perMinute = 26 + 22 * progress + rng.Int(6), keptGoing,
+                drift = (rng.Double() - 0.4) * 4, rmsMs = 64 - 22 * progress + rng.Int(10), lost = rng.Int(3), worstBar = bar, worstErrors = errors, bars = 8, notes = noteCount,
+            };
+            var key = new Key(rng.Int(5) - 2);
+            var settings = JsonSerializer.Serialize(new { step = 3, style = "Melody", avoid = (object?)null, key = new { fifths = key.Fifths, minor = key.Minor } });
+            var variant = i == count - 1 && day.DayNumber % 4 == 0 ? "ReadAhead" : null;
+            await store.AddAttemptAsync(new AttemptRecord(0, at.AddMinutes(i * 1.5), day, "passage", variant, null, level, tempo, (long)(rng.Next() >> 2), settings, "[]", null, JsonSerializer.Serialize(measures), inTime, inTime > 0.97 && keptGoing, null));
+        }
+    }
+
+    private static async Task Rhythm(PrimaStore store, Rng rng, DateOnly day, DateTime at, double progress)
+    {
+        foreach (var stage in new[] { "Throughout", "CountInOnly" })
+        {
+            var accuracy = Math.Clamp(0.8 + 0.12 * progress + (rng.Double() - 0.5) * 0.08, 0.5, 1);
+            var measures = new { accuracy, lean = -3.5 + 1.5 * progress + rng.Double(), steadiness = 6.5 - 2 * progress + rng.Double(), drift = stage == "Throughout" ? 0 : 2.5 - 1.5 * progress + rng.Double(), missed = rng.Int(2), extra = rng.Int(2), stage };
+            await store.AddAttemptAsync(new AttemptRecord(0, at, day, "rhythm", stage, null, 3, 80, null, null, "[]", null, JsonSerializer.Serialize(measures), accuracy, measures.missed == 0 && measures.extra == 0, null));
+            at = at.AddMinutes(1);
+        }
+    }
+
+    private static async Task TechniqueRuns(PrimaStore store, Rng rng, DateOnly day, DateTime at, double progress, TechniqueItem item, string kind, string drill)
+    {
+        var tempo = Math.Round(76 + 12 * progress);
+        for (var run = 0; run < 3; run++)
+        {
+            var sd = 9.5 - 3.5 * progress + rng.Double();
+            var bpm = tempo * 2;
+            var hand = new { IoiSdMs = sd / 100 * 60_000 / bpm, IoiSdPercent = sd, PlainIoiSdMs = sd / 100 * 60_000 / bpm * 1.2, Bpm = bpm, CrossingMs = 22 - 12 * progress + rng.Int(6), SeamMs = 8 + rng.Int(5), VelocitySd = 9 - 3 * progress + rng.Double(), LegatoMs = -6 + rng.Int(9) };
+            var measures = new { valid = true, right = hand, left = (object?)null, sync = (double?)null, item = item.Name, hands = "Right" };
+            await store.AddAttemptAsync(new AttemptRecord(0, at.AddSeconds(run * 40), day, kind, "Right", item.Name, 3, tempo, null, null, "[]", null, JsonSerializer.Serialize(measures), sd, true, null));
+        }
+        await store.SaveTrackAsync($"technique:{drill}:{item.Name}:Right", new TechniqueState(tempo, 92, [9.6, 10.1, 9.2], DateOnly.FromDateTime(DateTime.Now).AddDays(-40), [7.1, 6.8, 6.4], 0, tempo - 4));
+    }
+
+    private static async Task NoteAnswers(PrimaStore store, Rng rng, DateOnly day, DateTime at, double progress, (Clef Clef, int Midi)[] notes, Dictionary<(Clef, int), NoteCard> cards)
+    {
+        // New notes come in over the weeks; the low bass ones stay the hardest.
+        var known = Math.Min(notes.Length, 3 + (int)(progress * notes.Length));
+        for (var i = 0; i < 12; i++)
+        {
+            var (clef, midi) = notes[rng.Int(known)];
+            var hard = clef == Clef.Bass && midi < 46 || midi > 75;
+            var right = rng.Chance(hard ? 0.62 : 0.9);
+            var ms = (hard ? 2600 : 1700) - 700 * progress + rng.Int(500);
+            var card = NoteSchedule.Answer(cards.TryGetValue((clef, midi), out var c) ? c : new NoteCard(clef, midi, 1, day, day, null), right, ms < 1500, day);
+            cards[(clef, midi)] = card;
+            await store.SaveAnswerAsync(card, new NoteAnswer(new DateTimeOffset(at.AddSeconds(i * 6)), clef, midi, right, ms), right ? midi : midi + 2, "notes");
+        }
+    }
+}

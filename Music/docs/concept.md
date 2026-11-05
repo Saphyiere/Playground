@@ -50,7 +50,11 @@ Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
 What to do now. The day's plan as five steps (below), with the next one ready to start; a shorter five-minute plan for busy
 days that still counts; this week's minutes and days; the streak; and the practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
-steps along the bottom.
+steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
+every step is done, a line sums up the day.
+
+The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
+calibration or straight to Today.
 
 ### Sight-read
 
@@ -92,14 +96,20 @@ partly to other patterns. A separate research, `library.md`, settles the sources
 
 ### You
 
-The local profile and progress. Name, which clefs you drill, daily goal and the practice cue. Progress is shown as trends over
-days and weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick early gains is normal.
+Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
+early gains is normal. The profile it's headed with (name, which clefs you drill, daily goal, the practice cue) is set in
+Settings.
 
 ### Settings
 
-Look (Studio or Vinyl), keyboard (the device, sending notes to the piano, timing), notation (the music font, the sheet's size,
-letter names after a wrong answer), practice (daily minutes, count-in, the click's sound and volume and where it sounds), and
-data (back up and restore). Nothing leaves the tablet unless you back it up.
+Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, and whether a
+wrong note in a drill is named), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, timing), notation (the
+music font and the sheet's size), the click (where it sounds, its sound and volume), and your data. A daily goal much above last
+week's average gets a note to go up gradually; Prima never raises it by itself.
+
+Your data: **Back up** shares the data file through the tablet's share sheet (to Drive, or to the PC); **Restore** takes a backup
+back, after checking it's one of Prima's; **Start over** clears levels, notes, history and the streak but keeps the settings, after
+asking. Nothing leaves the tablet unless you back it up.
 
 ## The sight-reading flow
 
@@ -184,7 +194,7 @@ About twenty minutes, in this order. The order is a design choice; the evidence 
 | 3. Rhythm | 2–3 min | Three or four rhythms at your level; the click fades on later tries |
 | Pause | 1 min | Stand up, shake out your hands, look away |
 | 4. Sight-reading | 7–8 min | Four to six new passages at your level; one of them a variant (read ahead, duet or hear first), a different one each day |
-| 5. One spot, or a piece | 2–3 min | The bar you missed most today, slowly, then its whole line; or a piece from the Library. Then the day's summary |
+| 5. One spot, or a piece | 2–3 min | The bar you missed most today, 20% slower, then the four bars around it at their tempo; or a piece from the Library. Then the day's summary |
 
 The five-minute plan is the note review and two passages. The plan mixes scales, rhythms and variants across days instead of
 repeating one block, and doesn't raise the daily minutes sharply from week to week.
@@ -198,14 +208,17 @@ judged.
   level, how often you kept going, Zhukov's four (tempo drift, extra and missing notes, timing error), lost-on-the-keyboard
   errors apart from reading errors, read ahead against plain reading at the same level, and the passages and bars read each
   week, the main lever.
-- **Notes**: a heat map on the grand staff of each note's accuracy and speed, the most-missed and slowest notes, and how many
-  notes are fluent (right, fast and steady across sessions).
+- **Notes**: a heat map on the grand staff of how often each note was missed this month, the most-missed and slowest notes, and
+  how many notes are fluent (right, fast and steady across sessions).
 - **Rhythm**: your early or late lean, steadiness, drift without the click, and the figures you miss most.
-- **Technique**, per scale or arpeggio and hand: evenness at a tempo, the fastest tempo at which it stays even, crossing and
-  octave slips, evenness of touch, legato, and the hands' sync.
-- **Habit**: minutes this week, days practised out of the last seven, and the share of clean passages and runs (retention
-  follows the share of correct tries). The streak can be repaired: a missed day can be covered
+- **Technique**, per scale or arpeggio and hand, from the last run: evenness at a tempo, the fastest tempo at which it stays even,
+  crossing and octave slips, evenness of touch, legato, and how far apart the hands are.
+- **Habit**: minutes a week, days practised out of the last seven, the streak and the freezes banked. The share of clean passages
+  shows under Reading (retention follows the share of correct tries). The streak can be repaired: a missed day can be covered
   by a freeze, and the week counts as kept at five days out of seven. A break is described plainly, never as a failure.
+
+Counts for the week still going (passages, minutes) are drawn as a dashed line to a hollow point, so a part week doesn't look like
+a drop.
 
 ## The keyboard
 
@@ -225,8 +238,9 @@ Everything lives in one SQLite file on the tablet.
 - **Levels**: the current reading level and tempo, the rhythm level, and per scale and arpeggio the current tempo and target.
 - **Note cards**: one per note and clef, with its review box, when it's next due, its recent answers and response times.
 - **Sessions**: each day's practice, its steps and minutes.
-- **Attempts**: one per passage, rhythm or technique run, keeping its settings, the generator's seed, the notes played with
-  their times and velocities, and the measures worked out from them, so a result can be recomputed if the scoring changes.
+- **Attempts**: one per passage, rhythm or technique run, keeping its settings (the level's step, the key it was in and the key it
+  avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
+  passage can be made again (one spot does) and a result recomputed if the scoring changes.
 - **Pieces**: the collection and imported pieces, with their sources and licences, levels, and practice history.
 - **Streak**: the days practised and the freezes used.
 
