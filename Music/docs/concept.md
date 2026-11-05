@@ -98,7 +98,11 @@ a PDF plays out; this is what came of it.
 - **The collection**: about 240 public-domain and openly licensed pieces, chosen by named works published before 1931: 133
   MuseScore users' engravings through PDMX, as MusicXML, and 104 PDFs with their MIDI from the Mutopia Project. Each is credited
   as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near yours, those
-  to play along with, PDFs, or your imports.
+  to play along with, PDFs, or your imports. The collection comes prepared, so its first opening only stores it: the Library tool
+  engraves, grades and cuts each MusicXML piece when the bundle is built, and a collection engraved as one score (Chopin's
+  Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), each starting with
+  the key, metre and clefs in force there, so no piece is the whole collection to open or engrave. An import is read and graded
+  on the tablet, away from the screen's thread.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as

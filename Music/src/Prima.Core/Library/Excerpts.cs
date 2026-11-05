@@ -17,6 +17,19 @@ public static class Excerpts
 {
     public static readonly int[] Lengths = [2, 4, 8];
 
+    /// <summary>
+    /// A piece's grade from its excerpts: its level is its hardest excerpt's, most of it reads at their median, and the reasons are
+    /// the hardest ones' commonest. A piece too short to cut is graded whole.
+    /// </summary>
+    public static (int Level, int Typical, string Reasons) PieceGrade(Score score, IReadOnlyList<ExcerptCut> cuts)
+    {
+        var whole = cuts.Count == 0 ? Grader.Grade(score) : null;
+        var level = whole?.Level ?? cuts.Max(c => c.Grade.Level);
+        var typical = whole?.Level ?? cuts.Select(c => c.Grade.Level).Order().ElementAt(cuts.Count / 2);
+        var reasons = whole?.Reasons ?? [.. cuts.Where(c => c.Grade.Level == level).SelectMany(c => c.Grade.Reasons).GroupBy(r => r).OrderByDescending(g => g.Count()).Select(g => g.Key).Take(3)];
+        return (level, typical, string.Join(", ", reasons));
+    }
+
     public static IReadOnlyList<ExcerptCut> Cut(Score score)
     {
         var bars = score.Bars.Where(b => b.Number > 0).ToList();

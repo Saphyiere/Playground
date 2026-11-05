@@ -43,7 +43,7 @@ script doesn't blur a field the way a finger does, so tap a form's Save with `re
 the same way.
 
 Prima's is `Music/tools/Prima.Preview` on http://127.0.0.1:5299, with its scenarios in its Program.cs. Its Library reads the
-music in `Music/library` (kept in the repo) and prepares it the first time it's opened. Its looks are switched in `settings` with `{"tapSel": ".look-option[data-theme=vinyl]"}` (or `studio`). Build it
+music in `Music/library` (kept in the repo, prepared by its tool) and stores it the first time it's opened. Its looks are switched in `settings` with `{"tapSel": ".look-option[data-theme=vinyl]"}` (or `studio`). Build it
 with `dotnet build Music/src/Prima.Tablet/Prima.Tablet.csproj`, and test with `dotnet test --project Music/tests/Prima.Core.Tests`.
 
 ## Working alongside other sessions

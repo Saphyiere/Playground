@@ -102,7 +102,7 @@ public sealed partial class PrimaStore
     public Task<HashSet<string>> GetPieceIdsAsync() => RunAsync(async c => (await c.QueryAsync<string>("SELECT Id FROM Piece")).ToHashSet());
 
     /// <summary>Saves a piece with its MEI (null for a PDF) and its excerpts, replacing any it had.</summary>
-    public Task SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<ExcerptCut> excerpts) => RunAsync(async c =>
+    public Task SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<BundledExcerpt> excerpts) => RunAsync(async c =>
     {
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         await c.ExecuteAsync($"""
@@ -115,18 +115,32 @@ public sealed partial class PrimaStore
         foreach (var cut in excerpts)
         {
             await c.ExecuteAsync("INSERT INTO Excerpt (Piece, FirstBar, LastBar, Level, Within) VALUES (@piece, @first, @last, @level, @within)",
-                new { piece = piece.Id, first = cut.FirstBar, last = cut.LastBar, level = cut.Grade.Level, within = cut.Grade.Within }, transaction);
+                new { piece = piece.Id, first = cut.FirstBar, last = cut.LastBar, level = cut.Level, within = cut.Within }, transaction);
         }
         await transaction.CommitAsync();
     });
 
-    /// <summary>A bundled piece's details from a newer bundle; a PDF's level comes with them (a notation piece's is graded).</summary>
-    public Task RefreshPieceAsync(string id, string title, string composer, string work, string credit, string licence, string licenceUrl, string sourceUrl, int? pdfLevel) => RunAsync(c => c.ExecuteAsync(
-        """
-        UPDATE Piece SET Title = @title, Composer = @composer, Work = @work, Credit = @credit, Licence = @licence, LicenceUrl = @licenceUrl, SourceUrl = @sourceUrl,
-            Level = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE TypicalLevel END
-        WHERE Id = @id AND Origin = 'bundle'
-        """, new { id, title, composer, work, credit, licence, licenceUrl, sourceUrl, pdfLevel }));
+    /// <summary>
+    /// The bundle's pieces, by the id and title each is kept under, against those already here, as one piece of work: their
+    /// details from the bundle (a PDF's level comes with them; a notation piece's is its own), and the bundled pieces it no
+    /// longer has taken out with their excerpts.
+    /// </summary>
+    public Task RefreshBundleAsync(IReadOnlyList<(string Id, string Title, BundledPiece Piece)> pieces) => RunAsync(async c =>
+    {
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        var ids = pieces.Select(p => p.Id).ToList();
+        await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece IN (SELECT Id FROM Piece WHERE Origin = 'bundle' AND Id NOT IN @ids)", new { ids }, transaction);
+        await c.ExecuteAsync("DELETE FROM Piece WHERE Origin = 'bundle' AND Id NOT IN @ids", new { ids }, transaction);
+        foreach (var (id, title, p) in pieces)
+        {
+            await c.ExecuteAsync("""
+                UPDATE Piece SET Title = @title, Composer = @Composer, Work = @Work, Credit = @Credit, Licence = @Licence, LicenceUrl = @LicenceUrl, SourceUrl = @SourceUrl,
+                    Level = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE TypicalLevel END
+                WHERE Id = @id AND Origin = 'bundle'
+                """, new { id, title, p.Composer, p.Work, p.Credit, p.Licence, p.LicenceUrl, p.SourceUrl, pdfLevel = p.Format == "pdf" ? p.Anchor : null }, transaction);
+        }
+        await transaction.CommitAsync();
+    });
 
     public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
 

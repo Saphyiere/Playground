@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.JSInterop;
 using Prima.Core.Library;
 using Prima.Core.Music;
@@ -7,9 +8,9 @@ using Prima.UI.Storage;
 namespace Prima.UI.Library;
 
 /// <summary>
-/// Brings music into the Library. Bundled pieces are prepared once, in the background the first time the Library opens: each
-/// MusicXML file goes through Verovio to MEI (in the web view, where Verovio runs), gets its bars numbered, is cut into excerpts
-/// and graded, and is saved; a PDF is listed as it is. Imports go the same way.
+/// Brings music into the Library. Bundled pieces come prepared (the Library tool engraved, split, graded and cut them when the
+/// bundle was built), so the first time the Library opens they're only stored, in the background; a PDF is listed as it is. An
+/// imported file goes through Verovio to MEI in the web view, and is then numbered, cut and graded away from the screen's thread.
 /// </summary>
 public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRuntime js)
 {
@@ -34,24 +35,29 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         var manifest = await bundle.ManifestAsync();
         if (manifest is null) return;
 
-        // A newer bundle's credits, titles and levels for PDFs reach pieces already here; their music and excerpts stay.
-        var have = await store.GetPieceIdsAsync();
-        foreach (var piece in manifest.Pieces.Where(p => have.Contains(p.Id))) await store.RefreshPieceAsync(piece.Id, piece.Title, piece.Composer, piece.Work, piece.Credit, piece.Licence, piece.LicenceUrl, piece.SourceUrl, piece.Format == "pdf" ? piece.Anchor : null);
+        // What the bundle holds, as the Library keeps it: a PDF as it is, a MusicXML piece as prepared (a collection as its pieces).
+        var entries = manifest.Pieces.SelectMany(p => p.Format == "pdf" ? [(Piece: p, Part: (PreparedPiece?)null)] : (p.Prepared ?? []).Select(x => (Piece: p, Part: (PreparedPiece?)x))).ToList();
+        if (entries.Count == 0) return;
 
-        var missing = manifest.Pieces.Where(p => !have.Contains(p.Id)).ToList();
+        // A newer bundle's credits, titles and levels for PDFs reach pieces already here (their music and excerpts stay), and
+        // bundled pieces it no longer has go: a collection that's now its separate pieces, say.
+        var have = await store.GetPieceIdsAsync();
+        await store.RefreshBundleAsync([.. entries.Select(e => (e.Part?.Id ?? e.Piece.Id, e.Part?.Title ?? e.Piece.Title, e.Piece))]);
+
+        var missing = entries.Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
         if (missing.Count == 0) return;
 
         (Running, Progress) = (true, (0, missing.Count));
         Changed?.Invoke();
-        foreach (var piece in missing)
+        foreach (var (piece, part) in missing)
         {
             try
             {
-                await Prepare(piece);
+                await Prepare(piece, part);
             }
-            catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
+            catch (Exception e) when (e is InvalidDataException or InvalidOperationException)
             {
-                Skipped.Add(piece.Title);
+                Skipped.Add(part?.Title ?? piece.Title);
             }
             Progress = (Progress.Done + 1, Progress.Total);
             Changed?.Invoke();
@@ -60,19 +66,23 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         Changed?.Invoke();
     }
 
-    private async Task Prepare(BundledPiece piece)
+    private async Task Prepare(BundledPiece piece, PreparedPiece? part)
     {
-        var record = new PieceRecord(piece.Id, "bundle", piece.Title, piece.Composer, piece.Work, piece.Format == "pdf" ? "pdf" : "mei", piece.File, piece.Midi,
-            piece.Anchor, piece.Anchor, null, piece.Bars, piece.Source, piece.SourceUrl, piece.Licence, piece.LicenceUrl, piece.Credit, piece.Tier.ToString(), null, null, null, DateTimeOffset.Now, null);
-        if (piece.Format == "pdf")
+        var record = new PieceRecord(part?.Id ?? piece.Id, "bundle", part?.Title ?? piece.Title, piece.Composer, piece.Work, part is null ? "pdf" : "mei", piece.File, piece.Midi,
+            part?.Level ?? piece.Anchor, part?.TypicalLevel ?? piece.Anchor, part?.Reasons, part?.Bars ?? piece.Bars, piece.Source, piece.SourceUrl, piece.Licence, piece.LicenceUrl, piece.Credit, piece.Tier.ToString(), null, null, null, DateTimeOffset.Now, null);
+        if (part is null)
         {
             await store.SavePieceAsync(record, null, []);
             return;
         }
 
-        var bytes = await bundle.ReadAsync(piece.File) ?? throw new InvalidOperationException($"{piece.File} isn't in the bundle.");
-        var (mei, score, cuts) = await ReadMusic(bytes, piece.Format);
-        await store.SavePieceAsync(Graded(record, score, cuts), mei, cuts);
+        var bytes = await bundle.ReadAsync(part.Mei) ?? throw new InvalidOperationException($"{part.Mei} isn't in the bundle.");
+        var mei = await Task.Run(() =>
+        {
+            using var reader = new StreamReader(new GZipStream(new MemoryStream(bytes), CompressionMode.Decompress));
+            return reader.ReadToEnd();
+        });
+        await store.SavePieceAsync(record, mei, part.Excerpts);
     }
 
     /// <summary>
@@ -96,10 +106,9 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
             case ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc":
                 try
                 {
-                    var (mei, score, cuts) = await ReadMusic(data, extension.TrimStart('.'));
+                    var (mei, graded, excerpts) = await ReadMusic(data, extension.TrimStart('.'), record);
                     var (fileTitle, composer) = Header(mei);
-                    var named = record with { Title = fileTitle ?? title, Composer = composer ?? "" };
-                    await store.SavePieceAsync(Graded(named, score, cuts), mei, cuts);
+                    await store.SavePieceAsync(graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, mei, excerpts);
                     return (id, null);
                 }
                 catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
@@ -117,16 +126,21 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         }
     }
 
-    // Verovio makes the MEI; the Core reads it back, numbers its bars, cuts its excerpts and grades them.
-    private async Task<(string Mei, Score Score, IReadOnlyList<ExcerptCut> Cuts)> ReadMusic(byte[] bytes, string kind)
+    // Verovio makes the MEI; the Core reads it back, numbers its bars, cuts its excerpts and grades them, off the screen's thread.
+    private async Task<(string Mei, PieceRecord Graded, IReadOnlyList<BundledExcerpt> Excerpts)> ReadMusic(byte[] bytes, string kind, PieceRecord record)
     {
         module ??= await js.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/Sheet.razor.js");
         var raw = await module.InvokeAsync<string?>("toMei", bytes, kind) ?? throw new FormatException("Verovio couldn't read it.");
-        var score = MeiReader.Read(raw);
-        if (score.Expected().Count == 0) throw new FormatException("No notes.");
+        return await Task.Run(() =>
+        {
+            var score = MeiReader.Read(raw);
+            if (score.Expected().Count == 0) throw new FormatException("No notes.");
 
-        var mei = MeiReader.Renumber(raw, score);
-        return (mei, score, Excerpts.Cut(score));
+            var cuts = Excerpts.Cut(score);
+            var (level, typical, reasons) = Excerpts.PieceGrade(score, cuts);
+            var graded = record with { Level = level, TypicalLevel = typical, Reasons = reasons, Bars = score.Bars.Count(b => b.Number > 0) };
+            return (MeiReader.Renumber(raw, score), graded, (IReadOnlyList<BundledExcerpt>)[.. cuts.Select(c => new BundledExcerpt(c.FirstBar, c.LastBar, c.Grade.Level, c.Grade.Within))]);
+        });
     }
 
     // The title and composer the file gives, when it gives them: a title of only a number ("1", a movement's) isn't one.
@@ -137,15 +151,5 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         var title = Text(e => e.Name.LocalName == "title");
         var composer = Text(e => e.Name.LocalName == "composer" || e.Name.LocalName == "persName" && (string?)e.Attribute("role") == "composer");
         return (title, composer);
-    }
-
-    // A piece's level is its hardest excerpt's; most of it reads at its excerpts' median.
-    private static PieceRecord Graded(PieceRecord record, Score score, IReadOnlyList<ExcerptCut> cuts)
-    {
-        var whole = cuts.Count == 0 ? Grader.Grade(score) : null;
-        var level = whole?.Level ?? cuts.Max(c => c.Grade.Level);
-        var typical = whole?.Level ?? cuts.Select(c => c.Grade.Level).Order().ElementAt(cuts.Count / 2);
-        var reasons = whole?.Reasons ?? [.. cuts.Where(c => c.Grade.Level == level).SelectMany(c => c.Grade.Reasons).GroupBy(r => r).OrderByDescending(g => g.Count()).Select(g => g.Key).Take(3)];
-        return record with { Level = level, TypicalLevel = typical, Reasons = string.Join(", ", reasons), Bars = score.Bars.Count(b => b.Number > 0) };
     }
 }

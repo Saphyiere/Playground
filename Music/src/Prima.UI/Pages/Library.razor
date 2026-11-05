@@ -45,7 +45,7 @@
     <section class="settings-section" aria-labelledby="@($"level-{group.Key}")">
         <h2 id="@($"level-{group.Key}")" class="section-title">@(group.Key == 0 ? "Not graded" : $"Level {group.Key}")</h2>
         <ul class="piece-list">
-            @foreach (var piece in group.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
+            @foreach (var piece in group.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => Numbered.Replace(p.Title, n => n.Value.PadLeft(4, '0')), StringComparer.OrdinalIgnoreCase))
             {
                 <li>
                     <a class="piece-row" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
@@ -74,6 +74,9 @@ else if (pieces.Count == 0 && !Prep.Running)
 <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
 
 @code {
+    // Titles sort with their numbers as numbers: "No. 2" before "No. 11".
+    private static readonly System.Text.RegularExpressions.Regex Numbered = new(@"\d+");
+
     private static readonly (string Key, string Label)[] Filters = [("all", "Everything"), ("near", "Near my level"), ("notation", "To play along"), ("pdf", "PDFs"), ("mine", "Imported")];
 
     private List<PieceRecord> pieces = [];

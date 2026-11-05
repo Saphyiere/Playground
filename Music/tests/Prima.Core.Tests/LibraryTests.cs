@@ -233,3 +233,62 @@ public class LibraryTests
         Assert.Equal(1, midi.Bars);
     }
 }
+
+public class CollectionTests
+{
+    // Two pieces engraved as one score: the first in C, 4/4, its bass staff moving to the treble clef in bar 2; the second in
+    // D major, 3/4, from a definition between them. Each ends at a final barline.
+    private const string TwoPieces = """
+        <mei xmlns="http://www.music-encoding.org/ns/mei">
+          <meiHead><fileDesc><titleStmt><title>Little Pieces</title></titleStmt></fileDesc></meiHead>
+          <music><body><mdiv><score>
+            <scoreDef xml:id="top">
+              <pgHead><rend>Little Pieces</rend></pgHead>
+              <staffGrp><staffGrp><label>No. 1 in C</label>
+                <staffDef xml:id="s1" n="1" lines="5"><clef xml:id="c1" shape="G" line="2" /><keySig xml:id="k1" sig="0" /><meterSig xml:id="m1" count="4" unit="4" /></staffDef>
+                <staffDef xml:id="s2" n="2" lines="5"><clef xml:id="c2" shape="F" line="4" /><keySig xml:id="k2" sig="0" /><meterSig xml:id="m2" count="4" unit="4" /></staffDef>
+              </staffGrp></staffGrp>
+            </scoreDef>
+            <section>
+              <measure xml:id="b1" n="1"><staff n="1"><layer n="1"><note xml:id="n1" dur="1" pname="c" oct="5" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n2" dur="1" pname="c" oct="3" /></layer></staff></measure>
+              <measure xml:id="b2" n="2"><staff n="1"><layer n="1"><note xml:id="n3" dur="1" pname="d" oct="5" /></layer></staff><staff n="2"><layer n="1"><clef xml:id="cc" shape="G" line="2" /><note xml:id="n4" dur="1" pname="e" oct="4" /></layer></staff></measure>
+              <sb />
+              <measure xml:id="b3" n="3" right="end"><staff n="1"><layer n="1"><note xml:id="n5" dur="1" pname="e" oct="5" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n6" dur="1" pname="g" oct="4" /></layer></staff></measure>
+              <scoreDef xml:id="change"><keySig xml:id="k3" sig="2s" /><meterSig xml:id="m3" count="3" unit="4" /></scoreDef>
+              <measure xml:id="b4" n="4"><staff n="1"><layer n="1"><note xml:id="n7" dur="2" dots="1" pname="f" oct="5" accid.ges="s" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n8" dur="2" dots="1" pname="d" oct="4" /></layer></staff></measure>
+              <measure xml:id="b5" n="5" right="end"><staff n="1"><layer n="1"><note xml:id="n9" dur="2" dots="1" pname="a" oct="5" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n10" dur="2" dots="1" pname="d" oct="4" /></layer></staff></measure>
+            </section>
+          </score></mdiv></body></music>
+        </mei>
+        """;
+
+    [Fact]
+    public void ACollectionIsSplitAtItsFinalBarlinesEachPartStartingWithWhatIsInForce()
+    {
+        var parts = Collections.Split(TwoPieces, longBars: 0, fewestPieces: 2, shortestPiece: 2);
+
+        Assert.Equal(2, parts.Count);
+        var first = MeiReader.Read(parts[0]);
+        var second = MeiReader.Read(parts[1]);
+        Assert.Equal(3, first.Bars.Count);
+        Assert.Equal(2, second.Bars.Count);
+        Assert.Equal((0, 4, 4), (first.Key.Fifths, first.Meter.Beats, first.Meter.Unit));
+        Assert.Equal((2, 3, 4), (second.Key.Fifths, second.Meter.Beats, second.Meter.Unit));
+        // The second piece's bass staff starts in the treble clef it changed to; nothing of the first piece is left in it.
+        var bass = System.Xml.Linq.XDocument.Parse(parts[1]).Descendants().First(e => e.Name.LocalName == "staffDef" && (string?)e.Attribute("n") == "2");
+        Assert.Equal(("G", "2"), ((string?)bass.Element(bass.Name.Namespace + "clef")?.Attribute("shape"), (string?)bass.Element(bass.Name.Namespace + "clef")?.Attribute("line")));
+        Assert.DoesNotContain("n1\"", parts[1]);
+        Assert.DoesNotContain("pgHead", parts[1]);
+        Assert.DoesNotContain("No. 1 in C", parts[1]);
+        Assert.Contains("Little Pieces, No. 2", parts[1]);
+        Assert.Equal(["n10", "n7", "n8", "n9"], second.Expected().Select(n => n.Id).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void AShortScoreOrOneWithFewPiecesStaysWhole()
+    {
+        Assert.Equal([TwoPieces], Collections.Split(TwoPieces));
+        Assert.Single(Collections.Split(TwoPieces, longBars: 0, fewestPieces: 3, shortestPiece: 2));
+        Assert.Single(Collections.Split(TwoPieces, longBars: 0, fewestPieces: 2, shortestPiece: 3));
+    }
+}

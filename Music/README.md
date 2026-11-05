@@ -35,19 +35,23 @@ The Library comes with about 240 public-domain and openly licensed pieces: 133 e
 as MusicXML) and 104 PDFs with their MIDI from the Mutopia Project, chosen by the named works in
 [docs/library.md](docs/library.md) (Czerny, Lemoine, Duvernoy, Anna Magdalena's notebook, Mozart's first pieces, Schumann's
 and Tchaikovsky's albums, Clementi, Burgmüller, Bach's Little Preludes and Inventions, Satie, Chopin's Preludes, Joplin and
-more). They're in the repo, in `library/` (about 14 MB), and the tablet build packs them into the app, so there's nothing to
-run first. The first time the Library opens on the tablet, it engraves each MusicXML piece once, cuts it into excerpts and grades
-them (a minute or two, in the background).
+more). They're in the repo, in `library/` (about 17 MB), and the tablet build packs them into the app, so there's nothing to
+run first. The MusicXML comes prepared: the tool has already engraved each piece as MEI (the `.mei.gz` beside it), split the
+two collections engraved as one score (Chopin's Preludes, Tchaikovsky's album) into their pieces, and cut and graded the
+excerpts, so the first time the Library opens on the tablet it only stores them, in a few seconds. Doing that on the tablet took
+minutes and froze the screen.
 
 To change the selection, edit the tool and run it; it rewrites `library/`, printing its progress as it goes, and then the
-changes are committed like any others:
+changes are committed like any others. Preparing needs [Node.js](https://nodejs.org) on the PATH, which runs the app's own copy
+of Verovio:
 
 ```bash
 dotnet run --project Music/tools/Prima.Library
 ```
 
 A full run takes about 15 minutes: PDMX's index (225 MB), one pass through its 1.9 GB archive of MusicXML keeping only the chosen
-files, then Mutopia's PDFs and MIDI. Downloads are kept in `artifacts/library-cache`, so a second run only fetches what's missing;
+files, then Mutopia's PDFs and MIDI, then half a minute preparing. `-- prepare` only prepares what's there again (after a change
+to the grader, say). Downloads are kept in `artifacts/library-cache`, so a second run only fetches what's missing;
 `-- pdmx` or `-- mutopia` runs one source.
 
 Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC and PDF. For MIDI, MuseScore files or Humdrum, export
@@ -84,7 +88,7 @@ Then try, in **Tools**:
 Worth noting: whether the piano echoes the notes Prima sends back to it, which channel a split or dual voice sends on, the
 jitter Keyboard check shows, and the timing offset and spread.
 
-Then, in the **Library** (the first visit prepares the collection, a minute or two):
+Then, in the **Library** (the first visit stores the collection, a few seconds):
 
 - Open a piece and turn pages with the soft pedal (on) and the sostenuto pedal (back), if the LP-1 pedal unit is fitted, or with
   C8 and A0. If a pedal does nothing, the piano may have controller messages switched off: hold METRONOME and RHYTHM and press
@@ -114,8 +118,8 @@ TZ=America/Los_Angeles dotnet run --project Music/tools/Prima.Preview
 curl -s http://127.0.0.1:5299/seed/empty
 ```
 
-The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `months`. The Library uses the bundle in
-`artifacts/library` (built as above) and prepares it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
+The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `months`. The Library uses the bundle in `library/`
+and stores it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine.
 
 ## Licences

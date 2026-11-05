@@ -38,9 +38,10 @@
         <ProjectReference Include="..\Prima.UI\Prima.UI.csproj" />
     </ItemGroup>
 
-    <!-- The Library's music (Music/library, kept in the repo), packed into the app as it is. -->
+    <!-- The Library's music (Music/library, kept in the repo), packed into the app: the prepared MEI, the PDFs and their MIDI. The
+         MusicXML the MEI was prepared from stays behind. -->
     <ItemGroup>
-        <MauiAsset Include="..\..\library\**" LogicalName="library\%(RecursiveDir)%(Filename)%(Extension)" />
+        <MauiAsset Include="..\..\library\**" Exclude="..\..\library\**\*.mxl" LogicalName="library\%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
 </Project>

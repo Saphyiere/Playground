@@ -253,7 +253,7 @@
         if (Spot == 1) await FindSpot(todays);
         if (PieceId is not null && await Store.GetPieceAsync(PieceId) is { IsPdf: false } piece && await Store.GetMeiAsync(PieceId) is { } pieceMei)
         {
-            (practising, practisingMei, practisingScore) = (piece, pieceMei, MeiReader.Read(pieceMei));
+            (practising, practisingMei, practisingScore) = (piece, pieceMei, await Task.Run(() => MeiReader.Read(pieceMei)));
             var parts = (BarsQuery ?? "1-4").Split('-');
             var first = parts.Length > 0 && int.TryParse(parts[0], out var f) ? f : 1;
             var last = parts.Length > 1 && int.TryParse(parts[1], out var l) ? l : first + 3;
@@ -307,7 +307,7 @@
         {
             if (await Store.GetExcerptAsync(ex.GetInt64()) is not { } excerpt || await Store.GetPieceAsync(excerpt.Piece) is not { } piece || await Store.GetMeiAsync(excerpt.Piece) is not { } pieceMei) return;
 
-            spotReal = DayPassages.Real(piece, pieceMei, MeiReader.Read(pieceMei), excerpt.FirstBar, excerpt.LastBar, excerpt.Level, excerpt);
+            spotReal = DayPassages.Real(piece, pieceMei, await Task.Run(() => MeiReader.Read(pieceMei)), excerpt.FirstBar, excerpt.LastBar, excerpt.Level, excerpt);
             spotPassage = spotReal.Passage;
             (spotFrom, spotBar, spotTempo, spotStep) = (worst.Attempt, worst.Bar!.Value, worst.Attempt.Tempo!.Value, 4);
             return;
@@ -320,7 +320,7 @@
     }
 
     // Part 1 is the bar 20% slower (a pickup comes with its first full bar); part 2 the four-bar phrase it's in, at the tempo.
-    private void StartSpot(int part)
+    private async Task StartSpot(int part)
     {
         StopRun();
         var score = spotPassage!.Score;
@@ -334,7 +334,7 @@
         if (spotReal is { Piece: { } piece } real)
         {
             // A real excerpt's spot: the piece's own engraving again, just the bar or the bars around it.
-            Show(DayPassages.Real(piece, real.Mei, MeiReader.Read(real.Mei), from, to, real.Passage.Spec.Level, real.Excerpt, description));
+            Show(DayPassages.Real(piece, real.Mei, await Task.Run(() => MeiReader.Read(real.Mei)), from, to, real.Passage.Spec.Level, real.Excerpt, description));
         }
         else
         {

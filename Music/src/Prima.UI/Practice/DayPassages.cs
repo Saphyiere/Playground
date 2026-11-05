@@ -32,7 +32,7 @@ public static class DayPassages
             var excerpts = await store.GetExcerptsAsync(reading.Level, reading.Level >= 7 ? 8 : 4, day);
             if (excerpts.FirstOrDefault() is { } excerpt && await store.GetPieceAsync(excerpt.Piece) is { } piece && await store.GetMeiAsync(excerpt.Piece) is { } mei)
             {
-                return Real(piece, mei, MeiReader.Read(mei), excerpt.FirstBar, excerpt.LastBar, excerpt.Level, excerpt);
+                return Real(piece, mei, await Task.Run(() => MeiReader.Read(mei)), excerpt.FirstBar, excerpt.LastBar, excerpt.Level, excerpt);
             }
         }
 

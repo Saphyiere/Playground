@@ -245,10 +245,14 @@ else
         else
         {
             mei = await Store.GetMeiAsync(Id);
-            if (mei is not null)
+            if (mei is { } text)
             {
-                score = MeiReader.Read(mei);
-                events = ScoreEvents.From(score);
+                // Read away from the screen's thread: a long piece takes a moment.
+                (score, events) = await Task.Run(() =>
+                {
+                    var read = MeiReader.Read(text);
+                    return (read, ScoreEvents.From(read));
+                });
                 var lastBar = score.Bars[^1].Number;
                 (from, to) = (1, Math.Min(lastBar, 4));
             }
