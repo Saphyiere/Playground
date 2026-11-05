@@ -27,4 +27,10 @@ public sealed class PrimaSettings
 
     /// <summary>Whether Prima may send notes to the piano (Duet, Hear first, Listen and play back).</summary>
     public bool SendToPiano { get; set; } = true;
+
+    /// <summary>The music font Verovio engraves with: Leipzig, Bravura or Leland.</summary>
+    public string MusicFont { get; set; } = "Leipzig";
+
+    /// <summary>The sheet's size: -1 smaller, 0 the printed 7 mm staff, 1 larger.</summary>
+    public int SheetSize { get; set; }
 }

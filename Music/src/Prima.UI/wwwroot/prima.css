@@ -1490,3 +1490,106 @@ a.mu-btn {
 .check-block .mu-btn {
     align-self: flex-start;
 }
+
+/* The sheet: printed music, black on paper in both looks, with the cursor and the marks drawn over it. */
+.sheet {
+    position: relative;
+    background: var(--mu-sheet);
+    color: var(--mu-sheet-ink);
+    border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--mu-sheet-edge);
+    min-height: 40px;
+}
+
+.sheet-music svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.sheet-music svg,
+.sheet-music svg g {
+    fill: currentColor;
+}
+
+.sheet-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.sheet-cursor {
+    fill: var(--accent);
+    opacity: 0.85;
+}
+
+[data-theme="vinyl"] .sheet-cursor {
+    fill: var(--accent-2);
+}
+
+.sheet-music .mark-wrong,
+.sheet-music .mark-wrong g {
+    fill: #c8361b;
+    color: #c8361b;
+}
+
+.sheet-music .mark-missed .notehead,
+.sheet-music .mark-missed .notehead g {
+    fill: transparent;
+    stroke: #c8361b;
+    stroke-width: 28px;
+}
+
+.sheet-music .mark-early .notehead,
+.sheet-music .mark-late .notehead,
+.sheet-music .mark-early .notehead g,
+.sheet-music .mark-late .notehead g {
+    fill: #b7650c;
+}
+
+.sheet-ghost {
+    fill: var(--mu-sheet-faint);
+    opacity: 0.85;
+}
+
+.sheet-label,
+.sheet-arrow {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    fill: #c8361b;
+}
+
+.sheet-arrow {
+    font-size: 18px;
+    fill: #b7650c;
+}
+
+/* Where a sheet sits: Studio's dark bezel around the paper; Vinyl's paper on the teal ground. */
+.sheet-frame {
+    padding: 14px;
+    border-radius: var(--mu-r-panel);
+    background: var(--screen-edge);
+}
+
+[data-theme="vinyl"] .sheet-frame {
+    padding: 0;
+    background: none;
+    box-shadow: var(--shadow-sleeve);
+}
+
+.sheet-frame-page {
+    height: calc(100dvh - 220px);
+}
+
+.sheet-frame-page .sheet {
+    height: 100%;
+    overflow: hidden;
+}
+
+.settings-sheet {
+    max-width: 680px;
+}

@@ -40,6 +40,24 @@
     </div>
 </section>
 
+<section class="settings-section" aria-labelledby="notation-heading">
+    <h2 id="notation-heading" class="section-title">Notation</h2>
+    <div class="control-row">
+        <span class="control-label">Music font</span>
+        @foreach (var font in Fonts)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.MusicFont == font)" @onclick="() => Save(() => Options.MusicFont = font)"><span class="mu-led"></span>@font</button>
+        }
+    </div>
+    <div class="control-row">
+        <span class="control-label">Sheet size</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize < 0)" @onclick="() => Save(() => Options.SheetSize = -1)"><span class="mu-led"></span>Smaller</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize == 0)" @onclick="() => Save(() => Options.SheetSize = 0)"><span class="mu-led"></span>Printed</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize > 0)" @onclick="() => Save(() => Options.SheetSize = 1)"><span class="mu-led"></span>Larger</button>
+    </div>
+    <Sheet Mei="@Sample" Class="settings-sheet" />
+</section>
+
 <section class="settings-section" aria-labelledby="click-heading">
     <h2 id="click-heading" class="section-title">Click</h2>
     <div class="control-row">
@@ -62,6 +80,11 @@
 
 @code {
     [CascadingParameter] public Look Current { get; set; } = Look.Studio;
+
+    private static readonly string[] Fonts = ["Leipzig", "Bravura", "Leland"];
+
+    // Two bars of a grand staff, to show the font and size.
+    private static readonly string Sample = MeiWriter.Write(SheetSamples.TwoBars());
 
     private static string On(bool on) => on ? "true" : "false";
 

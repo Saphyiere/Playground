@@ -26,6 +26,8 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
     private const string ClickSoundKey = "Click.Sound";
     private const string ClickVolumeKey = "Click.Volume";
     private const string SendToPianoKey = "Keyboard.SendToPiano";
+    private const string MusicFontKey = "Notation.Font";
+    private const string SheetSizeKey = "Notation.SheetSize";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -52,6 +54,8 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
         settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : settings.ClickSound;
         settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? settings.ClickVolume;
         settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
+        settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? settings.MusicFont;
+        settings.SheetSize = (int?)Number(SheetSizeKey) ?? settings.SheetSize;
     }
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
@@ -66,6 +70,8 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
             (ClickSoundKey, settings.ClickSound.ToString()),
             (ClickVolumeKey, settings.ClickVolume.ToString(CultureInfo.InvariantCulture)),
             (SendToPianoKey, settings.SendToPiano ? "true" : "false"),
+            (MusicFontKey, settings.MusicFont),
+            (SheetSizeKey, settings.SheetSize.ToString(CultureInfo.InvariantCulture)),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)

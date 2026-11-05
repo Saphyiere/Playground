@@ -1,0 +1,45 @@
+@page "/check/sheet"
+
+@* For checking the sheet on screen (not on the rail): a passage, the marks after it, the cursor, and the page layout. *@
+<PageTitle>Sheet check · Prima</PageTitle>
+
+<PageHead Title="Sheet check" Kicker="Notation" />
+
+<div class="control-row">
+    <button type="button" class="mu-btn" @onclick="ToggleMarks">@(marked ? "Clear marks" : "Marks")</button>
+    <button type="button" class="mu-btn" @onclick="ToggleCursor">@(cursor ? "Stop cursor" : "Cursor")</button>
+    <button type="button" class="mu-btn" @onclick="ToggleView">@(view == "line" ? "Page" : "Lines")</button>
+    @if (tapped is not null)
+    {
+        <span class="control-note">Tapped @tapped</span>
+    }
+</div>
+
+<div class="sheet-frame @(view == "page" ? "sheet-frame-page" : "")">
+    <Sheet @ref="sheet" Mei="@Mei" Layout="@view" Header="@(view == "page")" OnNoteTapped="id => tapped = id" />
+</div>
+
+@code {
+    private static readonly string Mei = MeiWriter.Write(SheetSamples.Passage(), 80);
+    private Sheet? sheet;
+    private bool marked;
+    private bool cursor;
+    private string view = "line";
+    private string? tapped;
+
+    private async Task ToggleMarks()
+    {
+        marked = !marked;
+        if (marked) await sheet!.ShowMarks([new SheetMark("r3", "wrong", "C♯5", 1), new SheetMark("r7", "missed"), new SheetMark("r13", "early"), new SheetMark("r22", "late"), new SheetMark("l7-1", "wrong", "G3", 1)]);
+        else await sheet!.ClearMarks();
+    }
+
+    private void ToggleView() => view = view == "line" ? "page" : "line";
+
+    private async Task ToggleCursor()
+    {
+        cursor = !cursor;
+        if (cursor) await sheet!.StartCursor(1500, 750, 0);
+        else await sheet!.StopCursor();
+    }
+}

@@ -22,6 +22,7 @@
     private bool loaded;
     private string? shownLook;
     private IJSObjectReference? page;
+    private IJSObjectReference? sheet;
 
     protected override async Task OnInitializedAsync()
     {
@@ -40,6 +41,12 @@
         {
             page ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Layout/MainLayout.razor.js");
             await page.InvokeVoidAsync("showLook", shownLook);
+            // Verovio is a 7 MB script: it loads in the background now, so the first sheet doesn't wait for it.
+            if (firstRender || sheet is null)
+            {
+                sheet = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/Sheet.razor.js");
+                await sheet.InvokeVoidAsync("warm");
+            }
         }
         catch (JSDisconnectedException)
         {
@@ -54,6 +61,7 @@
         try
         {
             if (page is not null) await page.DisposeAsync();
+            if (sheet is not null) await sheet.DisposeAsync();
         }
         catch (JSDisconnectedException)
         {
