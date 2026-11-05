@@ -1,7 +1,24 @@
 @page "/tools"
+@inject IKeyboard Keyboard
+@inject PrimaSettings Settings
 
 <PageTitle>Tools · Prima</PageTitle>
 
-<PageHead Title="Tools" Kicker="Metronome, keyboard, timing" />
+<PageHead Title="Tools" Kicker="Metronome, keyboard, timing"><KeyboardLamp /></PageHead>
 
-<p class="page-note">The metronome, the keyboard check and the timing calibration come here.</p>
+<div class="tool-grid">
+    <a class="tool-card" href="tools/metronome">
+        <span class="tool-card-name">Metronome</span>
+        <span class="tool-card-text">A count-in, and a click that can fade to the count-in only or to silence.</span>
+    </a>
+    <a class="tool-card" href="tools/keyboard">
+        <span class="tool-card-name">Keyboard check</span>
+        <span class="tool-card-text">Each key you press, its velocity and the pedals; the whole keyboard; the MIDI path's jitter.</span>
+        <span class="tool-card-meta">@(Keyboard.Name is null ? "No keyboard plugged in" : Keyboard.Name)</span>
+    </a>
+    <a class="tool-card" href="tools/timing">
+        <span class="tool-card-name">Timing</span>
+        <span class="tool-card-text">Play any key with the click for 16 beats, and the delay is taken off every note from then on.</span>
+        <span class="tool-card-meta">@(Settings.CalibratedOn is { } day ? $"{Settings.TimingOffsetMs:+0;−0;0} ms, {day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
+    </a>
+</div>

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Prima.UI;
+using Prima.UI.Host;
 using Prima.UI.Looks;
 
 namespace Prima.Tablet;
@@ -13,6 +14,10 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddSingleton<LookSetting, TabletLookSetting>();
+        builder.Services.AddSingleton<IClock, AndroidClock>();
+        builder.Services.AddSingleton<IKeyboard, AndroidKeyboard>();
+        builder.Services.AddSingleton<IClick, AndroidClick>();
+        builder.Services.AddSingleton<IScreen, AndroidScreen>();
         builder.Services.AddPrima(Path.Combine(FileSystem.AppDataDirectory, "prima.db"));
 
 #if DEBUG

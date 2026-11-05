@@ -1,0 +1,140 @@
+@page "/tools/metronome"
+@implements IDisposable
+@inject Click Click
+@inject IScreen Screen
+
+<PageTitle>Metronome · Prima</PageTitle>
+
+<PageHead Title="Metronome" Kicker="Tools"><KeyboardLamp /></PageHead>
+
+<section class="mu-screen metro-screen" aria-label="Metronome">
+    <div class="mu-screen-head"><span>Tempo</span><span>@meter.Name · @StageName(stage)</span></div>
+    <p class="metro-tempo"><span class="metro-bpm">@bpm.ToString(Look.Id == "vinyl" ? "0" : "000", CultureInfo.InvariantCulture)</span><span class="metro-unit">BPM</span></p>
+    <div class="metro-beats" aria-hidden="true">
+        @for (var i = 0; i < meter.Beats; i++)
+        {
+            var on = beat >= 0 && beat % meter.Beats == i;
+            <span class="metro-beat @(on ? "on" : "") @(i == 0 ? "accent" : "")"></span>
+        }
+    </div>
+    <div class="mu-readouts">
+        <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@(beat < 0 ? "–" : BarText())</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Count-in</span><span class="mu-readout-value">@(countIn == 0 ? "None" : "1 bar")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Heard on</span><span class="mu-readout-value">@(Click.OnPiano ? "Piano" : "Tablet")</span></div>
+    </div>
+</section>
+
+<div class="control-rows">
+    <div class="control-row">
+        <span class="control-label">Tempo</span>
+        <button type="button" class="mu-btn" @onclick="() => Nudge(-5)">−5</button>
+        <button type="button" class="mu-btn" @onclick="() => Nudge(-1)">−1</button>
+        <input type="range" class="control-range" min="30" max="208" value="@bpm" aria-label="Tempo" @onchange="e => SetTempo(int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+        <button type="button" class="mu-btn" @onclick="() => Nudge(1)">+1</button>
+        <button type="button" class="mu-btn" @onclick="() => Nudge(5)">+5</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">Metre</span>
+        @foreach (var m in Meters)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@(m == meter ? "true" : "false")" @onclick="() => Change(() => meter = m)"><span class="mu-led"></span>@m.Name</button>
+        }
+    </div>
+    <div class="control-row">
+        <span class="control-label">Count-in</span>
+        <button type="button" class="mu-toggle" aria-pressed="@(countIn == 1 ? "true" : "false")" @onclick="() => Change(() => countIn = 1)"><span class="mu-led"></span>One bar</button>
+        <button type="button" class="mu-toggle" aria-pressed="@(countIn == 0 ? "true" : "false")" @onclick="() => Change(() => countIn = 0)"><span class="mu-led"></span>None</button>
+        <span class="control-label control-label-gap">Heard</span>
+        @foreach (var s in Enum.GetValues<ClickStage>())
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@(s == stage ? "true" : "false")" @onclick="() => Change(() => stage = s)"><span class="mu-led"></span>@StageName(s)</button>
+        }
+    </div>
+    <div class="control-row control-row-play">
+        <button type="button" class="mu-play" aria-label="@(Click.Running ? "Stop" : "Start")" @onclick="Toggle">
+            @if (Click.Running)
+            {
+                <svg viewBox="0 0 20 20" width="26" height="26" aria-hidden="true"><path d="M5 5H15V15H5Z" fill="currentColor"></path></svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg>
+            }
+        </button>
+        <p class="control-note">The click never waits. Settings chooses where it sounds, its sound and its volume.</p>
+    </div>
+</div>
+
+@code {
+    private sealed record MeterChoice(string Name, int Beats);
+
+    // 6/8 counts two dotted-quarter beats a bar.
+    private static readonly MeterChoice[] Meters = [new("2/4", 2), new("3/4", 3), new("4/4", 4), new("6/8", 2)];
+
+    [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+
+    private int bpm = 72;
+    private MeterChoice meter = Meters[2];
+    private int countIn = 1;
+    private ClickStage stage = ClickStage.Throughout;
+    private int beat = -1;
+    private PeriodicTimer? timer;
+
+    private static string StageName(ClickStage s) => s switch { ClickStage.Throughout => "Throughout", ClickStage.CountInOnly => "Count-in only", _ => "Silent" };
+
+    private string BarText()
+    {
+        var bar = beat / meter.Beats - countIn + 1;
+        return bar < 1 ? $"In {beat % meter.Beats + 1}" : $"{bar}.{beat % meter.Beats + 1}";
+    }
+
+    private void Nudge(int by) => SetTempo(bpm + by);
+
+    private void SetTempo(int value) => Change(() => bpm = Math.Clamp(value, 30, 208));
+
+    // A change while running restarts the click with it, from a fresh count-in.
+    private void Change(Action change)
+    {
+        change();
+        if (Click.Running) Start();
+    }
+
+    private void Toggle()
+    {
+        if (Click.Running) Stop();
+        else Start();
+    }
+
+    private void Start()
+    {
+        Click.Start(new ClickPlan(bpm, meter.Beats, countIn, stage));
+        Screen.KeepOn(true);
+        if (timer is not null) return;
+
+        timer = new PeriodicTimer(TimeSpan.FromMilliseconds(30));
+        _ = Tick(timer);
+    }
+
+    private void Stop()
+    {
+        Click.Stop();
+        Screen.KeepOn(false);
+        timer?.Dispose();
+        timer = null;
+        beat = -1;
+    }
+
+    private async Task Tick(PeriodicTimer running)
+    {
+        while (await running.WaitForNextTickAsync())
+        {
+            var now = Click.BeatNow();
+            if (now == beat) continue;
+
+            beat = now;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose() => Stop();
+}

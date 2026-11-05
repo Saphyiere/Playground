@@ -44,7 +44,19 @@ data. Don't uninstall the app to fix a build problem: that deletes your practice
 
 The P-225B's **USB TO HOST** port (a square USB-B socket on the back) goes to the tablet's USB-C port, with a USB-B to USB-C
 cable or a USB-B cable and an adapter. The tablet then has no free port, so it practises on battery unless a USB-C hub with power
-delivery sits in between. Prima finds the piano by itself; Tools has a keyboard check and the timing calibration.
+delivery sits in between. Prima finds the piano by itself, and its name lights up at the foot of the rail.
+
+Then try, in **Tools**:
+
+- **Keyboard check**: play a few keys and the pedals, and the lowest and highest keys (A0 and C8). Leave it a minute for the
+  MIDI path's jitter, from the piano's Active Sensing. **Play middle C** checks the piano plays notes Prima sends it, on channel
+  16, with the grand piano voice.
+- **Metronome**: does the click sound on time, and where (the tablet's speaker, or the piano if Android sends audio there)? In
+  **Settings → Click**, "On the piano" plays it as short high notes on the piano instead, for headphones in the piano.
+- **Timing**: play a key with the click for 16 beats and keep the offset. Redo it after changing where the click sounds.
+
+Worth noting for the next parts: whether the piano echoes the notes Prima sends back to it, which channel a split or dual voice
+sends on, the jitter Keyboard check shows, and the timing offset and spread.
 
 ## The looks
 

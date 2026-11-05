@@ -1,9 +1,11 @@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
 @inject LookSetting LookSetting
+@inject PrimaSettings Settings
+@inject PrimaStore Store
 @inject IJSRuntime JS
 
-@* Screens wait for the saved look, so the parts that draw per look don't start in the wrong one. *@
+@* Screens wait for the saved look, so the parts that draw per look don't start in the wrong one, and for the saved settings. *@
 @if (loaded)
 {
     <CascadingValue Value="LookSetting.Current">
@@ -24,7 +26,7 @@
     protected override async Task OnInitializedAsync()
     {
         LookSetting.Changed += OnLookChanged;
-        await LookSetting.LoadAsync();
+        await Task.WhenAll(LookSetting.LoadAsync(), Store.LoadAsync(Settings));
         loaded = true;
     }
 

@@ -1,6 +1,8 @@
+using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Playground.Kit;
+using Prima.Core.Timing;
 
 namespace Prima.UI.Storage;
 
@@ -17,6 +19,14 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
         );
         """;
 
+    private const string OffsetKey = "Timing.OffsetMs";
+    private const string SpreadKey = "Timing.SpreadMs";
+    private const string CalibratedKey = "Timing.CalibratedOn";
+    private const string ClickOnPianoKey = "Click.OnPiano";
+    private const string ClickSoundKey = "Click.Sound";
+    private const string ClickVolumeKey = "Click.Volume";
+    private const string SendToPianoKey = "Keyboard.SendToPiano";
+
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
     private Task lane = Task.CompletedTask;
@@ -29,6 +39,42 @@ public sealed class PrimaStore(string databasePath) : ISettingStore
     public Task SetSettingAsync(string key, string? value) => RunAsync(c => value is null
         ? c.ExecuteAsync("DELETE FROM Setting WHERE Key = @key", new { key })
         : c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @value) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value", new { key, value }));
+
+    /// <summary>Reads the saved settings into <paramref name="settings"/>; any not saved keep their defaults.</summary>
+    public async Task LoadAsync(PrimaSettings settings)
+    {
+        var saved = await GetSettingsAsync();
+        double? Number(string key) => double.TryParse(saved.GetValueOrDefault(key), CultureInfo.InvariantCulture, out var n) ? n : null;
+        settings.TimingOffsetMs = Number(OffsetKey) ?? 0;
+        settings.TappingSpreadMs = Number(SpreadKey);
+        settings.CalibratedOn = DateOnly.TryParse(saved.GetValueOrDefault(CalibratedKey), CultureInfo.InvariantCulture, out var day) ? day : null;
+        settings.ClickOnPiano = saved.GetValueOrDefault(ClickOnPianoKey) == "true";
+        settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : settings.ClickSound;
+        settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? settings.ClickVolume;
+        settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
+    }
+
+    /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
+    public Task SaveAsync(PrimaSettings settings) => RunAsync(async c =>
+    {
+        (string Key, string? Value)[] values =
+        [
+            (OffsetKey, settings.TimingOffsetMs.ToString("R", CultureInfo.InvariantCulture)),
+            (SpreadKey, settings.TappingSpreadMs?.ToString("R", CultureInfo.InvariantCulture)),
+            (CalibratedKey, settings.CalibratedOn?.ToString("O", CultureInfo.InvariantCulture)),
+            (ClickOnPianoKey, settings.ClickOnPiano ? "true" : "false"),
+            (ClickSoundKey, settings.ClickSound.ToString()),
+            (ClickVolumeKey, settings.ClickVolume.ToString(CultureInfo.InvariantCulture)),
+            (SendToPianoKey, settings.SendToPiano ? "true" : "false"),
+        ];
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        foreach (var (key, value) in values)
+        {
+            if (value is null) await c.ExecuteAsync("DELETE FROM Setting WHERE Key = @key", new { key }, transaction);
+            else await c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @value) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value", new { key, value }, transaction);
+        }
+        await transaction.CommitAsync();
+    });
 
     /// <summary>Queues work behind everything started before it and runs it on a background thread with its own connection.</summary>
     private Task<T> RunAsync<T>(Func<SqliteConnection, Task<T>> work)

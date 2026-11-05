@@ -1,5 +1,8 @@
 @page "/settings"
 @inject LookSetting LookSetting
+@inject IKeyboard Keyboard
+@inject PrimaSettings Options
+@inject PrimaStore Store
 
 <PageTitle>Settings · Prima</PageTitle>
 
@@ -21,6 +24,50 @@
     </div>
 </section>
 
+<section class="settings-section" aria-labelledby="keyboard-heading">
+    <h2 id="keyboard-heading" class="section-title">Keyboard</h2>
+    <KeyboardLamp />
+    <div class="control-row">
+        <span class="control-label">Sound from the piano</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.SendToPiano)" @onclick="() => Save(() => Options.SendToPiano = true)"><span class="mu-led"></span>On</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.SendToPiano)" @onclick="() => Save(() => Options.SendToPiano = false)"><span class="mu-led"></span>Off</button>
+    </div>
+    <p class="section-note">Duet, Hear first and Listen and play back play their notes on the piano itself, on channel 16.@(Keyboard.Name is not null && !Keyboard.CanSend ? " This piano doesn't take notes from the tablet, so they're hidden." : "")</p>
+    <div class="control-row">
+        <span class="control-label">Timing</span>
+        <span class="control-value">@(Options.CalibratedOn is { } day ? $"{Options.TimingOffsetMs:+0;−0;0} ms, from {day.ToString("d MMMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
+        <a class="mu-btn" href="tools/timing">@(Options.CalibratedOn is null ? "Calibrate" : "Redo timing")</a>
+    </div>
+</section>
+
+<section class="settings-section" aria-labelledby="click-heading">
+    <h2 id="click-heading" class="section-title">Click</h2>
+    <div class="control-row">
+        <span class="control-label">Where</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = true)"><span class="mu-led"></span>On the piano</button>
+    </div>
+    <p class="section-note">With headphones in the piano, the tablet's speaker isn't heard: the click on the piano plays short high notes on channel 16 instead. Redo the timing after changing this.</p>
+    <div class="control-row">
+        <span class="control-label">Sound</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickSound == ClickSoundKind.Wood)" @onclick="() => Save(() => Options.ClickSound = ClickSoundKind.Wood)"><span class="mu-led"></span>Wood</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickSound == ClickSoundKind.Beep)" @onclick="() => Save(() => Options.ClickSound = ClickSoundKind.Beep)"><span class="mu-led"></span>Beep</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">Volume</span>
+        <input type="range" class="control-range" min="10" max="100" step="5" value="@Options.ClickVolume" aria-label="Click volume" @onchange="e => Save(() => Options.ClickVolume = int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+        <span class="control-value">@Options.ClickVolume%</span>
+    </div>
+</section>
+
 @code {
     [CascadingParameter] public Look Current { get; set; } = Look.Studio;
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    private Task Save(Action change)
+    {
+        change();
+        return Store.SaveAsync(Options);
+    }
 }

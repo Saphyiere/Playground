@@ -1,0 +1,17 @@
+@implements IDisposable
+@inject IKeyboard Keyboard
+
+@* The piano's lamp and name: lit when it's plugged in. *@
+<p class="mu-status @Class" data-state="@(Keyboard.Name is null ? "off" : "live")">
+    <span class="mu-led"></span>@(Keyboard.Name ?? "Plug in your keyboard")
+</p>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    protected override void OnInitialized() => Keyboard.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Keyboard.Changed -= OnChanged;
+}

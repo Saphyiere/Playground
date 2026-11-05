@@ -1,0 +1,140 @@
+@page "/tools/timing"
+@implements IDisposable
+@inject IKeyboard Keyboard
+@inject Click Click
+@inject IScreen Screen
+@inject PrimaSettings Settings
+@inject PrimaStore Store
+
+<PageTitle>Timing · Prima</PageTitle>
+
+<PageHead Title="Timing" Kicker="Tools"><KeyboardLamp /></PageHead>
+
+<p class="page-note">Play any key with the click: one bar of count-in, then 16 beats. The median of how early or late your notes
+    land is kept as the timing offset and taken off every note from then on. It holds the click's sound reaching you, the MIDI path
+    and your own habit of playing a little early together, since they can't be told apart without a loop of wires. So the lean you
+    see afterwards is measured from today: it shows change, not your habit in absolute terms.</p>
+
+<section class="mu-screen timing-screen" aria-label="Calibration">
+    <div class="mu-screen-head"><span>Calibration</span><span>@Plan.Bpm bpm · 4/4</span></div>
+    <div class="metro-beats" aria-hidden="true">
+        @for (var i = 0; i < Beats; i++)
+        {
+            <span class="metro-beat @(beat - Plan.FirstMusicBeat >= i ? "on" : "") @(i % 4 == 0 ? "accent" : "")"></span>
+        }
+    </div>
+    <div class="mu-readouts">
+        <div class="mu-readout"><span class="mu-readout-label">Offset</span><span class="mu-readout-value">@(result is null ? "–" : $"{result.OffsetMs:+0;−0;0} ms")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Your spread</span><span class="mu-readout-value">@(result is null ? "–" : $"{result.SpreadMs:0} ms")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Notes counted</span><span class="mu-readout-value">@(result?.Taps.ToString(CultureInfo.InvariantCulture) ?? taps.Count.ToString(CultureInfo.InvariantCulture))</span></div>
+    </div>
+</section>
+
+<div class="control-row control-row-play">
+    @if (Keyboard.Name is null)
+    {
+        <p class="control-note">Plug in your keyboard first.</p>
+    }
+    else if (running)
+    {
+        <p class="control-note">@(beat < Plan.FirstMusicBeat ? "Count-in…" : "Keep playing with the click…")</p>
+    }
+    else
+    {
+        <button type="button" class="mu-btn mu-primary" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
+        @if (result is not null)
+        {
+            <button type="button" class="mu-btn" @onclick="Save">Keep this offset</button>
+            @if (saved)
+            {
+                <p class="control-note">Kept. Every note from now on is shifted by @($"{-result.OffsetMs:+0;−0;0}") ms.</p>
+            }
+        }
+        @if (tooFew)
+        {
+            <p class="control-note">Too few notes landed near a beat. Play one key on every click.</p>
+        }
+    }
+</div>
+
+@if (Settings.CalibratedOn is { } day)
+{
+    <p class="page-note">In use: @($"{Settings.TimingOffsetMs:+0;−0;0}") ms, from @day.ToString("d MMMM", CultureInfo.InvariantCulture)@(Settings.TappingSpreadMs is { } s ? $", with a spread of {s:0} ms" : ""). Redo it after changing where the click sounds.</p>
+}
+
+@code {
+    private const int Beats = 16;
+    private static readonly ClickPlan Plan = new(80, 4, 1, ClickStage.Throughout);
+
+    private readonly List<long> taps = [];
+    private CalibrationResult? result;
+    private bool running;
+    private bool tooFew;
+    private bool saved;
+    private int beat = -1;
+    private PeriodicTimer? timer;
+
+    protected override void OnInitialized() => Keyboard.Received += OnReceived;
+
+    private void OnReceived(MidiEvent e)
+    {
+        if (!running || e.Kind != MidiKind.NoteOn) return;
+
+        lock (taps) taps.Add(e.TimeNs);
+    }
+
+    private void Start()
+    {
+        lock (taps) taps.Clear();
+        (result, tooFew, saved, running, beat) = (null, false, false, true, -1);
+        Click.Start(Plan);
+        Screen.KeepOn(true);
+        timer = new PeriodicTimer(TimeSpan.FromMilliseconds(40));
+        _ = Run(timer);
+    }
+
+    private async Task Run(PeriodicTimer running)
+    {
+        // Half a beat after the last one, the notes are counted.
+        var last = Plan.FirstMusicBeat + Beats - 1;
+        while (await running.WaitForNextTickAsync())
+        {
+            beat = Click.BeatNow();
+            if (beat > last) break;
+
+            await InvokeAsync(StateHasChanged);
+        }
+
+        var beats = Enumerable.Range(Plan.FirstMusicBeat, Beats).Select(Click.BeatTime).ToArray();
+        long[] played;
+        lock (taps) played = [.. taps];
+        Finish(Calibration.Measure(beats, played));
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Finish(CalibrationResult? measured)
+    {
+        Click.Stop();
+        Screen.KeepOn(false);
+        timer?.Dispose();
+        timer = null;
+        (result, tooFew, running) = (measured, measured is null, false);
+    }
+
+    private async Task Save()
+    {
+        if (result is null) return;
+
+        Settings.TimingOffsetMs = result.OffsetMs;
+        Settings.TappingSpreadMs = result.SpreadMs;
+        Settings.CalibratedOn = DateOnly.FromDateTime(DateTime.Now);
+        await Store.SaveAsync(Settings);
+        saved = true;
+    }
+
+    public void Dispose()
+    {
+        Keyboard.Received -= OnReceived;
+        if (running) Finish(null);
+    }
+}

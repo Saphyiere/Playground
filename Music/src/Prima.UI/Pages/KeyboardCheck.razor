@@ -1,0 +1,138 @@
+@page "/tools/keyboard"
+@implements IDisposable
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject PrimaSettings Settings
+
+<PageTitle>Keyboard check · Prima</PageTitle>
+
+<PageHead Title="Keyboard check" Kicker="Tools"><KeyboardLamp /></PageHead>
+
+@if (Keyboard.Name is null)
+{
+    <p class="page-note">Plug the piano's USB TO HOST port into the tablet. Prima finds it by itself, and this page fills in as you play.</p>
+}
+
+<div class="check-grid">
+    <section class="mu-screen check-notes" aria-label="Last notes">
+        <div class="mu-screen-head"><span>Last notes</span><span>Velocity · gap</span></div>
+        @if (notes.Count == 0)
+        {
+            <p class="page-panel-line">Play a few keys.</p>
+        }
+        <ol class="check-list">
+            @foreach (var (note, gapMs) in notes)
+            {
+                <li><span class="check-name">@NoteName.Of(note.Note)</span><span>@note.Velocity</span><span>@(gapMs is { } g ? $"{g:0} ms" : "")</span></li>
+            }
+        </ol>
+    </section>
+
+    <div class="check-side">
+        <section class="check-block" aria-labelledby="pedals">
+            <h2 id="pedals" class="section-title">Pedals</h2>
+            <div class="check-lamps">
+                @foreach (var (name, controller) in Pedals)
+                {
+                    <p class="mu-status" data-state="@(pedals.GetValueOrDefault(controller) >= 64 ? "live" : "off")"><span class="mu-led"></span>@name</p>
+                }
+            </div>
+        </section>
+        <section class="check-block" aria-labelledby="ends">
+            <h2 id="ends" class="section-title">The whole keyboard</h2>
+            <div class="check-lamps">
+                <p class="mu-status" data-state="@(lowest ? "live" : "off")"><span class="mu-led"></span>Lowest key, A0</p>
+                <p class="mu-status" data-state="@(highest ? "live" : "off")"><span class="mu-led"></span>Highest key, C8</p>
+            </div>
+        </section>
+        <section class="check-block" aria-labelledby="touch">
+            <h2 id="touch" class="section-title">Touch</h2>
+            <p class="section-note">@TouchText()</p>
+        </section>
+        <section class="check-block" aria-labelledby="jitter">
+            <h2 id="jitter" class="section-title">The MIDI path's jitter</h2>
+            <p class="section-note">@JitterText()</p>
+        </section>
+        @if (Keyboard.CanSend && Settings.SendToPiano)
+        {
+            <section class="check-block" aria-labelledby="send">
+                <h2 id="send" class="section-title">Sound from the piano</h2>
+                <p class="section-note">Prima plays middle C on the piano, on its own channel (16). If you hear it, Duet, Hear first and Listen and play back can play through the piano.</p>
+                <button type="button" class="mu-btn" @onclick="PlayTest">Play middle C</button>
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly (string Name, int Controller)[] Pedals = [("Damper", MidiEvent.Damper), ("Soft", MidiEvent.Soft), ("Sostenuto", MidiEvent.Sostenuto)];
+
+    private readonly List<(MidiEvent Note, double? GapMs)> notes = [];
+    private readonly List<int> velocities = [];
+    private readonly Dictionary<int, int> pedals = [];
+    private bool lowest;
+    private bool highest;
+    private long lastNoteNs;
+    private Timer? refresh;
+
+    protected override void OnInitialized()
+    {
+        Keyboard.Received += OnReceived;
+        Keyboard.Changed += OnChanged;
+        // The jitter fills in over a minute of Active Sensing, so it's redrawn every few seconds.
+        refresh = new Timer(_ => InvokeAsync(StateHasChanged), null, 3000, 3000);
+    }
+
+    private void OnReceived(MidiEvent e)
+    {
+        lock (notes)
+        {
+            if (e.Kind == MidiKind.Control) pedals[e.Data1] = e.Data2;
+            if (e.Kind == MidiKind.NoteOn)
+            {
+                notes.Insert(0, (e, lastNoteNs == 0 ? null : (e.TimeNs - lastNoteNs) / 1e6));
+                if (notes.Count > 10) notes.RemoveAt(notes.Count - 1);
+                velocities.Add(e.Velocity);
+                if (velocities.Count > 12) velocities.RemoveAt(0);
+                lastNoteNs = e.TimeNs;
+                lowest |= e.Note == NoteName.LowestKey;
+                highest |= e.Note == NoteName.HighestKey;
+            }
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private string TouchText()
+    {
+        if (velocities.Count < 5) return "Play five or more notes as evenly as you can, and their velocities show here.";
+        if (velocities.Distinct().Count() == 1) return $"Every note came in at {velocities[0]}: the piano's touch is set to Fixed, so evenness of touch can't be measured.";
+
+        var spread = Stats.StandardDeviation(velocities.Select(v => (double)v).ToArray());
+        return $"Your last {velocities.Count}: {string.Join(" ", velocities)}. Spread ±{spread:0.0}.";
+    }
+
+    private string JitterText()
+    {
+        if (Keyboard.Name is null) return "Shows once the piano has been plugged in for a minute.";
+        if (Keyboard.Sensing.JitterMs is { } jitter) return $"±{jitter:0.0} ms, from the piano's Active Sensing. Timing differences smaller than this are shown as within the keyboard's noise.";
+        if (Keyboard.Sensing.Count == 0) return "The piano hasn't sent Active Sensing yet. If it never does, only the 10 ms rule applies.";
+
+        return $"Measuring: {Keyboard.Sensing.Count} of {SensingJitter.Enough} Active Sensing messages so far, about a minute in all.";
+    }
+
+    private void PlayTest()
+    {
+        var at = Clock.NowNs + 50_000_000;
+        Keyboard.Send([0x9F, NoteName.MiddleC, 80], at);
+        Keyboard.Send([0x8F, NoteName.MiddleC, 0], at + 700_000_000);
+    }
+
+    public void Dispose()
+    {
+        Keyboard.Received -= OnReceived;
+        Keyboard.Changed -= OnChanged;
+        refresh?.Dispose();
+    }
+}
