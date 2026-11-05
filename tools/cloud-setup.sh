@@ -25,10 +25,21 @@ sdkmanager="$ANDROID/cmdline-tools/latest/bin/sdkmanager"
 (yes || true) | "$sdkmanager" --sdk_root="$ANDROID" --licenses > /dev/null
 "$sdkmanager" --sdk_root="$ANDROID" "platform-tools" "platforms;android-36" "build-tools;36.0.0" > /dev/null
 
-# Every shell in a session finds them, so a plain `dotnet build` works.
+# Every shell in a session finds them, so a plain `dotnet build` works. Login shells read /etc/profile.d, but the shells a
+# Claude Code session runs its commands in don't, and without ANDROID_HOME an Android build stops with "The Android SDK
+# directory could not be found" (XA5300). So the SDK's place is also in ~/.config/xbuild/monodroid-config.xml, where the .NET
+# Android build looks for it without any environment variable.
 cat > /etc/profile.d/dotnet-android.sh <<EOF
 export DOTNET_ROOT=$DOTNET DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 export ANDROID_HOME=$ANDROID ANDROID_SDK_ROOT=$ANDROID
 export PATH=\$PATH:$ANDROID/platform-tools
+EOF
+xbuild=${HOME:-/root}/.config/xbuild
+mkdir -p "$xbuild"
+cat > "$xbuild/monodroid-config.xml" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<monodroid>
+  <android-sdk path="$ANDROID" />
+</monodroid>
 EOF
 rm -f /tmp/dotnet-install.sh /tmp/cmdline-tools.zip
