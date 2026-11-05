@@ -73,6 +73,17 @@ Variants, one a day in the plan and any time here:
   reading, and part of the piano course that did best.
 - **Hear first**: the piano plays the passage once, then you read it.
 
+After a passage, **Again** reads the same one once more. A second reading is practice, not reading at sight, so it's kept in the
+history as a repeat and doesn't move the level or count as one of the day's passages.
+
+### The piano buttons
+
+So the hands needn't leave the keys between runs, the piano's lowest C♯ presses the screen's main button and its lowest D♯
+presses Again: C♯ for a new passage, then again to start it without waiting out the look, and after it the next one; D♯ to read
+it again. The drills' main buttons answer to C♯ too (Start, Next try, Run, Another set). Those two keys are below anything a
+passage asks for, and they only work between runs: while one counts in or plays, every key is music. While the piano is
+plugged in, the buttons they press are marked C♯1 and D♯1. They can be turned off in Settings.
+
 ### Drills
 
 Short, focused practice, each a few minutes. Reading drills: Notes, Ledger lines, Intervals and shapes, Chords, Key signatures,
@@ -134,7 +145,8 @@ Settings.
 ### Settings
 
 Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, and whether a
-wrong note in a drill is named), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, timing), notation (the
+wrong note in a drill is named), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
+timing), notation (the
 music font and the sheet's size), the click (where it sounds, its sound and volume), and your data. A daily goal much above last
 week's average gets a note to go up gradually; Prima never raises it by itself.
 

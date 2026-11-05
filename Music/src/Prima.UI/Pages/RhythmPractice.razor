@@ -32,7 +32,7 @@
     }
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
     {
-        <button type="button" class="mu-btn mu-primary" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
     }
 </section>
 

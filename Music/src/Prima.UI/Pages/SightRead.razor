@@ -40,12 +40,12 @@
         <div class="control-row control-row-play">
             @if (spotFrom is null)
             {
-                <button type="button" class="mu-btn mu-primary" @onclick="async () => { Spot = null; await NewPassage(); }">Read one more</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="async () => { Spot = null; await NewPassage(); }">Read one more</button>
                 <a class="mu-btn" href="library">Library</a>
             }
             else
             {
-                <button type="button" class="mu-play" aria-label="Play the bar" @onclick="() => StartSpot(1)"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                <button type="button" class="mu-play" aria-label="Play the bar" data-piano="go" @onclick="() => StartSpot(1)"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
             }
             <button type="button" class="mu-btn" @onclick="Done">Back</button>
         </div>
@@ -74,12 +74,12 @@
         <div class="control-row control-row-play">
             @if (reading is null)
             {
-                <button type="button" class="mu-btn mu-primary" @onclick="FindLevel">Find my level</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="FindLevel">Find my level</button>
                 <button type="button" class="mu-btn" @onclick="StartAtOne">Start at level 1</button>
             }
             else
             {
-                <button type="button" class="mu-play" aria-label="New passage" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                <button type="button" class="mu-play" aria-label="New passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
                 <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
             }
             @if (!PianoPlays)
@@ -104,7 +104,7 @@
             @if (stage == Stage.Look)
             {
                 <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
-                <button type="button" class="mu-btn mu-primary" @onclick="Run">Start</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Run">Start</button>
             }
         </section>
 
@@ -141,32 +141,33 @@
                 <div class="control-row">
                     @if (practising is not null)
                     {
-                        <button type="button" class="mu-btn mu-primary" @onclick="() => Practise(0)">Again</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="again" @onclick="() => Practise(0)">Again</button>
                         <button type="button" class="mu-btn" @onclick="() => Practise(0, 0.9)">Slower</button>
                         <button type="button" class="mu-btn" @onclick="() => Practise(0, 1.08)">Faster</button>
-                        <button type="button" class="mu-btn" @onclick="() => Practise(1)">The next bars</button>
+                        <button type="button" class="mu-btn" data-piano="go" @onclick="() => Practise(1)">The next bars</button>
                     }
                     else if (spotPart == 1)
                     {
-                        <button type="button" class="mu-btn mu-primary" @onclick="() => StartSpot(2)">Now the bars around it</button>
-                        <button type="button" class="mu-btn" @onclick="() => StartSpot(1)">The bar again</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Now the bars around it</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">The bar again</button>
                     }
                     else if (spotPart == 2)
                     {
-                        <button type="button" class="mu-btn" @onclick="() => StartSpot(2)">Again</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(2)">Again</button>
                     }
                     else if (finding)
                     {
-                        <button type="button" class="mu-btn mu-primary" @onclick="NewPassage">Next</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="NewPassage">Next</button>
                     }
                     else
                     {
-                        <button type="button" class="mu-play" aria-label="Next passage" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
                         <button type="button" class="mu-btn" @onclick="Slower">Slower</button>
                         <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
                     }
                     <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide details" : "Details")</button>
-                    <button type="button" class="mu-btn" @onclick="Done">Done</button>
+                    <button type="button" class="mu-btn" data-piano="@(spotPart == 2 ? "go" : null)" @onclick="Done">Done</button>
                 </div>
             </section>
         }
@@ -213,6 +214,8 @@
     private Timer? ticker;
     private bool finding;
     private int findLevel;
+    // The same passage again: a second reading is practice, so it doesn't move the level or count as one of today's passages.
+    private bool repeat;
     private readonly List<double> findResults = [];
     private int passagesToday;
     private Key? lastKey;
@@ -346,7 +349,7 @@
 
     private static string VariantName(Variant v) => v switch { Variant.ReadAhead => "Read ahead", Variant.Duet => "Duet", _ => "Hear first" };
 
-    private string Kicker() => practising is not null ? $"Practising · {practising.Title}" : Spot == 1 && (stage == Stage.Choose || spotPart > 0) ? "One spot" : stage == Stage.Choose ? "New music, in time" : ready?.Real == true ? "Real music" : finding ? $"Finding your level · level {findLevel}" : variant is { } v ? VariantName(v) : "Sight-read";
+    private string Kicker() => practising is not null ? $"Practising · {practising.Title}" : Spot == 1 && (stage == Stage.Choose || spotPart > 0) ? "One spot" : stage == Stage.Choose ? "New music, in time" : ready?.Real == true ? "Real music" : finding ? $"Finding your level · level {findLevel}" : repeat ? "Again, for practice" : variant is { } v ? VariantName(v) : "Sight-read";
 
     private Task FindLevel()
     {
@@ -365,7 +368,7 @@
     private async Task NewPassage()
     {
         StopRun();
-        spotPart = 0;
+        (spotPart, repeat) = (0, false);
         reading ??= ReadingState.Start;
         var spec = finding ? Ladder.Level(findLevel) : reading.Spec;
         tempo = finding ? spec.Tempo.Min : reading.Tempo;
@@ -543,13 +546,13 @@
         };
         var played = session.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
         var beats = Enumerable.Range(-Math.Max(1, Settings.CountInBars) * passage.Score.Meter.Beats, (int)(measures.bars * passage.Score.Meter.Beats) + 8).Select(b => (session.TimeAt(b) - zero) / 1e6);
-        var kind = practising is not null ? "piece" : spotPart > 0 ? "spot" : finding ? "find" : "passage";
+        var kind = practising is not null ? "piece" : spotPart > 0 ? "spot" : finding ? "find" : repeat ? "again" : "passage";
         var avoid = avoidKey is { } k ? new { fifths = k.Fifths, minor = k.Minor } : null;
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, kind, spotPart > 0 ? (spotPart == 1 ? "bar" : "phrase") : variant?.ToString(), null, passage.Spec.Level, tempo, (long)passage.Seed,
             System.Text.Json.JsonSerializer.Serialize(new { step = spotPart > 0 ? spotStep : reading?.Step ?? 4, style = passage.Style.ToString(), avoid, key = new { fifths = passage.Score.Key.Fifths, minor = passage.Score.Key.Minor }, spotBar = spotPart > 0 ? spotBar : (int?)null, excerpt = ready?.Excerpt?.Id, piece = ready?.Piece?.Id, bars = ready?.Measures }), System.Text.Json.JsonSerializer.Serialize(played), System.Text.Json.JsonSerializer.Serialize(beats), System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
         await Store.AddMinutesAsync(Today, (DateTime.Now - lookStarted).TotalMinutes);
 
-        if (practising is not null) return;
+        if (practising is not null || repeat) return;
         if (spotPart > 0)
         {
             if (spotPart == 2) await Store.MarkStepAsync(Today, StepKind.OneSpot);
@@ -586,6 +589,14 @@
         else if (variant is null) reading = Reading.After(reading, result.InTimeAccuracy, result.KeptGoing).State;
         await Store.SaveTrackAsync("reading", reading);
         if (passagesToday >= 4) await Store.MarkStepAsync(Today, StepKind.SightReading);
+    }
+
+    private void Again()
+    {
+        StopRun();
+        repeat = true;
+        (result, tapped, showTimeline) = (null, null, false);
+        BeginLook();
     }
 
     private async Task Slower()

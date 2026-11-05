@@ -372,6 +372,54 @@ body {
     transform: scale(0.97);
 }
 
+/* The piano's buttons: while it's plugged in, a button the lowest C♯ or D♯ presses wears the key's name, and a press from the
+   piano shows as a tap would. */
+[data-piano-keys] [data-piano]::after {
+    flex: none;
+    padding: 0 5px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0;
+    opacity: 0.7;
+}
+
+[data-piano-keys] [data-piano="go"]::after {
+    content: "C♯1";
+}
+
+[data-piano-keys] [data-piano="again"]::after {
+    content: "D♯1";
+}
+
+.mu-play[data-piano] {
+    position: relative;
+}
+
+[data-piano-keys] .mu-play[data-piano]::after {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+}
+
+.mu-btn.piano-pressed,
+.mu-play.piano-pressed {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .mu-btn.piano-pressed {
+    transform: none;
+    background: var(--surface);
+}
+
+[data-theme="vinyl"] .mu-btn.mu-primary.piano-pressed {
+    background: var(--accent);
+}
+
 /* Toggle: a latching key with its LED (Studio); an outlined square with a dot (Vinyl). */
 .mu-toggle {
     min-width: 104px;

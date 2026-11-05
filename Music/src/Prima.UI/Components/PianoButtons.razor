@@ -1,0 +1,87 @@
+@implements IAsyncDisposable
+@inject IKeyboard Keyboard
+@inject PrimaSettings Settings
+@inject SessionRegistry Registry
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@*
+    The piano's two buttons, so the hands needn't leave the keys between runs: the lowest C♯ presses the screen's button marked
+    data-piano="go" (its main one: Start, Next, Run…), the lowest D♯ the one marked data-piano="again". Only between runs: while
+    one counts in or plays, every key is music. The keys are at the bottom of the keyboard, below anything a passage asks for.
+    While the piano is plugged in, the marked buttons say which key presses them.
+*@
+
+@code {
+    /// <summary>The lowest C♯ and D♯ on an 88-key piano.</summary>
+    public const int Go = 25, Again = 27;
+
+    private IJSObjectReference? module;
+
+    protected override void OnInitialized()
+    {
+        Keyboard.Received += OnReceived;
+        Keyboard.Changed += OnChanged;
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PianoButtons.razor.js");
+            await ShowKeys();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void OnReceived(MidiEvent e)
+    {
+        if (e.Kind != MidiKind.NoteOn || e.Note is not (Go or Again) || !Settings.PianoButtons || Registry.Current?.Phase is Phase.CountIn or Phase.Playing) return;
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                if (module is not null) await module.InvokeVoidAsync("press", e.Note == Go ? "go" : "again");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        });
+    }
+
+    // The keys' names on the buttons: while the piano is plugged in and the setting is on (looked at again on each new screen).
+    private async Task ShowKeys()
+    {
+        try
+        {
+            if (module is not null) await module.InvokeVoidAsync("showKeys", Keyboard.Name is not null && Settings.PianoButtons);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(ShowKeys);
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(ShowKeys);
+
+    public async ValueTask DisposeAsync()
+    {
+        Keyboard.Received -= OnReceived;
+        Keyboard.Changed -= OnChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+        try
+        {
+            if (module is not null) await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

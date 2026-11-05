@@ -78,6 +78,12 @@
     </div>
     <p class="section-note">Duet, Hear first and Listen and play back play their notes on the piano itself, on channel 16.@(Keyboard.Name is not null && !Keyboard.CanSend ? " This piano doesn't take notes from the tablet, so they're hidden." : "")</p>
     <div class="control-row">
+        <span class="control-label">Piano buttons</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = true)"><span class="mu-led"></span>On</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = false)"><span class="mu-led"></span>Off</button>
+    </div>
+    <p class="section-note">Between runs, the lowest C♯ on the piano presses the screen's main button (Start, Next, Run, Another set) and the lowest D♯ presses Again, so you needn't reach for the tablet. The buttons they press are marked C♯1 and D♯1. While a run plays, every key is music.</p>
+    <div class="control-row">
         <span class="control-label">Timing</span>
         <span class="control-value">@(Options.CalibratedOn is { } day ? $"{Options.TimingOffsetMs:+0;−0;0} ms, from {day.ToString("d MMMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
         <a class="mu-btn" href="tools/timing">@(Options.CalibratedOn is null ? "Calibrate" : "Redo timing")</a>

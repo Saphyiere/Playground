@@ -36,11 +36,11 @@
     <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing) && !capturing)
     {
-        <button type="button" class="mu-btn mu-primary" disabled="@(runs >= TechniqueState.RunsPerSet)" @onclick="Go">@(state.Tempo is null ? "Play it at your own speed" : "Run")</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(runs >= TechniqueState.RunsPerSet)" @onclick="Go">@(state.Tempo is null ? "Play it at your own speed" : "Run")</button>
     }
     else if (capturing)
     {
-        <button type="button" class="mu-btn mu-primary" @onclick="EndComfortable">Done</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="EndComfortable">Done</button>
     }
 </section>
 

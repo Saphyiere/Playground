@@ -35,7 +35,7 @@ else
         }
         @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
         {
-            <button type="button" class="mu-btn mu-primary" @onclick="Advance">@ButtonName()</button>
+            <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Advance">@ButtonName()</button>
         }
     </section>
     <p class="page-note">@Words()</p>

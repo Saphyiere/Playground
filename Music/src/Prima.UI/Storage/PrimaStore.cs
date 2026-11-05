@@ -26,6 +26,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string ClickSoundKey = "Click.Sound";
     private const string ClickVolumeKey = "Click.Volume";
     private const string SendToPianoKey = "Keyboard.SendToPiano";
+    private const string PianoButtonsKey = "Keyboard.PianoButtons";
     private const string MusicFontKey = "Notation.Font";
     private const string SheetSizeKey = "Notation.SheetSize";
     private const string NameKey = "Profile.Name";
@@ -62,6 +63,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : defaults.ClickSound;
         settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? defaults.ClickVolume;
         settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
+        settings.PianoButtons = saved.GetValueOrDefault(PianoButtonsKey) != "false";
         settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? defaults.MusicFont;
         settings.SheetSize = (int?)Number(SheetSizeKey) ?? defaults.SheetSize;
         settings.Name = saved.GetValueOrDefault(NameKey) ?? defaults.Name;
@@ -85,6 +87,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (ClickSoundKey, settings.ClickSound.ToString()),
             (ClickVolumeKey, settings.ClickVolume.ToString(CultureInfo.InvariantCulture)),
             (SendToPianoKey, settings.SendToPiano ? "true" : "false"),
+            (PianoButtonsKey, settings.PianoButtons ? "true" : "false"),
             (MusicFontKey, settings.MusicFont),
             (SheetSizeKey, settings.SheetSize.ToString(CultureInfo.InvariantCulture)),
             (NameKey, settings.Name),
