@@ -77,8 +77,17 @@ Then try, in **Tools**:
   **Settings → Click**, "On the piano" plays it as short high notes on the piano instead, for headphones in the piano.
 - **Timing**: play a key with the click for 16 beats and keep the offset. Redo it after changing where the click sounds.
 
-Worth noting for the next parts: whether the piano echoes the notes Prima sends back to it, which channel a split or dual voice
-sends on, the jitter Keyboard check shows, and the timing offset and spread.
+Worth noting: whether the piano echoes the notes Prima sends back to it, which channel a split or dual voice sends on, the
+jitter Keyboard check shows, and the timing offset and spread.
+
+Then, in the **Library** (the first visit prepares the collection, a minute or two):
+
+- Open a piece and turn pages with the soft pedal (on) and the sostenuto pedal (back), if the LP-1 pedal unit is fitted, or with
+  C8 and A0. If a pedal does nothing, the piano may have controller messages switched off: hold METRONOME and RHYTHM and press
+  C♯4 (manual, p. 54).
+- **Follow me** on a minuet you know: does the lit bar keep up, and does the page turn early enough?
+- In portrait, a PDF's half-page turns, and **Scroll at the tempo**: is a line at a time the right pace?
+- Whether 7 mm staves read comfortably from the music stand (Settings → Notation changes the size).
 
 ## The looks
 

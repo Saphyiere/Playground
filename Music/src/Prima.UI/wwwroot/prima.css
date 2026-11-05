@@ -121,16 +121,7 @@
   --on-screen: #ffb547;
   --on-screen-muted: #a8803c;
   --staff-line: #86663a;
-  --staff-glyph: #a8803c;
-  --note-played: #9a7434;
-  --note-now: #ffd27a;
-  --note-ahead: #ffb547;
   --note-miss: #ff5a36;
-  --cursor: rgba(255, 181, 71, 0.18);
-  --key-white: #f4f1ea;
-  --key-black: #2b2b2b;
-  --key-down: #ff6a1a;
-  --keybed: #2b2a27;
   --meter-on: #ffb547;
   --meter-off: #3a3229;
   --disc: #2f2d2a;
@@ -172,16 +163,7 @@
   --on-screen: #f1e4c8;
   --on-screen-muted: #c2b69a;
   --staff-line: #8aa79f;
-  --staff-glyph: #cfc3a5;
-  --note-played: #a6bdb4;
-  --note-now: #e5a823;
-  --note-ahead: #f1e4c8;
   --note-miss: #f08458;
-  --cursor: rgba(229, 168, 35, 0.18);
-  --key-white: #f1e4c8;
-  --key-black: #121212;
-  --key-down: #d9622b;
-  --keybed: #0f2a2b;
   --meter-on: #e5a823;
   --meter-off: #2f6162;
   --disc: #121212;
@@ -216,12 +198,18 @@
   --font-sans: "Work Sans", system-ui, sans-serif;
 }
 
-/* The sheet: printed music, the same in both looks. The marks after a passage use the miss color and the accent. */
+/* The sheet: printed music, the same in both looks, and what's marked on it: wrong and missed notes, early and late ones,
+   and the heat map of missed notes on You (one hue, darker for more often). */
 :root {
-  --mu-sheet: #fffdf8;
-  --mu-sheet-ink: #161412;
-  --mu-sheet-edge: rgba(22, 20, 18, 0.14);
-  --mu-sheet-faint: #8a857c;
+  --sheet: #fffdf8;
+  --sheet-ink: #161412;
+  --sheet-edge: rgba(22, 20, 18, 0.14);
+  --sheet-faint: #8a857c;
+  --mark-wrong: #c8361b;
+  --mark-timing: #b7650c;
+  --heat-1: #de735a;
+  --heat-2: #c23d1d;
+  --heat-3: #8f1d0b;
 }
 
 
@@ -1224,7 +1212,7 @@ a {
 .sw-ground { background: var(--rail); }
 .sw-screen { background: var(--screen); }
 .sw-accent { background: var(--accent); }
-.sw-sheet { background: var(--mu-sheet); }
+.sw-sheet { background: var(--sheet); }
 
 /* Rows of controls: a printed label, then keys and toggles. */
 .control-rows {
@@ -1494,10 +1482,10 @@ a.mu-btn {
 /* The sheet: printed music, black on paper in both looks, with the cursor and the marks drawn over it. */
 .sheet {
     position: relative;
-    background: var(--mu-sheet);
-    color: var(--mu-sheet-ink);
+    background: var(--sheet);
+    color: var(--sheet-ink);
     border-radius: 3px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--mu-sheet-edge);
+    box-shadow: 0 0 0 1px var(--sheet-edge), 0 1px 3px var(--sheet-edge);
     min-height: 40px;
 }
 
@@ -1532,14 +1520,14 @@ a.mu-btn {
 
 .sheet-music .mark-wrong,
 .sheet-music .mark-wrong g {
-    fill: #c8361b;
-    color: #c8361b;
+    fill: var(--mark-wrong);
+    color: var(--mark-wrong);
 }
 
 .sheet-music .mark-missed .notehead,
 .sheet-music .mark-missed .notehead g {
     fill: transparent;
-    stroke: #c8361b;
+    stroke: var(--mark-wrong);
     stroke-width: 28px;
 }
 
@@ -1547,11 +1535,11 @@ a.mu-btn {
 .sheet-music .mark-late .notehead,
 .sheet-music .mark-early .notehead g,
 .sheet-music .mark-late .notehead g {
-    fill: #b7650c;
+    fill: var(--mark-timing);
 }
 
 .sheet-ghost {
-    fill: var(--mu-sheet-faint);
+    fill: var(--sheet-faint);
     opacity: 0.85;
 }
 
@@ -1560,12 +1548,12 @@ a.mu-btn {
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 700;
-    fill: #c8361b;
+    fill: var(--mark-wrong);
 }
 
 .sheet-arrow {
     font-size: 18px;
-    fill: #b7650c;
+    fill: var(--mark-timing);
 }
 
 /* Where a sheet sits: Studio's dark bezel around the paper; Vinyl's paper on the teal ground. */
@@ -1595,7 +1583,7 @@ a.mu-btn {
 }
 
 .sheet-cover {
-    fill: var(--mu-sheet);
+    fill: var(--sheet);
 }
 
 /* Sight-read: the heading and readouts above the sheet, the look's bar, and the summary under it. */
@@ -1697,7 +1685,7 @@ a.mu-btn {
     width: 100%;
     height: 120px;
     border-radius: var(--radius-display);
-    background: var(--mu-sheet);
+    background: var(--sheet);
 }
 
 .timeline-band.audible {
@@ -1709,20 +1697,20 @@ a.mu-btn {
 }
 
 .timeline-zero {
-    stroke: var(--mu-sheet-faint);
+    stroke: var(--sheet-faint);
     stroke-width: 1;
 }
 
 .timeline-note {
-    fill: var(--mu-sheet-ink);
+    fill: var(--sheet-ink);
 }
 
 .timeline-note.off {
-    fill: #b7650c;
+    fill: var(--mark-timing);
 }
 
 .timeline-miss {
-    stroke: #c8361b;
+    stroke: var(--mark-wrong);
     stroke-width: 2;
 }
 
@@ -1759,7 +1747,7 @@ a.mu-btn {
 }
 
 [data-theme="studio"] .drill-feedback.wrong {
-    color: #c8361b;
+    color: var(--mark-wrong);
 }
 
 .tool-card-off {
@@ -2055,14 +2043,14 @@ a.mu-btn {
     border-radius: var(--radius-round);
 }
 
-.heat-key.heat0 { background: var(--mu-sheet-ink); box-shadow: 0 0 0 1px var(--mu-sheet); }
-.heat-key.heat1 { background: #e8a08f; }
-.heat-key.heat2 { background: #d4573d; }
-.heat-key.heat3 { background: #8f1d0b; }
+.heat-key.heat0 { background: var(--sheet-ink); box-shadow: 0 0 0 1px var(--sheet); }
+.heat-key.heat1 { background: var(--heat-1); }
+.heat-key.heat2 { background: var(--heat-2); }
+.heat-key.heat3 { background: var(--heat-3); }
 
-.sheet-music .mark-heat1, .sheet-music .mark-heat1 g { fill: #e8a08f; }
-.sheet-music .mark-heat2, .sheet-music .mark-heat2 g { fill: #d4573d; }
-.sheet-music .mark-heat3, .sheet-music .mark-heat3 g { fill: #8f1d0b; }
+.sheet-music .mark-heat1, .sheet-music .mark-heat1 g { fill: var(--heat-1); }
+.sheet-music .mark-heat2, .sheet-music .mark-heat2 g { fill: var(--heat-2); }
+.sheet-music .mark-heat3, .sheet-music .mark-heat3 g { fill: var(--heat-3); }
 
 .you-table {
     width: 100%;
@@ -2431,4 +2419,9 @@ a.mu-btn {
     right: 0;
     bottom: 0;
     background: #fff;
+}
+
+/* A toggle holding only a number needs less room, so a row of six fits beside its label in portrait. */
+.mu-toggle.mu-toggle-number {
+    min-width: 72px;
 }

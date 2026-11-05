@@ -30,6 +30,8 @@ builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>(
 builder.Services.AddPrima(dbPath);
 
 var app = builder.Build();
+// An address no page has shows the app's own not-found page, as the tablet's router does.
+app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(Routes).Assembly);

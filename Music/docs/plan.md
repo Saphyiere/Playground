@@ -846,3 +846,34 @@ Active Sensing, read ahead's look, the day's summary, the improvised answer, and
   treatments) and the keyboard strip on the reading screen. Nothing in the plan replaces singing; say if a "sing it first"
   step without scoring is wanted.
 - The numbers marked ours are starting points to tune once there's real playing data.
+
+## As built
+
+All ten parts are in, in the order above. Where the build went its own way, or stopped short:
+
+- **Today and Sight-read share the day's passages.** They come in a fixed order from the date, so the passage Today shows as up
+  next is the one Sight-read gives. Every third, from level 4, is a real excerpt (below).
+- **One spot** plays today's worst bar 20% slower and larger, then the four bars around it at their tempo. "Its line" became the
+  four-bar phrase, since a line's bars depend on the screen.
+- **You** draws twelve weeks of trends: one series each, a hollow point for the week still going, every value in words too.
+- **The Library's bundle** is library.md's tier A: 133 MusicXML files from PDMX and 104 PDFs with MIDI from Mutopia, built by
+  `Music/tools/Prima.Library` into `artifacts/library` (not committed) and packed into the app. Tier B (Sapp's Humdrum, DCML's
+  MuseScore files), the hymns and the Lieder aren't in it: GitHub archives couldn't be fetched from the cloud, and the hymns and
+  Lieder were left for the owner to decide on.
+- **Grading** follows library.md §3: a level for each feature, the hardest wins. Texture, range and leaps are looser than the
+  generator's steps (and leaps count only in the tune), so pieces land near their published anchors: the minuets at 6–8,
+  Burgmüller and the sonatinas at 8–10, the Inventions at 8–9. The within-level score is a hand-weighted rubric (density,
+  leaps, pitch entropy, range, rhythmic variety). Grading generated passages showed four places where the generator overstepped
+  its level (level 1's last note leapt, pickups leapt into the tune, ties made syncopation, the waltz brought two-note chords a
+  level early); they're fixed.
+- **Real excerpts on the reading track** are every third passage from level 4, at or below your level, four bars (eight from
+  level 7), resting three weeks once read. They don't move the level: their grades aren't calibrated against your reading yet.
+- **PDFs** find their systems from staff lines, five to a staff, paired into grand staves. The pen fixes and link points for
+  repeats aren't built: the bars a line and beats a bar are set with − and +, the same for the whole piece. A PDF isn't followed
+  note by note; it scrolls at the tempo, a system at a time.
+- **Following** is library.md §6's design: a windowed chord matcher, a re-anchor search, a restart after two bars of silence, the
+  turn at max(2 s, 2 beats). The marks afterwards line the notes up by order only, without a timing term.
+- **Imports** read MusicXML, MEI, ABC and PDF. MIDI, MuseScore and Humdrum files are turned away with how to convert them.
+- **Finger-independence patterns** are still the built-in five-finger figures, not taken from pieces.
+- **Bar numbers.** Files repeat bar numbers (two endings) or skip them, so Prima numbers bars in order, a pickup 0, and writes
+  those numbers back into the MEI, so the numbers printed are the ones it says.
