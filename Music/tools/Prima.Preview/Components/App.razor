@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="studio">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <base href="/" />
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem("look") ?? "studio"; } catch { }</script>
+    <link rel="stylesheet" href="_content/Prima.UI/prima.css" />
+    <HeadOutlet />
+</head>
+<body>
+    <div class="status-bar-safe-area"></div>
+    <Prima.UI.Routes @rendermode="Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+</html>

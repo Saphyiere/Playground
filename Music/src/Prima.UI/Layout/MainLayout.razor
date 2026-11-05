@@ -1,0 +1,60 @@
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject LookSetting LookSetting
+@inject IJSRuntime JS
+
+@* Screens wait for the saved look, so the parts that draw per look don't start in the wrong one. *@
+@if (loaded)
+{
+    <CascadingValue Value="LookSetting.Current">
+        <div class="shell">
+            <Rail />
+            <main class="shell-main">
+                @Body
+            </main>
+        </div>
+    </CascadingValue>
+}
+
+@code {
+    private bool loaded;
+    private string? shownLook;
+    private IJSObjectReference? page;
+
+    protected override async Task OnInitializedAsync()
+    {
+        LookSetting.Changed += OnLookChanged;
+        await LookSetting.LoadAsync();
+        loaded = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The page's colors, fonts and shapes follow data-theme on <html>, which index.html restores before the first paint.
+        if (!loaded || shownLook == LookSetting.Current.Id) return;
+
+        shownLook = LookSetting.Current.Id;
+        try
+        {
+            page ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Layout/MainLayout.razor.js");
+            await page.InvokeVoidAsync("showLook", shownLook);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void OnLookChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        LookSetting.Changed -= OnLookChanged;
+        try
+        {
+            if (page is not null) await page.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

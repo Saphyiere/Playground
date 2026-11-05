@@ -1,0 +1,1227 @@
+/* Prima's look: Studio and Vinyl, from the Studio & Vinyl design system (https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii).
+   The fonts ship with the app (fonts/, each under the SIL Open Font License), then each look's tokens, the shared components,
+   and Prima's own screens. The sheet music is black on paper in both looks. */
+
+@font-face {
+    font-family: "Space Grotesk";
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url("fonts/SpaceGrotesk-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Space Grotesk";
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url("fonts/SpaceGrotesk-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/SpaceMono-Regular-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/SpaceMono-Regular-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("fonts/SpaceMono-Bold-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("fonts/SpaceMono-Bold-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Bebas Neue";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/BebasNeue-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Bebas Neue";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/BebasNeue-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Work Sans";
+    font-style: normal;
+    font-weight: 300 800;
+    font-display: swap;
+    src: url("fonts/WorkSans-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Work Sans";
+    font-style: normal;
+    font-weight: 300 800;
+    font-display: swap;
+    src: url("fonts/WorkSans-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+/* Tokens: each look's colors, then the shared spacing, radii and fonts. */
+:root, [data-theme="studio"] {
+  --ground: #dcd9d2;
+  --seam: #c6c2ba;
+  --rail: #cfcbc3;
+  --ink: #2a2826;
+  --ink-muted: #56534e;
+  --ink-faint: #615c53;
+  --surface: #f4f1ea;
+  --on-surface: #2a2826;
+  --card: #f4f1ea;
+  --on-card: #2a2826;
+  --key-dark: #3a3936;
+  --on-key-dark: #d6d1c7;
+  --button: #f4f1ea;
+  --button-edge: rgba(42, 40, 38, 0);
+  --on-button: #2a2826;
+  --accent: #ff6a1a;
+  --on-accent: #1d1b19;
+  --accent-2: #ffb547;
+  --live: #46c35b;
+  --led-off: #bdb8ae;
+  --led-off-dark: #55524c;
+  --screen: #16120c;
+  --screen-edge: #2b2620;
+  --on-screen: #ffb547;
+  --on-screen-muted: #a8803c;
+  --staff-line: #86663a;
+  --staff-glyph: #a8803c;
+  --note-played: #9a7434;
+  --note-now: #ffd27a;
+  --note-ahead: #ffb547;
+  --note-miss: #ff5a36;
+  --cursor: rgba(255, 181, 71, 0.18);
+  --key-white: #f4f1ea;
+  --key-black: #2b2b2b;
+  --key-down: #ff6a1a;
+  --keybed: #2b2a27;
+  --meter-on: #ffb547;
+  --meter-off: #3a3229;
+  --disc: #2f2d2a;
+  --disc-detail: #45423d;
+  --label: #ff6a1a;
+  --on-label: #1d1b19;
+  --focus: #2a2826;
+  --shadow-cap: 0 3px 0 #b5afa4;
+  --shadow-cap-dark: 0 3px 0 #1f1e1c;
+  --shadow-accent: 0 3px 0 #c44e0f;
+  --shadow-bezel: inset 0 0 0 6px #2b2620;
+  --shadow-sleeve: none;
+}
+[data-theme="vinyl"] {
+  color-scheme: dark;
+  --ground: #173b3d;
+  --seam: #24504f;
+  --rail: #173b3d;
+  --ink: #f1e4c8;
+  --ink-muted: #c2b69a;
+  --ink-faint: #94bab4;
+  --surface: #1f4a4b;
+  --on-surface: #f1e4c8;
+  --card: #f1e4c8;
+  --on-card: #173b3d;
+  --key-dark: #1f4a4b;
+  --on-key-dark: #f1e4c8;
+  --button: rgba(241, 228, 200, 0);
+  --button-edge: #f1e4c8;
+  --on-button: #f1e4c8;
+  --accent: #e5a823;
+  --on-accent: #173b3d;
+  --accent-2: #d9622b;
+  --live: #e5a823;
+  --led-off: #2f6162;
+  --led-off-dark: #2f6162;
+  --screen: #1f4a4b;
+  --screen-edge: #1f4a4b;
+  --on-screen: #f1e4c8;
+  --on-screen-muted: #c2b69a;
+  --staff-line: #8aa79f;
+  --staff-glyph: #cfc3a5;
+  --note-played: #a6bdb4;
+  --note-now: #e5a823;
+  --note-ahead: #f1e4c8;
+  --note-miss: #f08458;
+  --cursor: rgba(229, 168, 35, 0.18);
+  --key-white: #f1e4c8;
+  --key-black: #121212;
+  --key-down: #d9622b;
+  --keybed: #0f2a2b;
+  --meter-on: #e5a823;
+  --meter-off: #2f6162;
+  --disc: #121212;
+  --disc-detail: #2b2b2b;
+  --label: #a94017;
+  --on-label: #f1e4c8;
+  --focus: #e5a823;
+  --shadow-cap: none;
+  --shadow-cap-dark: none;
+  --shadow-accent: none;
+  --shadow-bezel: none;
+  --shadow-sleeve: 8px 8px 0 #0f2a2b;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --radius-none: 0;
+  --radius-key: 4px;
+  --radius-display: 6px;
+  --radius-cap: 10px;
+  --radius-screen: 14px;
+  --radius-round: 50%;
+  --font-grotesk: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --font-bebas: "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-sans: "Work Sans", system-ui, sans-serif;
+}
+
+/* The sheet: printed music, the same in both looks. The marks after a passage use the miss color and the accent. */
+:root {
+  --mu-sheet: #fffdf8;
+  --mu-sheet-ink: #161412;
+  --mu-sheet-edge: rgba(22, 20, 18, 0.14);
+  --mu-sheet-faint: #8a857c;
+}
+
+
+/* Studio & Vinyl: the music app's shared components. Every color is a token (tokens.css); the two looks differ only in
+   what's set under [data-theme="vinyl"] below and in the role variables here. Studio is the default. The same markup
+   renders in either look, so swapping is one attribute on the root. */
+
+:root, [data-theme="studio"] {
+    --mu-ui: var(--font-grotesk);
+    --mu-print: var(--font-mono);
+    --mu-name: var(--font-grotesk);
+    --mu-figure: var(--font-mono);
+    --mu-r-control: var(--radius-cap);
+    --mu-r-panel: var(--radius-screen);
+}
+
+[data-theme="vinyl"] {
+    --mu-ui: var(--font-sans);
+    --mu-print: var(--font-sans);
+    --mu-name: var(--font-bebas);
+    --mu-figure: var(--font-bebas);
+    --mu-r-control: var(--radius-none);
+    --mu-r-panel: var(--radius-none);
+}
+
+body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--mu-ui);
+}
+
+/* Words that differ by look ("3′" and "3:00", a rail group's name): both are in the markup, and the nearest
+   data-theme above them, on the root or on any container, decides which one shows. */
+.mu-vinyl-only:not([data-theme="vinyl"] *),
+[data-theme="vinyl"] .mu-studio-only {
+    display: none !important;
+}
+
+.mu-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+
+:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+}
+
+/* LED: Studio's lamp on a key or panel; Vinyl's dot. Always beside a word or a check. */
+.mu-led {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: var(--radius-round);
+    background: var(--led-off);
+}
+
+.mu-led.on,
+[aria-pressed="true"] > .mu-led,
+[data-state="live"] > .mu-led {
+    background: var(--live);
+    box-shadow: 0 0 6px var(--live);
+}
+
+[data-theme="vinyl"] .mu-led:not([data-theme="studio"] *) {
+    width: 8px;
+    height: 8px;
+    box-shadow: none;
+}
+
+/* Button: a keycap that drops onto the panel when pressed (Studio); square type in Bebas (Vinyl). */
+.mu-btn {
+    min-height: 48px;
+    padding: 0 18px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1.5px solid var(--button-edge);
+    border-radius: var(--mu-r-control);
+    background: var(--button);
+    color: var(--on-button);
+    box-shadow: var(--shadow-cap);
+    font-family: var(--mu-ui);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+.mu-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+.mu-btn.mu-primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-accent);
+}
+
+.mu-btn svg {
+    flex: none;
+}
+
+[data-theme="vinyl"] .mu-btn {
+    font-family: var(--font-bebas);
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+}
+
+[data-theme="vinyl"] .mu-btn:active {
+    transform: none;
+    background: var(--surface);
+}
+
+[data-theme="vinyl"] .mu-btn.mu-primary:active {
+    background: var(--accent);
+}
+
+/* Play: the one big action. Studio's orange key; Vinyl's mustard disc. */
+.mu-play {
+    width: 76px;
+    height: 76px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--mu-r-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-accent);
+    cursor: pointer;
+}
+
+.mu-play:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .mu-play {
+    border-radius: var(--radius-round);
+}
+
+[data-theme="vinyl"] .mu-play:active {
+    transform: scale(0.97);
+}
+
+/* Toggle: a latching key with its LED (Studio); an outlined square with a dot (Vinyl). */
+.mu-toggle {
+    min-width: 104px;
+    height: 64px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    border: 1.5px solid var(--button-edge);
+    border-radius: var(--mu-r-control);
+    background: var(--button);
+    color: var(--on-button);
+    box-shadow: var(--shadow-cap);
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+[data-theme="vinyl"] .mu-toggle {
+    height: 48px;
+    padding: 0 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    border-color: var(--ink-faint);
+    color: var(--ink-muted);
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: 0.16em;
+}
+
+[data-theme="vinyl"] .mu-toggle[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Navigation rail: dark function keys with LEDs (Studio); Side A and Side B as a tracklist (Vinyl). */
+.mu-nav {
+    width: 152px;
+    box-sizing: border-box;
+    padding: var(--space-5) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--rail);
+    border-right: 1px solid var(--seam);
+}
+
+.mu-nav-group {
+    margin: var(--space-3) 0 2px;
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.mu-nav-group:first-child {
+    margin-top: 0;
+}
+
+.mu-nav-item {
+    height: 60px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: var(--radius-cap);
+    background: var(--key-dark);
+    color: var(--on-key-dark);
+    box-shadow: var(--shadow-cap-dark);
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.mu-nav-item::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-round);
+    background: var(--led-off-dark);
+}
+
+.mu-nav-item[aria-current]::before {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+}
+
+.mu-nav-code {
+    display: none;
+}
+
+/* Settings sits at the rail's foot, apart from the sections. */
+.mu-nav-end {
+    margin-top: auto;
+}
+
+[data-theme="vinyl"] .mu-nav {
+    width: 232px;
+    padding: var(--space-8) var(--space-5) var(--space-7) var(--space-8);
+    gap: 6px;
+}
+
+[data-theme="vinyl"] .mu-nav-group {
+    margin-top: var(--space-6);
+    font-family: var(--font-bebas);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .mu-nav-group:first-child {
+    margin-top: 0;
+}
+
+[data-theme="vinyl"] .mu-nav-item {
+    height: 48px;
+    padding: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--ink-muted);
+    font-family: var(--font-bebas);
+    font-size: 28px;
+    line-height: 28px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    text-transform: none;
+}
+
+[data-theme="vinyl"] .mu-nav-item::before {
+    content: none;
+}
+
+[data-theme="vinyl"] .mu-nav-code {
+    display: block;
+    width: 24px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+}
+
+[data-theme="vinyl"] .mu-nav-item[aria-current] {
+    color: var(--ink);
+}
+
+[data-theme="vinyl"] .mu-nav-item[aria-current] .mu-nav-code {
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .mu-nav-item[aria-current]::after {
+    content: "";
+    width: 12px;
+    height: 12px;
+    margin-left: auto;
+    background: var(--accent);
+    clip-path: polygon(10% 5%, 95% 50%, 10% 95%);
+}
+
+/* Step: one part of today's practice. A pad with its LED (Studio); a track with its number and length (Vinyl). */
+.mu-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.mu-step {
+    min-height: 112px;
+    padding: 12px 14px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-2);
+    border-radius: var(--radius-cap);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+    text-decoration: none;
+}
+
+.mu-step-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ink-muted);
+}
+
+.mu-step-name {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+}
+
+.mu-step[data-state="done"] .mu-step-name {
+    color: var(--ink-faint);
+}
+
+.mu-step[data-state="done"] .mu-led {
+    background: var(--live);
+}
+
+.mu-step[data-state="now"] {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+}
+
+.mu-step[data-state="now"] .mu-led {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+}
+
+.mu-step-mark {
+    display: none;
+}
+
+[data-theme="vinyl"] .mu-step {
+    min-height: 0;
+    padding: 16px 18px;
+    justify-content: flex-start;
+    gap: 6px;
+    border-top: 3px solid var(--seam);
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .mu-step .mu-led {
+    display: none;
+}
+
+[data-theme="vinyl"] .mu-step-meta {
+    justify-content: flex-start;
+    font-family: var(--font-bebas);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+}
+
+[data-theme="vinyl"] .mu-step-mark {
+    display: block;
+    width: 14px;
+    height: 14px;
+    background: currentColor;
+}
+
+[data-theme="vinyl"] .mu-step[data-state="done"] .mu-step-mark {
+    clip-path: polygon(14% 52%, 30% 36%, 43% 50%, 78% 14%, 93% 29%, 43% 80%);
+}
+
+[data-theme="vinyl"] .mu-step[data-state="now"] .mu-step-mark {
+    clip-path: polygon(15% 5%, 95% 50%, 15% 95%);
+}
+
+[data-theme="vinyl"] .mu-step:not([data-state="done"]):not([data-state="now"]) .mu-step-mark {
+    display: none;
+}
+
+[data-theme="vinyl"] .mu-step-name {
+    font-family: var(--font-sans);
+    font-size: 17px;
+    font-weight: 600;
+}
+
+[data-theme="vinyl"] .mu-step[data-state="done"] {
+    border-top-color: var(--ink-faint);
+}
+
+[data-theme="vinyl"] .mu-step[data-state="done"] .mu-step-meta {
+    color: var(--ink-faint);
+}
+
+[data-theme="vinyl"] .mu-step[data-state="now"] {
+    outline: 0;
+    border-top-color: var(--accent);
+    background: var(--surface);
+}
+
+[data-theme="vinyl"] .mu-step[data-state="now"] .mu-step-meta {
+    color: var(--accent);
+}
+
+/* Screen: where the music is read. Studio's amber LCD in its bezel; Vinyl's now-playing panel. */
+.mu-screen {
+    box-sizing: border-box;
+    padding: 22px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    border-radius: var(--mu-r-panel);
+    background: var(--screen);
+    color: var(--on-screen);
+    box-shadow: var(--shadow-bezel);
+}
+
+.mu-screen-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    font-family: var(--mu-print);
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--on-screen);
+}
+
+.mu-screen-title {
+    margin: 0;
+    font-family: var(--mu-figure);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.mu-readouts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--staff-line);
+}
+
+[data-theme="vinyl"] .mu-screen-head {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .mu-screen-title {
+    font-size: 44px;
+    line-height: 42px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+[data-theme="vinyl"] .mu-readouts {
+    border-top: 1px solid var(--seam);
+}
+
+/* Readout: a figure and what it measures, on a screen. */
+.mu-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mu-readout-label {
+    font-family: var(--mu-print);
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--on-screen-muted);
+}
+
+.mu-readout-value {
+    font-family: var(--mu-figure);
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--on-screen);
+}
+
+.mu-readout.miss .mu-readout-value {
+    color: var(--note-miss);
+}
+
+[data-theme="vinyl"] .mu-readout-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+[data-theme="vinyl"] .mu-readout-value {
+    font-size: 34px;
+    line-height: 36px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+}
+
+
+/* Meter: the week's minutes as lit segments (Studio) or one bar (Vinyl). */
+.mu-meter {
+    display: flex;
+    gap: 7px;
+    padding: 7px 8px;
+    border-radius: var(--radius-display);
+    background: var(--screen);
+}
+
+.mu-meter > span {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--meter-off);
+}
+
+.mu-meter > span.on {
+    background: var(--meter-on);
+}
+
+[data-theme="vinyl"] .mu-meter {
+    gap: 0;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+}
+
+[data-theme="vinyl"] .mu-meter > span {
+    width: auto;
+    height: 6px;
+    flex: 1;
+    border-radius: 0;
+}
+
+.mu-meter-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin: 0 0 var(--space-2);
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+[data-theme="vinyl"] .mu-meter-head {
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+}
+
+/* Status: a lamp and what it says, like the keyboard being connected. */
+.mu-status {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+[data-theme="vinyl"] .mu-status {
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mu-btn, .mu-play {
+        transition: none;
+    }
+
+    .mu-btn:active, .mu-play:active {
+        transform: none;
+    }
+}
+
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   Prima's own screens, in the system's tokens.
+   --------------------------------------------------------------------------------------------------------------------------- */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+h1:focus {
+    outline: none;
+}
+
+button {
+    font: inherit;
+}
+
+a {
+    color: inherit;
+}
+
+/* Host chrome: the space the status bar draws over (Android draws the page edge to edge), and Blazor's error bar. */
+.status-bar-safe-area {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: env(safe-area-inset-top, 0px);
+    width: 100%;
+    background: var(--ground);
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: lightyellow;
+    color: #000000;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+/* The shell: the rail down the left, the screen beside it. Only the screen scrolls. */
+.shell {
+    height: calc(100dvh - env(safe-area-inset-top, 0px));
+    display: flex;
+    overflow: hidden;
+}
+
+.shell > .mu-nav {
+    flex: none;
+    overflow-y: auto;
+    padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+}
+
+.shell-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 28px 32px calc(32px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+[data-theme="vinyl"] .shell-main {
+    padding: 36px 40px calc(36px + env(safe-area-inset-bottom, 0px));
+    gap: 28px;
+}
+
+.mu-nav-item {
+    cursor: pointer;
+}
+
+/* The keyboard's lamp at the rail's foot, under Settings. */
+.rail-status {
+    margin-top: var(--space-3);
+    white-space: normal;
+}
+
+[data-theme="vinyl"] .rail-status {
+    margin-top: var(--space-4);
+}
+
+/* Portrait: the rail runs along the bottom as one row of keys, without its group names or the lamp. */
+@media (orientation: portrait) {
+    .shell {
+        flex-direction: column-reverse;
+    }
+
+    .shell > .mu-nav,
+    [data-theme="vinyl"] .shell > .mu-nav {
+        width: auto;
+        flex-direction: row;
+        align-items: stretch;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-right: 0;
+        border-top: 1px solid var(--seam);
+    }
+
+    .shell .mu-nav-group,
+    .shell .rail-status {
+        display: none;
+    }
+
+    .shell .mu-nav-item {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .shell .mu-nav-end {
+        margin-top: 0;
+    }
+
+    [data-theme="vinyl"] .shell .mu-nav-item {
+        justify-content: center;
+        gap: 8px;
+        font-size: 24px;
+    }
+
+    [data-theme="vinyl"] .shell .mu-nav-code {
+        width: auto;
+    }
+
+    [data-theme="vinyl"] .shell .mu-nav-item[aria-current]::after {
+        content: none;
+    }
+
+    [data-theme="vinyl"] .shell .mu-nav-item[aria-current] {
+        box-shadow: inset 0 -3px 0 var(--accent);
+    }
+}
+
+/* A screen's heading: the printed line above it and its name. */
+.page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.page-head > div {
+    min-width: 0;
+}
+
+.page-kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.page-title {
+    margin: 2px 0 0;
+    font-family: var(--font-grotesk);
+    font-size: 34px;
+    line-height: 40px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+[data-theme="vinyl"] .page-kicker {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .page-title {
+    margin-top: 4px;
+    font-family: var(--font-bebas);
+    font-size: 72px;
+    line-height: 64px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    text-transform: none;
+}
+
+/* Plain words under a heading. */
+.page-note,
+.section-note {
+    margin: 0;
+    max-width: 640px;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--ink-muted);
+}
+
+.page-panel {
+    min-height: 200px;
+}
+
+.page-panel-line {
+    margin: 0;
+    font-family: var(--mu-print);
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--on-screen-muted);
+}
+
+/* Settings: sections with a heading, a note and their controls. */
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.section-title {
+    margin: 0;
+    font-family: var(--mu-print);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+[data-theme="vinyl"] .section-title {
+    font-family: var(--font-bebas);
+    font-size: 26px;
+    line-height: 28px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+}
+
+/* The look picker: each choice is drawn in its own look. */
+.look-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 340px));
+    gap: 16px;
+    margin-top: 4px;
+}
+
+.look-option {
+    min-height: 168px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    border: 2px solid var(--seam);
+    border-radius: var(--mu-r-panel);
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--mu-ui);
+    text-align: left;
+    cursor: pointer;
+}
+
+.look-option[aria-pressed="true"] {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.look-option-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.look-option[aria-pressed="true"] .mu-led {
+    background: var(--live);
+    box-shadow: 0 0 6px var(--live);
+}
+
+.look-option-name {
+    font-family: var(--mu-name);
+}
+
+/* Each card is styled by its own data-theme, not the page's, so a Studio card inside the Vinyl page stays Studio. */
+.look-option[data-theme="studio"] .look-option-name {
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.look-option[data-theme="vinyl"] .look-option-name {
+    font-size: 36px;
+    line-height: 36px;
+    font-weight: 400;
+    text-transform: none;
+}
+
+.look-option-text {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink-muted);
+}
+
+.look-option-swatches {
+    margin-top: auto;
+    display: flex;
+    gap: 8px;
+}
+
+.look-option-swatches > span {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-key);
+    box-shadow: inset 0 0 0 1px var(--seam);
+}
+
+.sw-ground { background: var(--rail); }
+.sw-screen { background: var(--screen); }
+.sw-accent { background: var(--accent); }
+.sw-sheet { background: var(--mu-sheet); }

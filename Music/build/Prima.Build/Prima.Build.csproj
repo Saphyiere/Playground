@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+
+  <!--
+    Solution items project: compiles nothing. It exists so Solution Explorer shows the app's
+    top-level files, the repo's shared ones (README, CLAUDE.md, Directory.Build.props, global.json, ...)
+    and anything dropped into this folder for local dev.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Every file at the app's root and the repo's, so new top-level files show up without editing this project. -->
+    <None Include="$(MSBuildThisFileDirectory)..\..\*" Exclude="$(MSBuildThisFileDirectory)..\..\*.slnx" Link="%(Filename)%(Extension)" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\docs\**" Link="docs\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\..\*" Link="Repo\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

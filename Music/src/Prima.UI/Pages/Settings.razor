@@ -1,0 +1,26 @@
+@page "/settings"
+@inject LookSetting LookSetting
+
+<PageTitle>Settings · Prima</PageTitle>
+
+<PageHead Title="Settings" Kicker="Kept on this tablet" />
+
+<section class="settings-section" aria-labelledby="look-heading">
+    <h2 id="look-heading" class="section-title">Look</h2>
+    <p class="section-note">The sheet music stays black on paper in both; the look is everything around it.</p>
+    <div class="look-picker">
+        @foreach (var look in Look.All)
+        {
+            @* Each choice wears its own look, so it shows what it gives. *@
+            <button type="button" class="look-option" data-theme="@look.Id" aria-pressed="@(look == Current ? "true" : "false")" @onclick="() => LookSetting.Choose(look)">
+                <span class="look-option-head"><span class="mu-led"></span><span class="look-option-name">@look.Name</span></span>
+                <span class="look-option-text">@look.Description</span>
+                <span class="look-option-swatches" aria-hidden="true"><span class="sw-ground"></span><span class="sw-screen"></span><span class="sw-accent"></span><span class="sw-sheet"></span></span>
+            </button>
+        }
+    </div>
+</section>
+
+@code {
+    [CascadingParameter] public Look Current { get; set; } = Look.Studio;
+}

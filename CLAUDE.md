@@ -22,9 +22,10 @@ Java 21, Node 22, Python 3 with Pillow, and headless Chromium under `/opt/pw-bro
 
 ## Checking screens
 
-A change the owner will see is checked rendered before it's done, in both looks (Logbook and Telemetry) at phone width, 390 px
-(and tablet width for a tablet app), with before-and-after screenshots when it shouldn't change anything else. Only the devices
-can test the watch, a MIDI keyboard or the microphone: say what's left for the owner to try.
+A change the owner will see is checked rendered before it's done, in both of the app's looks at its devices' sizes, with
+before-and-after screenshots when it shouldn't change anything else. Workout: Logbook and Telemetry at phone width, 390 px.
+Prima (Music): Studio and Vinyl on the tablet, landscape 1280 × 800 and portrait 800 × 1280. Only the devices can test the watch
+or the MIDI keyboard: say what's left for the owner to try.
 
 Each app's screens have a preview host: its real UI as a Blazor Server page, against sample data in a SQLite file. For the
 workout app, `Workout/tools/AdaptiveWorkout.Preview`:
@@ -41,6 +42,9 @@ go to `settings` and tap `Telemetry` or `Logbook`. Telemetry writes dates "Sat 3
 script doesn't blur a field the way a finger does, so tap a form's Save with `realTap`. A new app gets a preview host of its own
 the same way.
 
+Prima's is `Music/tools/Prima.Preview` on http://127.0.0.1:5299, with its scenarios in its Program.cs. Its looks are switched in `settings` with `{"tapSel": ".look-option[data-theme=vinyl]"}` (or `studio`). Build it
+with `dotnet build Music/src/Prima.Tablet/Prima.Tablet.csproj`, and test with `dotnet test --project Music/tests/Prima.Core.Tests`.
+
 ## Working alongside other sessions
 
 There's a session per app or task, and they all push to `main`. Before pushing, `git pull --rebase origin main`. Stay in the app
@@ -54,7 +58,11 @@ the task is about; a change to the shared root files or another app's folder nee
 
 ## The look
 
-The apps share two looks, **Logbook** (a printed log: warm paper, serif print, a red pen) and **Telemetry** (a dark instrument
-panel, mono readouts on rulers), switched in each app's Settings. They live in [Kit](Kit/README.md): the themes' tokens, fonts and
+Workout has two looks, **Logbook** (a printed log: warm paper, serif print, a red pen) and **Telemetry** (a dark instrument
+panel, mono readouts on rulers), switched in its Settings. They live in [Kit](Kit/README.md): the themes' tokens, fonts and
 shared pieces in `kit.css`, and the shared components. An app's own screens get their rules in the app's stylesheet, in the Kit's
-tokens. A change to the Kit reaches every app: check each app's screens, and say so in the commit message.
+tokens. A change to the Kit reaches every app that uses it: check each app's screens, and say so in the commit message.
+
+Prima has its own looks, **Studio** (a music workstation: warm grey, an amber LCD, one orange key) and **Vinyl** (a record
+sleeve: teal, cream, mustard), in `Music/src/Prima.UI/wwwroot/prima.css` from its design system, with sheet music black on paper
+in both. It uses the Kit only for the way back and the settings store.

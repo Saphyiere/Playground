@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="studio">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Prima</title>
+    <base href="/" />
+    <!-- The look in use (MainLayout keeps it in local storage), set before the first paint so the app opens in it. -->
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem("look") ?? "studio"; } catch { }</script>
+    <link rel="stylesheet" href="_content/Prima.UI/prima.css" />
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+
+    <div class="status-bar-safe-area"></div>
+
+    <div id="app"></div>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+</body>
+
+</html>

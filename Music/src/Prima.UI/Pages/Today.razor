@@ -1,0 +1,14 @@
+@page "/"
+
+<PageTitle>Prima</PageTitle>
+
+<PageHead Title="Today" Kicker="@Look.Day(DateOnly.FromDateTime(DateTime.Now))" />
+
+<section class="mu-screen page-panel" aria-label="Today's plan">
+    <div class="mu-screen-head"><span>Today's plan</span></div>
+    <p class="page-panel-line">The day's practice shows here once the drills and sight-reading are in.</p>
+</section>
+
+@code {
+    [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+}

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <!-- Android only: the owner's Lenovo tablet. -->
+        <TargetFramework>net10.0-android</TargetFramework>
+        <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+
+        <OutputType>Exe</OutputType>
+        <RootNamespace>Prima.Tablet</RootNamespace>
+        <UseMaui>true</UseMaui>
+        <SingleProject>true</SingleProject>
+        <!-- Disable MAUI CSS handling so Blazor can handle it -->
+        <EnableDefaultCssItems>false</EnableDefaultCssItems>
+        <MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+        <ApplicationTitle>Prima</ApplicationTitle>
+        <ApplicationId>com.saphyiere.prima</ApplicationId>
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+        <!-- Debug builds otherwise run on Mono's interpreter (for Hot Reload), which makes every tap visibly slow. -->
+        <UseInterpreter>false</UseInterpreter>
+        <!-- Release compiles the whole app ahead of time, so it opens fast, rather than only what MAUI's startup profiles list. -->
+        <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#DCD9D2" />
+        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#DCD9D2" BaseSize="128,128" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Prima.UI\Prima.UI.csproj" />
+    </ItemGroup>
+
+</Project>

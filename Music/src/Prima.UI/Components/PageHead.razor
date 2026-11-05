@@ -1,0 +1,20 @@
+@* A screen's heading: a printed line above (the day, or what the screen is for) and its name. Whatever's passed inside sits at
+   the other end, like a status lamp or a button. *@
+<header class="page-head">
+    <div>
+        @if (Kicker is not null)
+        {
+            <p class="page-kicker">@Kicker</p>
+        }
+        <h1 class="page-title">@Title</h1>
+    </div>
+    @ChildContent
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    [Parameter] public string? Kicker { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
