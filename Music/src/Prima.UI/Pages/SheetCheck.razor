@@ -3,7 +3,7 @@
 @* For checking the sheet on screen (not on the rail): a passage, the marks after it, the cursor, and the page layout. *@
 <PageTitle>Sheet check · Prima</PageTitle>
 
-<PageHead Title="Sheet check" Kicker="Notation" />
+<PageHead Title="Sheet check" Kicker="@(passage?.Description ?? "Notation")" />
 
 <div class="control-row">
     <button type="button" class="mu-btn" @onclick="ToggleMarks">@(marked ? "Clear marks" : "Marks")</button>
@@ -20,7 +20,33 @@
 </div>
 
 @code {
-    private static readonly string Mei = MeiWriter.Write(SheetSamples.Passage(), 80);
+    private string Mei = MeiWriter.Write(SheetSamples.Passage(), 80);
+    private Prima.Core.Generation.Passage? passage;
+
+    // ?level=5&seed=7 shows a generated passage instead, with ?step= for a level's introduction step.
+    [SupplyParameterFromQuery] public int? Level { get; set; }
+
+    [SupplyParameterFromQuery] public int? Seed { get; set; }
+
+    [SupplyParameterFromQuery] public int? Step { get; set; }
+
+    // ?rhythm=5 shows a rhythm drill's line; ?scale=2 a scale (and ?arpeggio=2 an arpeggio) in that many octaves, hands together.
+    [SupplyParameterFromQuery] public int? Rhythm { get; set; }
+
+    [SupplyParameterFromQuery] public int? Scale { get; set; }
+
+    [SupplyParameterFromQuery] public int? Arpeggio { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (Rhythm is { } rhythm) Mei = MeiWriter.Write(Prima.Core.Generation.RhythmDrill.Generate(rhythm, (ulong)(Seed ?? 1)), 80);
+        if (Scale is { } octaves) Mei = MeiWriter.Write(Prima.Core.Generation.Technique.Scale(new Key(Seed ?? 0), Prima.Core.Generation.ScaleKind.Major, octaves, Prima.Core.Generation.HandUse.Together).Score, 80);
+        if (Arpeggio is { } arpeggio) Mei = MeiWriter.Write(Prima.Core.Generation.Technique.Arpeggio(new Key(Seed ?? 0), arpeggio, Prima.Core.Generation.HandUse.Together).Score, 80);
+        if (Level is not { } level) return;
+
+        passage = Prima.Core.Generation.PassageGenerator.Generate(Prima.Core.Generation.Ladder.Effective(level, Step ?? 4), (ulong)(Seed ?? 1));
+        Mei = MeiWriter.Write(passage.Score, 80);
+    }
     private Sheet? sheet;
     private bool marked;
     private bool cursor;

@@ -1,0 +1,300 @@
+using Prima.Core.Generation;
+using Prima.Core.Music;
+using Prima.Core.Scoring;
+
+namespace Prima.Core.Tests;
+
+public class ScoringTests
+{
+    private const long Ms = 1_000_000;
+    private const double BeatNs = 500 * Ms; // 120 beats a minute
+    private static long At(double beats) => (long)(beats * BeatNs);
+
+    // Eight quarters, C D E F G A B C, one a beat, in bars of four.
+    private static List<ExpectedNote> Scale() => [.. new[] { 60, 62, 64, 65, 67, 69, 71, 72 }.Select((m, i) => new ExpectedNote($"n{i}", m, i / 4 + 1, 1, i * 480L, 480, null))];
+
+    private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null) =>
+        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented);
+
+    private static PlayedNote P(int midi, double beats, double offsetMs = 0) => new(midi, At(beats) + (long)(offsetMs * Ms), At(beats) + (long)(offsetMs * Ms) + 400 * Ms, 70);
+
+    [Fact]
+    public void APerfectPassageIsAllInTimeAndClean()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i)));
+
+        Assert.Equal(1, result.InTimeAccuracy);
+        Assert.Equal(8, result.InTime);
+        Assert.True(result.Clean);
+        Assert.True(result.KeptGoing);
+        Assert.Equal(0, result.LeanMs, 6);
+        Assert.Null(result.WorstBar);
+        Assert.Equal(0, result.TempoDriftPercent!.Value, 6);
+    }
+
+    [Fact]
+    public void ASteadyEarlyLeanIsShownOnItsOwnAndTakenOffBeforeGrading()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i, -40)));
+
+        Assert.Equal(-40, result.LeanMs, 6);
+        Assert.Equal(-8, result.LeanPercent, 6);
+        Assert.Equal(8, result.InTime);
+        Assert.Equal(0, result.SteadinessPercent, 6);
+    }
+
+    [Fact]
+    public void TimingIsGradedInBandsOfTheBeat()
+    {
+        // After a lean of 0: +4% in time, +8% audible, +16% off.
+        double[] offsets = [0, 0, 20, -20, 40, -40, 80, -80];
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i, offsets[i])));
+
+        Assert.Equal([Band.InTime, Band.InTime, Band.InTime, Band.InTime, Band.Audible, Band.Audible, Band.Off, Band.Off], result.Notes.Select(n => n.Band!.Value));
+        Assert.Equal(6 / 8.0, result.InTimeAccuracy);
+        Assert.Equal(2, result.Audible);
+    }
+
+    [Fact]
+    public void TheCalibrationOffsetComesOffEveryNote()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i, 30)), offsetMs: 30);
+
+        Assert.Equal(0, result.LeanMs, 6);
+    }
+
+    [Fact]
+    public void WrongNotesAreNamedAndSorted()
+    {
+        var played = Scale().Select((e, i) => P(e.Midi, i)).ToList();
+        played[1] = P(63, 1); // D4 for E♭4: a semitone, lost on the keyboard
+        played[3] = P(77, 3); // F5 for F4: an octave
+        played[5] = P(74, 5); // A4 played as D5: a reading error
+        var result = Score(Scale(), played);
+
+        Assert.Equal(3, result.Wrong);
+        Assert.Equal((WrongKind.LostOnKeyboard, 63), (result.Notes[1].Wrong!.Value, result.Notes[1].Played!.Value));
+        Assert.Equal(WrongKind.Octave, result.Notes[3].Wrong);
+        Assert.Equal(WrongKind.Reading, result.Notes[5].Wrong);
+        Assert.Equal(1, result.LostOnKeyboard);
+        Assert.Equal((3, 3), (result.ZhukovMissed, result.ZhukovExtra));
+        Assert.False(result.Clean);
+    }
+
+    [Fact]
+    public void ExtraAndMissedNotesAreCounted()
+    {
+        var played = Scale().Select((e, i) => P(e.Midi, i)).Where((_, i) => i != 6).Append(P(50, 2.5)).ToList();
+        var result = Score(Scale(), played);
+
+        Assert.Equal(1, result.Missed);
+        Assert.Equal(Outcome.Missed, result.Notes[6].Outcome);
+        Assert.Equal(1, result.Extra);
+        Assert.Equal(2, result.WorstBar);
+    }
+
+    [Fact]
+    public void StoppingForMoreThanABarIsNotKeepingGoing()
+    {
+        // Two bars of quarters; nothing played in beats 2 to 7.
+        var expected = Enumerable.Range(0, 8).Select(i => new ExpectedNote($"n{i}", 60, i / 4 + 1, 1, i * 480L, 480, null)).ToList();
+        var result = Score(expected, [P(60, 0), P(60, 1), P(60, 7)]);
+
+        Assert.False(result.KeptGoing);
+    }
+
+    [Fact]
+    public void AHeldNoteIsNotAStop()
+    {
+        var expected = new List<ExpectedNote> { new("a", 60, 1, 1, 0, 1920, null), new("b", 62, 2, 1, 1920, 1920, null), new("c", 64, 3, 1, 3840, 480, null) };
+        var result = Score(expected, [P(60, 0), P(62, 4), P(64, 8)]);
+
+        Assert.True(result.KeptGoing);
+    }
+
+    [Fact]
+    public void PlayingSlowerShowsAsDrift()
+    {
+        // Each note a little later than the last: played at 110% of the written length, about 9% slower.
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i * 1.02)));
+
+        Assert.True(result.TempoDriftPercent < -1);
+        Assert.True(result.TempoDriftPercent > -3);
+    }
+
+    [Fact]
+    public void AChordsNotesAreScoredEachAndHowTogetherTheyLanded()
+    {
+        var expected = new List<ExpectedNote> { new("c0", 60, 1, 1, 0, 960, "c"), new("c1", 64, 1, 1, 0, 960, "c"), new("c2", 67, 1, 1, 0, 960, "c") };
+        var result = Score(expected, [P(60, 0), P(64, 0, 12), P(67, 0, 30)]);
+
+        Assert.Equal(3, result.Right);
+        Assert.Equal(30, result.ChordSpreadMs!.Value, 6);
+    }
+
+    [Theory]
+    [InlineData(60.0, 300)]
+    [InlineData(120.0, 200)]
+    [InlineData(200.0, 120)]
+    public void TheWindowScalesWithTempo(double bpm, double windowMs)
+    {
+        Assert.Equal(windowMs, Grading.WindowNs(60e9 / bpm) / 1e6, 6);
+    }
+
+    [Fact]
+    public void ANoteOutsideTheWindowIsMissedAndExtra()
+    {
+        var played = Scale().Select((e, i) => P(e.Midi, i)).ToList();
+        played[2] = P(64, 2, 260); // 260 ms late at 120 bpm: outside 200 ms
+        var result = Score(Scale(), played);
+
+        Assert.Equal(Outcome.Missed, result.Notes[2].Outcome);
+        Assert.Equal(1, result.Extra);
+    }
+
+    [Fact]
+    public void ATrillsNotesAreNotExtra()
+    {
+        var expected = new List<ExpectedNote> { new("t", 67, 1, 1, 0, 1920, null), new("u", 65, 2, 1, 1920, 480, null) };
+        var trill = Enumerable.Range(0, 10).Select(i => P(i % 2 == 0 ? 67 : 69, i * 0.3)).Append(P(65, 4));
+        var result = Score(expected, trill, ornamented: new HashSet<string> { "t" });
+
+        Assert.Equal(0, result.Extra);
+        Assert.Equal(2, result.Right);
+    }
+
+    [Fact]
+    public void RhythmGradesLeanSteadinessAndDriftAgainstTheBeat()
+    {
+        // A bar of beat, then two bars of quarters; taps 5% of a beat late in the rhythm, and one missed, one extra.
+        var onsets = Enumerable.Range(0, 12).Select(i => At(i)).ToList();
+        var ids = onsets.Select((_, i) => $"r{i}").ToList();
+        var taps = onsets.Select((t, i) => i < 4 ? t : t + 25 * Ms).Where((_, i) => i != 9).Append(At(10.5)).ToList();
+        var result = RhythmScorer.Score(onsets, ids, 4, taps, BeatNs, 4 * BeatNs, 0);
+
+        Assert.Equal(5, result.LeanPercent, 6);
+        Assert.Equal(0, result.SteadinessPercent, 6);
+        Assert.Equal(0, result.PulseLeanPercent, 6);
+        Assert.Equal(1, result.Missed);
+        Assert.Equal(1, result.Extra);
+        Assert.Equal(11 / 12.0, result.Accuracy, 6);
+    }
+
+    [Fact]
+    public void DrillAnswersAreTheFirstNotesAfterShowing()
+    {
+        var shown = 1000 * Ms;
+        var note = DrillScorer.Note(60, [new PlayedNote(62, shown + 900 * Ms, 0, 70)], shown)!;
+        Assert.False(note.Right);
+        Assert.True(note.LostOnKeyboard);
+        Assert.Equal(900, note.ResponseMs, 6);
+
+        var chord = DrillScorer.Chord([60, 64, 67], [new PlayedNote(60, shown + 800 * Ms, 0, 70), new PlayedNote(64, shown + 860 * Ms, 0, 70), new PlayedNote(67, shown + 1000 * Ms, 0, 70)], shown)!;
+        Assert.False(chord.Right);
+        Assert.Equal(1, chord.Missing);
+        Assert.Equal(60, chord.SpreadMs, 6);
+
+        var figure = DrillScorer.Figure([67, 71, 74], [new PlayedNote(65, shown + 700 * Ms, 0, 70), new PlayedNote(69, shown + 900 * Ms, 0, 70), new PlayedNote(72, shown + 1100 * Ms, 0, 70)], shown)!;
+        Assert.True(figure.WrongFirstNote);
+        Assert.Equal(0, figure.WrongIntervals);
+    }
+
+    [Fact]
+    public void ForgettingTheKeyIsCountedPerAffectedNote()
+    {
+        // G major: F♯ played as F.
+        var expected = new List<ExpectedNote> { new("a", 67, 1, 1, 0, 480, null), new("b", 66, 1, 1, 480, 480, null), new("c", 67, 1, 1, 960, 480, null) };
+        var result = Score(expected, [P(67, 0), P(65, 1), P(67, 2)]);
+
+        Assert.Equal(1, DrillScorer.ForgotTheKey(result, new HashSet<string> { "b" }, new Key(1), expected));
+    }
+
+    private static TechniqueItem CMajor(HandUse hands = HandUse.Right) => Technique.Scale(new Key(0), ScaleKind.Major, 1, hands);
+
+    private static List<PlayedNote> Run(IReadOnlyList<TechniqueNote> notes, Func<int, double> gapMs, double start = 0, Func<int, int>? velocity = null)
+    {
+        var at = start;
+        var played = new List<PlayedNote>();
+        for (var i = 0; i < notes.Count; i++)
+        {
+            played.Add(new PlayedNote(notes[i].Midi, (long)(at * Ms), (long)((at + gapMs(i) + 10) * Ms), velocity?.Invoke(i) ?? 70));
+            at += gapMs(i);
+        }
+        return played;
+    }
+
+    [Fact]
+    public void AnEvenScaleHasNoSpreadAndItsOwnTempo()
+    {
+        var item = CMajor();
+        var result = TechniqueScorer.Score(item, Run(item.Right, _ => 250));
+
+        Assert.True(result.Valid);
+        Assert.Equal(0, result.Right!.IoiSdMs, 6);
+        Assert.Equal(120, result.Right.Bpm, 6);
+        Assert.Equal(10, result.Right.LegatoMs, 6);
+    }
+
+    [Fact]
+    public void ASteadySpeedUpIsNotUnevenness()
+    {
+        var item = CMajor();
+        var result = TechniqueScorer.Score(item, Run(item.Right, i => 260 - i * 2));
+
+        Assert.Equal(0, result.Right!.IoiSdMs, 6);
+        Assert.True(result.Right.PlainIoiSdMs > 5);
+        Assert.Equal(-2, result.Right.SlopeMsPerNote, 6);
+    }
+
+    [Fact]
+    public void ALateThumbCrossingShowsOnItsOwn()
+    {
+        var item = CMajor();
+        // Right hand C major: 1 2 3 1 ... the thumb crosses under after the third note (E to F) going up.
+        var crossings = item.Right.Where(n => n.CrossingNext).Select(n => n.Index).ToHashSet();
+        var result = TechniqueScorer.Score(item, Run(item.Right, i => crossings.Contains(i) ? 280 : 250));
+
+        Assert.Contains(2, crossings);
+        Assert.True(result.Right!.CrossingMs > 20);
+        Assert.True(result.Right.IoiSdMs > 5);
+    }
+
+    [Fact]
+    public void AWrongNoteMakesARunInvalid()
+    {
+        var item = CMajor();
+        var played = Run(item.Right, _ => 250);
+        played[4] = played[4] with { Midi = 68 };
+        var result = TechniqueScorer.Score(item, played);
+
+        Assert.False(result.Valid);
+        Assert.False(result.Right!.Valid);
+    }
+
+    [Fact]
+    public void HandsTogetherAreSyncedAndTouchIsMeasured()
+    {
+        var item = CMajor(HandUse.Together);
+        var right = Run(item.Right, _ => 250, velocity: i => i % 2 == 0 ? 60 : 80);
+        var left = Run(item.Left, _ => 250, start: 15);
+        var result = TechniqueScorer.Score(item, [.. right, .. left]);
+
+        Assert.True(result.Valid);
+        Assert.Equal(-15, result.SyncMeanMs!.Value, 6);
+        Assert.True(result.Right!.VelocitySd > 9);
+        // The thumb plays notes 0, 3, 11 and 14 of the run: 60, 80, 80 and 60.
+        Assert.Equal(70, result.Right.VelocityByFinger[1], 6);
+        Assert.Equal(5, result.Right.VelocityByFinger.Count);
+    }
+
+    [Fact]
+    public void SmallDifferencesAreDescribedPlainly()
+    {
+        Assert.Equal("below what anyone can hear", TechniqueScorer.Describe(7, null));
+        Assert.Equal("within the keyboard's noise", TechniqueScorer.Describe(3, 4));
+        Assert.Equal("14 ms", TechniqueScorer.Describe(14, 4));
+        var (consistent, random) = TechniqueScorer.Consistency([[10, -5, 0], [10, -5, 0]]);
+        Assert.Equal(Math.Sqrt((100 + 25) / 3.0), consistent, 6);
+        Assert.Equal(0, random, 6);
+    }
+}

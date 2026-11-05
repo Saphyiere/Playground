@@ -34,7 +34,7 @@ public static class MeiWriter
             xml.WriteStartElement("score", Ns);
 
             xml.WriteStartElement("scoreDef", Ns);
-            WriteSignature(xml, score.Key, score.Meter);
+            WriteSignature(xml, score.Key, score.ShowMeter ? score.Meter : null);
             xml.WriteAttributeString("midi.bpm", bpm.ToString("0.###", CultureInfo.InvariantCulture));
             xml.WriteStartElement("staffGrp", Ns);
             if (score.RhythmOnly) WriteStaffDef(xml, 1, null);
@@ -67,7 +67,7 @@ public static class MeiWriter
                 xml.WriteAttributeString("n", bar.Number.ToString(CultureInfo.InvariantCulture));
                 xml.WriteAttributeString("id", XmlNs, bar.Id);
                 if (length < meter.BarTicks) xml.WriteAttributeString("metcon", "false");
-                if (i == signatures.Count - 1) xml.WriteAttributeString("right", "end");
+                if (i == signatures.Count - 1) xml.WriteAttributeString("right", score.ShowMeter ? "end" : "invis");
                 foreach (var staff in bar.Voices.Select(v => v.Staff).Distinct().Order())
                 {
                     xml.WriteStartElement("staff", Ns);
@@ -78,7 +78,7 @@ public static class MeiWriter
                     {
                         xml.WriteStartElement("layer", Ns);
                         xml.WriteAttributeString("n", voice.Layer.ToString(CultureInfo.InvariantCulture));
-                        WriteEvents(xml, voice.Events, key, meter, length, accidentals);
+                        WriteEvents(xml, voice.Events, key, meter, length, accidentals, score.RhythmOnly);
                         xml.WriteEndElement();
                     }
                     xml.WriteEndElement();
@@ -135,7 +135,7 @@ public static class MeiWriter
     }
 
     // Writes a layer's events, wrapping tuplets in <tuplet> and beamable runs within one beam group in <beam>.
-    private static void WriteEvents(XmlWriter xml, IReadOnlyList<Event> events, Key key, Meter meter, int barLength, Dictionary<(Step, int), int> accidentals)
+    private static void WriteEvents(XmlWriter xml, IReadOnlyList<Event> events, Key key, Meter meter, int barLength, Dictionary<(Step, int), int> accidentals, bool onTheLine)
     {
         var i = 0;
         while (i < events.Count)
@@ -147,7 +147,7 @@ public static class MeiWriter
                 xml.WriteStartElement("tuplet", Ns);
                 xml.WriteAttributeString("num", tuplet.Actual.ToString(CultureInfo.InvariantCulture));
                 xml.WriteAttributeString("numbase", tuplet.Normal.ToString(CultureInfo.InvariantCulture));
-                WriteBeamed(xml, events.Skip(i).Take(end - i).ToList(), key, meter, barLength, accidentals, wholeGroup: true);
+                WriteBeamed(xml, events.Skip(i).Take(end - i).ToList(), key, meter, barLength, accidentals, wholeGroup: true, onTheLine);
                 xml.WriteEndElement();
                 i = end;
                 continue;
@@ -155,12 +155,12 @@ public static class MeiWriter
 
             var run = i;
             while (run < events.Count && events[run].Tuplet is null) run++;
-            WriteBeamed(xml, events.Skip(i).Take(run - i).ToList(), key, meter, barLength, accidentals, wholeGroup: false);
+            WriteBeamed(xml, events.Skip(i).Take(run - i).ToList(), key, meter, barLength, accidentals, wholeGroup: false, onTheLine);
             i = run;
         }
     }
 
-    private static void WriteBeamed(XmlWriter xml, List<Event> events, Key key, Meter meter, int barLength, Dictionary<(Step, int), int> accidentals, bool wholeGroup)
+    private static void WriteBeamed(XmlWriter xml, List<Event> events, Key key, Meter meter, int barLength, Dictionary<(Step, int), int> accidentals, bool wholeGroup, bool onTheLine)
     {
         var groups = BeamGroups(meter);
         var i = 0;
@@ -176,11 +176,11 @@ public static class MeiWriter
             if (end - i >= 2)
             {
                 xml.WriteStartElement("beam", Ns);
-                for (var k = i; k < end; k++) WriteEvent(xml, events[k], key, barLength, accidentals);
+                for (var k = i; k < end; k++) WriteEvent(xml, events[k], key, barLength, accidentals, onTheLine);
                 xml.WriteEndElement();
                 i = end;
             }
-            else WriteEvent(xml, events[i++], key, barLength, accidentals);
+            else WriteEvent(xml, events[i++], key, barLength, accidentals, onTheLine);
         }
     }
 
@@ -200,7 +200,7 @@ public static class MeiWriter
 
     private static int Written(Event e) => e.Tuplet is { } t ? e.Length * t.Actual / t.Normal : e.Length;
 
-    private static void WriteEvent(XmlWriter xml, Event e, Key key, int barLength, Dictionary<(Step, int), int> accidentals)
+    private static void WriteEvent(XmlWriter xml, Event e, Key key, int barLength, Dictionary<(Step, int), int> accidentals, bool onTheLine)
     {
         switch (e)
         {
@@ -208,6 +208,11 @@ public static class MeiWriter
                 xml.WriteStartElement("clef", Ns);
                 xml.WriteAttributeString("shape", clef.Clef == Clef.Treble ? "G" : "F");
                 xml.WriteAttributeString("line", clef.Clef == Clef.Treble ? "2" : "4");
+                xml.WriteEndElement();
+                return;
+            case Rest { Hidden: true } space:
+                xml.WriteStartElement(space.Length == barLength && space.Start == 0 ? "mSpace" : "space", Ns);
+                if (space.Length != barLength || space.Start != 0) WriteDuration(xml, Written(space));
                 xml.WriteEndElement();
                 return;
             case Rest rest when rest.Length == barLength && rest.Start == 0:
@@ -222,25 +227,26 @@ public static class MeiWriter
                 xml.WriteEndElement();
                 return;
             case Notes { Tones.Count: 1 } single:
-                WriteNote(xml, single.Tones[0], single, key, accidentals, inChord: false);
+                WriteNote(xml, single.Tones[0], single, key, accidentals, inChord: false, onTheLine);
                 return;
             case Notes chord:
                 xml.WriteStartElement("chord", Ns);
                 xml.WriteAttributeString("id", XmlNs, chord.Id);
                 WriteDuration(xml, Written(chord));
                 WriteNoteFlags(xml, chord);
-                foreach (var tone in chord.Tones.OrderBy(t => t.Pitch.Midi)) WriteNote(xml, tone, chord, key, accidentals, inChord: true);
+                foreach (var tone in chord.Tones.OrderBy(t => t.Pitch.Midi)) WriteNote(xml, tone, chord, key, accidentals, inChord: true, onTheLine);
                 xml.WriteEndElement();
                 return;
         }
     }
 
-    private static void WriteNote(XmlWriter xml, Tone tone, Notes notes, Key key, Dictionary<(Step, int), int> accidentals, bool inChord)
+    private static void WriteNote(XmlWriter xml, Tone tone, Notes notes, Key key, Dictionary<(Step, int), int> accidentals, bool inChord, bool onTheLine)
     {
         xml.WriteStartElement("note", Ns);
         xml.WriteAttributeString("id", XmlNs, tone.Id);
         xml.WriteAttributeString("pname", tone.Pitch.Step.ToString().ToLowerInvariant());
         xml.WriteAttributeString("oct", tone.Pitch.Octave.ToString(CultureInfo.InvariantCulture));
+        if (onTheLine) xml.WriteAttributeString("loc", "0");
         if (!inChord)
         {
             WriteDuration(xml, Written(notes));
@@ -296,6 +302,7 @@ public static class MeiWriter
             MarkKind.OctaveUp => ("octave", [("dis", "8"), ("dis.place", "above")]),
             MarkKind.Fermata => ("fermata", []),
             MarkKind.Trill => ("trill", []),
+            MarkKind.Text => ("dir", [("place", "above")]),
             _ => ("mordent", []),
         };
         xml.WriteStartElement(element.Name, Ns);

@@ -46,7 +46,11 @@ public sealed record Notes(string Id, int Start, int Length, IReadOnlyList<Tone>
     public Articulation Articulation { get; init; }
 }
 
-public sealed record Rest(string Id, int Start, int Length) : Event(Start, Length);
+public sealed record Rest(string Id, int Start, int Length) : Event(Start, Length)
+{
+    /// <summary>Takes the time without printing a rest: for a hand that's silent in a pickup, or a drill item's empty staff.</summary>
+    public bool Hidden { get; init; }
+}
 
 /// <summary>A clef change at this point in the voice.</summary>
 public sealed record ClefChange(int Start, Clef Clef) : Event(Start, 0);
@@ -78,6 +82,8 @@ public enum MarkKind
     Fermata,
     Trill,
     Mordent,
+    /// <summary>Words above a note, like a drill's starting note's name.</summary>
+    Text,
 }
 
 /// <summary>Printed marks that aren't scored (dynamics, slurs, hairpins, pedal, 8va, ornaments), tied to notes by id.</summary>
@@ -90,6 +96,9 @@ public sealed record Mark(MarkKind Kind, string StartId, string? EndId = null, s
 public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
 {
     public string? Title { get; init; }
+
+    /// <summary>Whether the time signature is printed: drill items show notes without one.</summary>
+    public bool ShowMeter { get; init; } = true;
 
     /// <summary>A single-line rhythm staff instead of the grand staff.</summary>
     public bool RhythmOnly { get; init; }

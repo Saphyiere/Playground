@@ -52,14 +52,17 @@ public static class MeiReader
                 var accidentals = new Dictionary<(Step, int), int>();
                 foreach (var layer in staff.Elements(Mei + "layer"))
                 {
-                    var reader = new LayerReader(key, ppq, accidentals, tied, meter.BarTicks);
+                    var reader = new LayerReader(key, ppq, accidentals, tied);
                     reader.ReadChildren(layer, 1, 1);
                     voices.Add(new Voice(staffNumber, reader.Events, (int?)layer.Attribute("n") ?? 1));
                     length = Math.Max(length, reader.Tick);
                 }
             }
 
-            var pickup = (string?)element.Attribute("metcon") == "false" || (bars.Count == 0 && length > 0 && length < meter.BarTicks);
+            // A bar rest (mRest, mSpace) lasts the bar: the metre's, or in a short bar the other layers' length.
+            if (length == 0) length = meter.BarTicks;
+            voices = [.. voices.Select(v => v with { Events = [.. v.Events.Select(e => e is Rest { Length: 0 } bar ? bar with { Length = length } : e)] })];
+            var pickup = (string?)element.Attribute("metcon") == "false" || (bars.Count == 0 && length < meter.BarTicks);
             bars.Add(new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter });
             (newKey, newMeter) = (null, null);
         }
@@ -91,7 +94,7 @@ public static class MeiReader
     }
 
     // Walks a layer's children in order, keeping the tick, through beams, tuplets and grace groups.
-    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied, int barTicks)
+    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied)
     {
         public List<Event> Events { get; } = [];
 
@@ -115,12 +118,12 @@ public static class MeiReader
                         break;
                     case "rest" or "space":
                         var restLength = Length(child, actual, normal);
-                        if (child.Name.LocalName == "rest") Events.Add(new Rest(IdOf(child), Tick, restLength) { Tuplet = tuplet });
+                        Events.Add(new Rest(IdOf(child), Tick, restLength) { Tuplet = tuplet, Hidden = child.Name.LocalName == "space" });
                         Tick += restLength;
                         break;
                     case "mRest" or "mSpace":
-                        if (child.Name.LocalName == "mRest") Events.Add(new Rest(IdOf(child), Tick, barTicks));
-                        Tick += barTicks;
+                        // Its length is the bar's, set once every layer is read.
+                        Events.Add(new Rest(IdOf(child), Tick, 0) { Hidden = child.Name.LocalName == "mSpace" });
                         break;
                     case "clef":
                         Events.Add(new ClefChange(Tick, (string?)child.Attribute("shape") == "F" ? Clef.Bass : Clef.Treble));
