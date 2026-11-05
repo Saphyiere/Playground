@@ -44,8 +44,7 @@ Licences are described as their own texts state them. That's a reading for a per
 5. **Verovio holds up as the engraver.** In a side-by-side check it engraved piano music the most like print. It has a page
    layout and a single-line layout, and its timing calls give the current-bar highlight and the cursor for free (measured).
    Its costs are a **7.4 MB** script (2.4 MB gzipped) and the LGPL-3.0 licence. OSMD is the fallback: 1.4 MB and BSD-licensed,
-   but its spacing is looser and its cross-staff slurs are cruder. One thing to settle: concept.md currently plans
-   hand-drawn SVG notation.
+   but its spacing is looser and its cross-staff slurs are cruder. concept.md and plan.md already use Verovio.
 6. **PDFs show well with pdf.js. Reading notes out of a PDF (OMR) isn't a tablet feature.**
    - pdf.js drew a full-width page in about **0.3 s** on the desktop (measured).
    - The best research OMR still gets about **18% of symbols wrong** on real piano scans
@@ -352,10 +351,9 @@ command line (`mscore -o out.musicxml in.mscz` [unverified]).
   the licence.
 - **Start the toolkit once at app start and keep it.** Turn off the header and footer, and give each passage only one tempo
   mark.
-- **One thing to settle in concept.md.** "How it's built" plans hand-drawn SVG with Noto Music. The Library needs Verovio
-  regardless. Using it for generated passages too would give one look and one timing model. The Core would write MEI or
-  MusicXML. The cost is that Verovio's SVG replaces Noto Music's glyphs, so the Studio & Vinyl looks would style it through CSS
-  [untested].
+- **One engraver for everything.** concept.md's "How it's built" now has Verovio engrave all notation, generated passages
+  included. That gives one look and one timing model: the Core writes MEI or MusicXML. The Studio and Vinyl looks style
+  the overlays around Verovio's SVG through CSS [untested].
 - **Keep OSMD as the fallback** if size or licence ever matter more than looks. Expect 1.5–2 times as many pages.
 
 ### How sure we can be
@@ -634,8 +632,8 @@ The credits screen shows, for each piece: title, composer, encoder or project, s
   is score MIDI with the same bars and repeats.
 - **MuseScore (`.mscz`):** convert to MusicXML in MuseScore on the PC. webmscore is too heavy, and GPL.
 - **MIDI files:** not turned into notation on the tablet. Notation from MIDI needs quantising, hand splits and spelling, which
-  even research systems get visibly wrong. This changes concept.md's "from MusicXML or MIDI files": import MIDI as MusicXML
-  through MuseScore on the PC, or use it only alongside a PDF as above.
+  even research systems get visibly wrong. Import MIDI as MusicXML through MuseScore on the PC, or use it only alongside a
+  PDF as above.
 
 ### The full-page view
 
@@ -700,9 +698,7 @@ The design in §6:
 - **Mutopia's LilyPond** doesn't convert cleanly, so A2 stays PDF-first until a better route is found.
 - **The device.** Verovio's start-up and layout time in the WebView, pdf.js memory at 2190 px, and the CSS density are all
   untested on the tablet. Time them in the first build.
-- **The 7.4 MB Verovio asset.** Choosing between 6.4.1 (two days old) and 6.3.0 is the owner's call.
-- **concept.md** should be updated in three places: Verovio as the engraver (for generated passages too?), MIDI import
-  narrowed, and the full-page view in portrait.
+- **The 7.4 MB Verovio asset.** Pin one exact version (6.4.1 was tested here) and ship it as a separate file.
 - **Grading.** The rule grader and the repertoire-to-reading offset are untested. Calibrate them on your own playing.
 - **For the owner:** whether you have the LP-1 pedal unit or a Bluetooth turner. Which teaching books you already know, since
   pieces you've practised are no longer sight-reading. Whether hymns and Lieder belong in the Library.
