@@ -61,7 +61,8 @@ summary. Then the next passage, with the level and tempo already adjusted.
 Variants, one a day in the plan and any time here:
 
 - **Read ahead**: the bars you've played are covered and the view ahead is limited, but at least a second and a half of music
-  ahead is always shown, since about a second is how far everyone's eyes run ahead.
+  ahead is always shown, since about a second is how far everyone's eyes run ahead. The look shows only the opening, so the
+  passage can't be learned before it's hidden.
 - **Duet**: play one part while the piano plays the other in time (Prima sends it over MIDI). It's how the research tests
   reading, and part of the piano course that did best.
 - **Hear first**: the piano plays the passage once, then you read it.
@@ -85,8 +86,9 @@ partly to other patterns. A separate research, `library.md`, settles the sources
 - **Metronome**, with a count-in and a click that can fade to silence.
 - **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
   C8). No picture of a keyboard.
-- **Timing**: play any key with the click for 16 beats. The delay is taken off every note from then on, and the spread shows how
-  much timing noise the piano and the tablet add.
+- **Timing**: play any key with the click for 16 beats. The delay is taken off every note from then on. It includes your own
+  habit of playing a touch early, so the lean shown afterwards is measured from that day. The spread shown is mostly your own
+  tapping, not the keyboard's noise.
 
 ### You
 
@@ -114,11 +116,12 @@ data (back up and restore). Nothing leaves the tablet unless you back it up.
 
 - A note counts if its pitch is right and it lands within a timing window around its place. The research used ±0.25 s; here the
   window scales with tempo.
-- Timing is a share of the beat: under about 5% is in time, 5–10% is audible, over 10% is off. These bands are our reading of
-  the perception studies.
+- Timing is a share of the beat: under about 5% is in time, 5–10% is audible, over 10% is off. These bands are the research's
+  design inference from the perception studies. In-time accuracy, the headline, counts right notes that aren't off, so
+  audible ones count too (our choice: the 5% line is where listeners start to notice, too strict a bar for reading at sight).
 - Your average early or late lean is measured and taken out before steadiness is graded.
-- Measured per passage: in-time accuracy, correct notes a minute, kept going (no gap longer than a bar), tempo drift, extra
-  notes, missing notes, and the timing error of correct notes. A wrong note one or two keys away from the right one counts as
+- Measured per passage: in-time accuracy, correct notes a minute, kept going (no gap longer than a bar), whether it was clean
+  (every note right), tempo drift, extra notes, missing notes, and the timing error of correct notes. A wrong note one or two keys away from the right one counts as
   "lost on the keyboard", apart from reading errors.
 
 ### Levels
@@ -141,8 +144,9 @@ difficulty, and what's added stays.
 | 11 | ABRSM 8 | All to five | + 12/8, 2/2 | Duplets | Three-note chords a hand, ornaments |
 | 12 | Beyond | All | Mixed | Free | Full textures |
 
-Within a level the app keeps you at about 85–90% in time. Below that, the tempo drops first; if it still falls apart, the next
-passage is simpler. Moving up raises one thing at a time: rhythm, hands, key, range and leaps, or texture. The exams set no
+Within a level the app aims for about 85% in time, judged over the last three passages, since one short passage is noisy.
+Over 90% raises the tempo, under 80% lowers it, and a passage you stopped in lowers it at once; if it still falls apart at
+the slowest tempo, the next passage is simpler. These numbers are ours. Moving up raises one thing at a time: rhythm, hands, key, range and leaps, or texture. The exams set no
 limits for range or ledger lines, so those are our choices. No study compares ways of stepping up; this is a reasoned default.
 
 ## Drills
@@ -159,7 +163,7 @@ success.
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
 | Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
 | Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position, then out of it, octave jumps, larger leaps, both hands |
-| Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys |
+| Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys; last, improvise an answer phrase (not scored) |
 | Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
 | Arpeggios | As Scales | As Scales, with a close look at the crossings | A fifth's range, then one octave hands separate, two, hands together, inversions |
 | Finger independence | Five-finger patterns, trills (3–4, 4–5), held notes; patterns from your pieces where possible | Each finger's timing and touch, trill rate and steadiness, whether held keys stay down | Slow and even, then faster, then the weak pairs, then both hands |
@@ -180,7 +184,7 @@ About twenty minutes, in this order. The order is a design choice; the evidence 
 | 3. Rhythm | 2–3 min | Three or four rhythms at your level; the click fades on later tries |
 | Pause | 1 min | Stand up, shake out your hands, look away |
 | 4. Sight-reading | 7–8 min | Four to six new passages at your level; one of them a variant (read ahead, duet or hear first), a different one each day |
-| 5. One spot, or a piece | 2–3 min | The bar you missed most today, slowly, then its whole line; or a piece from the Library |
+| 5. One spot, or a piece | 2–3 min | The bar you missed most today, slowly, then its whole line; or a piece from the Library. Then the day's summary |
 
 The five-minute plan is the note review and two passages. The plan mixes scales, rhythms and variants across days instead of
 repeating one block, and doesn't raise the daily minutes sharply from week to week.
@@ -191,13 +195,16 @@ Shown as trends over days and weeks. Mixed practice feels worse at the time and 
 judged.
 
 - **Reading**: the level, one long-scale reading score with a trend line, in-time accuracy and correct notes a minute at the
-  level, how often you kept going, and the passages and bars read each week, the main lever.
+  level, how often you kept going, Zhukov's four (tempo drift, extra and missing notes, timing error), lost-on-the-keyboard
+  errors apart from reading errors, read ahead against plain reading at the same level, and the passages and bars read each
+  week, the main lever.
 - **Notes**: a heat map on the grand staff of each note's accuracy and speed, the most-missed and slowest notes, and how many
   notes are fluent (right, fast and steady across sessions).
 - **Rhythm**: your early or late lean, steadiness, drift without the click, and the figures you miss most.
 - **Technique**, per scale or arpeggio and hand: evenness at a tempo, the fastest tempo at which it stays even, crossing and
   octave slips, evenness of touch, legato, and the hands' sync.
-- **Habit**: minutes this week and days practised out of the last seven. The streak can be repaired: a missed day can be covered
+- **Habit**: minutes this week, days practised out of the last seven, and the share of clean passages and runs (retention
+  follows the share of correct tries). The streak can be repaired: a missed day can be covered
   by a freeze, and the week counts as kept at five days out of seven. A break is described plainly, never as a failure.
 
 ## The keyboard
@@ -207,7 +214,8 @@ judged.
 - **Sound from the piano.** Prima sends notes back to the piano over MIDI, so Duet, Hear first and Listen and play back play
   through the piano itself.
 - **Latency** is calibrated once (play along to a click; the median offset is taken out). How much timing jitter the keyboard
-  and the tablet add is unknown until measured; differences smaller than that aren't shown.
+  and the tablet add is unknown until measured. Prima estimates the USB and MIDI path's share from the piano's Active Sensing
+  messages, which arrive at a fixed interval (our idea, untested); differences smaller than that aren't shown.
 
 ## How the data is shaped
 
