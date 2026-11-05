@@ -405,6 +405,13 @@ body {
     bottom: 6px;
 }
 
+/* Inside Vinyl's round disc. */
+[data-theme="vinyl"][data-piano-keys] .mu-play[data-piano]::after {
+    right: 50%;
+    bottom: 7px;
+    transform: translateX(50%);
+}
+
 .mu-btn.piano-pressed,
 .mu-play.piano-pressed {
     transform: translateY(2px);

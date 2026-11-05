@@ -261,3 +261,98 @@ public class PracticeTests
         Assert.Null(streak.BreakNote(Today));
     }
 }
+
+public class NoteStreamTests
+{
+    private static List<(Clef Clef, Spelled Pitch)> Take(NoteStream stream, int count) => [.. Enumerable.Range(0, count).Select(_ => stream.Next())];
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 2)]
+    public void NotesStayOnTheStaffOrOutToTwoLedgerLines(bool ledgerLines, int most)
+    {
+        var notes = Take(new NoteStream([Clef.Treble, Clef.Bass], ledgerLines, false, new Rng(3)), 600);
+
+        Assert.All(notes, n => Assert.InRange(PassageGenerator.LedgerLines(n.Pitch, n.Clef == Clef.Treble ? 1 : 2), 0, most));
+        // Every line and space of the range comes up.
+        Assert.Equal(2 * (NoteStream.Range(Clef.Treble, ledgerLines).High - NoteStream.Range(Clef.Treble, ledgerLines).Low + 1), notes.Distinct().Count());
+        Assert.Contains(notes, n => PassageGenerator.LedgerLines(n.Pitch, n.Clef == Clef.Treble ? 1 : 2) == most);
+    }
+
+    [Fact]
+    public void TheSameLineOrSpaceNeverComesTwiceRunning()
+    {
+        var notes = Take(new NoteStream([Clef.Treble], false, true, new Rng(5)), 500);
+
+        Assert.All(notes.Zip(notes.Skip(1)), p => Assert.NotEqual(p.First.Pitch.Diatonic, p.Second.Pitch.Diatonic));
+    }
+
+    [Fact]
+    public void SharpsAndFlatsAreAboutAThirdAndNeverOnWhiteKeys()
+    {
+        var notes = Take(new NoteStream([Clef.Treble, Clef.Bass], true, true, new Rng(7)), 900);
+        var altered = notes.Where(n => n.Pitch.Alter != 0).ToList();
+
+        Assert.InRange(altered.Count / 900.0, 0.27, 0.40);
+        Assert.Contains(altered, n => n.Pitch.Alter == 1);
+        Assert.Contains(altered, n => n.Pitch.Alter == -1);
+        Assert.DoesNotContain(altered, n => (n.Pitch.Step, n.Pitch.Alter) is (Step.E, 1) or (Step.B, 1) or (Step.C, -1) or (Step.F, -1));
+        Assert.All(Take(new NoteStream([Clef.Bass], true, false, new Rng(7)), 300), n => Assert.Equal(0, n.Pitch.Alter));
+    }
+
+    [Fact]
+    public void AMissedNoteComesBackThreeToFiveNotesLater()
+    {
+        var stream = new NoteStream([Clef.Treble], true, false, new Rng(11));
+        var missed = stream.Next();
+        stream.Answer(false, 2000);
+
+        var next = Take(stream, 5);
+        var back = next.FindIndex(n => n == missed);
+        Assert.InRange(back + 1, 3, 5);
+    }
+
+    [Fact]
+    public void ThePaceIsTheMedianOfTheLastTenRightAnswersAndTheBestOfThose()
+    {
+        var stream = new NoteStream([Clef.Treble], false, false, new Rng(13));
+        foreach (var ms in new[] { 1500.0, 1400, 1300, 1200, 1100 })
+        {
+            stream.Next();
+            stream.Answer(true, ms);
+        }
+        Assert.Equal(1300, stream.RecentMs);
+        Assert.Null(stream.BestMs);
+
+        // A wrong answer counts as an answer, not in the pace.
+        stream.Next();
+        stream.Answer(false, 400);
+        Assert.Equal(400, stream.LastMs);
+        Assert.Equal(1300, stream.RecentMs);
+
+        foreach (var ms in new[] { 1000.0, 900, 800, 700, 600, 2000, 2100, 2200, 2300, 2400 })
+        {
+            stream.Next();
+            stream.Answer(true, ms);
+        }
+        Assert.Equal(15, stream.Right);
+        Assert.Equal(16, stream.Answers.Count);
+        // The last ten right are 1000 to 600 and 2000 to 2400, median 1500; the best ten were the first ten, median 1050.
+        Assert.Equal(1500, stream.RecentMs);
+        Assert.Equal(1050, stream.BestMs);
+    }
+}
+
+public class GeographyTests
+{
+    [Fact]
+    public void TheOctaveStepLeapsASixthToANinthEitherWay()
+    {
+        var rng = new Rng(17);
+        var targets = Enumerable.Range(0, 300).Select(_ => Prima.Core.Generation.Drills.Geography(3, rng).Answer[0][0]).ToList();
+        var middleC = new Spelled(Step.C, 0, 4).Diatonic;
+
+        Assert.Equal(8, targets.Distinct().Count());
+        Assert.All(targets, m => Assert.InRange(Math.Abs(new Key(0).Spell(m).Diatonic - middleC), 5, 8));
+    }
+}

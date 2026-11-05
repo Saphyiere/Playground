@@ -1,0 +1,202 @@
+@page "/drills/endless"
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IScreen Screen
+@inject SessionRegistry Registry
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using DrillMaterial = Prima.Core.Generation.Drills
+
+<PageTitle>Endless notes · Prima</PageTitle>
+
+<PageHead Title="Endless notes" Kicker="Reading · faster and faster"><KeyboardLamp /></PageHead>
+
+@if (running && stream is not null)
+{
+    <section class="reading-bar" aria-label="How it's going">
+        <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Last</span><span class="mu-readout-value">@Seconds(stream.LastMs)</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Last ten</span><span class="mu-readout-value">@Seconds(stream.RecentMs)</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
+        <button type="button" class="mu-btn" data-piano="go" @onclick="Stop">Stop</button>
+    </section>
+    <div class="sheet-frame drill-frame">
+        <Sheet @ref="sheet" Mei="@mei" Scale="1.7" OnPainted="Shown" />
+    </div>
+    <p class="drill-feedback wrong" aria-live="polite">@feedback</p>
+}
+else
+{
+    @if (stream is { Answers.Count: > 0 })
+    {
+        <section class="mu-screen summary-figures" aria-label="The run">
+            <div class="mu-readouts">
+                <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Typical</span><span class="mu-readout-value">@Seconds(TypicalMs(stream))</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
+            </div>
+        </section>
+        <ul class="summary-words">
+            @foreach (var line in Words(stream))
+            {
+                <li>@line</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="page-note">One note after another until you stop. A right answer moves straight on, so the only wait is your reading: bring the time of your last ten down. A missed note comes back a few notes later. It's practice on its own: the Notes drill's review doesn't change.</p>
+    }
+    <div class="control-row">
+        <span class="control-label">Clefs</span>
+        @foreach (var (value, label) in ClefChoices)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(clefs == value)" @onclick="() => clefs = value"><span class="mu-led"></span>@label</button>
+        }
+    </div>
+    <div class="control-row">
+        <span class="control-label">Range</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!ledgerLines)" @onclick="() => ledgerLines = false"><span class="mu-led"></span>The staff</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(ledgerLines)" @onclick="() => ledgerLines = true"><span class="mu-led"></span>Ledger lines</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">Sharps and flats</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!accidentals)" @onclick="() => accidentals = false"><span class="mu-led"></span>Off</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(accidentals)" @onclick="() => accidentals = true"><span class="mu-led"></span>On</button>
+    </div>
+    <div class="control-row control-row-play">
+        <button type="button" class="mu-play" aria-label="Start" data-piano="go" @onclick="Start"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+        <a class="mu-btn" href="drills">Done</a>
+    </div>
+}
+
+@code {
+    private static readonly (string Value, string Label)[] ClefChoices = [("both", "Both clefs"), ("treble", "Treble"), ("bass", "Bass")];
+
+    private NoteStream? stream;
+    private Sheet? sheet;
+    private string mei = "";
+    private string clefs = "both";
+    private bool ledgerLines;
+    private bool accidentals;
+    private bool running;
+    private bool waiting;
+    private long shownNs;
+    private string? feedback;
+    // The best ten of the runs before, and of those before the one just finished, which its summary is measured against.
+    private double? bestBefore;
+    private double? toBeat;
+    private DateTime started;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    private static string Seconds(double? ms) => ms is { } m ? $"{m / 1000:0.00} s" : "–";
+
+    private static string Share(NoteStream s) => s.Answers.Count == 0 ? "–" : $"{s.Right / (double)s.Answers.Count * 100:0}%";
+
+    private static double? TypicalMs(NoteStream s) => s.Right == 0 ? null : Stats.Median([.. s.Answers.Where(a => a.Right).Select(a => a.Ms)]);
+
+    protected override async Task OnInitializedAsync()
+    {
+        clefs = Settings.Clefs;
+        Keyboard.Received += OnReceived;
+        // The best ten from earlier runs, to beat.
+        bestBefore = (await Store.GetAttemptsAsync(DateOnly.MinValue, "endless")).Select(a =>
+        {
+            using var measures = System.Text.Json.JsonDocument.Parse(a.Measures);
+            return measures.RootElement.TryGetProperty("bestTenMs", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.Number ? b.GetDouble() : (double?)null;
+        }).Min();
+    }
+
+    private void Start()
+    {
+        HashSet<Clef> chosen = clefs switch { "treble" => [Clef.Treble], "bass" => [Clef.Bass], _ => [Clef.Treble, Clef.Bass] };
+        stream = new NoteStream(chosen, ledgerLines, accidentals, new Rng((ulong)DateTime.Now.Ticks));
+        (running, feedback, started, toBeat) = (true, null, DateTime.Now, bestBefore);
+        Screen.KeepOn(true);
+        ShowNext();
+    }
+
+    private void ShowNext()
+    {
+        var (clef, pitch) = stream!.Next();
+        var item = DrillMaterial.Note(clef == Clef.Treble ? 1 : 2, pitch);
+        mei = MeiWriter.Write(item.Score);
+        waiting = false;
+        Registry.DrillAnswer = right => right ? item.Answer : [[pitch.Midi + 1]];
+    }
+
+    // Timed from when the note has painted.
+    private void Shown(long at) => (shownNs, waiting) = (at, running);
+
+    private void OnReceived(MidiEvent e)
+    {
+        if (e.Kind != MidiKind.NoteOn || !waiting || stream is null) return;
+
+        waiting = false;
+        _ = InvokeAsync(() => Answered(e.Note, (e.TimeNs - shownNs) / 1e6));
+    }
+
+    // A right answer moves straight on; a wrong one shows what was played on the staff for a moment first.
+    private async Task Answered(int played, double ms)
+    {
+        if (!running || stream is null) return;
+
+        var written = stream.Current.Pitch;
+        var right = played == written.Midi;
+        stream.Answer(right, ms);
+        if (!right)
+        {
+            var heard = new Key(0).Spell(played);
+            feedback = $"That was {heard}{(Settings.LetterNames ? $"; the note is {written}" : "")}.";
+            StateHasChanged();
+            await (sheet?.ShowMarks([new SheetMark("q1", "wrong", heard.ToString(), heard.Diatonic - written.Diatonic)]) ?? Task.CompletedTask);
+            await Task.Delay(1200);
+            if (!running) return;
+        }
+        feedback = null;
+        ShowNext();
+        StateHasChanged();
+    }
+
+    private async Task Stop()
+    {
+        (running, waiting) = (false, false);
+        Registry.DrillAnswer = null;
+        Screen.KeepOn(false);
+        if (stream is not { Answers.Count: > 0 } s) return;
+
+        var settings = System.Text.Json.JsonSerializer.Serialize(new { clefs, ledgerLines, accidentals });
+        var measures = System.Text.Json.JsonSerializer.Serialize(new { answered = s.Answers.Count, right = s.Right, medianMs = TypicalMs(s), bestTenMs = s.BestMs });
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "endless", null, null, null, null, null, settings, "[]", null, measures, s.Right / (double)s.Answers.Count, s.Right == s.Answers.Count, null));
+        bestBefore = new[] { bestBefore, s.BestMs }.Min();
+        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+    }
+
+    private IEnumerable<string> Words(NoteStream s)
+    {
+        if (s.BestMs is not { } best) yield return "Ten right answers make a best ten, the time to beat.";
+        else if (toBeat is not { } before) yield return $"Best ten {best / 1000:0.00} s, the one to beat next time.";
+        else if (Math.Round(best / 10) < Math.Round(before / 10)) yield return $"A new best ten: {best / 1000:0.00} s, from {before / 1000:0.00} s.";
+        else if (Math.Round(best / 10) == Math.Round(before / 10)) yield return $"Best ten {best / 1000:0.00} s, level with your best.";
+        else yield return $"Best ten {best / 1000:0.00} s; your best is {before / 1000:0.00} s.";
+        var slowest = s.Answers.Where(a => a.Right).GroupBy(a => (a.Clef, a.Pitch)).Select(g => (Note: g.Key.Pitch, Ms: Stats.Median([.. g.Select(a => a.Ms)]))).OrderByDescending(n => n.Ms).Take(3).ToList();
+        if (slowest.Count > 1) yield return $"Slowest: {string.Join(", ", slowest.Select(n => $"{n.Note} ({n.Ms / 1000:0.0} s)"))}.";
+        var missed = s.Answers.Where(a => !a.Right).Select(a => a.Pitch.ToString()).Distinct().ToList();
+        if (missed.Count > 0) yield return $"Missed: {string.Join(", ", missed)}.";
+    }
+
+    public void Dispose()
+    {
+        running = false;
+        Keyboard.Received -= OnReceived;
+        Registry.DrillAnswer = null;
+        Screen.KeepOn(false);
+    }
+}

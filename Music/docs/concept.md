@@ -86,9 +86,9 @@ plugged in, the buttons they press are marked C♯1 and D♯1. They can be turne
 
 ### Drills
 
-Short, focused practice, each a few minutes. Reading drills: Notes, Ledger lines, Intervals and shapes, Chords, Key signatures,
-Rhythm, Keyboard geography, and Listen and play back. Technique drills: Scales, Arpeggios, and Finger independence. Each is
-described under [Drills](#drills-1) below.
+Short, focused practice, each a few minutes. Reading drills: Notes, Endless notes, Ledger lines, Intervals and shapes, Chords,
+Key signatures, Rhythm, Keyboard geography, and Listen and play back. Technique drills: Scales, Arpeggios, and Finger
+independence. Each is described under [Drills](#drills-1) below.
 
 ### Library
 
@@ -216,12 +216,13 @@ success.
 | Drill | You see and do | It measures | It gets harder by |
 | --- | --- | --- | --- |
 | Notes | A note, or a short group, on the staff; play the key | Right or wrong, and the time from seeing to playing, per note | Landmarks first (middle C, treble G, bass F, the outer Cs), then their neighbours, then both clefs and a wider range |
+| Endless notes | One note after another until you stop: a right answer moves straight on, a wrong one shows what you played on the staff; treble, bass or both, the staff or out to two ledger lines, and sharps and flats if you like | The time of each answer; the median of your last ten right answers, the best of those in the run, and your best ten from earlier runs to beat | By you: faster. A missed note comes back three to five notes later. It's practice on its own, outside the Notes drill's spaced review |
 | Ledger lines | Notes on one to four ledger lines; play them | As Notes, kept per ledger position | One line, then two, from the C anchors, then by thirds |
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
 | Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
 | Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
-| Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position, then out of it, octave jumps, larger leaps, both hands |
+| Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position (C to G from middle C), then just out of it, then leaps of a sixth to a ninth either way, then anywhere an octave either side |
 | Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys; last, improvise an answer phrase (not scored) |
 | Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
 | Arpeggios | As Scales | As Scales, with a close look at the crossings | A fifth's range, then one octave hands separate, two, hands together, inversions |

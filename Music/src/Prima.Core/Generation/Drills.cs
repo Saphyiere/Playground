@@ -107,12 +107,12 @@ public static class Drills
 
     /// <summary>
     /// Keyboard geography: a note, or two in a row for a leap, from a stated hand position: within the position (step 1), just
-    /// out of it (2), an octave away (3), or anywhere in two octaves (4).
+    /// out of it (2), a leap of about an octave, a sixth to a ninth either way (3), or anywhere in two octaves (4).
     /// </summary>
     public static DrillItem Geography(int step, Rng rng)
     {
         var home = new Spelled(Step.C, 0, 4);
-        var away = step switch { <= 1 => rng.Int(5), 2 => rng.Pick(new[] { -2, -1, 5, 6 }), 3 => rng.Pick(new[] { -7, 7 }), _ => rng.Int(15) - 7 };
+        var away = step switch { <= 1 => rng.Int(5), 2 => rng.Pick(new[] { -2, -1, 5, 6 }), 3 => rng.Pick(new[] { -8, -7, -6, -5, 5, 6, 7, 8 }), _ => rng.Int(15) - 7 };
         var target = Spelled.FromDiatonic(home.Diatonic + away);
         var staff = target.Midi >= 60 ? 1 : 2;
         var item = Note(staff, target);

@@ -9,12 +9,13 @@ public sealed record DrillTrack(int Step, double? LastShare, double? LastResult,
     public static DrillTrack Start { get; } = new(1, null, null, null);
 }
 
-/// <summary>The eleven drills (concept.md, Drills), in the order the list shows them.</summary>
+/// <summary>The twelve drills (concept.md, Drills), in the order the list shows them.</summary>
 public static class DrillCatalog
 {
     public static IReadOnlyList<DrillInfo> All { get; } =
     [
         new("notes", "Notes", "Reading", "A note on the staff: play its key. Spaced review, landmarks first.", 1),
+        new("endless", "Endless notes", "Reading", "One note after another until you stop: read them faster and faster, sharps and flats too.", 1),
         new("ledger", "Ledger lines", "Reading", "Notes on one to three ledger lines, read from the C anchors.", 1),
         new("intervals", "Intervals and shapes", "Reading", "A figure from a named note: play it by its distances.", 4),
         new("chords", "Chords", "Reading", "A stack of notes: play it at once.", 4),
