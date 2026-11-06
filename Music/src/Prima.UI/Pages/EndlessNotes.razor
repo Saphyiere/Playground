@@ -155,7 +155,7 @@ else
             var heard = new Key(0).Spell(played);
             feedback = $"That was {heard}{(Settings.LetterNames ? $"; the note is {written}" : "")}.";
             StateHasChanged();
-            await (sheet?.ShowMarks([new SheetMark("q1", "wrong", heard.ToString(), heard.Diatonic - written.Diatonic)]) ?? Task.CompletedTask);
+            await (sheet?.ShowMarks([new SheetMark("q1", "wrong", heard.ToString(), heard.Diatonic - written.Diatonic, Written: Settings.LetterNames ? written.ToString() : null)]) ?? Task.CompletedTask);
             await Task.Delay(1200);
             if (!running) return;
         }

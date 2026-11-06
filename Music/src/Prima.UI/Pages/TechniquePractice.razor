@@ -221,13 +221,13 @@ else if (outcome?.Wait is not null)
     private async Task Scored(TechniqueItem run, IReadOnlyList<PlayedNote> played)
     {
         result = TechniqueScorer.Score(run, played);
-        // Every note marked as Sight-read marks them: green right, red wrong with a grey head where the key played is, outlined red
-        // missed; and an extra key as a grey head beside the note before it.
+        // Every note marked as Sight-read marks them: green right; wrong, the note grey and the key played beside it in red, each
+        // named; outlined grey missed; and an extra key as a red head beside the note before it.
         var pitches = run.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
         SheetMark KeyMark(string id, string kind, int key)
         {
             var spelled = run.Key.Spell(key);
-            return new SheetMark(id, kind, spelled.ToString(), spelled.Diatonic - pitches[id].Diatonic);
+            return new SheetMark(id, kind, spelled.ToString(), spelled.Diatonic - pitches[id].Diatonic, Written: pitches[id].ToString());
         }
         var handRuns = new[] { result.Right, result.Left }.OfType<HandRun>().ToList();
         var marks = handRuns.SelectMany(h => h.Notes).Select(n => n.Outcome switch

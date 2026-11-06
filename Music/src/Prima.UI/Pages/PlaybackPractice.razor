@@ -123,7 +123,7 @@ else
             var key = passage.Score.Key;
             await (sheet?.ShowMarks(result.Notes.Select(n => n.Outcome switch
             {
-                Outcome.Wrong when n.Played is { } p => new SheetMark(n.Id, "wrong", key.Spell(p).ToString(), key.Spell(p).Diatonic - key.Spell(n.Midi).Diatonic),
+                Outcome.Wrong when n.Played is { } p => new SheetMark(n.Id, "wrong", key.Spell(p).ToString(), key.Spell(p).Diatonic - key.Spell(n.Midi).Diatonic, Written: key.Spell(n.Midi).ToString()),
                 Outcome.Missed => new SheetMark(n.Id, "missed"),
                 _ when n.Band == Band.Off => new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late"),
                 _ => null,

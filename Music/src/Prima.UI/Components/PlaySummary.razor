@@ -53,7 +53,7 @@ else if (Outcome?.Wait is { } waited)
         }
         else if (Outcome.Wait is { } waited)
         {
-            yield return waited.Notes == 0 ? "Nothing played yet." : $"{waited.RightFirstTime} of {waited.Notes} notes right first time{upTo}. A note with a slip stays red, with the key you played.";
+            yield return waited.Notes == 0 ? "Nothing played yet." : $"{waited.RightFirstTime} of {waited.Notes} notes right first time{upTo}. A note with a slip stays grey, with the key you played beside it in red.";
             if (waited.Notes > 0) yield return $"About {waited.NotesPerMinute:0} notes a minute at your own pace, over {TimeSpan.FromSeconds(waited.Seconds):m\\:ss}.";
         }
     }

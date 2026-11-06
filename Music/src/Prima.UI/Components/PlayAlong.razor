@@ -288,15 +288,15 @@
         await sheet.MarkLive(shown);
     }
 
-    // A note's mark on the sheet. A wrong one shows the key played, a grey head that many staff positions from the written one;
-    // an early or late one when it was played, a ring on its line.
+    // A note's mark on the sheet. A wrong one shows the key played, a red head that many staff positions from the written one,
+    // which turns grey, each named; an early or late one when it was played, a ring on its line.
     private SheetMark MarkOf(PlayMusic music, string id, LiveKind kind, int? key, double errorPercent)
     {
         var name = kind.ToString().ToLowerInvariant();
         if (kind == LiveKind.Wrong && key is { } played && pitches.TryGetValue(id, out var written))
         {
             var spelled = music.Score.Key.Spell(played);
-            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic);
+            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic, Written: written.ToString());
         }
         return kind is LiveKind.Early or LiveKind.Late && notes.TryGetValue(id, out var note)
             ? new SheetMark(id, name, Quarter: music.QuarterOf(note.Tick) + errorPercent / 100 * music.BeatTicks / Ticks.Quarter)

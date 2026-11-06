@@ -200,7 +200,8 @@
 
 /* The sheet: printed music, the same in both looks, and what's marked on it: right, wrong and missed notes, early and late
    ones, and the heat map of missed notes on You (one hue, darker for more often). The right notes' green is a blue-green, so it
-   stays apart from the red for red-green colour blindness too. */
+   stays apart from the red for red-green colour blindness too. Red is only ever a key you played; the note meant, when you
+   didn't play it, is grey (dark enough for its name to read on the paper). */
 :root {
   --sheet: #fffdf8;
   --sheet-ink: #161412;
@@ -208,6 +209,7 @@
   --sheet-faint: #8a857c;
   --mark-right: #0f7b5f;
   --mark-wrong: #c8361b;
+  --mark-meant: #736e66;
   --mark-timing: #b7650c;
   --heat-1: #de735a;
   --heat-2: #c23d1d;
@@ -1681,16 +1683,18 @@ a.mu-btn {
     color: var(--mark-right);
 }
 
+/* A wrong note: the written note grey, the key played beside it in red (.sheet-played), each named above. */
 .sheet-music .mark-wrong,
 .sheet-music .mark-wrong g {
-    fill: var(--mark-wrong);
-    color: var(--mark-wrong);
+    fill: var(--mark-meant);
+    color: var(--mark-meant);
 }
 
+/* A missed note: outlined grey, the note meant with nothing played. */
 .sheet-music .mark-missed .notehead,
 .sheet-music .mark-missed .notehead g {
     fill: transparent;
-    stroke: var(--mark-wrong);
+    stroke: var(--mark-meant);
     stroke-width: 28px;
 }
 
@@ -1704,6 +1708,12 @@ a.mu-btn {
 .sheet-ghost {
     fill: var(--sheet-faint);
     opacity: 0.85;
+}
+
+/* The key played for a wrong note, or an extra key. */
+.sheet-played {
+    fill: var(--mark-wrong);
+    opacity: 1;
 }
 
 /* When an early or late note was played: a ring on its line. */
@@ -1725,6 +1735,10 @@ a.mu-btn {
 .sheet-arrow {
     font-size: 18px;
     fill: var(--mark-timing);
+}
+
+.sheet-label .sheet-meant {
+    fill: var(--mark-meant);
 }
 
 /* Where a sheet sits: on its own, as wide as the bar above it and with its corners. Studio lays the paper straight on the

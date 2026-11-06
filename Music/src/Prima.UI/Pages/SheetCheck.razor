@@ -56,7 +56,7 @@
     private async Task ToggleMarks()
     {
         marked = !marked;
-        if (marked) await sheet!.ShowMarks([new SheetMark("r3", "wrong", "C♯5", 1), new SheetMark("r7", "missed"), new SheetMark("r13", "early"), new SheetMark("r22", "late"), new SheetMark("l7-1", "wrong", "G3", 1)]);
+        if (marked) await sheet!.ShowMarks([new SheetMark("r3", "wrong", "C♯5", 1, Written: "B4"), new SheetMark("r7", "missed"), new SheetMark("r13", "early"), new SheetMark("r22", "late"), new SheetMark("l7-1", "wrong", "G3", 1, Written: "F♯3")]);
         else await sheet!.ClearMarks();
     }
 

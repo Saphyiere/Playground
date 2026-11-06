@@ -105,13 +105,13 @@
     /// <summary>The marks after a run, in place of any before.</summary>
     public async Task ShowMarks(IEnumerable<SheetMark> marks)
     {
-        if (module is not null) await module.InvokeVoidAsync("showMarks", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter }));
+        if (module is not null) await module.InvokeVoidAsync("showMarks", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter, written = m.Written }));
     }
 
     /// <summary>Marks during a run, as notes are judged, added to those already shown (a note marked again takes its new mark).</summary>
     public async Task MarkLive(IEnumerable<SheetMark> marks)
     {
-        if (module is not null) await module.InvokeVoidAsync("markLive", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter }));
+        if (module is not null) await module.InvokeVoidAsync("markLive", element, marks.Select(m => new { id = m.Id, kind = m.Kind, played = m.Played, steps = m.Steps, q = m.Quarter, written = m.Written }));
     }
 
     public async Task ClearMarks()

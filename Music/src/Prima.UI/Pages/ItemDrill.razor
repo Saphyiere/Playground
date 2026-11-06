@@ -230,25 +230,41 @@ else
         var item = entry.Item;
         List<PlayedNote> notes;
         lock (heard) notes = [.. heard];
-        // The answer goes on the staff, note by note: right, wrong (the key played as a grey head that many positions away, named)
-        // or missed, and a chord's extra keys beside it; the words name the same notes.
+        // The answer goes on the staff, note by note: right; wrong, the key played as a red head that many positions away and the
+        // note grey, each named (a single note's name as Settings says); or missed; and a chord's extra keys beside it. The words
+        // name the same notes.
         var expected = item.Score.Expected();
         var written = item.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
         var key = entry.ItemKey;
         var played = notes.Where(p => p.OnNs >= shownNs).OrderBy(p => p.OnNs).ToList();
         List<SheetMark> marks = [];
-        SheetMark Wrong(ExpectedNote n, int midi) => new(n.Id, "wrong", key.Spell(midi).ToString(), key.Spell(midi).Diatonic - written[n.Id].Diatonic);
+        SheetMark Wrong(ExpectedNote n, int midi, bool named = true)
+        {
+            var heard = key.Spell(midi);
+            return new(n.Id, "wrong", heard.ToString(), heard.Diatonic - written[n.Id].Diatonic, Written: named ? written[n.Id].ToString() : null);
+        }
         Answer answer;
         if (item.Answer.Count == 1 && item.Answer[0].Count > 1)
         {
             var chord = DrillScorer.Chord(item.Answer[0], notes, shownNs)!;
             var keys = played.Where(p => p.OnNs - played[0].OnNs <= DrillScorer.ChordWindowNs).Select(p => p.Midi).Distinct().ToList();
-            var missing = expected.Where(n => !keys.Contains(n.Midi)).ToList();
-            var extra = keys.Where(k => expected.All(n => n.Midi != k)).ToList();
-            marks.AddRange(expected.Select(n => new SheetMark(n.Id, keys.Contains(n.Midi) ? "right" : "missed")));
-            marks.AddRange(extra.Select(k => Wrong(expected.MinBy(n => Math.Abs(n.Midi - k))!, k) with { Kind = "extra" }));
+            var missing = expected.Where(n => !keys.Contains(n.Midi)).OrderBy(n => n.Midi).ToList();
+            var extra = keys.Where(k => expected.All(n => n.Midi != k)).Order().ToList();
+            // As many wrong keys as notes missing: each took a note's place, low to high, a wrong note ("F4 for E4"). Otherwise the
+            // notes are missing and the keys extra.
+            var swapped = missing.Count == extra.Count ? missing.Zip(extra).ToDictionary(s => s.First.Id, s => s.Second) : [];
+            // Low to high, so the names above the chord stack in the same order.
+            foreach (var n in expected.OrderBy(n => n.Midi))
+            {
+                var kind = keys.Contains(n.Midi) ? "right" : "missed";
+                marks.Add(swapped.TryGetValue(n.Id, out var k) ? Wrong(n, k) : new SheetMark(n.Id, kind));
+            }
+            if (swapped.Count == 0) marks.AddRange(extra.Select(k => Wrong(expected.MinBy(n => Math.Abs(n.Midi - k))!, k) with { Kind = "extra" }));
             answer = new Answer(chord.Right, chord.ResponseMs, string.Join(" ", expected.Select(n => written[n.Id])));
-            var slips = new[] { missing.Count > 0 ? $"{string.Join(", ", missing.Select(n => written[n.Id]))} missing" : null, extra.Count > 0 ? $"{string.Join(", ", extra.Select(k => key.Spell(k)))} extra" : null }.OfType<string>();
+            var swapWords = swapped.Count > 0 ? string.Join(", ", missing.Select(n => $"{key.Spell(swapped[n.Id])} for {written[n.Id]}")) : null;
+            var missingWords = swapped.Count == 0 && missing.Count > 0 ? $"{string.Join(", ", missing.Select(n => written[n.Id]))} missing" : null;
+            var extraWords = swapped.Count == 0 && extra.Count > 0 ? $"{string.Join(", ", extra.Select(k => key.Spell(k)))} extra" : null;
+            var slips = new[] { swapWords, missingWords, extraWords }.OfType<string>();
             feedback = chord.Right ? $"Right, {chord.SpreadMs:0} ms between the first and last notes." : $"Not quite: {string.Join("; ", slips)}.";
         }
         else if (item.Answer.Count == 1)
@@ -258,7 +274,7 @@ else
             var writtenName = key.Spell(item.Answer[0][0]);
             answer = new Answer(note.Right, note.ResponseMs, writtenName.ToString());
             feedback = note.Right ? $"Right, in {note.ResponseMs / 1000:0.0} s." : $"That was {heardName}{(Settings.LetterNames ? $"; the note is {writtenName}" : "")}{(note.OctaveOff ? ", an octave away" : note.LostOnKeyboard ? ", a key or two away" : "")}.";
-            if (expected.Count == 1) marks.Add(note.Right ? new SheetMark(expected[0].Id, "right") : Wrong(expected[0], note.Played));
+            if (expected.Count == 1) marks.Add(note.Right ? new SheetMark(expected[0].Id, "right") : Wrong(expected[0], note.Played, Settings.LetterNames));
             if (entry.Clef is { } clef) await SaveCard(clef, item.Answer[0][0], note);
         }
         else

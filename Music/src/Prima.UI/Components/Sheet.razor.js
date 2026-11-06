@@ -343,9 +343,10 @@ export function showOpening(element, windowQuarters) {
     for (const bar of measures(element, state)) bar.cover.style.display = bar.start > windowQuarters ? "" : "none";
 }
 
-// Marks notes after the passage, all at once. Each mark: id, kind ("right", "wrong", "missed", "early", "late", or a heat-map
-// shade), for a wrong note what was played ("G4") and how many staff positions away it is, so a small grey note head shows it
-// there; and for an early or late one `q`, when it was played in quarters, so a grey head shows it there.
+// Marks notes after the passage, all at once. Each mark: id, kind ("right", "wrong", "missed", "early", "late", "extra", or a
+// heat-map shade), for a wrong note what was played ("G4") and how many staff positions away it is, so a red note head shows it
+// there, and the written note's name ("F4") when it's to be named; and for an early or late one `q`, when it was played in
+// quarters, so a ring shows it there.
 export function showMarks(element, marks) {
     const state = sheets.get(element);
     if (!state) return;
@@ -381,11 +382,15 @@ function drawMark(element, state, mark) {
     const space = staffSpace(note) ?? h.height;
     // Words go above the note, or above its staff when it's lower.
     const above = Math.min((note.closest(".staff")?.getBoundingClientRect().top ?? h.top) - box.top, h.top - box.top) - 6;
+    // The key played: a red head beside the note, that many positions away, named in red above it. A wrong note's written name
+    // goes beside that in grey, over the note (grey too), so the pair reads left to right as the heads do: meant, then played.
     if ((mark.kind === "wrong" || mark.kind === "extra") && mark.played) {
         const gy = cy - mark.steps * space / 2;
         const gx = cx + h.width * 1.3;
-        overlay.appendChild(ghost(mark.id, gx, gy, h.width, space));
-        label(overlay, mark.played, mark.kind === "extra" ? gx : cx, Math.min(above, gy - space - 6), "sheet-label", mark.id);
+        overlay.appendChild(ghost(mark.id, gx, gy, h.width, space, "sheet-ghost sheet-played"));
+        const y = Math.min(above, gy - space - 6);
+        if (mark.kind === "wrong" && mark.written) label(overlay, [[mark.written, "sheet-meant"], [mark.played, "sheet-heard"]], (cx + gx) / 2, y, "sheet-label", mark.id);
+        else label(overlay, mark.played, gx, y, "sheet-label", mark.id);
     }
     // Where it was played, when that's given: a ring on the note's line at that moment's place along the system (on a green note
     // too, when it was a little off).
@@ -429,7 +434,8 @@ function clearDrawnMarks(element) {
     element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow").forEach(n => n.remove());
 }
 
-// Words centred at x with their baseline at y, moved up clear of any already there (neighbouring notes' marks).
+// Words centred at x with their baseline at y, moved up clear of any already there (neighbouring notes' marks): a string, or
+// parts side by side in their own colours ([["F4", "sheet-meant"], ["G4", "sheet-heard"]]), which move together.
 function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     const t = document.createElementNS(svgNs, "text");
     t.setAttribute("class", kind);
@@ -437,11 +443,18 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     t.setAttribute("x", x);
     t.setAttribute("y", y);
     t.setAttribute("text-anchor", "middle");
-    t.textContent = text;
+    if (typeof text === "string") t.textContent = text;
+    else text.forEach(([words, part], i) => {
+        const s = document.createElementNS(svgNs, "tspan");
+        s.setAttribute("class", part);
+        if (i > 0) s.setAttribute("dx", "6");
+        s.textContent = words;
+        t.appendChild(s);
+    });
     overlay.appendChild(t);
-    // In the way: the marks' words already there, and the music's own words (a figure's named first note, say).
+    // In the way: the marks' words already there, and the music's own words (a figure's named first note, a dynamic).
     const sheet = overlay.closest(".sheet").getBoundingClientRect();
-    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
     const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
     // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
     const inWay = () => {

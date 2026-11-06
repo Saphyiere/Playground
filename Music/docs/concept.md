@@ -104,8 +104,8 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, and the lean.
 - **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played, in any order. A
-  wrong key marks the note red, with a grey head where the key is and its name, and the cursor waits on; the note stays red
-  once it's put right, so the slip shows where it was. A trill's or a mordent's extra notes aren't slips. Afterwards: the notes
+  wrong key turns the note grey, named in grey, with a red head where the key is, named in red, and the cursor waits on; the
+  note stays so once it's put right, so the slip shows where it was. A trill's or a mordent's extra notes aren't slips. Afterwards: the notes
   right first time, the wrong keys, and notes a minute at your own pace.
 - The mode is kept for each screen. The tempo's − and + move by a metronome's marks (… 60, 63, 66, 69, 72, 76 …), so a step
   is about the same share of the tempo, slow or fast. Stop ends a run where it is, and its summary covers the music up to there.
@@ -176,8 +176,8 @@ Settings.
 
 ### Settings
 
-Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, and whether a
-wrong note in a drill is named), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
+Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, and whether the
+right note is named after a wrong one in a note drill), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
 timing), notation (the
 music font and the sheet's size), the click (where it sounds, its sound and volume), and your data. A daily goal much above last
 week's average gets a note to go up gradually; Prima never raises it by itself.
@@ -194,9 +194,10 @@ asking. Nothing leaves the tablet unless you back it up.
    lights on its click, and the cursor waits at the first note, pulsing with it. The timed drills (rhythm, scales, arpeggios,
    finger independence, listen and play back) show the same cells.
 3. **Play.** The click keeps time and never waits. The cursor moves with the beat, through the last note of each line to its
-   closing barline, and each note is marked as it's played: green when it's right, red when it's another key (a grey head on
-   the staff shows the one you played, and its name above), amber when it's more than 10% of a beat early or late (a ring on its
-   line shows when you played it, an arrow which way), and outlined red once its time has passed with nothing played. A slip put
+   closing barline, and each note is marked as it's played: green when it's right; grey when it's another key, with a red head
+   on the staff where the key you played is, each named above (red is only ever a key you played); amber when it's more than 10%
+   of a beat early or late (a ring on its line shows when you played it, an arrow which way); and outlined grey once its time has
+   passed with nothing played. A slip put
    right at once takes the right key's mark. These are judged note by note, before your lean is known.
 4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, and the passage again
    with each note marked the same way, now from the whole take lined up and your lean taken out, so a note can change from
@@ -253,7 +254,7 @@ success.
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
 | Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
-| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key. No line moves across the music while you tap: keeping the pulse is the point. Afterwards each note shows where its tap landed against the click, green on the beat, amber more than 10% of a beat off with an arrow, a ring wherever the tap was 5% or more off, outlined red if missed; and each bar is summed up: one that ran early or late as a whole and by how much, the notes in it well off, where you came back on the beat | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
+| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key. No line moves across the music while you tap: keeping the pulse is the point. Afterwards each note shows where its tap landed against the click, green on the beat, amber more than 10% of a beat off with an arrow, a ring wherever the tap was 5% or more off, outlined grey if missed; and each bar is summed up: one that ran early or late as a whole and by how much, the notes in it well off, where you came back on the beat | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
 | Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position (C to G from middle C), then just out of it, then leaps of a sixth to a ninth either way, then anywhere an octave either side |
 | Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys; last, improvise an answer phrase (not scored) |
 | Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
@@ -261,17 +262,18 @@ success.
 | Finger independence | Five-finger patterns, trills (3–4, 4–5), held notes; patterns from your pieces where possible | Each finger's timing and touch, trill rate and steadiness, whether held keys stay down | Slow and even, then faster, then the weak pairs, then both hands |
 
 The drills read from a staff (Notes, Ledger lines, Intervals and shapes, Chords, Key signatures, Keyboard geography) mark each
-answer on it as soon as it's played, as Sight-read's summary does: green right, red wrong with a grey head where the key you
-played is and its name above, outlined red missed, and a chord's extra keys as grey heads beside it, named. The words under
-the staff name the same notes: "Off: note 2, E5 for F5", "The shape was right, from the wrong first note: …", "Not quite: B4,
-D5 missing; C5 extra". A set's summary lists the single notes and chords you missed. The drills with steps show the step
+answer on it as soon as it's played, as Sight-read's summary does: green right; wrong, the note grey and the key you played
+beside it as a red head, each named above (a single note's name as Settings says); outlined grey missed; and a chord's extra
+keys as red heads beside it, named. The words under the staff name the same notes: "Off: note 2, E5 for F5", "The shape was
+right, from the wrong first note: …", and for a chord "Not quite: F4 for E4" when as many keys were wrong as notes missing, or
+"G4 missing; A4, B4 extra". A set's summary lists the single notes and chords you missed. The drills with steps show the step
 beside the item count, with − and + to choose it: a new set starts at the step chosen, and from there over 90% in two sets in a
 row steps up and under 80% steps back.
 
 Notes come back on a spacing schedule: a note answered right but slowly counts as not yet learned, and comes back sooner than a
-fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right,
-red wrong with a grey head where the key you played is and its name above, outlined red missed, and a grey head beside a note
-for an extra key. The keys are lined up with the notes by the fewest slips, so one slip counts once instead of throwing out
+fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right;
+wrong, the note grey and the key you played beside it in red, each named above; outlined grey missed; and a red head beside a
+note for an extra key. The keys are lined up with the notes by the fewest slips, so one slip counts once instead of throwing out
 every note after it, and the result says how many were wrong, missed or extra. A run with a slip doesn't count for evenness.
 Technique results are compared with your own earlier runs, since there are no amateur norms; differences under about 10 ms are
 shown as below what anyone can hear. Repetitions are capped per set and per day, with
