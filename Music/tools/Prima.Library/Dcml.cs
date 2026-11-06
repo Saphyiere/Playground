@@ -86,7 +86,7 @@ internal static class Dcml
         var chosen = new List<(BundledPiece Piece, string Mscx)>();
         foreach (var (repo, composer) in Corpora)
         {
-            var folder = await Github.Fetch(http, cache, "DCMLab", repo);
+            var folder = await Github.Fetch(http, cache, "DCMLab", repo, "MS3");
             var readme = Path.Combine(folder, "README.md");
             if (!File.Exists(readme) || !(await File.ReadAllTextAsync(readme)).Contains(Licence, StringComparison.Ordinal))
             {
@@ -163,8 +163,9 @@ internal static class Dcml
         var done = 0;
         await Parallel.ForEachAsync(missing, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 4) }, async (c, _) =>
         {
+            // Written in place, not renamed into place: on Windows a virus scanner can hold a new file a moment, and a rename fails.
             var mxl = Path.Combine(output, c.Piece.File);
-            using var node = Process.Start(new ProcessStartInfo("node", [script, modules, c.Mscx, mxl + ".part"]) { RedirectStandardError = true })!;
+            using var node = Process.Start(new ProcessStartInfo("node", [script, modules, c.Mscx, mxl]) { RedirectStandardError = true })!;
             var errors = node.StandardError.ReadToEndAsync();
             using var limit = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             try
@@ -174,9 +175,13 @@ internal static class Dcml
             catch (OperationCanceledException)
             {
                 node.Kill();
+                await node.WaitForExitAsync();
             }
-            if (node.HasExited && node.ExitCode == 0 && File.Exists(mxl + ".part")) File.Move(mxl + ".part", mxl, overwrite: true);
-            else Console.WriteLine($"  Left out {c.Piece.Title}: webmscore couldn't convert it. {(await errors).Trim()}");
+            if (node.ExitCode != 0)
+            {
+                if (File.Exists(mxl)) File.Delete(mxl);
+                Console.WriteLine($"  Left out {c.Piece.Title}: webmscore couldn't convert it. {(await errors).Trim()}");
+            }
             if (Interlocked.Increment(ref done) % 50 == 0) Console.WriteLine($"DCML: {done} of {missing.Count} converted…");
         });
 

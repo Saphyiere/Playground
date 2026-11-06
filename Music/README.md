@@ -67,9 +67,12 @@ with npm, and git (without git it downloads each repository as a zip):
 dotnet run --project Music/tools/Prima.Library -- local
 ```
 
-It clones the repositories into `artifacts/library-cache`, installs Verovio's build that reads Humdrum and webmscore from npm
-there, converts and prepares everything into `artifacts/library-local`, and packs it as `artifacts/prima-collection.zip`
-(about 26 MB). A first run takes about 7 minutes. Copy that file to the tablet (over USB, or through a cloud drive) and open it
+It fetches from each repository only the folder it reads (`kern` or `MS3`) and the files beside it, about 300 MB in all, into
+`artifacts/library-cache` as plain files (a sparse git clone, its `.git` then removed). It installs Verovio's build that reads
+Humdrum and webmscore from npm there, converts and prepares everything into `artifacts/library-local`, and packs it as
+`artifacts/prima-collection.zip` (about 26 MB). A first run takes about 7 minutes. If it stops because Windows won't let it
+delete a folder in the cache, something has a file in it open (Visual Studio's Git window, or a virus scan of the new files):
+close it, or delete the folder yourself, and run it again; it picks up where it stopped. Copy that file to the tablet (over USB, or through a cloud drive) and open it
 in the Library with **Import a file**; it's stored in the background, a minute or so. `-- local humdrum` or `-- local dcml`
 runs one source again, `-- local prepare` only prepares again.
 

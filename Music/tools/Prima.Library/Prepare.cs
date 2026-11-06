@@ -87,7 +87,15 @@ internal static class Prepare
         }
         finally
         {
-            engraved.Delete(true);
+            // A temporary folder: if something still has a file in it open (a virus scanner, on Windows), it's left for the system.
+            try
+            {
+                engraved.Delete(true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"  Left {engraved.FullName} behind: {e.Message}");
+            }
         }
     }
 }

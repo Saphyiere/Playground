@@ -34,7 +34,7 @@ internal static class Humdrum
         var pieces = new List<BundledPiece>();
         foreach (var (repo, work, composer, edition) in Repos)
         {
-            var folder = await Github.Fetch(http, cache, "craigsapp", repo);
+            var folder = await Github.Fetch(http, cache, "craigsapp", repo, "kern");
             var licence = Path.Combine(folder, "LICENSE.txt");
             if (!File.Exists(licence) || !(await File.ReadAllTextAsync(licence)).Contains(Licence, StringComparison.Ordinal))
             {

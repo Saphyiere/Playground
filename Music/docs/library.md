@@ -627,6 +627,10 @@ it as `artifacts/prima-collection.zip` for the tablet's **Import a file**. Nothi
 | Sapp, Humdrum ([craigsapp](https://github.com/craigsapp)) | Mozart's sonatas (Alte Mozart-Ausgabe), Haydn's (Universal Edition, 1901), Scarlatti's (Longo), Joplin, Bach's 370 chorales | CC BY-NC-SA 4.0, in each repository's LICENSE.txt | 576 | His Beethoven sonatas, Chopin mazurkas and preludes and Hummel preludes: no licence at all ("Copyright 2008 by Craig Stuart Sapp"), so all rights reserved |
 | DCML ([DCMLab](https://github.com/DCMLab)), MuseScore 3 | Beethoven's sonatas, Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Dvořák's Silhouettes, Debussy (Préludes, Images, Estampes, Children's Corner, Suite bergamasque, Pour le piano, single pieces), Liszt's Années, Medtner's Tales, Ravel's Jeux d'eau and Miroirs, Couperin, Handel HWV 430, C. P. E., J. C. and W. F. Bach, Scarlatti | CC BY-NC-SA 4.0, in each README | 625 | Rachmaninoff's Corelli Variations (1931, in US copyright until 2028); Debussy's pieces first published after 1930 (Images oubliées 1977, Étude retrouvée 1980, Les soirs illuminés 2003, Danse bohémienne 1932, Page d'album 1933); `bach_solo` (violin and cello); the Mozart sonatas (Sapp's edition has them); 6 Scarlatti sonatas also in Sapp's |
 
+- **Fetching**: each repository is a shallow, blobless, sparse git clone of only the folder read (`kern` or `MS3`) and the
+  top-level files, about 300 MB of the repositories' 1.3 GB (the rest is PDFs, scans and analyses), written in place with its
+  `.git` then removed: git's packs are read-only, which stops a delete on Windows, and Visual Studio picks up a repository
+  inside the repo and holds it open, which stops a rename. Without git, the repository's zip is unpacked the same way.
 - **Humdrum** is engraved by Verovio's build that reads it (`verovio-module-hum.mjs` from the npm package of the app's
   version, 6.3.0); the app's own copy leaves Humdrum out. The MEI it makes is what the app reads. A chorale is set on the grand
   staff with Verovio's `satb2gs` filter (soprano and alto above, tenor and bass below).

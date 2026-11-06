@@ -90,7 +90,8 @@ if (!local)
 
 // The collection as one file for the tablet: the manifest and what the app reads (the MEI, any PDFs and MIDI), not the sources.
 var collection = Path.Combine(root, "artifacts", "prima-collection.zip");
-using (var zip = ZipFile.Open(collection + ".part", ZipArchiveMode.Create))
+File.Delete(collection);
+using (var zip = ZipFile.Open(collection, ZipArchiveMode.Create))
 {
     zip.CreateEntryFromFile(manifestPath, "manifest.json", CompressionLevel.SmallestSize);
     foreach (var file in manifest.Pieces.SelectMany(p => p.Format == "pdf" ? [p.File, p.Midi] : p.Prepared?.Select(x => (string?)x.Mei) ?? []).OfType<string>())
@@ -98,7 +99,6 @@ using (var zip = ZipFile.Open(collection + ".part", ZipArchiveMode.Create))
         zip.CreateEntryFromFile(Path.Combine(output, file), file, CompressionLevel.NoCompression);
     }
 }
-File.Move(collection + ".part", collection, overwrite: true);
 var parts = manifest.Pieces.Sum(p => p.Prepared?.Count ?? 1);
 Console.WriteLine($"{parts} pieces in {collection} ({new FileInfo(collection).Length / 1_000_000} MB; {kinds}), in {clock.Elapsed:m\\:ss}. " +
     "Copy it to the tablet and open it in the Library with Import a file. It stays out of the repo.");
