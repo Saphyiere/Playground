@@ -86,6 +86,20 @@ the rhythm or try a bar, so the look's Start is a tap), not in Endless notes (wh
 scale at your own speed. A key pressed in a technique run's count-in, or just after its last note, isn't part of the run. While
 the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They can be turned off in Settings.
 
+### Playing to a tempo
+
+Every screen that plays music to a tempo has the same play bar: the screen's own figures, then the mode, the tempo and Start
+(the piano's C♯4). For now that's a Library piece; Sight-read and the technique drills are moving to it.
+
+- **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
+  marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, and the lean.
+- **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played, in any order. A
+  wrong key marks the note red, with a grey head where the key is and its name, and the cursor waits on; the note stays red
+  once it's put right, so the slip shows where it was. A trill's or a mordent's extra notes aren't slips. Afterwards: the notes
+  right first time, the wrong keys, and notes a minute at your own pace.
+- The mode is kept for each screen. The tempo's − and + move by a metronome's marks (… 60, 63, 66, 69, 72, 76 …), so a step
+  is about the same share of the tempo, slow or fast. Stop ends a run where it is, and its summary covers the music up to there.
+
 ### Drills
 
 Short, focused practice, each a few minutes. Reading drills: Notes, Endless notes, Ledger lines, Intervals and shapes, Chords,
@@ -114,11 +128,11 @@ a PDF plays out; this is what came of it.
   screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals (forward and back),
   or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. Or it scrolls, a system at
   a time.
-- **Follow me** listens as you play a notation piece at your own pace: the bar you're in is lit, a wrong note never moves it
-  back, a skip or a restart is found again, and the page turns early, when what's left on it at your tempo is under two seconds
-  or two beats. The marks come afterwards, lining what you played up with the score as far as you got.
-- **Practise bars**: a stretch of the piece on the reading screen, with a bar of count-in, the click, and the same marks and
-  summary; then again, slower, faster, or the next bars. It doesn't move your level.
+- **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
+  In time or Wait for me, the tempo, and Play, from the start or from the bar of a note you tap (it's lit until you play). While
+  it plays, the music scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
+  bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
+  doesn't move your level.
 - **A PDF** turns by the same means. Portrait shows a whole page, and by default a half-page turn first shows the next page's
   top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar

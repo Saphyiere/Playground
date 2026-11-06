@@ -247,6 +247,7 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     state.cursor = line;
     const start = performance.now() + msUntilStart;
     const beat = performance.now() + (msUntilBeat ?? msUntilStart);
+    let shown = null;
     const frame = now => {
         const q = startQuarter + (now - start) / msPerQuarter;
         let i = 0;
@@ -257,6 +258,7 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
         line.setAttribute("x", x);
         line.setAttribute("y", here.top);
         line.setAttribute("height", here.bottom - here.top);
+        if (here.system !== shown) follow(element, shown = here.system);
         // The count-in: bright on each click, fading towards the next.
         if (now < start && beatMs > 0) {
             const phase = (((now - beat) / beatMs) % 1 + 1) % 1;
@@ -266,6 +268,40 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
         state.raf = requestAnimationFrame(frame);
     };
     state.raf = requestAnimationFrame(frame);
+}
+
+// Wait for me's cursor: still, just before a note (the first of the notes waited for), its system kept in view.
+export function cursorAt(element, id) {
+    const state = sheets.get(element);
+    const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
+    if (!state || !head) return;
+    cancelAnimationFrame(state.raf);
+    if (!state.cursor) {
+        state.cursor = document.createElementNS(svgNs, "rect");
+        state.cursor.setAttribute("class", "sheet-cursor");
+        state.cursor.setAttribute("width", "3");
+        element.querySelector(".sheet-overlay").appendChild(state.cursor);
+    }
+    const box = element.getBoundingClientRect();
+    const system = head.closest(".system");
+    const s = system.getBoundingClientRect();
+    state.cursor.style.opacity = "";
+    state.cursor.setAttribute("x", head.getBoundingClientRect().left - box.left - 6);
+    state.cursor.setAttribute("y", s.top - box.top - 6);
+    state.cursor.setAttribute("height", s.height + 12);
+    follow(element, system);
+}
+
+// Keeps the system being played in view. In a frame of its own that scrolls (marked data-follow, as a piece's is), it goes to
+// the frame's upper third, so the next line shows below it; elsewhere the screen moves only if the system isn't all in view.
+function follow(element, system) {
+    const frame = element.closest("[data-follow]");
+    if (!frame) {
+        system.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return;
+    }
+    const top = system.getBoundingClientRect().top - frame.getBoundingClientRect().top + frame.scrollTop;
+    frame.scrollTo({ top: Math.max(0, top - frame.clientHeight / 3), behavior: "smooth" });
 }
 
 export function cursorStop(element) {

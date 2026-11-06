@@ -1,0 +1,60 @@
+@using Prima.Core.Scoring
+
+@* What a run came to, the same on every screen that plays to a tempo: In time's timing, or Wait for me's notes right first time.
+   The screen's own words follow it. *@
+@if (Outcome?.InTime is { } timed)
+{
+    <section class="mu-screen summary-figures" aria-label="How it went">
+        <div class="mu-readouts">
+            <div class="mu-readout @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@timed.CorrectPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Kept going</span><span class="mu-readout-value">@(timed.KeptGoing ? "Yes" : "No")</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@(Math.Abs(timed.LeanMs) < 5 ? "Even" : $"{Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
+        </div>
+    </section>
+}
+else if (Outcome?.Wait is { } waited)
+{
+    <section class="mu-screen summary-figures" aria-label="How it went">
+        <div class="mu-readouts">
+            <div class="mu-readout @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime of @waited.Notes</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Wrong keys</span><span class="mu-readout-value">@waited.WrongKeys</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@waited.NotesPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
+        </div>
+    </section>
+}
+@if (Outcome is not null)
+{
+    <ul class="summary-words">
+        @foreach (var line in Words())
+        {
+            <li>@line</li>
+        }
+        @ChildContent
+    </ul>
+}
+
+@code {
+    [Parameter] public PlayOutcome? Outcome { get; set; }
+
+    /// <summary>Where the run stopped, if it was stopped before the end: "bar 12".</summary>
+    [Parameter] public string? StoppedAt { get; set; }
+
+    /// <summary>The screen's own lines, after these.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private IEnumerable<string> Words()
+    {
+        var upTo = Outcome!.Stopped && StoppedAt is { } at ? $", up to {at}" : "";
+        if (Outcome.InTime is { } timed)
+        {
+            yield return $"{timed.Right} of {timed.Expected} notes right{upTo}: {timed.Wrong} wrong, {timed.Missed} missed, {timed.Extra} extra. Each is marked on the music.";
+            if (timed.Off > 0) yield return $"{timed.Off} right {(timed.Off == 1 ? "note was" : "notes were")} more than a tenth of a beat early or late, marked with an arrow.";
+        }
+        else if (Outcome.Wait is { } waited)
+        {
+            yield return waited.Notes == 0 ? "Nothing played yet." : $"{waited.RightFirstTime} of {waited.Notes} notes right first time{upTo}. A note with a slip stays red, with the key you played.";
+            if (waited.Notes > 0) yield return $"About {waited.NotesPerMinute:0} notes a minute at your own pace, over {TimeSpan.FromSeconds(waited.Seconds):m\\:ss}.";
+        }
+    }
+}

@@ -1,0 +1,18 @@
+@* The tempo, the same on every screen that plays to one: slower and faster by a metronome's marks (40, 42, 44 … 60, 63, 66 …
+   120, 126 … 208), so each step is about the same share of the tempo, slow or fast. *@
+<span class="tempo-control">
+    <button type="button" class="mu-btn" aria-label="Slower" disabled="@Disabled" @onclick="() => ValueChanged.InvokeAsync(Marks.LastOrDefault(m => m < Math.Round(Value), Marks[0]))">−</button>
+    <span class="tempo-figure" aria-label="@($"{Value:0} beats a minute")">@Value.ToString("0", CultureInfo.InvariantCulture)</span>
+    <button type="button" class="mu-btn" aria-label="Faster" disabled="@Disabled" @onclick="() => ValueChanged.InvokeAsync(Marks.FirstOrDefault(m => m > Math.Round(Value), Marks[^1]))">+</button>
+</span>
+
+@code {
+    /// <summary>Maelzel's metronome marks, from 30.</summary>
+    public static readonly double[] Marks = [30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 126, 132, 138, 144, 152, 160, 168, 176, 184, 192, 200, 208];
+
+    [Parameter] public double Value { get; set; }
+
+    [Parameter] public EventCallback<double> ValueChanged { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+}

@@ -871,8 +871,9 @@ All ten parts are in, in the order above. Where the build went its own way, or s
 - **PDFs** find their systems from staff lines, five to a staff, paired into grand staves. The pen fixes and link points for
   repeats aren't built: the bars a line and beats a bar are set with − and +, the same for the whole piece. A PDF isn't followed
   note by note; it scrolls at the tempo, a system at a time.
-- **Following** is library.md §6's design: a windowed chord matcher, a re-anchor search, a restart after two bars of silence, the
-  turn at max(2 s, 2 beats). The marks afterwards line the notes up by order only, without a timing term.
+- **Playing a piece** is the play bar every tempo screen shares, In time or Wait for me, from the start or a tapped bar, scrolling
+  a line at a time. It replaced library.md §6's Follow me (a windowed chord matcher that re-anchored on skips and restarts) when
+  the owner asked for a mode that keeps time and one that waits for the right notes.
 - **Imports** read MusicXML, MEI, ABC and PDF. MIDI, MuseScore and Humdrum files are turned away with how to convert them.
 - **Finger-independence patterns** are still the built-in five-finger figures, not taken from pieces.
 - **Bar numbers.** Files repeat bar numbers (two endings) or skip them, so Prima numbers bars in order, a pickup 0, and writes

@@ -1338,6 +1338,89 @@ a {
     gap: 20px;
 }
 
+/* The tempo, wherever it's set: slower, the figure, faster. On a screen, the figure is a readout's. */
+.tempo-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tempo-figure {
+    min-width: 3ch;
+    text-align: center;
+    font-family: var(--mu-figure);
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+[data-theme="vinyl"] .tempo-figure {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+}
+
+.reading-bar .tempo-figure {
+    font-size: 22px;
+    line-height: 26px;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .reading-bar .tempo-figure {
+    font-size: 30px;
+    line-height: 32px;
+}
+
+.reading-bar .tempo-control .mu-btn {
+    margin-left: 0;
+    min-width: 40px;
+}
+
+/* How a run follows you, chosen on the play bar's screen beside its figures: the mode lit and boxed, the other dim. The mode,
+   the tempo and Start sit together at the bar's end, the screen's own figures and keys before them. */
+.play-mode {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.play-bar .play-mode ~ .mu-btn,
+.play-bar .piece-actions {
+    margin-left: 0;
+}
+
+.play-mode-option {
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-key);
+    background: none;
+    font-family: var(--mu-print);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--on-screen-muted);
+    cursor: pointer;
+}
+
+.play-mode-option[aria-checked="true"] {
+    border-color: currentColor;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .play-mode-option {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+}
+
+[data-theme="vinyl"] .play-mode-option[aria-checked="true"] {
+    color: var(--accent);
+}
+
 .control-row .mu-toggle {
     min-width: 96px;
 }

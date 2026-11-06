@@ -116,6 +116,21 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
         }
     }
 
+    /// <summary>Each bar and when it starts, in ticks from the downbeat of the first full bar, so a pickup starts before 0.</summary>
+    public IEnumerable<(Bar Bar, long Start)> BarStarts()
+    {
+        var start = 0L;
+        var first = true;
+        foreach (var (bar, _, meter) in WithSignatures())
+        {
+            var length = bar.Length ?? meter.BarTicks;
+            if (first && length < meter.BarTicks) start = -length;
+            first = false;
+            yield return (bar, start);
+            start += length;
+        }
+    }
+
     /// <summary>
     /// The notes to play, in order: one per tone that starts sounding (a tie's later notes and grace notes aren't played again),
     /// timed in ticks from the downbeat of the first full bar, so a pickup's notes come before 0.
@@ -123,13 +138,8 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     public IReadOnlyList<ExpectedNote> Expected()
     {
         var notes = new List<ExpectedNote>();
-        var barStart = 0L;
-        var first = true;
-        foreach (var (bar, _, meter) in WithSignatures())
+        foreach (var (bar, barStart) in BarStarts())
         {
-            var length = bar.Length ?? meter.BarTicks;
-            if (first && length < meter.BarTicks) barStart = -length;
-            first = false;
             foreach (var voice in bar.Voices)
             {
                 foreach (var notesEvent in voice.Events.OfType<Notes>().Where(n => !n.Grace))
@@ -142,7 +152,6 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
                     }
                 }
             }
-            barStart += length;
         }
         return notes.OrderBy(n => n.Tick).ThenBy(n => n.Midi).ToList();
 

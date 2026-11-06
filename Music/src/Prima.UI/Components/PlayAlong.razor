@@ -1,0 +1,293 @@
+@implements IDisposable
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject Click Click
+@inject SessionRegistry Registry
+@using Prima.Core.Scoring
+
+@*
+    The play bar, the same on every screen that plays music to a tempo, so they all work and feel alike. In time: a count-in, the
+    click that never waits, the cursor moving with the beat, each note marked as it's played, and the timing summed up after.
+    Wait for me: no click; the cursor waits at each note or chord until its keys are played, a wrong key is marked where it was,
+    and the pace is your own. The mode is kept for each screen. The screen gives the music and its sheet, puts its own readouts
+    in the bar, and gets the outcome.
+*@
+
+<section class="reading-bar play-bar @BarClass" aria-label="Playing">
+    @if (session is { Phase: Phase.CountIn })
+    {
+        <CountIn Session="session" />
+    }
+    @Readouts
+    @if (Running)
+    {
+        @if (Mode == PlayMode.InTime)
+        {
+            <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
+        }
+        <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
+        @* Not the piano's go key: while a run plays, every key is music. *@
+        <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
+    }
+    else
+    {
+        @if (ShowResult && last?.InTime is { } timed)
+        {
+            <div class="mu-readout @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
+        }
+        else if (ShowResult && last?.Wait is { Notes: > 0 } waited)
+        {
+            <div class="mu-readout @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
+        }
+        <div class="play-mode" role="radiogroup" aria-label="How it follows you">
+            <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.InTime)" @onclick="() => SetMode(PlayMode.InTime)">In time</button>
+            <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for me</button>
+        </div>
+        @if (Mode == PlayMode.InTime)
+        {
+            <div class="mu-readout play-tempo"><span class="mu-readout-label">Tempo</span><TempoControl Value="Tempo" ValueChanged="TempoChanged" /></div>
+        }
+        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(!CanStart)" @onclick="Start">@StartLabel</button>
+    }
+</section>
+
+@code {
+    /// <summary>The screen, for keeping its mode: "library", "sight-read", "scales"…</summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter] public PlayMusic? Music { get; set; }
+
+    /// <summary>The sheet the music is on (asked for when a run starts, so it's there by then).</summary>
+    [Parameter] public Func<Sheet?> SheetOf { get; set; } = () => null;
+
+    [Parameter] public double Tempo { get; set; } = 72;
+
+    [Parameter] public EventCallback<double> TempoChanged { get; set; }
+
+    [Parameter] public string StartLabel { get; set; } = "Start";
+
+    /// <summary>A class for the bar, for a screen that lays it out its own way.</summary>
+    [Parameter] public string? BarClass { get; set; }
+
+    /// <summary>The last run's headline figure in the bar, for a screen whose summary is out of sight below the music.</summary>
+    [Parameter] public bool ShowResult { get; set; }
+
+    [Parameter] public bool CanStart { get; set; } = true;
+
+    /// <summary>The screen's own figures, in the bar before the run's.</summary>
+    [Parameter] public RenderFragment? Readouts { get; set; }
+
+    /// <summary>Just before a run starts, for the screen to clear what the last one left.</summary>
+    [Parameter] public EventCallback OnStarting { get; set; }
+
+    [Parameter] public EventCallback<PlayOutcome> OnFinished { get; set; }
+
+    [Parameter] public EventCallback<PlayMode> ModeChanged { get; set; }
+
+    public PlayMode Mode { get; private set; }
+
+    public bool Running => session?.Phase is Phase.CountIn or Phase.Playing || wait is not null;
+
+    private PlaySession? session;
+    private PlayOutcome? last;
+    private WaitJudge? wait;
+    private PlayMusic? playing;
+    private Timer? ticker;
+    private long? stoppedNs;
+    private int bar;
+    private Dictionary<string, Spelled> pitches = [];
+    private Dictionary<string, ExpectedNote> notes = [];
+    private readonly Dictionary<string, SheetMark> drawn = [];
+    private readonly List<PlayedNote> heard = [];
+
+    private string ModeKey => $"Play.Mode.{Name}";
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Keyboard.Received += Heard;
+        Mode = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
+        await ModeChanged.InvokeAsync(Mode);
+    }
+
+    private async Task SetMode(PlayMode mode)
+    {
+        Mode = mode;
+        await Store.SetSettingAsync(ModeKey, mode == PlayMode.WaitForMe ? "wait" : "time");
+        await ModeChanged.InvokeAsync(mode);
+    }
+
+    /// <summary>Starts a run of the music in the chosen mode: the screen's Start, or the piano's go key.</summary>
+    public async Task Start()
+    {
+        if (Running || Music is not { Notes.Count: > 0 }) return;
+
+        await OnStarting.InvokeAsync();
+        if (Music is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
+
+        session?.Dispose();
+        (session, wait, playing, stoppedNs, last) = (null, null, music, null, null);
+        pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
+        notes = music.Notes.ToDictionary(n => n.Id);
+        drawn.Clear();
+        heard.Clear();
+        await sheet.ClearMarks();
+        var first = music.Notes.MinBy(n => n.Tick)!;
+        bar = first.Bar;
+
+        if (Mode == PlayMode.WaitForMe)
+        {
+            wait = new WaitJudge(music.Notes, music.Ornamented);
+            StateHasChanged();
+            await sheet.CursorAt(wait.Current[0].Id);
+            return;
+        }
+
+        // In time: beats from the run's beat 0, the click's, with a pickup's before it.
+        var from = music.FromTick / (double)music.BeatTicks;
+        double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
+        var expected = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
+        var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
+        run.Changed += () => _ = InvokeAsync(async () =>
+        {
+            if (run.Phase == Phase.Done) await Ended(run);
+            else StateHasChanged();
+        });
+        run.Start(new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars)), expected.Max(e => e.Item2 + e.Item3), expected);
+        // Each note judged as it's played and marked at once; the summary's marks replace these.
+        var live = new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
+        run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
+        ticker = new Timer(_ => _ = InvokeAsync(async () =>
+        {
+            var now = Clock.NowNs;
+            var at = music.Notes.LastOrDefault(n => run.TimeAt(Beat(n)) <= now)?.Bar ?? first.Bar;
+            if (at != bar)
+            {
+                bar = at;
+                StateHasChanged();
+            }
+            await Draw(live.Due(now));
+        }), null, 100, 100);
+        StateHasChanged();
+        // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat.
+        await Task.Delay(50);
+        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0));
+    }
+
+    /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
+    public async Task Stop()
+    {
+        if (wait is not null)
+        {
+            await EndWait(true);
+            return;
+        }
+        if (session is not { Phase: Phase.CountIn or Phase.Playing } run) return;
+
+        stoppedNs = Clock.NowNs;
+        run.Finish();
+    }
+
+    private async Task Ended(PlaySession run)
+    {
+        if (run != session || playing is not { } music) return;
+
+        ticker?.Dispose();
+        ticker = null;
+        var sheet = SheetOf();
+        if (sheet is not null) await sheet.StopCursor();
+        var from = music.FromTick / (double)music.BeatTicks;
+        // Stopped early, only the notes due by then count.
+        var due = stoppedNs is { } at ? music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= at).ToList() : music.Notes;
+        var beatNs = 60e9 / Tempo;
+        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented);
+        if (result is not null && sheet is not null)
+        {
+            await sheet.ShowMarks(result.Notes.Select(n => n.Outcome switch
+            {
+                Outcome.Wrong when n.Played is { } key => MarkOf(music, n.Id, LiveKind.Wrong, key, 0),
+                Outcome.Missed => MarkOf(music, n.Id, LiveKind.Missed, null, 0),
+                _ when n.Band == Band.Off => MarkOf(music, n.Id, n.ErrorPercent < 0 ? LiveKind.Early : LiveKind.Late, null, n.ErrorPercent ?? 0),
+                _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
+            }));
+        }
+        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar);
+        StateHasChanged();
+        await OnFinished.InvokeAsync(last);
+    }
+
+    // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down.
+    private void Heard(MidiEvent e)
+    {
+        if (wait is null || e.Kind != MidiKind.NoteOn) return;
+
+        _ = InvokeAsync(async () =>
+        {
+            if (wait is not { } judge) return;
+
+            heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
+            var (marks, moved) = judge.Play(e.Note, e.TimeNs);
+            await Draw(marks);
+            if (!moved) return;
+            if (judge.Done)
+            {
+                await EndWait(false);
+                return;
+            }
+
+            bar = judge.Current[0].Bar;
+            StateHasChanged();
+            if (SheetOf() is { } sheet) await sheet.CursorAt(judge.Current[0].Id);
+        });
+    }
+
+    private async Task EndWait(bool stopped)
+    {
+        if (wait is not { } judge) return;
+
+        wait = null;
+        if (SheetOf() is { } sheet)
+        {
+            await sheet.StopCursor();
+            // Kept as the summary's, so they stay through a redraw.
+            await sheet.ShowMarks(drawn.Values);
+        }
+        last = new PlayOutcome(PlayMode.WaitForMe, null, judge.Result(), [.. heard], stopped, bar);
+        StateHasChanged();
+        await OnFinished.InvokeAsync(last);
+    }
+
+    private async Task Draw(IReadOnlyList<LiveMark> marks)
+    {
+        if (marks.Count == 0 || playing is not { } music || SheetOf() is not { } sheet) return;
+
+        var shown = marks.Select(m => MarkOf(music, m.Id, m.Kind, m.Played, m.ErrorPercent)).ToList();
+        foreach (var mark in shown) drawn[mark.Id] = mark;
+        await sheet.MarkLive(shown);
+    }
+
+    // A note's mark on the sheet. A wrong one shows the key played, a grey head that many staff positions from the written one;
+    // an early or late one when it was played, a ring on its line.
+    private SheetMark MarkOf(PlayMusic music, string id, LiveKind kind, int? key, double errorPercent)
+    {
+        var name = kind.ToString().ToLowerInvariant();
+        if (kind == LiveKind.Wrong && key is { } played && pitches.TryGetValue(id, out var written))
+        {
+            var spelled = music.Score.Key.Spell(played);
+            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic);
+        }
+        return kind is LiveKind.Early or LiveKind.Late && notes.TryGetValue(id, out var note)
+            ? new SheetMark(id, name, Quarter: music.QuarterOf(note.Tick) + errorPercent / 100 * music.BeatTicks / Ticks.Quarter)
+            : new SheetMark(id, name);
+    }
+
+    public void Dispose()
+    {
+        Keyboard.Received -= Heard;
+        ticker?.Dispose();
+        session?.Dispose();
+    }
+}

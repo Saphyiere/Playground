@@ -91,6 +91,12 @@
         if (module is not null) await module.InvokeVoidAsync("showOpening", element, quarters);
     }
 
+    /// <summary>Wait for me's cursor: still, at a note, its line kept in view.</summary>
+    public async Task CursorAt(string id)
+    {
+        if (module is not null) await module.InvokeVoidAsync("cursorAt", element, id);
+    }
+
     public async Task StopCursor()
     {
         if (module is not null) await module.InvokeVoidAsync("cursorStop", element);

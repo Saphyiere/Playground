@@ -209,6 +209,54 @@ public class ScoringTests
         Assert.Equal(1, DrillScorer.ForgotTheKey(result, new HashSet<string> { "b" }, new Key(1), expected));
     }
 
+    [Fact]
+    public void WaitForMeMovesOnOnlyWhenAStepsKeysAreAllPlayed()
+    {
+        // C, then a chord E–G, then C again.
+        var judge = new WaitJudge([new("a", 60, 1, 1, 0, 480, null), new("b", 64, 1, 1, 480, 480, "ch"), new("c", 67, 1, 1, 480, 480, "ch"), new("d", 72, 1, 1, 960, 480, null)]);
+
+        Assert.True(judge.Play(60, 0).Moved);
+        Assert.Equal(["b", "c"], judge.Current.Select(n => n.Id));
+        Assert.False(judge.Play(67, 1000 * Ms).Moved);
+        Assert.Empty(judge.Play(67, 1100 * Ms).Marks);
+        Assert.True(judge.Play(64, 1200 * Ms).Moved);
+        Assert.True(judge.Play(72, 3000 * Ms).Moved);
+        Assert.True(judge.Done);
+        var result = judge.Result();
+        Assert.Equal(4, result.RightFirstTime);
+        Assert.True(result.Finished);
+        Assert.Equal(80, result.NotesPerMinute, 6);
+    }
+
+    [Fact]
+    public void WaitForMeMarksASlipWhereItWasAndKeepsWaiting()
+    {
+        var judge = new WaitJudge(Scale().Take(3));
+        judge.Play(60, 0);
+        var (marks, moved) = judge.Play(63, 500 * Ms);
+
+        Assert.False(moved);
+        Assert.Equal(new LiveMark("n1", LiveKind.Wrong, 63, 0), Assert.Single(marks));
+        // Put right, it moves on but keeps its wrong mark.
+        Assert.Equal((0, true), (judge.Play(62, 900 * Ms).Marks.Count, judge.Step == 2));
+        judge.Play(64, 1400 * Ms);
+        Assert.Equal((3, 2, 1), (judge.Result().Notes, judge.Result().RightFirstTime, judge.Result().WrongKeys));
+    }
+
+    [Fact]
+    public void WaitForMeLetsAnOrnamentsNotesBe()
+    {
+        // D with a mordent (D C D), then E: the C and the second D aren't slips.
+        var judge = new WaitJudge([new("d", 62, 1, 1, 0, 480, null), new("e", 64, 1, 1, 480, 480, null)], new HashSet<string> { "d" });
+        judge.Play(62, 0);
+        judge.Play(60, 60 * Ms);
+        judge.Play(62, 120 * Ms);
+        judge.Play(64, 500 * Ms);
+
+        Assert.Equal(0, judge.Result().WrongKeys);
+        Assert.True(judge.Done);
+    }
+
     private static TechniqueItem CMajor(HandUse hands = HandUse.Right) => Technique.Scale(new Key(0), ScaleKind.Major, 1, hands);
 
     private static List<PlayedNote> Run(IReadOnlyList<TechniqueNote> notes, Func<int, double> gapMs, double start = 0, Func<int, int>? velocity = null)
