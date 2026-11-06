@@ -247,7 +247,7 @@ success.
 | --- | --- | --- | --- |
 | Notes | A note, or a short group, on the staff; play the key | Right or wrong, and the time from seeing to playing, per note | Landmarks first (middle C, treble G, bass F, the outer Cs), then their neighbours, then both clefs and a wider range |
 | Endless notes | One note after another until you stop: a right answer moves straight on, a wrong one shows what you played on the staff; treble, bass or both, the staff or out to two ledger lines, and sharps and flats if you like | The time of each answer; the median of your last ten right answers, the best of those in the run, and your best ten from earlier runs to beat | By you: faster. A missed note comes back three to five notes later. It's practice on its own, outside the Notes drill's spaced review |
-| Ledger lines | Notes on one to four ledger lines; play them | As Notes, kept per ledger position | One line, then two, from the C anchors, then by thirds |
+| Ledger lines | A run of four or more notes stepping from the staff out past it, above or below, in the clefs Settings has you read: from a named note on the staff out, or from the far note, unnamed, back in; or one note out there, read by counting its lines. Play them | Each note right or wrong, and the time to play | Out to one ledger line, then two, then three, where half the runs go by thirds, line to line |
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
 | Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
@@ -257,6 +257,14 @@ success.
 | Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |
 | Arpeggios | As Scales | As Scales, with a close look at the crossings | A fifth's range, then one octave hands separate, two, hands together, inversions |
 | Finger independence | Five-finger patterns, trills (3–4, 4–5), held notes; patterns from your pieces where possible | Each finger's timing and touch, trill rate and steadiness, whether held keys stay down | Slow and even, then faster, then the weak pairs, then both hands |
+
+The drills read from a staff (Notes, Ledger lines, Intervals and shapes, Chords, Key signatures, Keyboard geography) mark each
+answer on it as soon as it's played, as Sight-read's summary does: green right, red wrong with a grey head where the key you
+played is and its name above, outlined red missed, and a chord's extra keys as grey heads beside it, named. The words under
+the staff name the same notes: "Off: note 2, E5 for F5", "The shape was right, from the wrong first note: …", "Not quite: B4,
+D5 missing; C5 extra". A set's summary lists the single notes and chords you missed. The drills with steps show the step
+beside the item count, with − and + to choose it: a new set starts at the step chosen, and from there over 90% in two sets in a
+row steps up and under 80% steps back.
 
 Notes come back on a spacing schedule: a note answered right but slowly counts as not yet learned, and comes back sooner than a
 fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right,

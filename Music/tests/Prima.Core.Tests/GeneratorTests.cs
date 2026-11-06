@@ -143,3 +143,29 @@ public class GeneratorTests
         Assert.Equal(112, Ladder.Level(9).TopTempo);
     }
 }
+
+public class LedgerDrillTests
+{
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void ItemsReachTheStepsLedgerLinesAndNoFurtherFromInsideTheStaff(int step)
+    {
+        var rng = new Rng((ulong)(41 + step));
+        var items = Enumerable.Range(0, 300).Select(_ => Prima.Core.Generation.Drills.Ledger(step, [Clef.Treble, Clef.Bass], rng)).ToList();
+        int Lines(DrillItem item, int midi) => PassageGenerator.LedgerLines(new Key(0).Spell(midi), item.Score.Bars[0].Voices[0].Events.OfType<Notes>().Any() ? 1 : 2);
+        var reach = items.Select(i => i.Answer.Max(a => Lines(i, a[0]))).ToList();
+
+        Assert.All(reach, r => Assert.InRange(r, 1, step));
+        Assert.Contains(step, reach);
+        // Runs start inside the staff (or come back to it), and step by seconds, or by thirds only at step 3.
+        var runs = items.Where(i => i.Answer.Count > 1).ToList();
+        Assert.True(runs.Count > 100);
+        Assert.All(runs, i => Assert.Equal(0, Math.Min(Lines(i, i.Answer[0][0]), Lines(i, i.Answer[^1][0]))));
+        var steps = runs.SelectMany(i => i.Answer.Zip(i.Answer.Skip(1), (a, b) => Math.Abs(new Key(0).Spell(b[0]).Diatonic - new Key(0).Spell(a[0]).Diatonic))).Distinct().Order().ToList();
+        Assert.Equal(step == 3 ? [1, 2] : [1], steps);
+        // Different notes every time, in both clefs: not the same C over and over.
+        Assert.True(items.SelectMany(i => i.Answer.Select(a => a[0])).Distinct().Count() >= 4 * step);
+    }
+}

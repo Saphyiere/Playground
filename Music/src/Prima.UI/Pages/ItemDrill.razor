@@ -27,10 +27,21 @@ else if (index < items.Count)
     <section class="reading-bar" aria-label="Where you are">
         <div class="mu-readout"><span class="mu-readout-label">Item</span><span class="mu-readout-value">@(index + 1) of @items.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@results.Count(r => r.Right)</span></div>
+        @if (info.Top > 1)
+        {
+            @* The step by hand: a new set at it, and the ladder moves on from there. *@
+            <div class="mu-readout play-tempo"><span class="mu-readout-label">Step of @info.Top</span>
+                <span class="tempo-control">
+                    <button type="button" class="mu-btn" aria-label="An easier step" disabled="@(track.Step <= 1)" @onclick="() => SetStep(track.Step - 1)">−</button>
+                    <span class="tempo-figure">@track.Step</span>
+                    <button type="button" class="mu-btn" aria-label="A harder step" disabled="@(track.Step >= info.Top)" @onclick="() => SetStep(track.Step + 1)">+</button>
+                </span>
+            </div>
+        }
         <p class="drill-prompt">@items[index].Item.Prompt</p>
     </section>
     <div class="sheet-frame">
-        <Sheet Mei="@mei" Scale="@(items[index].Item.Answer.Count > 1 ? 1.25 : 1.7)" OnPainted="Shown" />
+        <Sheet @ref="sheet" Mei="@mei" Scale="@(items[index].Item.Answer.Count > 1 ? 1.25 : 1.7)" OnPainted="Shown" />
     </div>
     <p class="drill-feedback @(feedbackRight ? "right" : "wrong")" aria-live="polite">@feedback</p>
 }
@@ -75,6 +86,8 @@ else
     private DrillInfo? info;
     private DrillTrack track = DrillTrack.Start;
     private List<Entry> items = [];
+    private Sheet? sheet;
+    private bool disposed;
     private readonly List<Answer> results = [];
     private readonly List<PlayedNote> heard = [];
     private int index;
@@ -118,7 +131,8 @@ else
         var level = (await Store.GetTrackAsync<ReadingState>("reading"))?.Level ?? 1;
         items = Key switch
         {
-            "notes" or "ledger" => await NoteItems(rng),
+            "notes" => await NoteItems(rng),
+            "ledger" => [.. Enumerable.Range(0, 8).Select(_ => new Entry(DrillMaterial.Ledger(track.Step, ChosenClefs(), rng), null, new Key(0)))],
             "intervals" => [.. Enumerable.Range(0, 8).Select(_ => Figure(rng))],
             "chords" => [.. Enumerable.Range(0, 8).Select(_ => { var key = track.Step <= 2 ? new Key(0) : rng.Pick(Ladder.Level(Math.Max(level, 4)).Keys); return new Entry(DrillMaterial.RandomChord(track.Step, key, rng), null, key); })],
             "keys" => [.. KeyItems(rng)],
@@ -129,18 +143,16 @@ else
         ShowItem();
     }
 
-    // Notes from the note schedule: due cards, then new ones in landmark order; Ledger lines draws only on ledger notes.
+    // The clefs Settings has the note drills read.
+    private HashSet<Clef> ChosenClefs() => Settings.Clefs switch { "treble" => [Clef.Treble], "bass" => [Clef.Bass], _ => [Clef.Treble, Clef.Bass] };
+
+    // Notes from the note schedule: due cards, then new ones in landmark order.
     private async Task<List<Entry>> NoteItems(Rng rng)
     {
         cards = await Store.GetCardsAsync();
         answers = await Store.GetAnswersAsync(DateTimeOffset.Now.AddDays(-14));
         fastMs = NoteSchedule.FastMs(answers);
-        var clefs = Settings.Clefs switch { "treble" => new HashSet<Clef> { Clef.Treble }, "bass" => new HashSet<Clef> { Clef.Bass }, _ => new HashSet<Clef> { Clef.Treble, Clef.Bass } };
-        bool Ledger((Clef Clef, int Midi) n) => PassageGenerator.LedgerLines(new Key(0).Spell(n.Midi), n.Clef == Clef.Treble ? 1 : 2) > 0;
-        var pool = Key == "ledger" ? cards.Where(c => Ledger((c.Clef, c.Midi))).ToList() : cards;
-        var queue = NoteSchedule.Session(pool, answers, Today, Key == "ledger" ? 2 : cards.Count < 3 ? 3 : 1 + Math.Min(2, cards.Count / 10), clefs, rng);
-        if (Key == "ledger") queue = [.. queue.Where(Ledger)];
-        if (Key == "ledger" && queue.Count == 0) queue = [.. NoteSchedule.LandmarkOrder.Where(n => clefs.Contains(n.Clef) && Ledger(n)).Take(3)];
+        var queue = NoteSchedule.Session(cards, answers, Today, cards.Count < 3 ? 3 : 1 + Math.Min(2, cards.Count / 10), ChosenClefs(), rng);
         // A short set is filled out with the notes it holds, mixed, never one straight after itself.
         var known = queue.Distinct().ToList();
         while (queue.Count < 8 && known.Count > 1)
@@ -218,20 +230,35 @@ else
         var item = entry.Item;
         List<PlayedNote> notes;
         lock (heard) notes = [.. heard];
+        // The answer goes on the staff, note by note: right, wrong (the key played as a grey head that many positions away, named)
+        // or missed, and a chord's extra keys beside it; the words name the same notes.
+        var expected = item.Score.Expected();
+        var written = item.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
+        var key = entry.ItemKey;
+        var played = notes.Where(p => p.OnNs >= shownNs).OrderBy(p => p.OnNs).ToList();
+        List<SheetMark> marks = [];
+        SheetMark Wrong(ExpectedNote n, int midi) => new(n.Id, "wrong", key.Spell(midi).ToString(), key.Spell(midi).Diatonic - written[n.Id].Diatonic);
         Answer answer;
         if (item.Answer.Count == 1 && item.Answer[0].Count > 1)
         {
             var chord = DrillScorer.Chord(item.Answer[0], notes, shownNs)!;
-            answer = new Answer(chord.Right, chord.ResponseMs, chord.Right ? "" : $"{chord.Missing} missing, {chord.Extra} extra");
-            feedback = chord.Right ? $"Right, {chord.SpreadMs:0} ms between the first and last notes." : $"Not quite: {(chord.Missing > 0 ? $"{chord.Missing} missing" : "")}{(chord.Missing > 0 && chord.Extra > 0 ? ", " : "")}{(chord.Extra > 0 ? $"{chord.Extra} extra" : "")}.";
+            var keys = played.Where(p => p.OnNs - played[0].OnNs <= DrillScorer.ChordWindowNs).Select(p => p.Midi).Distinct().ToList();
+            var missing = expected.Where(n => !keys.Contains(n.Midi)).ToList();
+            var extra = keys.Where(k => expected.All(n => n.Midi != k)).ToList();
+            marks.AddRange(expected.Select(n => new SheetMark(n.Id, keys.Contains(n.Midi) ? "right" : "missed")));
+            marks.AddRange(extra.Select(k => Wrong(expected.MinBy(n => Math.Abs(n.Midi - k))!, k) with { Kind = "extra" }));
+            answer = new Answer(chord.Right, chord.ResponseMs, string.Join(" ", expected.Select(n => written[n.Id])));
+            var slips = new[] { missing.Count > 0 ? $"{string.Join(", ", missing.Select(n => written[n.Id]))} missing" : null, extra.Count > 0 ? $"{string.Join(", ", extra.Select(k => key.Spell(k)))} extra" : null }.OfType<string>();
+            feedback = chord.Right ? $"Right, {chord.SpreadMs:0} ms between the first and last notes." : $"Not quite: {string.Join("; ", slips)}.";
         }
         else if (item.Answer.Count == 1)
         {
             var note = DrillScorer.Note(item.Answer[0][0], notes, shownNs)!;
-            var played = entry.ItemKey.Spell(note.Played);
-            var written = entry.ItemKey.Spell(item.Answer[0][0]);
-            answer = new Answer(note.Right, note.ResponseMs, written.ToString());
-            feedback = note.Right ? $"Right, in {note.ResponseMs / 1000:0.0} s." : $"That was {played}{(Settings.LetterNames ? $"; the note is {written}" : "")}{(note.OctaveOff ? ", an octave away" : note.LostOnKeyboard ? ", a key or two away" : "")}.";
+            var heardName = key.Spell(note.Played);
+            var writtenName = key.Spell(item.Answer[0][0]);
+            answer = new Answer(note.Right, note.ResponseMs, writtenName.ToString());
+            feedback = note.Right ? $"Right, in {note.ResponseMs / 1000:0.0} s." : $"That was {heardName}{(Settings.LetterNames ? $"; the note is {writtenName}" : "")}{(note.OctaveOff ? ", an octave away" : note.LostOnKeyboard ? ", a key or two away" : "")}.";
+            if (expected.Count == 1) marks.Add(note.Right ? new SheetMark(expected[0].Id, "right") : Wrong(expected[0], note.Played));
             if (entry.Clef is { } clef) await SaveCard(clef, item.Answer[0][0], note);
         }
         else
@@ -239,13 +266,27 @@ else
             var figure = DrillScorer.Figure([.. item.Answer.Select(a => a[0])], notes, shownNs)!;
             answer = new Answer(figure.Right, figure.ResponseMs, "");
             if (Key == "keys") forgotTheKey += notes.Zip(item.Answer).Count(p => p.First.Midi != p.Second[0] && Math.Abs(p.First.Midi - p.Second[0]) == 1 && entry.ItemKey.AlterOf(entry.ItemKey.Spell(p.Second[0]).Step) != 0);
-            feedback = figure.Right ? "Right." : figure.WrongFirstNote ? "The shape was right, from the wrong first note." : $"{figure.Steps.Count(s => !s)} {(figure.Steps.Count(s => !s) == 1 ? "note" : "notes")} off.";
+            var slips = new List<string>();
+            foreach (var (n, i) in expected.Select((n, i) => (n, i)))
+            {
+                if (i >= played.Count) marks.Add(new SheetMark(n.Id, "missed"));
+                else if (played[i].Midi == n.Midi) marks.Add(new SheetMark(n.Id, "right"));
+                else
+                {
+                    marks.Add(Wrong(n, played[i].Midi));
+                    slips.Add($"note {i + 1}, {key.Spell(played[i].Midi)} for {written[n.Id]}");
+                }
+            }
+            feedback = figure.Right ? "Right." : $"{(figure.WrongFirstNote ? "The shape was right, from the wrong first note: " : "Off: ")}{string.Join("; ", slips)}.";
         }
 
         results.Add(answer);
         feedbackRight = answer.Right;
         StateHasChanged();
+        if (sheet is not null && marks.Count > 0) await sheet.ShowMarks(marks);
         await Task.Delay(answer.Right ? 700 : 1600);
+        // Left while the answer showed: the set stops there, unsaved.
+        if (disposed) return;
         index++;
         if (index >= items.Count) await FinishSet();
         ShowItem();
@@ -278,6 +319,14 @@ else
         if (Key == "notes") await Store.MarkStepAsync(Today, StepKind.Notes, shortPlanDone: false);
     }
 
+    // The step by hand: a new set at it, and the ladder moves on from there as before.
+    private async Task SetStep(int step)
+    {
+        track = track with { Step = Math.Clamp(step, 1, info!.Top) };
+        await Store.SaveTrackAsync($"drill:{Key}", track);
+        await NewSet();
+    }
+
     private async Task Looked(bool yes)
     {
         looked = yes;
@@ -289,8 +338,8 @@ else
     {
         var slow = results.Where(r => r.Right && r.Ms > fastMs && r.Note != "").Select(r => r.Note).Distinct().ToList();
         var missed = results.Where(r => !r.Right && r.Note != "").Select(r => r.Note).Distinct().ToList();
-        if (missed.Count > 0) yield return $"Missed: {string.Join(", ", missed)}. They come back sooner.";
-        if (slow.Count > 0 && Key is "notes" or "ledger") yield return $"Right but slow, so not yet learned: {string.Join(", ", slow)}. They come back tomorrow.";
+        if (missed.Count > 0) yield return $"Missed: {string.Join(", ", missed)}.{(Key == "notes" ? " They come back sooner." : "")}";
+        if (slow.Count > 0 && Key == "notes") yield return $"Right but slow, so not yet learned: {string.Join(", ", slow)}. They come back tomorrow.";
         if (Key == "keys" && forgotTheKey > 0) yield return $"Played without the key's sharp or flat {forgotTheKey} {(forgotTheKey == 1 ? "time" : "times")}.";
         if (results.All(r => r.Right)) yield return "All right.";
         if (Key == "geography") yield return "Hands covered or eyes on the screen: the only check is your own answer below.";
@@ -298,6 +347,7 @@ else
 
     public void Dispose()
     {
+        disposed = true;
         Keyboard.Received -= OnReceived;
         chordTimer?.Dispose();
         Registry.DrillAnswer = null;

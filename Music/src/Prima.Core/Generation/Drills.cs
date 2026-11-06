@@ -50,6 +50,39 @@ public static class Drills
         return new DrillItem(staff == 1 ? Item(notes, [], key, marks) : Item([], notes, key, marks), [.. pitches.Select(p => (IReadOnlyList<int>)[p.Midi])], "Play the figure from the named note");
     }
 
+    /// <summary>
+    /// Ledger lines, learnt by walking out from the staff: a run of four to eight notes stepping from a staff out past it,
+    /// above or below, in either clef chosen, its first note named; or the same run walking back in from the far note, unnamed;
+    /// or a single note out there, read by counting the lines. Step 1 goes out to one ledger line, step 2 to two and step 3 to
+    /// three, where half the runs go by thirds, line to line.
+    /// </summary>
+    public static DrillItem Ledger(int step, IReadOnlyCollection<Clef> clefs, Rng rng)
+    {
+        var lines = Math.Clamp(step, 1, 3);
+        var clef = rng.Pick(clefs.ToList());
+        var staff = clef == Clef.Treble ? 1 : 2;
+        // The staff's outer lines as diatonic numbers (C4 is 28): E4 and F5 for the treble, G2 and A3 for the bass.
+        var (bottom, top) = clef == Clef.Treble ? (30, 38) : (18, 26);
+        var up = rng.Chance(0.5);
+        var sign = up ? 1 : -1;
+        // The farthest note: on the step's last ledger line, or just past it.
+        var far = (up ? top : bottom) + sign * (2 * lines + rng.Int(2));
+        if (rng.Chance(0.35))
+        {
+            var near = (up ? top : bottom) + sign * 2;
+            return Note(staff, Spelled.FromDiatonic(near + sign * rng.Int(Math.Abs(far - near) + 1))) with { Prompt = "Count its ledger lines from the staff, and play it" };
+        }
+
+        // Four to six notes, or as many as it takes to start on the staff.
+        var by = lines == 3 && rng.Chance(0.5) ? 2 : 1;
+        var count = Math.Max(4 + rng.Int(3), (Math.Abs(far - (up ? top : bottom)) + by - 1) / by + 1);
+        var start = far - sign * by * (count - 1);
+        if (rng.Chance(0.5)) return Figure(staff, Spelled.FromDiatonic(start), [.. Enumerable.Repeat(sign * by, count - 1)], new Key(0)) with { Prompt = "Walk out from the named note, past the staff" };
+
+        var back = Figure(staff, Spelled.FromDiatonic(far), [.. Enumerable.Repeat(-sign * by, count - 1)], new Key(0));
+        return back with { Score = back.Score with { Marks = [] }, Prompt = "Read the first note's ledger lines, then walk back in" };
+    }
+
     /// <summary>A chord to play at once: its notes split between the staves at middle C.</summary>
     public static DrillItem Chord(IReadOnlyList<Spelled> pitches, Key key)
     {

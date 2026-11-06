@@ -439,7 +439,10 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     t.setAttribute("text-anchor", "middle");
     t.textContent = text;
     overlay.appendChild(t);
-    const others = [...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox());
+    // In the way: the marks' words already there, and the music's own words (a figure's named first note, say).
+    const sheet = overlay.closest(".sheet").getBoundingClientRect();
+    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
     // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
     const inWay = () => {
         const b = t.getBBox();
