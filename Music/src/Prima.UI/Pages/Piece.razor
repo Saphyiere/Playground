@@ -10,6 +10,8 @@
 @inject NavigationManager Nav
 @inject ISystemBars SystemBars
 @using System.Text.Json
+@using System.Xml.Linq
+@using Prima.UI.Glossary
 @using Prima.Core.Library
 @using Prima.Core.Scoring
 
@@ -33,6 +35,10 @@ else
         @{
             // The piece's own tools at the end of the bar: its options in place of the music, and full screen.
             RenderFragment tools = @<text>
+                @if (!piece.IsPdf)
+                {
+                    <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(explain)" disabled="@playing" @onclick="ToggleExplain"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
+                }
                 <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(options)" disabled="@playing" @onclick="ToggleOptions">
                     <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
                 </button>
@@ -95,9 +101,9 @@ else
                 }
                 else if (mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnNoteTapped="NoteTapped" />
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnNoteTapped="NoteTapped" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
-                @if (view == View.Pages)
+                @if (view == View.Pages && !explain)
                 {
                     <button type="button" class="turn-zone turn-back" aria-label="Back a page" @onclick="() => Tapped(-1)"></button>
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
@@ -181,6 +187,14 @@ else
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
                     </div>
                 </section>
+            }
+            @if (explain && explained is { } symbol)
+            {
+                <SymbolCard Entry="symbol.Entry" Note="@symbol.Note" OnClose="() => explained = null" />
+            }
+            else if (explain)
+            {
+                <p class="explain-hint">What's this? Tap any symbol on the music.</p>
             }
         </div>
 
@@ -271,6 +285,10 @@ else
     private bool fullScreen;
     private int? loopTo;
     private bool playAlong;
+    // What's this: on, the symbol tapped last (its entry, and for a note which note it is), and the MEI read for it.
+    private bool explain;
+    private (GlossaryEntry? Entry, string? Note)? explained;
+    private XDocument? meiDocument;
     private bool playing;
     private PlayOutcome? outcome;
     private DateTime started;
@@ -445,6 +463,16 @@ else
 
     private void ToggleOptions() => options = !options;
 
+    private void ToggleExplain() => (explain, explained, options) = (!explain, null, false);
+
+    // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
+    private void SymbolTapped(SheetSymbol symbol)
+    {
+        meiDocument ??= mei is null ? null : XDocument.Parse(mei);
+        var noteId = symbol.Kind == "note" ? symbol.Id : symbol.Kind is "accid" or "artic" or "dots" or "fing" ? symbol.Within : null;
+        explained = (GlossaryLookup.Find(meiDocument, symbol), score is not null && noteId is not null ? GlossaryLookup.NoteLine(score, noteId) : null);
+    }
+
     // Full screen: the piece alone, the tablet's own bars hidden too; the same button, or leaving the piece, brings them back.
     private async Task ToggleFullScreen()
     {
@@ -550,7 +578,7 @@ else
     // The run plays in the scrolling view, a line at a time.
     private async Task Starting()
     {
-        (playing, outcome, started, options) = (true, null, DateTime.Now, false);
+        (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
         if (sheet is not null) await sheet.Highlight(null);
         if (view == View.Scroll) return;
 

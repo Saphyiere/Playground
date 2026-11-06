@@ -1,0 +1,101 @@
+@page "/glossary"
+@inject IJSRuntime JS
+@using Prima.UI.Glossary
+
+<PageTitle>Glossary · Prima</PageTitle>
+
+<PageHead Title="Glossary" Kicker="Everything on a sheet of music"><KeyboardLamp /></PageHead>
+
+<input class="text-field glossary-search" type="search" placeholder="Search a name, or what it looks like: a curved line, dots, a hairpin…" aria-label="Search the glossary" @bind="query" @bind:event="oninput" />
+
+@if (string.IsNullOrWhiteSpace(query))
+{
+    <section class="notes-home" aria-labelledby="notes-home-title">
+        <h2 id="notes-home-title" class="notes-home-title">Where the notes live</h2>
+        <StaffMap />
+        <ul class="notes-home-facts">
+            <li><strong>The treble staff</strong>, for the right hand: its lines from the bottom are E G B D F (Every Good Boy Does Fine), its spaces F A C E.</li>
+            <li><strong>The bass staff</strong>, for the left hand: its lines are G B D F A (Good Boys Do Fine Always), its spaces A C E G (All Cows Eat Grass).</li>
+            <li><strong>Middle C</strong> sits on its own short line between the two staves: the same key whichever staff it's written on.</li>
+            <li><strong>Each step up</strong> the staff, line to space to line, is the next white key up. Notes past the staff get short lines of their own, ledger lines.</li>
+        </ul>
+    </section>
+}
+
+@{
+    var found = GlossaryLookup.Search(query).ToList();
+}
+@foreach (var group in found.GroupBy(e => e.Group))
+{
+    <section class="glossary-group" aria-labelledby="@($"group-{group.Key}")">
+        <h2 id="@($"group-{group.Key}")" class="section-title">@GroupName(group.Key)</h2>
+        <div class="glossary-list">
+            @foreach (var entry in group)
+            {
+                <article class="glossary-entry @(open == entry.Id ? "open" : "")" id="@($"entry-{entry.Id}")">
+                    <button type="button" class="glossary-entry-head" aria-expanded="@On(open == entry.Id)" @onclick="() => open = open == entry.Id ? null : entry.Id">
+                        <span class="glossary-entry-name">@entry.Name</span>
+                        <span class="glossary-entry-summary">@entry.Summary</span>
+                    </button>
+                    @if (open == entry.Id)
+                    {
+                        <div class="glossary-entry-body">
+                            @if (entry.Example is { } example)
+                            {
+                                <div class="glossary-example"><Sheet Mei="@example" Scale="0.9" Class="glossary-sheet" /></div>
+                            }
+                            <p class="glossary-entry-play">@entry.Play</p>
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+    </section>
+}
+@if (found.Count == 0)
+{
+    <p class="page-note">Nothing by that name yet. Try what it looks like: "dots", "curved line", "hairpin", "the C".</p>
+}
+
+@code {
+    /// <summary>An entry to open, from What's this on a piece.</summary>
+    [SupplyParameterFromQuery(Name = "entry")] public string? Entry { get; set; }
+
+    private string query = "";
+    private string? open;
+    private bool shown;
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    private static string GroupName(GlossaryGroup group) => group switch
+    {
+        GlossaryGroup.Staff => "The staff",
+        GlossaryGroup.Notes => "Notes and rests",
+        GlossaryGroup.Rhythm => "Rhythm and time",
+        GlossaryGroup.Pitch => "Sharps, flats and keys",
+        GlossaryGroup.Dynamics => "Loud and soft",
+        GlossaryGroup.Touch => "Touch",
+        GlossaryGroup.Tempo => "Speed and mood",
+        GlossaryGroup.Roadmap => "Repeats and the roadmap",
+        GlossaryGroup.Ornaments => "Ornaments",
+        _ => "Hands, fingers and pedals",
+    };
+
+    protected override void OnParametersSet() => open = Entry ?? open;
+
+    // An entry opened from a piece is scrolled to, once.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shown || Entry is null) return;
+
+        shown = true;
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Pages/Glossary.razor.js");
+            await module.InvokeVoidAsync("show", $"entry-{Entry}");
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        {
+        }
+    }
+}

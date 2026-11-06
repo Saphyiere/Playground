@@ -53,6 +53,7 @@ export async function render(element, mei, options, dotnet) {
     if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei) });
     Object.assign(state, { mei, options, dotnet, tk });
     sheets.set(element, state);
+    element.classList.toggle("sheet-explain", !!options.explain);
     draw(element, state);
     if (!state.observer) {
         state.observer = new ResizeObserver(() => {
@@ -60,6 +61,10 @@ export async function render(element, mei, options, dotnet) {
         });
         state.observer.observe(element);
         element.addEventListener("click", event => {
+            if (state.options.explain) {
+                explainTap(state, event.target);
+                return;
+            }
             const note = event.target.closest?.(".sheet-music .note[data-id]");
             if (note) state.dotnet?.invokeMethodAsync("NoteTapped", note.dataset.id);
         });
@@ -362,6 +367,36 @@ export function showOpening(element, windowQuarters) {
     for (const bar of measures(element, state)) bar.cover.style.display = bar.start > windowQuarters ? "" : "none";
 }
 
+// What's this: a tap names the nearest symbol under it, the innermost (an accidental before its note, a note before its beam).
+const symbols = ["accid", "artic", "dots", "fing", "dynam", "hairpin", "dir", "tempo", "fermata", "trill", "mordent", "turn", "arpeg", "gliss",
+    "breath", "caesura", "slur", "tie", "pedal", "octave", "ending", "tuplet", "note", "rest", "mRest", "chord", "beam", "clef", "keySig",
+    "meterSig", "barLine", "reh", "harm"];
+const symbolSelector = symbols.map(s => `.sheet-music .${s}`).join(", ");
+// The glyphs that tell a clef's shape: SMuFL's G, F and C clefs.
+const clefGlyphs = { E050: "G", E052: "G", E062: "F", E064: "F", E05C: "C" };
+
+export function explain(element, on) {
+    const state = sheets.get(element);
+    if (!state) return;
+    state.options.explain = on;
+    element.classList.toggle("sheet-explain", on);
+}
+
+function explainTap(state, target) {
+    const symbol = target.closest?.(symbolSelector);
+    if (!symbol) return;
+    let kind = symbols.find(s => symbol.classList.contains(s));
+    if (kind === "clef") {
+        const glyph = symbol.querySelector("use")?.getAttribute("xlink:href") ?? symbol.querySelector("use")?.getAttribute("href") ?? "";
+        const shape = Object.entries(clefGlyphs).find(([code]) => glyph.includes(code))?.[1];
+        if (shape) kind += ":" + shape;
+    }
+    // A repeat sign's bar line has its two dots.
+    if (kind === "barLine" && symbol.querySelector("ellipse, circle")) kind += ":rpt";
+    const within = symbol.parentElement?.closest(".sheet-music .note[data-id], .sheet-music .chord[data-id], .sheet-music .measure[data-id]")?.dataset.id ?? null;
+    state.dotnet?.invokeMethodAsync("SymbolTapped", symbol.dataset.id ?? "", kind, within);
+}
+
 // Marks notes after the passage, all at once. Each mark: id, kind ("right", "wrong", "missed", "early", "late", "extra", or a
 // heat-map shade), for a wrong note what was played ("G4") and how many staff positions away it is, so a red note head shows it
 // there, and the written note's name ("F4") when it's to be named; and for an early or late one `q`, when it was played in
@@ -381,7 +416,7 @@ export function markLive(element, marks) {
     for (const mark of marks) drawMark(element, state, mark);
 }
 
-const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3"];
+const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3", "mark-picked"];
 
 function drawMark(element, state, mark) {
     const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);

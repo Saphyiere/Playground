@@ -1,0 +1,32 @@
+@using Prima.UI.Glossary
+
+@* What's this: the symbol tapped on the sheet, from the glossary, over the music; a note says which note it is first. *@
+<section class="symbol-card" role="dialog" aria-label="@(Entry?.Name ?? "What's this")">
+    <div class="symbol-card-head">
+        <h2 class="symbol-card-name">@(Entry?.Name ?? (Note is null ? "Not in the glossary yet" : "This note"))</h2>
+        <button type="button" class="mu-btn" aria-label="Close" @onclick="OnClose">✕</button>
+    </div>
+    @if (Note is { } note)
+    {
+        <p class="symbol-card-note">@note</p>
+    }
+    @if (Entry is { } entry)
+    {
+        <p>@entry.Summary</p>
+        <p>@entry.Play</p>
+        <a class="mu-btn" href="@($"glossary?entry={entry.Id}")">More in the glossary</a>
+    }
+    else
+    {
+        <p>The glossary can find it by what it looks like: search "curved line", "dots", "hairpin".</p>
+        <a class="mu-btn" href="glossary">Open the glossary</a>
+    }
+</section>
+
+@code {
+    [Parameter] public GlossaryEntry? Entry { get; set; }
+
+    [Parameter] public string? Note { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+}

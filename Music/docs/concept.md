@@ -168,6 +168,15 @@ to other patterns; for now they're built-in five-finger figures.
 
 ### Tools
 
+- **Glossary**: everything on a sheet of music. First and largest, **where the notes live**: the grand staff from the bass
+  staff's bottom line to just over the treble staff, each note named under it, middle C in both, and the same notes on a strip
+  of keys below; a note or a key tapped is lit in both, said in words (its line or space, a ledger line, the clef it's named
+  for) and played on the piano when Prima sends it notes. Then every symbol and term by group (the staff; notes and rests;
+  rhythm and time; sharps, flats and keys; loud and soft; touch; speed and mood; repeats and the roadmap; ornaments; hands,
+  fingers and pedals), the most common first in each. Each says what it is, how it's played and how it sounds, and opens to a
+  bar or two engraved as the sheet engraves it. A search finds things by name or by what they look like ("curved line",
+  "dots", "hairpin"). On a piece, **What's this** (the ? key on its bar) makes a tap on the music name the symbol under it from
+  the glossary, a note with its name and where it sits, with the way to its full entry.
 - **Metronome**, with a count-in and a click that can fade to silence.
 - **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
   C8). No picture of a keyboard.

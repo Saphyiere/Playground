@@ -1,0 +1,96 @@
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject PrimaSettings Settings
+@using Prima.Core.Music
+
+@*
+    Where the notes live: the grand staff from the bass staff's bottom line to just over the treble staff, each note named under
+    it, middle C in both staves; and the keys those notes are, below. A note or a key, tapped, is lit in both, said in words (its
+    line or space), and played on the piano when Prima sends it notes.
+*@
+<div class="staff-map">
+    <Sheet @ref="sheet" Mei="@Map" Scale="1.2" Class="staff-map-sheet" OnNoteTapped="Tapped" />
+    <svg class="staff-map-keys" viewBox="0 0 @(Whites.Count * KeyWidth) 112" role="group" aria-label="The same notes on the keyboard">
+        @foreach (var (midi, i) in Whites.Select((m, i) => (m, i)))
+        {
+            <g class="staff-map-key @(picked == midi ? "picked" : "")" @onclick="() => Pick(midi)">
+                <rect x="@(i * KeyWidth)" y="0" width="@KeyWidth" height="112" rx="3" />
+                <text x="@(i * KeyWidth + KeyWidth / 2)" y="100" text-anchor="middle">@Name(midi)</text>
+            </g>
+        }
+        @foreach (var midi in Blacks)
+        {
+            <rect class="staff-map-black @(picked == midi ? "picked" : "")" x="@(Whites.IndexOf(midi - 1) * KeyWidth + KeyWidth - 7)" y="0" width="14" height="68" rx="2" @onclick="() => Pick(midi)" />
+        }
+    </svg>
+    <p class="staff-map-said" aria-live="polite">@(said ?? "Tap a note, or a key, to see where it lives.")</p>
+</div>
+
+@code {
+    private const int KeyWidth = 24;
+    private const int Low = 43;
+    private const int High = 81;
+
+    // The bass staff's notes from its bottom line (G2) to middle C, then the treble's from middle C to the first ledger line over
+    // it (A5): as stemless heads, named under each.
+    private static readonly int[] BassNotes = [43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 60];
+    private static readonly int[] TrebleNotes = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81];
+
+    private static readonly List<int> Whites = [.. Enumerable.Range(Low, High - Low + 1).Where(m => !IsBlack(m))];
+    private static readonly List<int> Blacks = [.. Enumerable.Range(Low, High - Low + 1).Where(IsBlack)];
+
+    private static readonly string Map = GlossaryMusic.Section("GF", null, "0",
+        $"<measure n=\"1\"><staff n=\"1\"><layer n=\"1\">{string.Concat(BassNotes.Select(_ => "<space dur=\"4\"/>"))}</layer></staff><staff n=\"2\"><layer n=\"1\">{string.Concat(BassNotes.Select(m => Head("b", m)))}</layer></staff></measure>" +
+        $"<measure n=\"2\"><staff n=\"1\"><layer n=\"1\">{string.Concat(TrebleNotes.Select(m => Head("t", m)))}</layer></staff><staff n=\"2\"><layer n=\"1\">{string.Concat(TrebleNotes.Select(_ => "<space dur=\"4\"/>"))}</layer></staff></measure>");
+
+    private Sheet? sheet;
+    private int? picked;
+    private string? said;
+
+    private static bool IsBlack(int midi) => (midi % 12) is 1 or 3 or 6 or 8 or 10;
+
+    private static Spelled Spell(int midi) => new Key(0).Spell(midi);
+
+    private static string Name(int midi) => midi % 12 == 0 ? $"C{midi / 12 - 1}" : Spell(midi).Step.ToString();
+
+    private static string Head(string staff, int midi)
+    {
+        var pitch = Spell(midi);
+        return $"<note xml:id=\"{staff}{midi}\" pname=\"{pitch.Step.ToString().ToLowerInvariant()}\" oct=\"{pitch.Octave}\" dur=\"4\" stem.visible=\"false\"><verse n=\"1\"><syl>{pitch.Step}</syl></verse></note>";
+    }
+
+    private Task Tapped(string id) => int.TryParse(id[1..], out var midi) ? Pick(midi, id[0] == 'b' ? Clef.Bass : Clef.Treble) : Task.CompletedTask;
+
+    private async Task Pick(int midi) => await Pick(midi, midi < 60 ? Clef.Bass : Clef.Treble);
+
+    private async Task Pick(int midi, Clef clef)
+    {
+        picked = midi;
+        if (IsBlack(midi))
+        {
+            var sharp = Spell(midi);
+            var flat = Spell(midi + 1) with { Alter = -1 };
+            said = $"{sharp} or {flat}: a black key. On the staff it's {Spell(midi - 1)} with a sharp (♯) in front, or {Spell(midi + 1)} with a flat (♭).";
+        }
+        else
+        {
+            var pitch = Spell(midi);
+            var landmark = midi switch
+            {
+                67 => " The treble clef curls round this line: it's also called the G clef.",
+                53 => " The bass clef's two dots sit either side of this line: it's also called the F clef.",
+                60 => " It's the same key from either staff, near the middle of the keyboard.",
+                _ => "",
+            };
+            said = $"{pitch}: {GlossaryLookup.Place(pitch, clef)}.{landmark}";
+        }
+
+        var id = IsBlack(midi) ? null : clef == Clef.Treble && TrebleNotes.Contains(midi) ? $"t{midi}" : BassNotes.Contains(midi) ? $"b{midi}" : $"t{midi}";
+        if (sheet is not null) await sheet.ShowMarks(id is null ? [] : [new SheetMark(id, "picked")]);
+        if (Keyboard.CanSend && Settings.SendToPiano)
+        {
+            Keyboard.Send([0x9F, (byte)midi, 80], Clock.NowNs);
+            Keyboard.Send([0x8F, (byte)midi, 0], Clock.NowNs + 700_000_000);
+        }
+    }
+}
