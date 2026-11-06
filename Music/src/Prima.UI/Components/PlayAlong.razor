@@ -28,6 +28,10 @@
             <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
         <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
+        @if (OnBack.HasDelegate)
+        {
+            <button type="button" class="mu-btn" aria-label="Back a bar" @onclick="() => OnBack.InvokeAsync(bar)">‹ Bar</button>
+        }
         @* Not the piano's go key: while a run plays, every key is music. *@
         <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
     }
@@ -95,6 +99,9 @@
 
     [Parameter] public EventCallback<PlayMode> ModeChanged { get; set; }
 
+    /// <summary>Back while a run plays, given the bar it's at: a screen that can start again from an earlier bar offers it.</summary>
+    [Parameter] public EventCallback<int> OnBack { get; set; }
+
     public PlayMode Mode { get; private set; }
 
     public bool Running => session?.Phase is Phase.CountIn or Phase.Playing || wait is not null;
@@ -142,8 +149,10 @@
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
 
+        // A run stopped to start again (back a bar) leaves nothing ticking.
         session?.Dispose();
-        (session, wait, playing, stoppedNs, last) = (null, null, music, null, null);
+        ticker?.Dispose();
+        (session, wait, playing, stoppedNs, last, ticker) = (null, null, music, null, null, null);
         pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
         notes = music.Notes.ToDictionary(n => n.Id);
         drawn.Clear();

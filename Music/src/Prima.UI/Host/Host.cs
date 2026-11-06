@@ -123,6 +123,21 @@ public sealed class NoFiles : IFiles
     public Task<(string Name, byte[] Data)?> PickAsync() => Task.FromResult<(string, byte[])?>(null);
 }
 
+/// <summary>The tablet's own bars, status along the top and navigation along the bottom: hidden for full screen, where the host can.</summary>
+public interface ISystemBars
+{
+    /// <summary>Shows the bars, or hides them (a swipe from the edge brings them back for a moment).</summary>
+    void Show(bool shown);
+}
+
+/// <summary>No bars of its own to hide: for a host without them, like the preview.</summary>
+public sealed class NoSystemBars : ISystemBars
+{
+    public void Show(bool shown)
+    {
+    }
+}
+
 /// <summary>The Library's bundled music: the manifest and the files it names (built by Music/tools/Prima.Library).</summary>
 public interface ILibraryBundle
 {

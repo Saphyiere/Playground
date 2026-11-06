@@ -53,3 +53,17 @@ public sealed class AndroidBundle : ILibraryBundle
         }
     }
 }
+
+/// <summary>Android's status and navigation bars, hidden for full screen: a swipe from the edge shows them for a moment.</summary>
+public sealed class AndroidSystemBars : ISystemBars
+{
+    public void Show(bool shown)
+    {
+        if (Platform.CurrentActivity?.Window is not { } window) return;
+        if (AndroidX.Core.View.WindowCompat.GetInsetsController(window, window.DecorView) is not { } bars) return;
+
+        bars.SystemBarsBehavior = AndroidX.Core.View.WindowInsetsControllerCompat.BehaviorShowTransientBarsBySwipe;
+        if (shown) bars.Show(AndroidX.Core.View.WindowInsetsCompat.Type.SystemBars());
+        else bars.Hide(AndroidX.Core.View.WindowInsetsCompat.Type.SystemBars());
+    }
+}

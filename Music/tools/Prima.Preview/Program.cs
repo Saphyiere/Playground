@@ -27,6 +27,7 @@ while (root is not null && !File.Exists(Path.Combine(root.FullName, "Directory.B
 builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root?.FullName ?? ".", "Music", "library")));
 builder.Services.AddSingleton<PreviewFiles>();
 builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>());
+builder.Services.AddSingleton<ISystemBars, NoSystemBars>();
 builder.Services.AddPrima(dbPath);
 
 var app = builder.Build();

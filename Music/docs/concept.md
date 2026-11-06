@@ -134,17 +134,22 @@ a PDF plays out; this is what came of it.
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
   Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes, so it
   shows about where its collection sits.
-- **A piece** shows as pages: two systems at a time in landscape, the whole page in portrait under a slim bar. It turns by the
-  screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals (forward and back),
-  or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. Or it scrolls, a system at
-  a time.
+- **A piece** opens on its bar and its music. The bar ends with two keys: **Options**, which shows the piece's options in
+  place of the music (the view, the hands, play along, where to start, a loop; a PDF's tempo and bars) until it's pressed again,
+  and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
+  same key, or leaving the piece, brings everything back. A notation piece shows whole in one scroll unless it's been set to
+  Pages (kept for each piece). As pages: two systems at a time in landscape, the whole page in portrait under a slim bar. They
+  turn by the screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
+  (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
   In time or Wait for me, the tempo, and Play, from the start or from the bar of a note you tap (it's lit until you play). A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
-  with it; a note played twice keeps the mark of the latest time. While
-  it plays, the music scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
+  with it; a note played twice keeps the mark of the latest time. **Loop** plays from the start bar to a bar you choose, again
+  and again until you stop. While a run plays, tapping a note starts it again from that bar, and **‹ Bar** goes back a bar (in
+  a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. While it plays, the music
+  scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
   bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
   doesn't move your level.
 - **A PDF** turns by the same means. Portrait shows a whole page, and by default a half-page turn first shows the next page's

@@ -26,3 +26,8 @@ export function scrollToSystemOf(frame, id) {
 export function size(element) {
     return [element.clientWidth, element.clientHeight];
 }
+
+// Full screen: the piece alone, the rail and the head hidden (data-full on <html>; the tablet's own bars go by the host).
+export function fullScreen(on) {
+    document.documentElement.toggleAttribute("data-full", on);
+}

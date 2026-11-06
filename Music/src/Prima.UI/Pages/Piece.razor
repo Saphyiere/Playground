@@ -8,6 +8,7 @@
 @inject ILibraryBundle Bundle
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject ISystemBars SystemBars
 @using System.Text.Json
 @using Prima.Core.Library
 @using Prima.Core.Scoring
@@ -29,6 +30,17 @@ else
             <KeyboardLamp />
         </header>
 
+        @{
+            // The piece's own tools at the end of the bar: its options in place of the music, and full screen.
+            RenderFragment tools = @<text>
+                <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(options)" disabled="@playing" @onclick="ToggleOptions">
+                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
+                </button>
+                <button type="button" class="mu-btn piece-tool" aria-label="@(fullScreen ? "Leave full screen" : "Full screen")" aria-pressed="@On(fullScreen)" @onclick="ToggleFullScreen">
+                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="@(fullScreen ? "M8 3v5H3M17 8h-5V3M12 17v-5h5M3 12h5v5" : "M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5")" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+            </text>;
+        }
         @if (piece.IsPdf)
         {
             <section class="reading-bar piece-bar" aria-label="The piece">
@@ -43,45 +55,132 @@ else
                     {
                         <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
                     }
+                    @tools
                 </div>
             </section>
         }
         else
         {
-            <PlayAlong Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@($"Play{(HandName is { } hand ? $" the {hand} hand" : "")}{(from > FirstBar ? $" from bar {from}" : "")}")" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished">
+            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back">
                 <Readouts>
                     <p class="piece-bar-title">@piece.Title</p>
                     <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                     @if (view == View.Pages && !playing)
                     {
                         <div class="mu-readout"><span class="mu-readout-label">Page</span><span class="mu-readout-value">@PlaceText()</span></div>
-                        <div class="piece-actions">
+                    }
+                    <div class="piece-actions">
+                        @if (view == View.Pages && !playing)
+                        {
                             <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
                             <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
-                        </div>
-                    }
+                        }
+                        @tools
+                    </div>
                 </Readouts>
             </PlayAlong>
         }
 
-        @* While a piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
-        <div class="piece-frame @(piece.IsPdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !piece.IsPdf ? "piece-frame-scroll" : "")" @ref="frame"
-             data-follow="@(view == View.Scroll && !piece.IsPdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
-            @if (piece.IsPdf)
-            {
-                @if (pdfBytes is not null)
+        @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
+           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
+        <div class="piece-stage">
+            <div class="piece-frame @(piece.IsPdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !piece.IsPdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
+                 data-follow="@(view == View.Scroll && !piece.IsPdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
+                @if (piece.IsPdf)
                 {
-                    <PdfPages @ref="pdf" Data="pdfBytes" Class="piece-pdf" OnOpened="Opened" />
+                    @if (pdfBytes is not null)
+                    {
+                        <PdfPages @ref="pdf" Data="pdfBytes" Class="piece-pdf" OnOpened="Opened" />
+                    }
                 }
-            }
-            else if (mei is not null)
+                else if (mei is not null)
+                {
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnNoteTapped="NoteTapped" />
+                }
+                @if (view == View.Pages)
+                {
+                    <button type="button" class="turn-zone turn-back" aria-label="Back a page" @onclick="() => Tapped(-1)"></button>
+                    <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
+                }
+            </div>
+            @if (options)
             {
-                <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnNoteTapped="NoteTapped" />
-            }
-            @if (view == View.Pages)
-            {
-                <button type="button" class="turn-zone turn-back" aria-label="Back a page" @onclick="() => Tapped(-1)"></button>
-                <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
+                <section class="piece-options" aria-label="Options">
+                    <div class="control-row">
+                        <span class="control-label">View</span>
+                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
+                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(piece.IsPdf ? "Scroll at the tempo" : "Scroll")</button>
+                        @if (piece.IsPdf && view == View.Pages)
+                        {
+                            <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
+                        }
+                    </div>
+                    @if (piece.IsPdf)
+                    {
+                        <div class="control-row">
+                            <span class="control-label">Tempo</span>
+                            <TempoControl Value="tempo" ValueChanged="SetTempo" />
+                            @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
+                            {
+                                <button type="button" class="mu-btn" @onclick="ToggleHear">@(hearing ? "Stop" : "Hear it on the piano")</button>
+                            }
+                        </div>
+                        <div class="control-row">
+                            <span class="control-label">Bars</span>
+                            <button type="button" class="mu-btn" aria-label="Fewer beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar - 1)">−</button>
+                            <span class="control-value">@pdfLayout.BeatsPerBar beats a bar</span>
+                            <button type="button" class="mu-btn" aria-label="More beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar + 1)">+</button>
+                            <button type="button" class="mu-btn" aria-label="Fewer bars a line" @onclick="() => SetBarsPerSystem(-1)">−</button>
+                            <span class="control-value">@BarsPerSystemText() a line</span>
+                            <button type="button" class="mu-btn" aria-label="More bars a line" @onclick="() => SetBarsPerSystem(1)">+</button>
+                        </div>
+                        <p class="section-note">Scrolling moves a line at a time, after a bar of count-in, at the tempo: bars a line × beats a bar × 60 ÷ tempo seconds a line. @(midi is not null ? "The tempo and metre start from the piece's MIDI." : "")</p>
+                    }
+                    else
+                    {
+                        @if (twoHands)
+                        {
+                            <div class="control-row">
+                                <span class="control-label">Hands</span>
+                                <button type="button" class="mu-toggle" aria-pressed="@On(handStaff is null)" @onclick="() => SetHands(null)"><span class="mu-led"></span>Both</button>
+                                <button type="button" class="mu-toggle" aria-pressed="@On(handStaff == 1)" @onclick="() => SetHands(1)"><span class="mu-led"></span>Right</button>
+                                <button type="button" class="mu-toggle" aria-pressed="@On(handStaff == 2)" @onclick="() => SetHands(2)"><span class="mu-led"></span>Left</button>
+                            </div>
+                            <div class="control-row">
+                                <span class="control-label">Play along</span>
+                                <button type="button" class="mu-toggle" aria-pressed="@On(!playAlong)" @onclick="() => SetPlayAlong(false)"><span class="mu-led"></span>Off</button>
+                                <button type="button" class="mu-toggle" aria-pressed="@On(playAlong)" disabled="@(handStaff is null || !Keyboard.CanSend || !Settings.SendToPiano)" @onclick="() => SetPlayAlong(true)"><span class="mu-led"></span>The other hand</button>
+                                <span class="control-note">@(!Keyboard.CanSend || !Settings.SendToPiano ? "Needs the piano to play notes from the tablet (Settings)." : handStaff is null ? "Choose a hand, and the piano plays the other In time." : "The piano plays the other hand In time.")</span>
+                            </div>
+                        }
+                        <div class="control-row">
+                            <span class="control-label">Start at</span>
+                            <span class="control-value">Bar @from</span>
+                            @if (from > FirstBar)
+                            {
+                                <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
+                            }
+                        </div>
+                        <div class="control-row">
+                            <span class="control-label">Loop</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(loopTo is null)" @onclick="() => SetLoop(null)"><span class="mu-led"></span>Off</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(loopTo is not null)" @onclick="() => SetLoop(Math.Min(LastBar, from + 3))"><span class="mu-led"></span>On</button>
+                            @if (loopTo is { } to)
+                            {
+                                <span class="control-value">Bars @from to</span>
+                                <span class="tempo-control">
+                                    <button type="button" class="mu-btn" aria-label="A bar fewer" disabled="@(to <= from)" @onclick="() => SetLoop(to - 1)">−</button>
+                                    <span class="tempo-figure">@to</span>
+                                    <button type="button" class="mu-btn" aria-label="A bar more" disabled="@(to >= LastBar)" @onclick="() => SetLoop(to + 1)">+</button>
+                                </span>
+                            }
+                        </div>
+                        <p class="section-note">Tap a note to start from its bar, and while you play to go back to it (‹ Bar goes back a bar). Loop plays from the start bar to the one you choose, again and again until you stop. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats.</p>
+                    }
+                    <div class="control-row">
+                        <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
+                    </div>
+                </section>
             }
         </div>
 
@@ -92,61 +191,7 @@ else
             </section>
         }
 
-        <section class="settings-section piece-controls" aria-label="Playing it">
-            <div class="control-row">
-                <span class="control-label">View</span>
-                <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Pages)" disabled="@playing" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
-                <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" disabled="@playing" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(piece.IsPdf ? "Scroll at the tempo" : "Scroll")</button>
-                @if (piece.IsPdf && view == View.Pages)
-                {
-                    <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
-                }
-            </div>
-            @if (piece.IsPdf)
-            {
-                <div class="control-row">
-                    <span class="control-label">Tempo</span>
-                    <TempoControl Value="tempo" ValueChanged="SetTempo" />
-                    @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
-                    {
-                        <button type="button" class="mu-btn" @onclick="ToggleHear">@(hearing ? "Stop" : "Hear it on the piano")</button>
-                    }
-                </div>
-                <div class="control-row">
-                    <span class="control-label">Bars</span>
-                    <button type="button" class="mu-btn" aria-label="Fewer beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar - 1)">−</button>
-                    <span class="control-value">@pdfLayout.BeatsPerBar beats a bar</span>
-                    <button type="button" class="mu-btn" aria-label="More beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar + 1)">+</button>
-                    <button type="button" class="mu-btn" aria-label="Fewer bars a line" @onclick="() => SetBarsPerSystem(-1)">−</button>
-                    <span class="control-value">@BarsPerSystemText() a line</span>
-                    <button type="button" class="mu-btn" aria-label="More bars a line" @onclick="() => SetBarsPerSystem(1)">+</button>
-                </div>
-                <p class="section-note">Scrolling moves a line at a time, after a bar of count-in, at the tempo: bars a line × beats a bar × 60 ÷ tempo seconds a line. @(midi is not null ? "The tempo and metre start from the piece's MIDI." : "")</p>
-            }
-            else
-            {
-                @if (twoHands)
-                {
-                    <div class="control-row">
-                        <span class="control-label">Hands</span>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(handStaff is null)" disabled="@playing" @onclick="() => SetHands(null)"><span class="mu-led"></span>Both</button>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(handStaff == 1)" disabled="@playing" @onclick="() => SetHands(1)"><span class="mu-led"></span>Right</button>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(handStaff == 2)" disabled="@playing" @onclick="() => SetHands(2)"><span class="mu-led"></span>Left</button>
-                    </div>
-                }
-                <div class="control-row">
-                    <span class="control-label">Start at</span>
-                    <span class="control-value">Bar @from</span>
-                    @if (from > FirstBar)
-                    {
-                        <button type="button" class="mu-btn" disabled="@playing" @onclick="() => StartAt(FirstBar)">From the start</button>
-                    }
-                </div>
-                <p class="section-note">@(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")Tap a note to start from its bar. In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys, so you can check the notes at your own pace. While you play, the music scrolls a line at a time.</p>
-            }
-        </section>
-
-        <section class="settings-section" aria-labelledby="about-heading">
+        <section class="settings-section piece-about" aria-labelledby="about-heading">
             <h2 id="about-heading" class="section-title">About this piece</h2>
             <ul class="summary-words">
                 @if (piece.Reasons is { Length: > 0 } reasons)
@@ -219,6 +264,13 @@ else
     private bool twoHands;
     private int? handStaff;
     private PlayMusic? music;
+    // The play bar; the options in place of the music; full screen; a loop from the start bar to its last; the piano playing the
+    // other hand.
+    private PlayAlong? play;
+    private bool options;
+    private bool fullScreen;
+    private int? loopTo;
+    private bool playAlong;
     private bool playing;
     private PlayOutcome? outcome;
     private DateTime started;
@@ -275,8 +327,10 @@ else
                 // A bar number met again (a second ending, say) keeps its first place.
                 barStarts = score.BarStarts().GroupBy(b => b.Bar.Number).ToDictionary(g => g.Key, g => g.First().Start);
                 twoHands = expected.Select(n => n.Staff).Distinct().Order().SequenceEqual([1, 2]);
-                var savedHand = twoHands ? (await Store.GetSettingsAsync()).GetValueOrDefault(HandsKey) : null;
-                handStaff = savedHand switch { "right" => 1, "left" => 2, _ => null };
+                // Kept for each piece: the view (the whole piece in one scroll unless it was Pages) and the hand.
+                var stored = await Store.GetSettingsAsync();
+                view = stored.GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
+                handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
                 StartAt(FirstBar);
             }
         }
@@ -384,6 +438,19 @@ else
         StopScroll();
         view = to;
         if (piece!.IsPdf) await ShowPdf();
+        else await Store.SetSettingAsync(ViewKey, to == View.Pages ? "pages" : null);
+    }
+
+    private string ViewKey => $"Library.View.{Id}";
+
+    private void ToggleOptions() => options = !options;
+
+    // Full screen: the piece alone, the tablet's own bars hidden too; the same button, or leaving the piece, brings them back.
+    private async Task ToggleFullScreen()
+    {
+        fullScreen = !fullScreen;
+        SystemBars.Show(!fullScreen);
+        if (turns is not null) await turns.InvokeVoidAsync("fullScreen", fullScreen);
     }
 
     private async Task SetTempo(double bpm)
@@ -399,17 +466,61 @@ else
 
     private int FirstBar => score?.Bars[0].Number ?? 1;
 
-    // From a bar to the end. The run counts from that bar's downbeat, or from bar 1's for the opening pickup, which comes in the
-    // count-in's last beats.
+    private int LastBar => score?.Bars[^1].Number ?? 1;
+
+    // From a bar to the end, through the repeats as they're played; or in a loop, its bars again and again (fifty times: until
+    // stopped). The run counts from that bar's downbeat, or from bar 1's for the opening pickup, which comes in the count-in's
+    // last beats. Bars are numbered in order, so a bar's index is its number on from the first's. Play along gives the piano the
+    // other hand's notes.
     private void StartAt(int bar)
     {
         if (score is null || !barStarts.TryGetValue(bar, out var start)) return;
 
         from = bar;
-        // Through the repeats from that bar, as they're played (bars are numbered in order, so its index is its number on from the
-        // first's).
-        var notes = score.Performed(score.PlayOrder(bar - FirstBar));
-        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], Math.Max(0, start));
+        if (loopTo is { } to) loopTo = Math.Max(to, bar);
+        var first = bar - FirstBar;
+        var loop = loopTo is { } last ? Enumerable.Range(first, last - bar + 1).ToList() : null;
+        IReadOnlyList<int> order = loop is null ? score.PlayOrder(first) : [.. Enumerable.Repeat(loop, 50).SelectMany(r => r)];
+        var notes = score.Performed(order);
+        var beatZero = Math.Max(0, start);
+        double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
+        var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
+        var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Length))).ToList();
+        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other };
+    }
+
+    private string StartLabel
+    {
+        get
+        {
+            var hand = HandName;
+            if (loopTo is { } to) return hand is null ? $"Loop bars {from}–{to}" : $"Loop bars {from}–{to}, {hand} hand";
+            return $"Play{(hand is null ? "" : $" the {hand} hand")}{(from > FirstBar ? $" from bar {from}" : "")}";
+        }
+    }
+
+    private void SetLoop(int? last)
+    {
+        loopTo = last is { } to ? Math.Clamp(to, from, LastBar) : null;
+        StartAt(from);
+    }
+
+    private void SetPlayAlong(bool on)
+    {
+        playAlong = on;
+        StartAt(from);
+    }
+
+    // Back a bar while playing (to the loop's start, in a loop), or to a tapped note's bar: the run stops and starts again there.
+    private Task Back(int bar) => Restart(loopTo is null ? Math.Max(FirstBar, bar - 1) : from);
+
+    private async Task Restart(int bar)
+    {
+        if (play is null) return;
+
+        await play.Stop();
+        StartAt(bar);
+        await play.Start(music);
     }
 
     private string HandsKey => $"Library.Hands.{Id}";
@@ -425,7 +536,12 @@ else
 
     private async Task NoteTapped(string id)
     {
-        if (playing || expected.FirstOrDefault(n => n.Id == id) is not { } note) return;
+        if (expected.FirstOrDefault(n => n.Id == id) is not { } note) return;
+        if (playing)
+        {
+            await Restart(note.Bar);
+            return;
+        }
 
         StartAt(note.Bar);
         if (sheet is not null) await sheet.Highlight(note.Bar == FirstBar ? null : id);
@@ -434,7 +550,7 @@ else
     // The run plays in the scrolling view, a line at a time.
     private async Task Starting()
     {
-        (playing, outcome, started) = (true, null, DateTime.Now);
+        (playing, outcome, started, options) = (true, null, DateTime.Now, false);
         if (sheet is not null) await sheet.Highlight(null);
         if (view == View.Scroll) return;
 
@@ -681,8 +797,10 @@ else
         ticker?.Dispose();
         StopScroll();
         if (hearing) Keyboard.Silence();
+        if (fullScreen) SystemBars.Show(true);
         try
         {
+            if (fullScreen && turns is not null) await turns.InvokeVoidAsync("fullScreen", false);
             if (keys is not null) await keys.InvokeVoidAsync("dispose");
             if (turns is not null) await turns.DisposeAsync();
         }

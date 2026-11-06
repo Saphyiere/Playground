@@ -2507,6 +2507,71 @@ a.mu-btn {
     height: auto;
 }
 
+/* The piece's own tools at the end of its bar: options and full screen, square keys with an icon, lit while on. */
+.piece-tool {
+    width: 44px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+}
+
+.piece-tool[aria-pressed="true"] {
+    color: var(--accent);
+}
+
+/* The options in place of the music: the same space, the music kept drawn beneath, hidden. */
+.piece-stage {
+    position: relative;
+}
+
+.piece-frame-hidden {
+    visibility: hidden;
+}
+
+.piece-options {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 28px;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+}
+
+/* Full screen: the piece alone, the rail and the head gone (the tablet's own bars too, by the host), the music filling what
+   the bar and a run's summary leave. */
+html[data-full] .shell > .mu-nav,
+html[data-full] .piece .reading-head,
+html[data-full] .piece-about {
+    display: none;
+}
+
+html[data-full] .shell-main {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+html[data-full] .piece {
+    height: 100%;
+}
+
+html[data-full] .piece-stage {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+html[data-full] .piece-frame {
+    height: 100%;
+    min-height: 0;
+}
+
+html[data-full] .piece .summary {
+    flex: none;
+    max-height: 40%;
+    overflow-y: auto;
+}
+
 /* One hand played: the other hand's notes dimmed, so it shows which the run listens for. A measure's first staff is the upper
    one (a system's first measure has its number before it). */
 .hands-right .measure > .staff + .staff > .layer,
