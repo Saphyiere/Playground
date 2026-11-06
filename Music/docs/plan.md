@@ -177,7 +177,7 @@ Music/
 
 ### The screen
 
-- It stays on while a practice screen is open (`FLAG_KEEP_SCREEN_ON`).
+- It stays on while Prima is open, on every screen (`FLAG_KEEP_SCREEN_ON`, set once on the activity).
 - Rotation follows the tablet. The activity handles orientation changes itself, so the page just resizes.
 
 ## The Core

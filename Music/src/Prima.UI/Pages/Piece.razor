@@ -4,7 +4,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject Click Click
 @inject ILibraryBundle Bundle
 @inject IJSRuntime JS
@@ -404,7 +403,6 @@ else
         (following, summary, follower) = (true, null, new Follower(events, tempo));
         played.Clear();
         followStarted = DateTime.Now;
-        Screen.KeepOn(true);
         if (sheet is not null) await sheet.ClearMarks();
         ticker = new Timer(_ => InvokeAsync(TurnIfDue), null, 250, 250);
         await Light();
@@ -458,7 +456,6 @@ else
         following = false;
         ticker?.Dispose();
         ticker = null;
-        Screen.KeepOn(false);
         if (sheet is not null) await sheet.Highlight(null);
         if (score is null || played.Count == 0 || follower is null) return;
 
@@ -626,7 +623,6 @@ else
         await Measure();
         scrolling = true;
         scrollSystem = -1;
-        Screen.KeepOn(true);
         // A bar of count-in on the click, then the music; the click goes quiet after the count-in.
         Click.Start(new ClickPlan(tempo, pdfLayout.BeatsPerBar, 1, ClickStage.CountInOnly));
         ticker = new Timer(_ => InvokeAsync(ScrollOn), null, 0, 100);
@@ -670,7 +666,6 @@ else
         ticker?.Dispose();
         ticker = null;
         Click.Stop();
-        Screen.KeepOn(false);
     }
 
     // ——— Hearing a PDF's MIDI on the piano, on Prima's channel ———
@@ -708,7 +703,6 @@ else
         ticker?.Dispose();
         StopScroll();
         if (hearing) Keyboard.Silence();
-        if (following) Screen.KeepOn(false);
         try
         {
             if (keys is not null) await keys.InvokeVoidAsync("dispose");

@@ -272,6 +272,79 @@ public class ScoringTests
     }
 
     [Fact]
+    public void OneWrongKeyIsOneWrongNote()
+    {
+        var item = CMajor();
+        var played = Run(item.Right, _ => 250);
+        played[4] = played[4] with { Midi = 68 };
+        var run = TechniqueScorer.Score(item, played).Right!;
+
+        Assert.Equal(1, run.Wrong);
+        Assert.Equal(0, run.Missed);
+        Assert.Empty(run.Extras);
+        Assert.Equal(new RunNote("r4", 67, Outcome.Wrong, 68), run.Notes[4]);
+        Assert.All(run.Notes.Where(n => n.Id != "r4"), n => Assert.Equal(Outcome.Right, n.Outcome));
+    }
+
+    [Fact]
+    public void KeysAStepAheadInTheNotesPlacesAreWrongNotes()
+    {
+        var item = CMajor();
+        var played = Run(item.Right, _ => 250);
+        // E and F played as F and G, then G again: two wrong notes, not a missed E and an extra G.
+        played[2] = played[2] with { Midi = 65 };
+        played[3] = played[3] with { Midi = 67 };
+        var run = TechniqueScorer.Score(item, played).Right!;
+
+        Assert.Equal(2, run.Wrong);
+        Assert.Equal(0, run.Missed);
+        Assert.Empty(run.Extras);
+    }
+
+    [Fact]
+    public void ASkippedNoteAndAnExtraKeyAreFoundWhereTheyHappened()
+    {
+        var item = CMajor();
+        var played = Run(item.Right, _ => 250);
+        // A4 (r5) skipped, and C♯5 brushed just after the top C (r7).
+        played.RemoveAt(5);
+        played.Insert(7, new PlayedNote(73, played[6].OnNs + 100 * Ms, played[6].OnNs + 150 * Ms, 70));
+        var run = TechniqueScorer.Score(item, played).Right!;
+
+        Assert.False(run.Valid);
+        Assert.Equal(0, run.Wrong);
+        Assert.Equal(1, run.Missed);
+        Assert.Equal(Outcome.Missed, run.Notes[5].Outcome);
+        Assert.Equal(new ExtraKey("r7", 73), Assert.Single(run.Extras));
+    }
+
+    [Fact]
+    public void KeysBeforeTheFirstNoteAndAfterTheLastAreNotPartOfTheRun()
+    {
+        var item = CMajor();
+        var played = Run(item.Right, _ => 250, start: 1000);
+        // A key in the count-in, and the piano's button key pressed just after the last note.
+        played.Add(new PlayedNote(61, 200 * Ms, 300 * Ms, 70));
+        played.Add(new PlayedNote(61, played[14].OnNs + 400 * Ms, played[14].OnNs + 500 * Ms, 70));
+
+        Assert.True(TechniqueScorer.Score(item, played).Valid);
+    }
+
+    [Fact]
+    public void HandsTogetherAWrongKeyGoesToTheNearerHand()
+    {
+        var item = CMajor(HandUse.Together);
+        var right = Run(item.Right, _ => 250);
+        var left = Run(item.Left, _ => 250, start: 10);
+        left[3] = left[3] with { Midi = left[3].Midi + 1 };
+        var result = TechniqueScorer.Score(item, [.. right, .. left]);
+
+        Assert.True(result.Right!.Valid);
+        Assert.Equal(1, result.Left!.Wrong);
+        Assert.Equal(Outcome.Wrong, result.Left.Notes[3].Outcome);
+    }
+
+    [Fact]
     public void HandsTogetherAreSyncedAndTouchIsMeasured()
     {
         var item = CMajor(HandUse.Together);

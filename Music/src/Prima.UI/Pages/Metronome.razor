@@ -1,7 +1,6 @@
 @page "/tools/metronome"
 @implements IDisposable
 @inject Click Click
-@inject IScreen Screen
 
 <PageTitle>Metronome · Prima</PageTitle>
 
@@ -108,7 +107,6 @@
     private void Start()
     {
         Click.Start(new ClickPlan(bpm, meter.Beats, countIn, stage));
-        Screen.KeepOn(true);
         if (timer is not null) return;
 
         timer = new PeriodicTimer(TimeSpan.FromMilliseconds(30));
@@ -118,7 +116,6 @@
     private void Stop()
     {
         Click.Stop();
-        Screen.KeepOn(false);
         timer?.Dispose();
         timer = null;
         beat = -1;

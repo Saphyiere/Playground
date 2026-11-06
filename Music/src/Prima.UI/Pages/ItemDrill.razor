@@ -4,7 +4,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject SessionRegistry Registry
 @using Prima.Core.Generation
 @using DrillMaterial = Prima.Core.Generation.Drills
@@ -127,7 +126,6 @@ else
             _ => [],
         };
         loading = false;
-        Screen.KeepOn(items.Count > 0);
         ShowItem();
     }
 
@@ -265,7 +263,6 @@ else
 
     private async Task FinishSet()
     {
-        Screen.KeepOn(false);
         Registry.DrillAnswer = null;
         var share = Share;
         if (info!.Top > 1)
@@ -304,6 +301,5 @@ else
         Keyboard.Received -= OnReceived;
         chordTimer?.Dispose();
         Registry.DrillAnswer = null;
-        Screen.KeepOn(false);
     }
 }

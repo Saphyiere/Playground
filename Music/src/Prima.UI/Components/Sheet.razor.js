@@ -178,7 +178,8 @@ export function highlight(element, id) {
 }
 
 // Where each moment of the music is on the sheet: for every onset in Verovio's time map that's on this page, its time in quarter
-// notes, the left edge of its first note head and its system's top and bottom, in px from the sheet's corner.
+// notes, the left edge of its first note head and its system's top and bottom, in px from the sheet's corner; and each system's
+// end, the barline closing its last bar at the time that bar ends.
 function positions(element, state) {
     const box = element.getBoundingClientRect();
     const points = [];
@@ -192,18 +193,39 @@ function positions(element, state) {
             const s = system.getBoundingClientRect();
             points.push({ q, x: h.left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6, system });
         }
-        return points;
+    } else {
+        for (const entry of state.timemap) {
+            const id = (entry.on ?? []).find(i => element.querySelector(`.sheet-music [data-id="${i}"] .notehead, .sheet-music .rest[data-id="${i}"]`));
+            if (!id) continue;
+            const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
+            const system = head.closest(".system");
+            const h = head.getBoundingClientRect();
+            const s = system.getBoundingClientRect();
+            points.push({ q: entry.qstamp, x: h.left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6, system });
+        }
     }
-    for (const entry of state.timemap) {
-        const id = (entry.on ?? []).find(i => element.querySelector(`.sheet-music [data-id="${i}"] .notehead, .sheet-music .rest[data-id="${i}"]`));
-        if (!id) continue;
-        const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
-        const system = head.closest(".system");
-        const h = head.getBoundingClientRect();
-        const s = system.getBoundingClientRect();
-        points.push({ q: entry.qstamp, x: h.left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6, system });
+
+    // The systems' ends, so the cursor carries on through a system's last note to its closing barline, reaching it as the bar
+    // ends, instead of stopping on the note. Bar times are the time map's, moved onto the stretch's times for a stretch.
+    const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, q: e.qstamp }));
+    let shift = 0;
+    if (state.options.onsets) {
+        const known = state.options.onsets.map(([id, q]) => ({ q, entry: state.timemap.find(e => e.on?.includes(id)) })).find(o => o.entry);
+        if (!known) return points;
+        shift = known.q - known.entry.qstamp;
     }
-    return points;
+    for (const system of new Set(points.map(p => p.system))) {
+        const bars = system.querySelectorAll(".measure");
+        const last = bars[bars.length - 1];
+        const i = starts.findIndex(m => m.id === last?.dataset.id);
+        if (i < 0) continue;
+        const r = ([...last.querySelectorAll(".barLine")].pop() ?? last).getBoundingClientRect();
+        const first = points.find(p => p.system === system);
+        const q = (i + 1 < starts.length ? starts[i + 1].q : Math.max(...state.timemap.map(e => e.qstamp))) + shift;
+        points.push({ q, x: r.left - box.left - 3, top: first.top, bottom: first.bottom, system, end: true });
+    }
+    // In time order, a system's end before the next system's first note at the same moment.
+    return points.sort((a, b) => a.q - b.q || (b.end ? 1 : 0) - (a.end ? 1 : 0));
 }
 
 // Moves a cursor in the look's accent with the music: bar 1 starts `msUntilStart` from now, at `msPerQuarter`, from quarter
@@ -308,9 +330,12 @@ const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mar
 function drawMark(element, state, mark) {
     const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);
     if (!note) return;
-    note.classList.remove(...markKinds);
-    element.querySelectorAll(`.sheet-overlay [data-for="${mark.id}"]`).forEach(n => n.remove());
-    note.classList.add(`mark-${mark.kind}`);
+    // An extra key is drawn beside the note before it, which keeps its own mark.
+    if (mark.kind !== "extra") {
+        note.classList.remove(...markKinds);
+        element.querySelectorAll(`.sheet-overlay [data-for="${mark.id}"]`).forEach(n => n.remove());
+        note.classList.add(`mark-${mark.kind}`);
+    }
     const box = element.getBoundingClientRect();
     const overlay = element.querySelector(".sheet-overlay");
     const head = note.querySelector(".notehead") ?? note;
@@ -320,10 +345,11 @@ function drawMark(element, state, mark) {
     const space = staffSpace(note) ?? h.height;
     // Words go above the note, or above its staff when it's lower.
     const above = Math.min((note.closest(".staff")?.getBoundingClientRect().top ?? h.top) - box.top, h.top - box.top) - 6;
-    if (mark.kind === "wrong" && mark.played) {
+    if ((mark.kind === "wrong" || mark.kind === "extra") && mark.played) {
         const gy = cy - mark.steps * space / 2;
-        overlay.appendChild(ghost(mark.id, cx + h.width * 1.3, gy, h.width, space));
-        label(overlay, mark.played, cx, Math.min(above, gy - space - 6), "sheet-label", mark.id);
+        const gx = cx + h.width * 1.3;
+        overlay.appendChild(ghost(mark.id, gx, gy, h.width, space));
+        label(overlay, mark.played, mark.kind === "extra" ? gx : cx, Math.min(above, gy - space - 6), "sheet-label", mark.id);
     }
     if (mark.kind === "early" || mark.kind === "late") {
         // Where it was played: on the note's line, at that moment's place along the system.
@@ -379,15 +405,25 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     t.textContent = text;
     overlay.appendChild(t);
     const others = [...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox());
-    for (let tries = 0; tries < others.length; tries++) {
+    // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
+    const inWay = () => {
         const b = t.getBBox();
-        const hit = others.find(r => r.x < b.x + b.width && b.x < r.x + r.width && r.y < b.y + b.height && b.y < r.y + r.height);
+        return others.find(r => r.x < b.x + b.width + 4 && b.x < r.x + r.width + 4 && r.y < b.y + b.height && b.y < r.y + r.height);
+    };
+    for (let tries = 0; tries < others.length; tries++) {
+        const hit = inWay();
         if (!hit) break;
+        const b = t.getBBox();
         t.setAttribute("y", Number(t.getAttribute("y")) - (b.y + b.height - hit.y) - 2);
     }
-    // Never above the paper.
+    // Never above the paper; with no room above, beside the name in the way instead.
     const top = t.getBBox().y;
     if (top < 1) t.setAttribute("y", Number(t.getAttribute("y")) - top + 1);
+    for (let tries = 0; tries < others.length; tries++) {
+        const hit = inWay();
+        if (!hit) break;
+        t.setAttribute("x", Number(t.getAttribute("x")) + hit.x + hit.width + 4 - t.getBBox().x);
+    }
 }
 
 // The distance between a staff's lines, in px, from its five line paths.

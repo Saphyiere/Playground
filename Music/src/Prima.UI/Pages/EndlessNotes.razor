@@ -3,7 +3,6 @@
 @inject PrimaStore Store
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
-@inject IScreen Screen
 @inject SessionRegistry Registry
 @using Prima.Core.Generation
 @using Prima.Core.Practice
@@ -21,7 +20,8 @@
         <div class="mu-readout"><span class="mu-readout-label">Last</span><span class="mu-readout-value">@Seconds(stream.LastMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Last ten</span><span class="mu-readout-value">@Seconds(stream.RecentMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
-        <button type="button" class="mu-btn" data-piano="go" @onclick="Stop">Stop</button>
+        @* Not the piano's go key: every key is an answer here. *@
+        <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
     </section>
     <div class="sheet-frame">
         <Sheet @ref="sheet" Mei="@mei" Scale="1.7" OnPainted="Shown" />
@@ -119,7 +119,6 @@ else
         HashSet<Clef> chosen = clefs switch { "treble" => [Clef.Treble], "bass" => [Clef.Bass], _ => [Clef.Treble, Clef.Bass] };
         stream = new NoteStream(chosen, ledgerLines, accidentals, new Rng((ulong)DateTime.Now.Ticks));
         (running, feedback, started, toBeat) = (true, null, DateTime.Now, bestBefore);
-        Screen.KeepOn(true);
         ShowNext();
     }
 
@@ -169,7 +168,6 @@ else
     {
         (running, waiting) = (false, false);
         Registry.DrillAnswer = null;
-        Screen.KeepOn(false);
         if (stream is not { Answers.Count: > 0 } s) return;
 
         var settings = System.Text.Json.JsonSerializer.Serialize(new { clefs, ledgerLines, accidentals });
@@ -197,6 +195,5 @@ else
         running = false;
         Keyboard.Received -= OnReceived;
         Registry.DrillAnswer = null;
-        Screen.KeepOn(false);
     }
 }

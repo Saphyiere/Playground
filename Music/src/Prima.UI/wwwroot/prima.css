@@ -372,7 +372,7 @@ body {
     transform: scale(0.97);
 }
 
-/* The piano's buttons: while it's plugged in, a button the lowest C♯ or D♯ presses wears the key's name, and a press from the
+/* The piano's buttons: while it's plugged in, a button the C♯ or D♯ above middle C presses wears the key's name, and a press from the
    piano shows as a tap would. */
 [data-piano-keys] [data-piano]::after {
     flex: none;
@@ -388,11 +388,11 @@ body {
 }
 
 [data-piano-keys] [data-piano="go"]::after {
-    content: "C♯1";
+    content: "C♯4";
 }
 
 [data-piano-keys] [data-piano="again"]::after {
-    content: "D♯1";
+    content: "D♯4";
 }
 
 .mu-play[data-piano] {

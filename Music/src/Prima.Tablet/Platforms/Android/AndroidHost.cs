@@ -1,4 +1,3 @@
-using Android.Views;
 using Java.Lang;
 using Prima.UI.Host;
 
@@ -8,17 +7,6 @@ namespace Prima.Tablet;
 public sealed class AndroidClock : IClock
 {
     public long NowNs => JavaSystem.NanoTime();
-}
-
-/// <summary>Keeps the screen on while a practice screen is open.</summary>
-public sealed class AndroidScreen : IScreen
-{
-    public void KeepOn(bool on) => MainThread.BeginInvokeOnMainThread(() =>
-    {
-        var window = Platform.CurrentActivity?.Window;
-        if (on) window?.AddFlags(WindowManagerFlags.KeepScreenOn);
-        else window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
-    });
 }
 
 /// <summary>The tablet's share sheet for backups, and its file picker for restoring and importing.</summary>

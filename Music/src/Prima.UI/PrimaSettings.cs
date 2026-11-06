@@ -28,7 +28,7 @@ public sealed class PrimaSettings
     /// <summary>Whether Prima may send notes to the piano (Duet, Hear first, Listen and play back).</summary>
     public bool SendToPiano { get; set; } = true;
 
-    /// <summary>Whether the piano's lowest C♯ and D♯ press the screen's main button and Again, between runs.</summary>
+    /// <summary>Whether the C♯ and D♯ above middle C press the screen's main button and Again, between runs.</summary>
     public bool PianoButtons { get; set; } = true;
 
     /// <summary>The music font Verovio engraves with: Leipzig, Bravura or Leland.</summary>

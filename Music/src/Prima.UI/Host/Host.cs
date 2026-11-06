@@ -58,12 +58,6 @@ public interface IClick
     long BeatTime(int beat);
 }
 
-/// <summary>Keeps the tablet's screen on while practising.</summary>
-public interface IScreen
-{
-    void KeepOn(bool on);
-}
-
 /// <summary>A clock for hosts without a system one: a stopwatch from when the app started.</summary>
 public sealed class StopwatchClock : IClock
 {
@@ -109,14 +103,6 @@ public sealed class GridClick(IClock clock) : IClick
     public void Stop() => Running = false;
 
     public long BeatTime(int beat) => startNs + beat * beatNs;
-}
-
-/// <summary>No screen to keep on.</summary>
-public sealed class NoScreen : IScreen
-{
-    public void KeepOn(bool on)
-    {
-    }
 }
 
 /// <summary>Files outside the app: backing the database up somewhere, and picking a file (a backup to restore, music to import).</summary>

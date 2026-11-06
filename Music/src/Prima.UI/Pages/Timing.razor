@@ -2,7 +2,6 @@
 @implements IDisposable
 @inject IKeyboard Keyboard
 @inject Click Click
-@inject IScreen Screen
 @inject PrimaSettings Settings
 @inject PrimaStore Store
 
@@ -88,7 +87,6 @@
         lock (taps) taps.Clear();
         (result, tooFew, saved, running, beat) = (null, false, false, true, -1);
         Click.Start(Plan);
-        Screen.KeepOn(true);
         timer = new PeriodicTimer(TimeSpan.FromMilliseconds(40));
         _ = Run(timer);
     }
@@ -115,7 +113,6 @@
     private void Finish(CalibrationResult? measured)
     {
         Click.Stop();
-        Screen.KeepOn(false);
         timer?.Dispose();
         timer = null;
         (result, tooFew, running) = (measured, measured is null, false);

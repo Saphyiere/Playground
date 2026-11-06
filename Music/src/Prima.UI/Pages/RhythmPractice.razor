@@ -4,7 +4,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject Click Click
 @inject SessionRegistry Registry
 @using Prima.Core.Generation
@@ -124,7 +123,6 @@
         var expected = score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
         var beats = score.Bars.Count * meter.BarTicks / (double)meter.BeatTicks;
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
-        Screen.KeepOn(true);
         session.Start(new ClickPlan(Tempo, meter.Beats, 1, state.StageForTry(tryIndex)), beats, expected);
         _ = Cursor(meter);
     }
@@ -140,7 +138,6 @@
         if (session is null || score is null || session.Phase != Phase.Done) return;
 
         await (sheet?.StopCursor() ?? Task.CompletedTask);
-        Screen.KeepOn(false);
         var meter = score.Meter;
         var expected = score.Expected();
         var beatNs = 60e9 / Tempo;
@@ -169,6 +166,5 @@
     public void Dispose()
     {
         session?.Dispose();
-        Screen.KeepOn(false);
     }
 }

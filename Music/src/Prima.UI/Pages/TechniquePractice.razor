@@ -6,7 +6,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject Click Click
 @inject SessionRegistry Registry
 @inject NavigationManager Nav
@@ -40,7 +39,8 @@
     }
     else if (capturing)
     {
-        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="EndComfortable">Done</button>
+        @* Not the piano's go key: while you play at your own speed, every key is music. *@
+        <button type="button" class="mu-btn mu-primary" @onclick="EndComfortable">Done</button>
     }
 </section>
 
@@ -59,7 +59,7 @@
         <div class="mu-readouts">
             @foreach (var (hand, run) in new[] { ("Right", result.Right), ("Left", result.Left) }.Where(r => r.Item2 is not null))
             {
-                <div class="mu-readout @(run!.Valid ? "" : "miss")"><span class="mu-readout-label">@hand evenness</span><span class="mu-readout-value">@(run.Valid ? $"±{run.IoiSdPercent:0.0}%" : $"{run.WrongNotes} wrong")</span></div>
+                <div class="mu-readout @(run!.Valid ? "" : "miss")"><span class="mu-readout-label">@hand evenness</span><span class="mu-readout-value">@(run.Valid ? $"±{run.IoiSdPercent:0.0}%" : Slips(run))</span></div>
             }
             @if (result.SyncMeanMs is { } sync)
             {
@@ -150,12 +150,12 @@
         var expected = item.Score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
         var beats = expected.Max(e => e.Item2 + e.Item3);
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
-        Screen.KeepOn(true);
         var tempo = state.Tempo.Value;
         session.Start(new ClickPlan(tempo, 4, 1), beats, expected);
-        // The cursor with the click, once its beat times are set.
+        // The last run's marks go, and the cursor starts with the click once its beat times are set.
         _ = InvokeAsync(async () =>
         {
+            if (sheet is not null) await sheet.ClearMarks();
             await Task.Delay(50);
             if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000 / tempo * Ticks.Quarter / meter.BeatTicks, 0, 60_000 / tempo, session.MsUntil(0));
         });
@@ -184,9 +184,24 @@
         if (session is null || item is null || session.Phase != Phase.Done) return;
 
         await (sheet?.StopCursor() ?? Task.CompletedTask);
-        Screen.KeepOn(false);
         result = TechniqueScorer.Score(item, session.Played);
         runs++;
+        // Every note marked as Sight-read marks them: green right, red wrong with a grey head where the key played is, outlined red
+        // missed; and an extra key as a grey head beside the note before it.
+        var pitches = item.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
+        SheetMark KeyMark(string id, string kind, int key)
+        {
+            var spelled = item.Key.Spell(key);
+            return new SheetMark(id, kind, spelled.ToString(), spelled.Diatonic - pitches[id].Diatonic);
+        }
+        var handRuns = new[] { result.Right, result.Left }.OfType<HandRun>().ToList();
+        var marks = handRuns.SelectMany(h => h.Notes).Select(n => n.Outcome switch
+        {
+            Outcome.Wrong => KeyMark(n.Id, "wrong", n.Played!.Value),
+            Outcome.Missed => new SheetMark(n.Id, "missed"),
+            _ => new SheetMark(n.Id, "right"),
+        }).Concat(handRuns.SelectMany(h => h.Extras).Select(e => KeyMark(e.AfterId, "extra", e.Played)));
+        await (sheet?.ShowMarks(marks) ?? Task.CompletedTask);
         var runsValid = new[] { result.Right, result.Left }.Where(r => r is not null).ToList();
         var sd = runsValid.Where(r => r!.Valid).Select(r => r!.IoiSdPercent).DefaultIfEmpty(0).Max();
         state = state.After(result.Valid, result.Valid ? sd : null, Today);
@@ -216,7 +231,7 @@
             if (run is null) continue;
             if (!run.Valid)
             {
-                yield return $"{hand}: a wrong or missed note, so this run doesn't count for evenness.";
+                yield return $"{hand}: {Slips(run)}, marked on the music. This run doesn't count for evenness.";
                 continue;
             }
 
@@ -230,10 +245,12 @@
         if (state.InvalidInRow == 0 && !result.Valid && state.Tempo is { } t) yield return $"Next run a little slower: {t:0}.";
     }
 
+    // A run's slips, briefly: "1 wrong", "2 missed", "1 wrong, 1 extra".
+    private static string Slips(HandRun run) => string.Join(", ", new[] { (run.Wrong, "wrong"), (run.Missed, "missed"), (run.Extras.Count, "extra") }.Where(s => s.Item1 > 0).Select(s => $"{s.Item1} {s.Item2}"));
+
     public void Dispose()
     {
         Keyboard.Received -= OnFree;
         session?.Dispose();
-        Screen.KeepOn(false);
     }
 }

@@ -4,7 +4,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject Click Click
 @inject SessionRegistry Registry
 @using Prima.Core.Generation
@@ -105,7 +104,6 @@ else
         session?.Dispose();
         session = new PlaySession(Click, Keyboard, Clock, Registry);
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Ended) : InvokeAsync(StateHasChanged);
-        Screen.KeepOn(true);
         session.Start(new ClickPlan(Tempo, passage!.Score.Meter.Beats, 1), Beats, expected, piano);
     }
 
@@ -113,7 +111,6 @@ else
     {
         if (session is null || session.Phase != Phase.Done) return;
 
-        Screen.KeepOn(false);
         if (stage == Stage.PlayBack)
         {
             var meter = passage!.Score.Meter;
@@ -149,6 +146,5 @@ else
     public void Dispose()
     {
         session?.Dispose();
-        Screen.KeepOn(false);
     }
 }

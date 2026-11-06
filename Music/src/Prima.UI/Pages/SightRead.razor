@@ -4,7 +4,6 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
-@inject IScreen Screen
 @inject Click Click
 @inject SessionRegistry Registry
 @inject NavigationManager Nav
@@ -104,7 +103,8 @@
             @if (stage == Stage.Look)
             {
                 <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
-                <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Run">Start</button>
+                @* Not the piano's go key: in the look you can tap the rhythm or try a bar, so every key is music. *@
+                <button type="button" class="mu-btn mu-primary" @onclick="Run">Start</button>
             }
         </section>
 
@@ -398,7 +398,6 @@
         stage = Stage.Look;
         lookStarted = DateTime.Now;
         _ = sheet?.ClearMarks();
-        Screen.KeepOn(true);
         StartTicker();
         if (variant == Variant.ReadAhead) _ = ShowOpeningSoon();
     }
@@ -511,7 +510,6 @@
         var session1 = session;
         result = PassageScorer.Score(expected, b => session1.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs, ornamented);
         stage = Stage.Summary;
-        Screen.KeepOn(false);
         StateHasChanged();
         await ShowMarks();
         await Save(expected);
@@ -687,7 +685,6 @@
         ticker = null;
         session?.Dispose();
         session = null;
-        Screen.KeepOn(false);
     }
 
     public void Dispose() => StopRun();

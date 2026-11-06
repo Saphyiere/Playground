@@ -78,11 +78,13 @@ history as a repeat and doesn't move the level or count as one of the day's pass
 
 ### The piano buttons
 
-So the hands needn't leave the keys between runs, the piano's lowest C♯ presses the screen's main button and its lowest D♯
-presses Again: C♯ for a new passage, then again to start it without waiting out the look, and after it the next one; D♯ to read
-it again. The drills' main buttons answer to C♯ too (Start, Next try, Run, Another set). Those two keys are below anything a
-passage asks for, and they only work between runs: while one counts in or plays, every key is music. While the piano is
-plugged in, the buttons they press are marked C♯1 and D♯1. They can be turned off in Settings.
+So the hands needn't leave the keys between runs, the C♯ above middle C presses the screen's main button and the D♯ beside it
+presses Again: C♯ for a new passage, and after it the next one; D♯ to read it again. The drills' main buttons answer to C♯ too
+(Start, Next try, Run, Another set). They're in the middle of the keyboard, a short reach from where the hands are, so they
+only work while the screen isn't listening to the keys: not while a run counts in or plays, not in the look (where you can tap
+the rhythm or try a bar, so the look's Start is a tap), not in Endless notes (where Stop is a tap), and not while you play a
+scale at your own speed. A key pressed in a technique run's count-in, or just after its last note, isn't part of the run. While
+the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They can be turned off in Settings.
 
 ### Drills
 
@@ -165,11 +167,11 @@ asking. Nothing leaves the tablet unless you back it up.
 2. **Count in.** One bar of clicks at the passage's tempo (two, in Settings), seen as well as heard: a cell for each beat
    lights on its click, and the cursor waits at the first note, pulsing with it. The timed drills (rhythm, scales, arpeggios,
    finger independence, listen and play back) show the same cells.
-3. **Play.** The click keeps time and never waits. The cursor moves with the beat, and each note is marked as it's played:
-   green when it's right, red when it's another key (a grey head on the staff shows the one you played, and its name above),
-   amber when it's more than 10% of a beat early or late (a ring on its line shows when you played it, an arrow which way),
-   and outlined red once its time has passed with nothing played. A slip put right at once takes the right key's mark. These
-   are judged note by note, before your lean is known.
+3. **Play.** The click keeps time and never waits. The cursor moves with the beat, through the last note of each line to its
+   closing barline, and each note is marked as it's played: green when it's right, red when it's another key (a grey head on
+   the staff shows the one you played, and its name above), amber when it's more than 10% of a beat early or late (a ring on its
+   line shows when you played it, an arrow which way), and outlined red once its time has passed with nothing played. A slip put
+   right at once takes the right key's mark. These are judged note by note, before your lean is known.
 4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, and the passage again
    with each note marked the same way, now from the whole take lined up and your lean taken out, so a note can change from
    the mark it had while playing. A wrong note names what you played instead (G4→A4) and shows it on the staff.
@@ -233,8 +235,12 @@ success.
 | Finger independence | Five-finger patterns, trills (3–4, 4–5), held notes; patterns from your pieces where possible | Each finger's timing and touch, trill rate and steadiness, whether held keys stay down | Slow and even, then faster, then the weak pairs, then both hands |
 
 Notes come back on a spacing schedule: a note answered right but slowly counts as not yet learned, and comes back sooner than a
-fast one. Confusable notes are mixed. Technique results are compared with your own earlier runs, since there are no amateur
-norms; differences under about 10 ms are shown as below what anyone can hear. Repetitions are capped per set and per day, with
+fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right,
+red wrong with a grey head where the key you played is and its name above, outlined red missed, and a grey head beside a note
+for an extra key. The keys are lined up with the notes by the fewest slips, so one slip counts once instead of throwing out
+every note after it, and the result says how many were wrong, missed or extra. A run with a slip doesn't count for evenness.
+Technique results are compared with your own earlier runs, since there are no amateur norms; differences under about 10 ms are
+shown as below what anyone can hear. Repetitions are capped per set and per day, with
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
 
 ## The daily plan
@@ -310,7 +316,7 @@ details.
   timing, evenness), levels and progress. No UI, all tested.
 - **UI**: the Razor screens.
 - **Tablet**: the Android app: USB MIDI in and out through Android's MIDI API, the click through `AudioTrack`, and the tablet's
-  screen kept on during practice.
+  screen kept on while Prima is open (every screen is read from the music stand; another app sleeps as usual).
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both

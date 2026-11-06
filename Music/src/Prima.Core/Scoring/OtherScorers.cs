@@ -47,10 +47,20 @@ public static class RhythmScorer
     }
 }
 
-/// <summary>One hand's run of a scale or arpeggio. Evenness is only measured on a valid run: every note right and in order.</summary>
+/// <summary>A written note of a run and what became of it: right, wrong (the key played in its place) or missed.</summary>
+public sealed record RunNote(string Id, int Midi, Outcome Outcome, int? Played = null);
+
+/// <summary>A key the run didn't ask for, and the written note it came after.</summary>
+public sealed record ExtraKey(string AfterId, int Played);
+
+/// <summary>
+/// One hand's run of a scale or arpeggio: each written note as played, and any extra keys. Evenness is only measured on a valid
+/// run: every note right and in order, nothing extra.
+/// </summary>
 public sealed record HandRun(
     bool Valid,
-    int WrongNotes,
+    IReadOnlyList<RunNote> Notes,
+    IReadOnlyList<ExtraKey> Extras,
     double IoiSdMs,
     double IoiSdPercent,
     double PlainIoiSdMs,
@@ -62,7 +72,12 @@ public sealed record HandRun(
     IReadOnlyDictionary<int, double> VelocityByFinger,
     double LegatoMs,
     double LegatoSdMs,
-    IReadOnlyList<double> Deviations);
+    IReadOnlyList<double> Deviations)
+{
+    public int Wrong => Notes.Count(n => n.Outcome == Outcome.Wrong);
+
+    public int Missed => Notes.Count(n => n.Outcome == Outcome.Missed);
+}
 
 public sealed record TechniqueResult(HandRun? Right, HandRun? Left, double? SyncMeanMs, double? SyncSdMs)
 {
@@ -82,35 +97,92 @@ public static class TechniqueScorer
 
     public static TechniqueResult Score(TechniqueItem item, IReadOnlyList<PlayedNote> played)
     {
-        var right = new List<PlayedNote>();
-        var left = new List<PlayedNote>();
-        var wrong = (Right: 0, Left: 0);
-        foreach (var note in played.OrderBy(p => p.OnNs))
-        {
-            // Each note goes to the hand whose next note it is; one that's neither hand's is a wrong note in the hand it's nearer.
-            var rightNext = right.Count < item.Right.Count ? item.Right[right.Count].Midi : -1;
-            var leftNext = left.Count < item.Left.Count ? item.Left[left.Count].Midi : -1;
-            if (note.Midi == rightNext) right.Add(note);
-            else if (note.Midi == leftNext) left.Add(note);
-            else if (item.Left.Count == 0 || (item.Right.Count > 0 && Math.Abs(note.Midi - rightNext) <= Math.Abs(note.Midi - leftNext))) wrong.Right++;
-            else wrong.Left++;
-        }
-
-        var rightRun = item.Right.Count == 0 ? null : Run(item.Right, right, wrong.Right, item.NotesPerBeat);
-        var leftRun = item.Left.Count == 0 ? null : Run(item.Left, left, wrong.Left, item.NotesPerBeat);
+        var keys = played.OrderBy(p => p.OnNs).ToList();
+        var (rightKeys, leftKeys, extras) = Align(item.Right, item.Left, keys);
+        var rightRun = item.Right.Count == 0 ? null : Run(item.Right, keys, rightKeys, [.. extras.Where(e => e.Right).Select(e => e.Key)], item.NotesPerBeat);
+        var leftRun = item.Left.Count == 0 ? null : Run(item.Left, keys, leftKeys, [.. extras.Where(e => !e.Right).Select(e => e.Key)], item.NotesPerBeat);
         double? syncMean = null, syncSd = null;
         if (rightRun?.Valid == true && leftRun?.Valid == true)
         {
-            var differences = right.Zip(left, (r, l) => (r.OnNs - l.OnNs) / 1e6).ToArray();
+            var differences = rightKeys.Zip(leftKeys, (r, l) => (keys[r].OnNs - keys[l].OnNs) / 1e6).ToArray();
             (syncMean, syncSd) = (differences.Average(), Stats.StandardDeviation(differences));
         }
         return new TechniqueResult(rightRun, leftRun, syncMean, syncSd);
     }
 
-    private static HandRun Run(IReadOnlyList<TechniqueNote> written, List<PlayedNote> played, int wrong, int perBeat)
+    /// <summary>
+    /// Lines the keys up with both hands' notes by the fewest slips, an edit distance: each key is a hand's next note, a wrong key
+    /// in its place (given to the hand whose note is nearer) or an extra, and a written note can be missed. Order counts within a
+    /// hand, not between them, so one slip stays one slip instead of throwing out every note after it. Keys before the first key
+    /// lined up and after the last aren't part of the run (one pressed in the count-in, or the piano's button key after the last
+    /// note), so they're left out. Returns the key each note was played with (−1 for missed), and the extras with their hand and
+    /// the note they came after.
+    /// </summary>
+    private static (int[] Right, int[] Left, List<(bool Right, ExtraKey Key)> Extras) Align(IReadOnlyList<TechniqueNote> right, IReadOnlyList<TechniqueNote> left, IReadOnlyList<PlayedNote> keys)
     {
-        var valid = wrong == 0 && played.Count == written.Count;
-        if (!valid || played.Count < 3) return new HandRun(false, wrong + Math.Max(0, written.Count - played.Count), 0, 0, 0, 0, 0, null, null, 0, new Dictionary<int, double>(), 0, 0, []);
+        const int Slip = 1000;
+        // A missed note or an extra key costs a little more than a slip, and a wrong key a little more the further it is from the
+        // written note: with as many slips either way, keys played in a note's place are read as wrong notes rather than as a
+        // missed note and an extra, and a wrong key goes to the hand whose note is nearer.
+        const int Gap = Slip + 64;
+        var (a, b, n) = (right.Count, left.Count, keys.Count);
+        int At(int i, int j, int k) => (i * (b + 1) + j) * (n + 1) + k;
+        int Pair(int written, int key) => written == key ? 0 : Slip + Math.Abs(written - key);
+        var cost = new int[(a + 1) * (b + 1) * (n + 1)];
+        var how = new byte[cost.Length];
+        for (var i = 0; i <= a; i++)
+        {
+            for (var j = 0; j <= b; j++)
+            {
+                for (var k = 0; k <= n; k++)
+                {
+                    if (i + j + k == 0) continue;
+
+                    var (best, step) = (int.MaxValue, (byte)0);
+                    if (i > 0 && k > 0 && cost[At(i - 1, j, k - 1)] + Pair(right[i - 1].Midi, keys[k - 1].Midi) is var r && r < best) (best, step) = (r, 1);
+                    if (j > 0 && k > 0 && cost[At(i, j - 1, k - 1)] + Pair(left[j - 1].Midi, keys[k - 1].Midi) is var l && l < best) (best, step) = (l, 2);
+                    if (i > 0 && cost[At(i - 1, j, k)] + Gap < best) (best, step) = (cost[At(i - 1, j, k)] + Gap, 3);
+                    if (j > 0 && cost[At(i, j - 1, k)] + Gap < best) (best, step) = (cost[At(i, j - 1, k)] + Gap, 4);
+                    if (k > 0 && cost[At(i, j, k - 1)] + Gap < best) (best, step) = (cost[At(i, j, k - 1)] + Gap, 5);
+                    (cost[At(i, j, k)], how[At(i, j, k)]) = (best, step);
+                }
+            }
+        }
+
+        var rightKeys = Enumerable.Repeat(-1, a).ToArray();
+        var leftKeys = Enumerable.Repeat(-1, b).ToArray();
+        var extras = new List<(int Key, int I, int J)>();
+        for (int i = a, j = b, k = n; i + j + k > 0;)
+        {
+            switch (how[At(i, j, k)])
+            {
+                case 1: rightKeys[--i] = --k; break;
+                case 2: leftKeys[--j] = --k; break;
+                case 3: i--; break;
+                case 4: j--; break;
+                default: extras.Add((--k, i, j)); break;
+            }
+        }
+
+        var lined = rightKeys.Concat(leftKeys).Where(k => k >= 0).DefaultIfEmpty(-1).ToList();
+        var (first, last) = (lined.Min(), lined.Max());
+        var kept = extras.Where(e => e.Key > first && e.Key < last).OrderBy(e => e.Key).Select(e =>
+        {
+            // Beside the note before it in the hand it's nearer.
+            var (r, l) = (right.Count > 0 ? right[Math.Max(e.I - 1, 0)] : null, left.Count > 0 ? left[Math.Max(e.J - 1, 0)] : null);
+            var inRight = l is null || (r is not null && Math.Abs(keys[e.Key].Midi - r.Midi) <= Math.Abs(keys[e.Key].Midi - l.Midi));
+            return (inRight, new ExtraKey((inRight ? r! : l!).Id, keys[e.Key].Midi));
+        }).ToList();
+        return (rightKeys, leftKeys, kept);
+    }
+
+    private static HandRun Run(IReadOnlyList<TechniqueNote> written, IReadOnlyList<PlayedNote> keys, int[] lined, IReadOnlyList<ExtraKey> extras, int perBeat)
+    {
+        var notes = written.Select((w, i) => lined[i] < 0 ? new RunNote(w.Id, w.Midi, Outcome.Missed)
+            : keys[lined[i]].Midi == w.Midi ? new RunNote(w.Id, w.Midi, Outcome.Right)
+            : new RunNote(w.Id, w.Midi, Outcome.Wrong, keys[lined[i]].Midi)).ToList();
+        var played = lined.Where(k => k >= 0).Select(k => keys[k]).ToList();
+        if (notes.Any(n => n.Outcome != Outcome.Right) || extras.Count > 0 || played.Count < 3) return new HandRun(false, notes, extras, 0, 0, 0, 0, 0, null, null, 0, new Dictionary<int, double>(), 0, 0, []);
 
         var gaps = played.Zip(played.Skip(1), (a, b) => (b.OnNs - a.OnNs) / 1e6).ToArray();
         var index = Enumerable.Range(0, gaps.Length).Select(i => (double)i).ToArray();
@@ -123,7 +195,8 @@ public static class TechniqueScorer
         var byFinger = written.Zip(played).GroupBy(p => p.First.Finger).ToDictionary(g => g.Key, g => g.Average(p => (double)p.Second.Velocity));
         return new HandRun(
             true,
-            0,
+            notes,
+            extras,
             Stats.StandardDeviation(deviations),
             Stats.StandardDeviation(deviations) / mean * 100,
             Stats.StandardDeviation(gaps),

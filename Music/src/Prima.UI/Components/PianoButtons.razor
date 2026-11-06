@@ -6,15 +6,16 @@
 @inject IJSRuntime JS
 
 @*
-    The piano's two buttons, so the hands needn't leave the keys between runs: the lowest C♯ presses the screen's button marked
-    data-piano="go" (its main one: Start, Next, Run…), the lowest D♯ the one marked data-piano="again". Only between runs: while
-    one counts in or plays, every key is music. The keys are at the bottom of the keyboard, below anything a passage asks for.
-    While the piano is plugged in, the marked buttons say which key presses them.
+    The piano's two buttons, so the hands needn't leave the keys between runs: the C♯ above middle C presses the screen's button
+    marked data-piano="go" (its main one: Start, Next, Run…), the D♯ beside it the one marked data-piano="again". They're in the
+    middle, a short reach from where the hands are. Only between runs: while one counts in or plays every key is music, and a
+    button that shows while the screen is listening to the keys (Endless notes' Stop, the look's Start) isn't marked. While the
+    piano is plugged in, the marked buttons say which key presses them.
 *@
 
 @code {
-    /// <summary>The lowest C♯ and D♯ on an 88-key piano.</summary>
-    public const int Go = 25, Again = 27;
+    /// <summary>The C♯ and D♯ above middle C.</summary>
+    public const int Go = 61, Again = 63;
 
     private IJSObjectReference? module;
 
