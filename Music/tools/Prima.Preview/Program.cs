@@ -115,6 +115,8 @@ app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyb
     foreach (var step in answer(right ?? true)) keys.Play(step, 70, 200);
     return Results.Text("answered");
 });
+// The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.
+app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 // The next file "picked" for an import: a file on this machine, by path.
 app.MapGet("/files/next", (string path, PreviewFiles files) =>
