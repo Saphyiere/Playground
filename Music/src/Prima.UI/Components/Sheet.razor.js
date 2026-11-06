@@ -368,9 +368,10 @@ export function showOpening(element, windowQuarters) {
 }
 
 // What's this: a tap names the nearest symbol under it, the innermost (an accidental before its note, a note before its beam).
-const symbols = ["accid", "artic", "dots", "fing", "dynam", "hairpin", "dir", "tempo", "fermata", "trill", "mordent", "turn", "arpeg", "gliss",
-    "breath", "caesura", "slur", "tie", "pedal", "octave", "ending", "tuplet", "note", "rest", "mRest", "chord", "beam", "clef", "keySig",
-    "meterSig", "barLine", "reh", "harm"];
+const symbols = ["accid", "artic", "dots", "stem", "flag", "fing", "dynam", "hairpin", "dir", "tempo", "fermata", "trill", "mordent", "turn",
+    "arpeg", "gliss", "bTrem", "fTrem", "breath", "caesura", "slur", "phrase", "tie", "pedal", "octave", "ending", "repeatMark", "tuplet",
+    "note", "rest", "mRest", "multiRest", "chord", "beam", "ledgerLines", "clef", "keySig", "meterSig", "barLine", "mNum", "grpSym", "reh",
+    "harm"];
 const symbolSelector = symbols.map(s => `.sheet-music .${s}`).join(", ");
 // The glyphs that tell a clef's shape: SMuFL's G, F and C clefs.
 const clefGlyphs = { E050: "G", E052: "G", E062: "F", E064: "F", E05C: "C" };
@@ -390,6 +391,17 @@ function explainTap(state, target) {
         const glyph = symbol.querySelector("use")?.getAttribute("xlink:href") ?? symbol.querySelector("use")?.getAttribute("href") ?? "";
         const shape = Object.entries(clefGlyphs).find(([code]) => glyph.includes(code))?.[1];
         if (shape) kind += ":" + shape;
+    }
+    // A time signature's glyphs: common or cut time, or its two numbers, a row each (12 over 8 is three digits in two rows).
+    if (kind === "meterSig") {
+        const glyphs = [...symbol.querySelectorAll("use")].map(u => ({ code: (u.getAttribute("xlink:href") ?? u.getAttribute("href") ?? "").match(/E08([0-9A-F])/)?.[1], y: u.getBoundingClientRect().top }));
+        if (glyphs.some(g => g.code === "A")) kind += ":common";
+        else if (glyphs.some(g => g.code === "B")) kind += ":cut";
+        else if (glyphs.length > 1 && glyphs.every(g => /[0-9]/.test(g.code ?? ""))) {
+            const top = Math.min(...glyphs.map(g => g.y));
+            const row = upper => glyphs.filter(g => (Math.abs(g.y - top) < 2) === upper).map(g => g.code).join("");
+            if (row(false)) kind += `:${row(true)}/${row(false)}`;
+        }
     }
     // A repeat sign's bar line has its two dots.
     if (kind === "barLine" && symbol.querySelector("ellipse, circle")) kind += ":rpt";

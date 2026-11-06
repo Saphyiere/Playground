@@ -42,7 +42,7 @@ public enum GlossaryGroup
 /// are other ways to say it, for the search ("curved line", "line over the notes"). <see cref="Example"/> is a bar or two showing
 /// it, as MEI the sheet engraves (<see cref="GlossaryMusic"/>). <see cref="Marks"/> are the MEI it is, so a tap on the sheet finds
 /// it: an element's name ("slur", "fermata", "keySig"), or a name and a detail after a colon: a note's or rest's length
-/// ("note:4", "rest:8"), an articulation ("artic:stacc"), an accidental ("accid:s"), a dynamic's text ("dynam:mf"), a hairpin's
+/// ("note:4", "rest:8"), its dots ("dots", "dots:2"), a time signature ("meterSig:3/4", "meterSig:common"), an articulation ("artic:stacc"), an accidental ("accid:s"), a dynamic's text ("dynam:mf"), a hairpin's
 /// form ("hairpin:cres"), a clef's shape ("clef:F"), a pedal's direction ("pedal:down"), an octave line ("octave:8above"), a
 /// repeat bar line ("barLine:rpt"), or a word a direction or tempo contains ("dir:rit", "tempo:allegro").
 /// </summary>
