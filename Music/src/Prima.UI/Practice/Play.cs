@@ -16,6 +16,12 @@ public enum PlayMode
 /// </summary>
 public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, long FromTick = 0)
 {
+    /// <summary>What the piano plays along In time (Duet): each key, its beat from the run's beat 0, and how many beats.</summary>
+    public IReadOnlyList<(int Midi, double Beat, double Beats)>? PianoPart { get; init; }
+
+    /// <summary>Read ahead: how much of the music shows ahead of the cursor, in quarters; the rest is covered In time.</summary>
+    public double? ReadAheadQuarters { get; init; }
+
     public int BeatTicks => Score.Meter.BeatTicks;
 
     /// <summary>The opening pickup's length: Verovio's times count from the very start, a pickup's notes included.</summary>
@@ -32,4 +38,8 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
 /// How a run went: In time's passage result (timing, notes a minute, kept going) or Wait for me's (right first time, wrong keys),
 /// what was played, whether it was stopped before the end, and the bar it got to.
 /// </summary>
-public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResult? Wait, IReadOnlyList<PlayedNote> Played, bool Stopped, int Bar);
+public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResult? Wait, IReadOnlyList<PlayedNote> Played, bool Stopped, int Bar)
+{
+    /// <summary>In time: when a beat of the music sounded on the click's clock (beat 0 is bar 1's downbeat), for keeping a take.</summary>
+    public Func<double, long>? TimeAt { get; init; }
+}

@@ -49,7 +49,10 @@
         {
             <div class="mu-readout play-tempo"><span class="mu-readout-label">Tempo</span><TempoControl Value="Tempo" ValueChanged="TempoChanged" /></div>
         }
-        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(!CanStart)" @onclick="Start">@StartLabel</button>
+        @if (ShowStart)
+        {
+            <button type="button" class="mu-btn mu-primary" data-piano="@(PianoKey ? "go" : null)" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+        }
     }
 </section>
 
@@ -75,6 +78,15 @@
     [Parameter] public bool ShowResult { get; set; }
 
     [Parameter] public bool CanStart { get; set; } = true;
+
+    /// <summary>Whether the bar has Start: a screen that starts its runs itself (Sight-read, after its look) can leave it off.</summary>
+    [Parameter] public bool ShowStart { get; set; } = true;
+
+    /// <summary>Whether the piano's go key presses Start: not while the screen listens to the keys before a run (the look).</summary>
+    [Parameter] public bool PianoKey { get; set; } = true;
+
+    /// <summary>What Start does on a screen that starts its runs itself with the music it's showing; otherwise Start runs Music.</summary>
+    [Parameter] public EventCallback OnStart { get; set; }
 
     /// <summary>The screen's own figures, in the bar before the run's.</summary>
     [Parameter] public RenderFragment? Readouts { get; set; }
@@ -113,6 +125,8 @@
         await ModeChanged.InvokeAsync(Mode);
     }
 
+    private Task StartPressed() => OnStart.HasDelegate ? OnStart.InvokeAsync() : Start();
+
     private async Task SetMode(PlayMode mode)
     {
         Mode = mode;
@@ -120,13 +134,16 @@
         await ModeChanged.InvokeAsync(mode);
     }
 
-    /// <summary>Starts a run of the music in the chosen mode: the screen's Start, or the piano's go key.</summary>
-    public async Task Start()
+    /// <summary>
+    /// Starts a run in the chosen mode: the screen's Start, the piano's go key, or the screen itself with the music it's about to
+    /// show (a parameter set in the same step wouldn't have reached here yet).
+    /// </summary>
+    public async Task Start(PlayMusic? with = null)
     {
-        if (Running || Music is not { Notes.Count: > 0 }) return;
+        if (Running || (with ?? Music) is not { Notes.Count: > 0 }) return;
 
         await OnStarting.InvokeAsync();
-        if (Music is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
+        if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
 
         session?.Dispose();
         (session, wait, playing, stoppedNs, last) = (null, null, music, null, null);
@@ -140,8 +157,12 @@
 
         if (Mode == PlayMode.WaitForMe)
         {
-            wait = new WaitJudge(music.Notes, music.Ornamented);
+            var judge = wait = new WaitJudge(music.Notes, music.Ornamented);
+            // The preview's simulated player answers the step waited for: its keys, or a key beside its first.
+            Registry.DrillAnswer = right => judge.Done ? [] : right ? [[.. judge.Current.Select(n => n.Midi)]] : [[judge.Current[0].Midi + 1]];
             StateHasChanged();
+            // Read ahead's covers go: the cursor waits, so there's no time to keep ahead of.
+            await sheet.StopCursor();
             await sheet.CursorAt(wait.Current[0].Id);
             return;
         }
@@ -156,7 +177,7 @@
             if (run.Phase == Phase.Done) await Ended(run);
             else StateHasChanged();
         });
-        run.Start(new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars)), expected.Max(e => e.Item2 + e.Item3), expected);
+        run.Start(new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars)), expected.Max(e => e.Item2 + e.Item3), expected, music.PianoPart);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
         var live = new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
         run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
@@ -174,7 +195,7 @@
         StateHasChanged();
         // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat.
         await Task.Delay(50);
-        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0));
+        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters);
     }
 
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
@@ -214,7 +235,7 @@
                 _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
             }));
         }
-        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar);
+        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from) };
         StateHasChanged();
         await OnFinished.InvokeAsync(last);
     }
@@ -249,6 +270,7 @@
         if (wait is not { } judge) return;
 
         wait = null;
+        Registry.DrillAnswer = null;
         if (SheetOf() is { } sheet)
         {
             await sheet.StopCursor();
@@ -287,6 +309,7 @@
     public void Dispose()
     {
         Keyboard.Received -= Heard;
+        if (wait is not null) Registry.DrillAnswer = null;
         ticker?.Dispose();
         session?.Dispose();
     }

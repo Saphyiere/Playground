@@ -23,12 +23,7 @@
         <KeyboardLamp />
     </header>
 
-    @if (stage == Stage.Choose && PieceId is not null)
-    {
-        <p class="page-note">That piece isn't in the Library any more.</p>
-        <div class="control-row"><a class="mu-btn" href="library">Library</a></div>
-    }
-    else if (stage == Stage.Choose && Spot == 1)
+    @if (stage == Stage.Choose && Spot == 1)
     {
         <section class="mu-screen reading-start" aria-label="One spot">
             <div class="mu-screen-head"><span>One spot</span><span>@(spotFrom is null ? "" : $"Bar {spotBar}")</span></div>
@@ -62,6 +57,16 @@
                 <div class="mu-readout"><span class="mu-readout-label">Today</span><span class="mu-readout-value">@passagesToday</span></div>
             </div>
         </section>
+        @if (reading is not null)
+        {
+            <div class="control-row">
+                <span class="control-label">Level</span>
+                <button type="button" class="mu-btn" aria-label="An easier level" disabled="@(reading.Level <= 1)" @onclick="() => SetLevel(reading.Level - 1)">−</button>
+                <span class="control-value">@reading.Level</span>
+                <button type="button" class="mu-btn" aria-label="A harder level" disabled="@(reading.Level >= Ladder.Top)" @onclick="() => SetLevel(reading.Level + 1)">+</button>
+                <p class="control-note">@LevelWords(Ladder.Level(reading.Level))</p>
+            </div>
+        }
         <div class="control-row">
             <span class="control-label">Variant</span>
             @foreach (var v in Variants)
@@ -89,31 +94,53 @@
     }
     else if (passage is not null)
     {
-        <section class="reading-bar" aria-label="Where you are">
-            @if (stage is Stage.Run or Stage.Hear && session is { Phase: Phase.CountIn })
-            {
-                <CountIn Session="session" />
-            }
-            else
-            {
-                <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
-            }
-            <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
-            <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
-            @if (stage == Stage.Look)
-            {
-                <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
-                @* Not the piano's go key: in the look you can tap the rhythm or try a bar, so every key is music. *@
-                <button type="button" class="mu-btn mu-primary" @onclick="Run">Start</button>
-            }
-        </section>
+        @* The play bar every tempo screen shares. In the look you can tap the rhythm or try a bar, so its Start isn't the piano's go
+           key; the look's end starts the run by itself. *@
+        <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" PianoKey="false" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
+            <Readouts>
+                @if (stage == Stage.Hear && session is { Phase: Phase.CountIn })
+                {
+                    <CountIn Session="session" />
+                }
+                else if (stage != Stage.Run)
+                {
+                    <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
+                }
+                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
+                @if (stage == Stage.Look)
+                {
+                    <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
+                }
+            </Readouts>
+        </PlayAlong>
 
         @* One spot's single bar is shown larger, at about its printed width, not stretched across the sheet. *@
         <div class="sheet-frame @(spotPart == 1 ? "spot-frame" : "")">
             <Sheet @ref="sheet" Mei="@mei" Measures="@measures" Onsets="@onsets" Scale="@(spotPart == 1 ? 1.25 : 1)" OnNoteTapped="Tapped" />
         </div>
 
-        @if (stage == Stage.Summary && result is not null)
+        @if (stage == Stage.Summary && waited is not null)
+        {
+            <section class="summary" aria-label="How it went">
+                <PlaySummary Outcome="waited" StoppedAt="@($"bar {waited.Bar}")">
+                    <li>Wait for me is practice for the notes: it doesn't move your level or count as one of today's passages.</li>
+                </PlaySummary>
+                <div class="control-row">
+                    @if (spotPart == 1)
+                    {
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Now the bars around it</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">The bar again</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
+                    }
+                    <button type="button" class="mu-btn" @onclick="Done">Done</button>
+                </div>
+            </section>
+        }
+        else if (stage == Stage.Summary && result is not null)
         {
             <section class="summary" aria-label="How it went">
                 <div class="mu-screen summary-figures">
@@ -139,14 +166,7 @@
                     <Timeline Result="result" />
                 }
                 <div class="control-row">
-                    @if (practising is not null)
-                    {
-                        <button type="button" class="mu-btn mu-primary" data-piano="again" @onclick="() => Practise(0)">Again</button>
-                        <button type="button" class="mu-btn" @onclick="() => Practise(0, 0.9)">Slower</button>
-                        <button type="button" class="mu-btn" @onclick="() => Practise(0, 1.08)">Faster</button>
-                        <button type="button" class="mu-btn" data-piano="go" @onclick="() => Practise(1)">The next bars</button>
-                    }
-                    else if (spotPart == 1)
+                    @if (spotPart == 1)
                     {
                         <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Now the bars around it</button>
                         <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">The bar again</button>
@@ -189,26 +209,19 @@
     /// <summary>1 for Today's one-spot step: the bar with the most to fix today, slower, then the bars around it.</summary>
     [SupplyParameterFromQuery(Name = "spot")] public int? Spot { get; set; }
 
-    /// <summary>A piece from the Library to practise, its bars ("9-16") and the tempo: Again, Slower, Faster and the next bars after.</summary>
-    [SupplyParameterFromQuery(Name = "piece")] public string? PieceId { get; set; }
-
-    [SupplyParameterFromQuery(Name = "bars")] public string? BarsQuery { get; set; }
-
-    [SupplyParameterFromQuery(Name = "tempo")] public double? TempoQuery { get; set; }
-
     private Stage stage = Stage.Choose;
     private ReadingState? reading;
     private Passage? passage;
     private string mei = "";
     private Variant? variant;
     private double tempo;
+    // Hear first's listening run; the runs that are played go through the play bar.
     private PlaySession? session;
+    private PlayAlong? play;
     private PassageResult? result;
+    // A Wait for me run's outcome: practice for the notes, which doesn't move the level.
+    private PlayOutcome? waited;
     private Sheet? sheet;
-
-    // The run's notes judged as they're played, and each note's written pitch and time on the sheet, in quarters from its start.
-    private LiveJudge? judge;
-    private Dictionary<string, (Spelled Written, double Quarter)> onSheet = [];
     private DateTime lookStarted;
     private DateTime runStarted;
     private Timer? ticker;
@@ -222,7 +235,6 @@
     private Key? avoidKey;
     private string? tapped;
     private bool showTimeline;
-    private bool pianoPart;
     private AttemptRecord? spotFrom;
     private int spotBar;
     private int spotPart;
@@ -236,12 +248,6 @@
     private ReadyPassage? ready;
     private Variant? chosen;
 
-    // Practising a piece's bars.
-    private PieceRecord? practising;
-    private string? practisingMei;
-    private Score? practisingScore;
-    private (int First, int Last) practiseBars;
-
     private bool PianoPlays => Keyboard.CanSend && Settings.SendToPiano;
 
     protected override async Task OnInitializedAsync()
@@ -251,32 +257,6 @@
         (passagesToday, lastKey) = (todays.Count, DayPassages.KeyOf(todays.LastOrDefault()));
         chosen = variant = Enum.TryParse<Variant>(VariantQuery, true, out var v) ? v : null;
         if (Spot == 1) await FindSpot(todays);
-        if (PieceId is not null && await Store.GetPieceAsync(PieceId) is { IsPdf: false } piece && await Store.GetMeiAsync(PieceId) is { } pieceMei)
-        {
-            (practising, practisingMei, practisingScore) = (piece, pieceMei, await Task.Run(() => MeiReader.Read(pieceMei)));
-            var parts = (BarsQuery ?? "1-4").Split('-');
-            var first = parts.Length > 0 && int.TryParse(parts[0], out var f) ? f : 1;
-            var last = parts.Length > 1 && int.TryParse(parts[1], out var l) ? l : first + 3;
-            practiseBars = (first, last);
-            tempo = TempoQuery ?? piece.Tempo ?? 72;
-            Practise(0);
-        }
-    }
-
-    // A piece's bars on the reading screen: the same look, count-in, click, marks and summary; the level doesn't move.
-    private void Practise(int on, double speed = 1)
-    {
-        if (practising is null || practisingScore is null || practisingMei is null) return;
-
-        StopRun();
-        var lastBar = practisingScore.Bars[^1].Number;
-        var length = practiseBars.Last - practiseBars.First + 1;
-        var first = Math.Clamp(practiseBars.First + on * length, practisingScore.Bars[0].Number, lastBar);
-        practiseBars = (first, Math.Min(lastBar, first + length - 1));
-        tempo = Math.Clamp(Math.Round(tempo * speed), 20, 240);
-        variant = null;
-        Show(DayPassages.Real(practising, practisingMei, practisingScore, practiseBars.First, practiseBars.Last, practising.TypicalLevel ?? practising.Level ?? 6, description: $"Bars {Math.Max(1, practiseBars.First)} to {practiseBars.Last}"));
-        BeginLook();
     }
 
     private void Show(ReadyPassage next)
@@ -284,7 +264,7 @@
         ready = next;
         passage = next.Passage;
         (mei, measures, onsets) = (next.Mei, next.Measures, next.Onsets);
-        (result, tapped, showTimeline) = (null, null, false);
+        (result, waited, tapped, showTimeline) = (null, null, null, false);
     }
 
     // Today's passage with the most errors in one bar (the latest, on a tie), made again from its seed, level and step, or from the
@@ -340,7 +320,7 @@
         {
             passage = spotPassage with { Score = score.Excerpt(from, to), Description = description };
             (mei, measures, onsets, ready) = (MeiWriter.Write(passage.Score, tempo), null, null, null);
-            (result, tapped, showTimeline) = (null, null, false);
+            (result, waited, tapped, showTimeline) = (null, null, null, false);
         }
         BeginLook();
     }
@@ -349,7 +329,7 @@
 
     private static string VariantName(Variant v) => v switch { Variant.ReadAhead => "Read ahead", Variant.Duet => "Duet", _ => "Hear first" };
 
-    private string Kicker() => practising is not null ? $"Practising · {practising.Title}" : Spot == 1 && (stage == Stage.Choose || spotPart > 0) ? "One spot" : stage == Stage.Choose ? "New music, in time" : ready?.Real == true ? "Real music" : finding ? $"Finding your level · level {findLevel}" : repeat ? "Again, for practice" : variant is { } v ? VariantName(v) : "Sight-read";
+    private string Kicker() => Spot == 1 && (stage == Stage.Choose || spotPart > 0) ? "One spot" : stage == Stage.Choose ? "New music, in time" : ready?.Real == true ? "Real music" : finding ? $"Finding your level · level {findLevel}" : repeat ? "Again, for practice" : variant is { } v ? VariantName(v) : "Sight-read";
 
     private Task FindLevel()
     {
@@ -413,70 +393,76 @@
     {
         stage = Stage.Hear;
         var all = Beats(passage!.Score.Expected());
-        StartSession(all, all, () => InvokeAsync(BeginLook));
+        var meter = passage.Score.Meter;
+        session?.Dispose();
+        var listening = session = new PlaySession(Click, Keyboard, Clock, Registry);
+        listening.Changed += () => _ = InvokeAsync(() =>
+        {
+            if (listening.Phase == Phase.Done && stage == Stage.Hear) BeginLook();
+            StateHasChanged();
+        });
+        listening.Start(new ClickPlan(tempo, meter.Beats, Math.Max(1, Settings.CountInBars)), passage.Score.Bars.Where(b => b.Number > 0).Sum(b => b.Length ?? meter.BarTicks) / BeatTicks, [], all);
     }
 
-    private void Run()
+    // The run, on the play bar, In time or Wait for me: Duet's own part for you and the piano's for it, Read ahead's window.
+    private async Task Run()
     {
+        if (stage != Stage.Look || play is null || passage is null) return;
+
         stage = Stage.Run;
         runStarted = DateTime.Now;
-        var expected = passage!.Score.Expected();
+        var expected = passage.Score.Expected();
         var mine = variant == Variant.Duet && expected.Any(e => e.Staff == 2) && passage.Spec.Hands == Hands.Together ? expected.Where(e => e.Staff == 1).ToList() : expected;
         var others = variant == Variant.Duet ? (mine.Count < expected.Count ? Beats(expected.Where(e => e.Staff == 2).ToList()) : Accompaniment()) : null;
-        StartSession(Beats(mine), others, () => InvokeAsync(Score));
-        // Each note is judged as it's played and marked on the sheet at once; the summary's marks replace these.
-        var pickup = passage.Score.Bars[0].Number == 0 ? passage.Score.Bars[0].Length ?? 0 : 0;
-        var pitches = passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).ToDictionary(t => t.Id, t => t.Pitch);
-        onSheet = expected.ToDictionary(n => n.Id, n => (pitches[n.Id], (n.Tick + pickup) / (double)Ticks.Quarter));
-        var run = session!;
-        var live = judge = new LiveJudge(mine, run.TimeAt, passage.Score.Meter.BeatTicks, 60e9 / tempo, Settings.TimingOffsetMs);
-        run.KeyDown += (key, at) => _ = InvokeAsync(() => MarkLive(live.Play(key, at) is { } mark ? [mark] : []));
-        _ = StartCursorSoon();
+        await play.Start(new PlayMusic(passage.Score, mine) { PianoPart = others, ReadAheadQuarters = variant == Variant.ReadAhead ? ReadAheadQuarters : null });
     }
 
-    private async Task MarkLive(IReadOnlyList<LiveMark> marks)
+    private Task Starting()
     {
-        if (sheet is null || stage != Stage.Run || marks.Count == 0) return;
-
-        await sheet.MarkLive(marks.Select(m => Mark(m.Id, m.Kind, m.Played, m.ErrorPercent)));
+        (result, waited, tapped, showTimeline) = (null, null, null, false);
+        return Task.CompletedTask;
     }
 
-    // A note's mark on the sheet, during the run or after it. A wrong one shows what was played, a grey head that many staff
-    // positions from the written one; an early or late one when it was played, a ring on its line.
-    private SheetMark Mark(string id, LiveKind kind, int? played, double errorPercent)
+    private async Task Finished(PlayOutcome how)
     {
-        var (written, quarter) = onSheet[id];
-        var name = kind.ToString().ToLowerInvariant();
-        if (kind == LiveKind.Wrong && played is { } key)
+        if (passage is null) return;
+
+        stage = Stage.Summary;
+        if (how.Mode == PlayMode.WaitForMe)
         {
-            var spelled = passage!.Score.Key.Spell(key);
-            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic);
+            waited = how;
+            await Store.AddMinutesAsync(Today, (DateTime.Now - lookStarted).TotalMinutes);
+            return;
         }
-        return kind is LiveKind.Early or LiveKind.Late ? new SheetMark(id, name, Quarter: quarter + errorPercent / 100 * BeatTicks / Ticks.Quarter) : new SheetMark(id, name);
+
+        result = how.InTime;
+        if (result is not null) await Save(how);
     }
 
-    private void StartSession(IReadOnlyList<(int Midi, double Beat, double Beats)> expected, IReadOnlyList<(int Midi, double Beat, double Beats)>? piano, Func<Task> whenDone)
+    // The tempo set by hand, for this passage and the ones after it at this level (not while finding a level or at one spot).
+    private async Task SetTempo(double bpm)
     {
-        session?.Dispose();
-        session = new PlaySession(Click, Keyboard, Clock, Registry);
-        pianoPart = piano is not null && stage == Stage.Hear;
-        var meter = passage!.Score.Meter;
-        var beats = passage.Score.Bars.Where(b => b.Number > 0).Sum(b => b.Length ?? meter.BarTicks) / BeatTicks;
-        session.Changed += () =>
-        {
-            if (session?.Phase == Phase.Done) _ = whenDone();
-            else _ = InvokeAsync(StateHasChanged);
-        };
-        session.Start(new ClickPlan(tempo, meter.Beats, Math.Max(1, Settings.CountInBars)), beats, stage == Stage.Hear ? [] : expected, piano);
+        tempo = bpm;
+        if (reading is null || finding || spotPart > 0) return;
+
+        reading = reading with { Tempo = bpm, Recent = [] };
+        await Store.SaveTrackAsync("reading", reading);
     }
 
-    private async Task StartCursorSoon()
+    // The level set by hand: its first kind of difficulty all in, at the bottom of its tempo range, as Find my level sets it.
+    private async Task SetLevel(int level)
     {
-        await Task.Delay(50);
-        if (sheet is null || session is null || passage is null) return;
+        reading = (reading ?? ReadingState.Start) with { Level = Math.Clamp(level, 1, Ladder.Top), Step = 4, Tempo = Ladder.Level(level).Tempo.Min, Recent = [], TooHardAtFloor = 0 };
+        await Store.SaveTrackAsync("reading", reading);
+    }
 
-        var pickup = passage.Score.Bars[0].Number == 0 ? (passage.Score.Bars[0].Length ?? 0) / BeatTicks : 0;
-        await sheet.StartCursor(session.MsUntil(-pickup), MsPerQuarter, 0, 60_000 / tempo, session.MsUntil(0), variant == Variant.ReadAhead ? ReadAheadQuarters : null);
+    // What a level reads, in a line: its keys, metres and hands.
+    private static string LevelWords(LevelSpec spec)
+    {
+        var accidentals = spec.Keys.Max(k => Math.Abs(k.Fifths));
+        var keys = accidentals == 0 ? "C major and A minor" : $"Keys to {accidentals} sharp{(accidentals == 1 ? "" : "s")} or flat{(accidentals == 1 ? "" : "s")}";
+        var hands = spec.Hands switch { Hands.One => "one hand in a five-finger position", Hands.Split => "the tune shared between the hands", Hands.Separate => "hands separately", _ => "hands together" };
+        return $"{keys}, in {string.Join(", ", spec.Meters)}, {hands}, at {spec.Tempo.Min:0} to {spec.TopTempo:0} a minute.";
     }
 
     private IReadOnlyList<(int Midi, double Beat, double Beats)> Beats(IReadOnlyList<ExpectedNote> notes) => [.. notes.Select(n => (n.Midi, n.Tick / BeatTicks, n.Length / BeatTicks))];
@@ -497,60 +483,29 @@
         }).ToList();
     }
 
-    private async Task Score()
+    // The take kept with its settings, every key as played and the click's beats, both in ms from bar 1's downbeat; then the level,
+    // the tempo and the day move on, unless it was again, stopped early, or at one spot.
+    private async Task Save(PlayOutcome how)
     {
-        if (session is null || passage is null || stage != Stage.Run) return;
+        if (result is null || passage is null || how.TimeAt is not { } timeAt) return;
 
-        await (sheet?.StopCursor() ?? Task.CompletedTask);
-        var meter = passage.Score.Meter;
-        var expected = passage.Score.Expected();
-        if (variant == Variant.Duet && passage.Spec.Hands == Hands.Together && expected.Any(e => e.Staff == 2)) expected = [.. expected.Where(e => e.Staff == 1)];
-        var beatNs = 60e9 / tempo;
-        var ornamented = passage.Score.Marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
-        var session1 = session;
-        result = PassageScorer.Score(expected, b => session1.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs, ornamented);
-        stage = Stage.Summary;
-        StateHasChanged();
-        await ShowMarks();
-        await Save(expected);
-    }
-
-    private async Task ShowMarks()
-    {
-        if (sheet is null || result is null || passage is null) return;
-
-        var marks = result.Notes.Select(n => n.Outcome switch
-        {
-            Outcome.Wrong when n.Played is { } played => Mark(n.Id, LiveKind.Wrong, played, 0),
-            Outcome.Missed => Mark(n.Id, LiveKind.Missed, null, 0),
-            _ when n.Band == Band.Off => Mark(n.Id, n.ErrorPercent < 0 ? LiveKind.Early : LiveKind.Late, null, n.ErrorPercent ?? 0),
-            Outcome.Right => Mark(n.Id, LiveKind.Right, null, 0),
-            _ => null,
-        }).OfType<SheetMark>().ToList();
-        await sheet.ShowMarks(marks);
-    }
-
-    private async Task Save(IReadOnlyList<ExpectedNote> expected)
-    {
-        if (result is null || passage is null || session is null) return;
-
-        var zero = session.TimeAt(0);
+        var zero = timeAt(0);
         var measures = new
         {
             inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, extra = result.Extra, audible = result.Audible, off = result.Off,
             leanMs = result.LeanMs, leanPercent = result.LeanPercent, steadiness = result.SteadinessPercent, perMinute = result.CorrectPerMinute, keptGoing = result.KeptGoing,
             drift = result.TempoDriftPercent, rmsMs = result.RmsMs, lost = result.LostOnKeyboard, worstBar = result.WorstBar, worstErrors = result.WorstBar is { } w ? result.ErrorsPerBar[w] : 0,
-            bars = passage.Score.Bars.Count(b => b.Number > 0), notes = expected.Count,
+            bars = passage.Score.Bars.Count(b => b.Number > 0), notes = result.Expected, stoppedAtBar = how.Stopped ? how.Bar : (int?)null,
         };
-        var played = session.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
-        var beats = Enumerable.Range(-Math.Max(1, Settings.CountInBars) * passage.Score.Meter.Beats, (int)(measures.bars * passage.Score.Meter.Beats) + 8).Select(b => (session.TimeAt(b) - zero) / 1e6);
-        var kind = practising is not null ? "piece" : spotPart > 0 ? "spot" : finding ? "find" : repeat ? "again" : "passage";
+        var played = how.Played.Select(p => new[] { p.Midi, (p.OnNs - zero) / 1e6, (p.OffNs - zero) / 1e6, p.Velocity });
+        var beats = Enumerable.Range(-Math.Max(1, Settings.CountInBars) * passage.Score.Meter.Beats, (int)(measures.bars * passage.Score.Meter.Beats) + 8).Select(b => (timeAt(b) - zero) / 1e6);
+        var kind = how.Stopped ? "stopped" : spotPart > 0 ? "spot" : finding ? "find" : repeat ? "again" : "passage";
         var avoid = avoidKey is { } k ? new { fifths = k.Fifths, minor = k.Minor } : null;
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, kind, spotPart > 0 ? (spotPart == 1 ? "bar" : "phrase") : variant?.ToString(), null, passage.Spec.Level, tempo, (long)passage.Seed,
             System.Text.Json.JsonSerializer.Serialize(new { step = spotPart > 0 ? spotStep : reading?.Step ?? 4, style = passage.Style.ToString(), avoid, key = new { fifths = passage.Score.Key.Fifths, minor = passage.Score.Key.Minor }, spotBar = spotPart > 0 ? spotBar : (int?)null, excerpt = ready?.Excerpt?.Id, piece = ready?.Piece?.Id, bars = ready?.Measures }), System.Text.Json.JsonSerializer.Serialize(played), System.Text.Json.JsonSerializer.Serialize(beats), System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
         await Store.AddMinutesAsync(Today, (DateTime.Now - lookStarted).TotalMinutes);
 
-        if (practising is not null || repeat) return;
+        if (repeat || how.Stopped) return;
         if (spotPart > 0)
         {
             if (spotPart == 2) await Store.MarkStepAsync(Today, StepKind.OneSpot);
@@ -609,8 +564,7 @@
     private void Done()
     {
         StopRun();
-        if (practising is not null) Nav.NavigateTo($"library/{Uri.EscapeDataString(practising.Id)}");
-        else if (From == "today") Nav.NavigateTo("");
+        if (From == "today") Nav.NavigateTo("");
         else (stage, passage) = (Stage.Choose, null);
     }
 
@@ -635,7 +589,7 @@
         if (result is null || passage is null) yield break;
 
         var key = passage.Score.Key;
-        if (ready?.Piece is { } from && practising is null) yield return $"From {from.Title}{(from.Composer is { Length: > 0 } c ? $" by {c}" : "")}{(from.Tier == "B" && from.Credit is { } credit ? $". {credit}" : "")}.";
+        if (ready?.Piece is { } from) yield return $"From {from.Title}{(from.Composer is { Length: > 0 } c ? $" by {c}" : "")}{(from.Tier == "B" && from.Credit is { } credit ? $". {credit}" : "")}.";
         if (result.Clean && result.Off == 0) yield return "Every note right, and you kept going.";
         foreach (var wrong in result.Notes.Where(n => n.Outcome == Outcome.Wrong).Take(4)) yield return $"Bar {wrong.Bar}: played {key.Spell(wrong.Played ?? 0)} for {key.Spell(wrong.Midi)}{(wrong.Wrong == WrongKind.LostOnKeyboard ? ", a key or two away: lost on the keyboard" : wrong.Wrong == WrongKind.Octave ? ", an octave away" : "")}.";
         if (result.Missed > 0) yield return $"{result.Missed} {(result.Missed == 1 ? "note" : "notes")} not played.";
@@ -657,7 +611,7 @@
     private string PhaseValue()
     {
         if (stage == Stage.Look) return $"{Math.Max(0, LookSeconds - (DateTime.Now - lookStarted).TotalSeconds):0}s";
-        if (session is null || passage is null || stage is not (Stage.Run or Stage.Hear)) return result is null ? "–" : $"{passage!.Score.Bars.Count(b => b.Number > 0)}";
+        if (session is null || passage is null || stage != Stage.Hear) return result is null && waited is null ? "–" : $"{passage!.Score.Bars.Count(b => b.Number > 0)}";
 
         var barNs = 60e9 / tempo * passage.Score.Meter.Beats;
         var since = Clock.NowNs - session.TimeAt(0);
@@ -673,9 +627,7 @@
         ticker = new Timer(_ =>
         {
             if (stage == Stage.Look && (DateTime.Now - lookStarted).TotalSeconds >= LookSeconds) _ = InvokeAsync(Run);
-            else if (stage is Stage.Look or Stage.Run or Stage.Hear) _ = InvokeAsync(StateHasChanged);
-            // Notes whose time has passed with nothing played for them.
-            if (stage == Stage.Run && judge is { } live) _ = InvokeAsync(() => MarkLive(live.Due(Clock.NowNs)));
+            else if (stage is Stage.Look or Stage.Hear) _ = InvokeAsync(StateHasChanged);
         }, null, 250, 250);
     }
 

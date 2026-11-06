@@ -76,6 +76,13 @@ Variants, one a day in the plan and any time here:
 After a passage, **Again** reads the same one once more. A second reading is practice, not reading at sight, so it's kept in the
 history as a repeat and doesn't move the level or count as one of the day's passages.
 
+The play bar's two modes are here too ([Playing to a tempo](#playing-to-a-tempo)). In time is reading at sight, as below. **Wait
+for me** waits at each note for the right keys and counts the notes right first time: practice for the notes, so it doesn't
+move the level or count as one of the day's passages. A passage stopped early is kept, but doesn't move the level either. The
+level can be set by hand on the first screen, with − and + and a line on what it reads (keys, metres, hands, tempo): it starts
+at the bottom of that level's tempo range, as Find my level sets it, and moves on from there as usual. The tempo's − and + set
+it for this passage and the next ones at the level.
+
 ### The piano buttons
 
 So the hands needn't leave the keys between runs, the C♯ above middle C presses the screen's main button and the D♯ beside it
@@ -89,7 +96,7 @@ the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They
 ### Playing to a tempo
 
 Every screen that plays music to a tempo has the same play bar: the screen's own figures, then the mode, the tempo and Start
-(the piano's C♯4). A Library piece, Scales, Arpeggios and Finger independence play this way; Sight-read is moving to it.
+(the piano's C♯4). Sight-read, a Library piece, Scales, Arpeggios and Finger independence all play this way.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, and the lean.
