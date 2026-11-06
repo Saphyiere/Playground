@@ -1,7 +1,11 @@
-// The piano's two buttons: presses the screen's button marked for the key, if one is showing and can be pressed, with the look
-// of a press, as if it were tapped.
+// The piano's two buttons: presses the screen's button marked for the key, or for go the primary one (the orange key, or Play)
+// when none is marked, if it's showing and can be pressed, with the look of a press, as if it were tapped. A button marked
+// "off" is never pressed from the piano.
 export function press(kind) {
-    const button = [...document.querySelectorAll(`[data-piano="${kind}"]`)].find(b => !b.disabled && b.getClientRects().length > 0);
+    const usable = b => !b.disabled && b.getClientRects().length > 0;
+    const marked = [...document.querySelectorAll(`[data-piano="${kind}"]`)].find(usable);
+    const primary = kind === "go" ? [...document.querySelectorAll(".mu-btn.mu-primary, .mu-play")].find(b => usable(b) && !b.dataset.piano) : null;
+    const button = marked ?? primary;
     if (!button) return;
     button.classList.add("piano-pressed");
     setTimeout(() => button.classList.remove("piano-pressed"), 160);

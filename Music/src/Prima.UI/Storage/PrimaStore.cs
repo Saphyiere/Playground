@@ -34,6 +34,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string CueKey = "Profile.Cue";
     private const string ClefsKey = "Profile.Clefs";
     private const string CountInKey = "Practice.CountInBars";
+    private const string LookKey = "Practice.LookSeconds";
     private const string LetterNamesKey = "Practice.LetterNames";
     private const string WelcomedKey = "Profile.Welcomed";
 
@@ -71,6 +72,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.Cue = saved.GetValueOrDefault(CueKey) ?? defaults.Cue;
         settings.Clefs = saved.GetValueOrDefault(ClefsKey) ?? defaults.Clefs;
         settings.CountInBars = (int?)Number(CountInKey) ?? defaults.CountInBars;
+        settings.LookSeconds = (int?)Number(LookKey) ?? defaults.LookSeconds;
         settings.LetterNames = saved.GetValueOrDefault(LetterNamesKey) != "false";
         settings.Welcomed = saved.GetValueOrDefault(WelcomedKey) == "true";
     }
@@ -95,6 +97,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (CueKey, settings.Cue),
             (ClefsKey, settings.Clefs),
             (CountInKey, settings.CountInBars.ToString(CultureInfo.InvariantCulture)),
+            (LookKey, settings.LookSeconds.ToString(CultureInfo.InvariantCulture)),
             (LetterNamesKey, settings.LetterNames ? "true" : "false"),
             (WelcomedKey, settings.Welcomed ? "true" : "false"),
         ];

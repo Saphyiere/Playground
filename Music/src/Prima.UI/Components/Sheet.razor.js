@@ -387,12 +387,11 @@ function drawMark(element, state, mark) {
         overlay.appendChild(ghost(mark.id, gx, gy, h.width, space));
         label(overlay, mark.played, mark.kind === "extra" ? gx : cx, Math.min(above, gy - space - 6), "sheet-label", mark.id);
     }
-    if (mark.kind === "early" || mark.kind === "late") {
-        // Where it was played: on the note's line, at that moment's place along the system.
-        const at = mark.q == null ? null : xAt(element, state, mark.q, note.closest(".system"));
-        if (at != null && Math.abs(at - cx) > h.width * 0.6) overlay.appendChild(ghost(mark.id, at, cy, h.width, space, "sheet-ghost sheet-when"));
-        label(overlay, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id);
-    }
+    // Where it was played, when that's given: a ring on the note's line at that moment's place along the system (on a green note
+    // too, when it was a little off).
+    const at = mark.q == null ? null : xAt(element, state, mark.q, note.closest(".system"));
+    if (at != null && Math.abs(at - cx) > h.width * 0.6) overlay.appendChild(ghost(mark.id, at, cy, h.width, space, "sheet-ghost sheet-when"));
+    if (mark.kind === "early" || mark.kind === "late") label(overlay, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id);
 }
 
 function ghost(id, cx, cy, headWidth, space, kind = "sheet-ghost") {

@@ -373,8 +373,9 @@ body {
 }
 
 /* The piano's buttons: while it's plugged in, a button the C♯ or D♯ above middle C presses wears the key's name, and a press from the
-   piano shows as a tap would. */
-[data-piano-keys] [data-piano]::after {
+   piano shows as a tap would. With no button marked for go, the screen's primary button is the one it presses. */
+[data-piano-keys] :is([data-piano="go"], [data-piano="again"])::after,
+[data-piano-keys]:not(:has([data-piano="go"])) :is(.mu-btn.mu-primary, .mu-play):not([data-piano])::after {
     flex: none;
     padding: 0 5px;
     border: 1px solid currentColor;
@@ -387,7 +388,8 @@ body {
     opacity: 0.7;
 }
 
-[data-piano-keys] [data-piano="go"]::after {
+[data-piano-keys] [data-piano="go"]::after,
+[data-piano-keys]:not(:has([data-piano="go"])) :is(.mu-btn.mu-primary, .mu-play):not([data-piano])::after {
     content: "C♯4";
 }
 
@@ -395,18 +397,18 @@ body {
     content: "D♯4";
 }
 
-.mu-play[data-piano] {
+.mu-play {
     position: relative;
 }
 
-[data-piano-keys] .mu-play[data-piano]::after {
+[data-piano-keys] .mu-play::after {
     position: absolute;
     right: 6px;
     bottom: 6px;
 }
 
 /* Inside Vinyl's round disc. */
-[data-theme="vinyl"][data-piano-keys] .mu-play[data-piano]::after {
+[data-theme="vinyl"][data-piano-keys] .mu-play::after {
     right: 50%;
     bottom: 7px;
     transform: translateX(50%);
@@ -1387,10 +1389,14 @@ a {
 
 /* How a run follows you, chosen on the play bar's screen beside its figures: the mode lit and boxed, the other dim. The mode,
    the tempo and Start sit together at the bar's end, the screen's own figures and keys before them. */
+/* In time or Wait for me: a two-way switch on a dark track, the chosen side lit like a segment of the screen. */
 .play-mode {
     display: flex;
-    gap: 6px;
+    gap: 2px;
     margin-left: auto;
+    padding: 3px;
+    border-radius: var(--mu-r-control);
+    background: var(--meter-off);
 }
 
 .play-bar .play-mode ~ .mu-btn,
@@ -1399,33 +1405,37 @@ a {
 }
 
 .play-mode-option {
-    padding: 6px 10px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-key);
+    padding: 8px 14px;
+    border: 0;
+    border-radius: max(0px, calc(var(--mu-r-control) - 3px));
     background: none;
     font-family: var(--mu-print);
-    font-size: 11px;
+    font-size: 12px;
     line-height: 16px;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     white-space: nowrap;
-    color: var(--on-screen-muted);
+    color: var(--on-screen);
     cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
 }
 
 .play-mode-option[aria-checked="true"] {
-    border-color: currentColor;
-    color: var(--on-screen);
+    background: var(--meter-on);
+    color: var(--screen);
+    box-shadow: 0 0 10px var(--meter-on);
 }
 
 [data-theme="vinyl"] .play-mode-option {
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 0.12em;
 }
 
 [data-theme="vinyl"] .play-mode-option[aria-checked="true"] {
-    color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: none;
 }
 
 .control-row .mu-toggle {
@@ -1798,6 +1808,7 @@ a.mu-btn {
 
 .reading-look {
     flex: 1;
+    min-width: 96px;
     height: 8px;
     border-radius: 4px;
     background: var(--meter-off);

@@ -13,8 +13,29 @@ public sealed record RhythmResult(IReadOnlyList<NoteResult> Notes, int Extra, do
     public double Accuracy => Notes.Count == 0 ? 0 : Notes.Count(n => n.Band is Band.InTime or Band.Audible) / (double)Notes.Count;
 }
 
+/// <summary>A bar of a rhythm try: its taps' average against the click (% of a beat, late positive), those well early or late, and those missed.</summary>
+public sealed record BarTiming(int Bar, double? Percent, int Early, int Late, int Missed)
+{
+    public bool Off => Early + Late > 0 || Percent is > Grading.AudiblePercent or < -Grading.AudiblePercent;
+}
+
 public static class RhythmScorer
 {
+    /// <summary>
+    /// How each bar went, for the words after a try: where its taps landed on average against the click, in % of a beat (late is
+    /// positive; none when nothing in it was tapped), how many landed more than 10% of a beat early or late, and how many of its
+    /// notes were missed. Your lean isn't taken out: this is where the taps really were.
+    /// </summary>
+    /// <param name="bars">Each note's bar, in the order of <paramref name="notes"/>.</param>
+    public static IReadOnlyList<BarTiming> ByBar(IReadOnlyList<NoteResult> notes, IReadOnlyList<int> bars, double beatNs) =>
+    [
+        .. notes.Zip(bars).GroupBy(p => p.Second).OrderBy(g => g.Key).Select(g =>
+        {
+            var tapped = g.Where(p => p.First.Outcome == Outcome.Right && p.First.ErrorMs is not null).Select(p => p.First.ErrorMs!.Value / (beatNs / 1e6) * 100).ToList();
+            return new BarTiming(g.Key, tapped.Count == 0 ? null : tapped.Average(), tapped.Count(p => p < -Grading.AudiblePercent), tapped.Count(p => p > Grading.AudiblePercent), g.Count(p => p.First.Outcome != Outcome.Right));
+        }),
+    ];
+
     /// <param name="onsetsNs">The written rhythm's onsets, the opening bar of beat first, on the click's timeline.</param>
     /// <param name="ids">The sheet's id for each onset, for marks.</param>
     /// <param name="pulseNotes">How many of the onsets are the opening bar of beat.</param>

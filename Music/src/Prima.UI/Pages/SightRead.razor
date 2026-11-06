@@ -50,7 +50,7 @@
             <div class="mu-screen-head"><span>@(reading is null ? "First time" : $"Level {reading.Level}")</span><span>@(reading is null ? "" : $"{reading.Tempo:0} bpm")</span></div>
             <p class="page-panel-line">@(reading is null
                 ? "Find your level: two short passages from each level, from the start, until they fall under 80% in time. Or start at level 1."
-                : "A new passage at your level: thirty seconds to look, a bar of count-in, then play in time. The click never waits.")</p>
+                : $"A new passage at your level: {(Settings.LookSeconds > 0 ? $"{Settings.LookSeconds} seconds to look" : "a look for as long as you like")}, a bar of count-in, then play in time. The click never waits.")</p>
             <div class="mu-readouts">
                 <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@(reading?.Level.ToString(CultureInfo.InvariantCulture) ?? "–")</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">Reading score</span><span class="mu-readout-value">@(reading?.Score.ToString("0.0", CultureInfo.InvariantCulture) ?? "–")</span></div>
@@ -94,9 +94,9 @@
     }
     else if (passage is not null)
     {
-        @* The play bar every tempo screen shares. In the look you can tap the rhythm or try a bar, so its Start isn't the piano's go
-           key; the look's end starts the run by itself. *@
-        <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" PianoKey="false" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
+        @* The play bar every tempo screen shares. Its Start in the look is the piano's go key too (a deliberate press: trying a bar
+           doesn't count); the look's end starts the run by itself unless Settings says to wait for Start. *@
+        <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
             <Readouts>
                 @if (stage == Stage.Hear && session is { Phase: Phase.CountIn })
                 {
@@ -107,7 +107,7 @@
                     <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
                 }
                 <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
-                @if (stage == Stage.Look)
+                @if (stage == Stage.Look && LookSeconds is not null)
                 {
                     <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
                 }
@@ -200,7 +200,10 @@
     private static readonly Variant[] Variants = [Variant.ReadAhead, Variant.Duet, Variant.HearFirst];
 
     // Thirty seconds to look at a passage; ten at one spot's single bar.
-    private double LookSeconds => spotPart == 1 ? 10 : 30;
+    // The look: Settings' length, one spot's single bar ten seconds at most; or no limit, waiting for Start.
+    private double? LookSeconds => Settings.LookSeconds <= 0 ? null : spotPart == 1 ? Math.Min(10, Settings.LookSeconds) : Settings.LookSeconds;
+
+    private double LookedSeconds => (DateTime.Now - lookStarted).TotalSeconds;
 
     [SupplyParameterFromQuery(Name = "variant")] public string? VariantQuery { get; set; }
 
@@ -603,14 +606,14 @@
     private string PhaseName() => stage switch
     {
         Stage.Hear => "Listen",
-        Stage.Look => "Look",
+        Stage.Look => LookSeconds is null ? "Looked" : "Look",
         Stage.Run => "Bar",
         _ => "Bars",
     };
 
     private string PhaseValue()
     {
-        if (stage == Stage.Look) return $"{Math.Max(0, LookSeconds - (DateTime.Now - lookStarted).TotalSeconds):0}s";
+        if (stage == Stage.Look) return $"{(LookSeconds is { } limit ? Math.Max(0, limit - LookedSeconds) : LookedSeconds):0}s";
         if (session is null || passage is null || stage != Stage.Hear) return result is null && waited is null ? "–" : $"{passage!.Score.Bars.Count(b => b.Number > 0)}";
 
         var barNs = 60e9 / tempo * passage.Score.Meter.Beats;
@@ -619,14 +622,14 @@
         return $"{Math.Clamp((int)Math.Floor(since / barNs) + 1, 1, bars)} of {bars}";
     }
 
-    private double LookShare() => Math.Min(100, (DateTime.Now - lookStarted).TotalSeconds / LookSeconds * 100);
+    private double LookShare() => LookSeconds is { } limit ? Math.Min(100, LookedSeconds / limit * 100) : 0;
 
     private void StartTicker()
     {
         ticker?.Dispose();
         ticker = new Timer(_ =>
         {
-            if (stage == Stage.Look && (DateTime.Now - lookStarted).TotalSeconds >= LookSeconds) _ = InvokeAsync(Run);
+            if (stage == Stage.Look && LookSeconds is { } limit && LookedSeconds >= limit) _ = InvokeAsync(Run);
             else if (stage is Stage.Look or Stage.Hear) _ = InvokeAsync(StateHasChanged);
         }, null, 250, 250);
     }

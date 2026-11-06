@@ -61,8 +61,8 @@ calibration or straight to Today.
 ### Sight-read
 
 The reading screen, and the way to read more than the plan asks for. A passage at your level: thirty seconds to look it over
-(you can tap its rhythm or try a bar), one bar of count-in, then play it in time with the click, each note marked as you
-play it. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
+(you can tap its rhythm or try a bar; Settings makes the look 10, 20 or 30 seconds, or as long as you like, and Start begins
+the count-in sooner), one bar of count-in, then play it in time with the click, each note marked as you play it. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
 
 Variants, one a day in the plan and any time here:
 
@@ -86,12 +86,15 @@ it for this passage and the next ones at the level.
 ### The piano buttons
 
 So the hands needn't leave the keys between runs, the C♯ above middle C presses the screen's main button and the D♯ beside it
-presses Again: C♯ for a new passage, and after it the next one; D♯ to read it again. The drills' main buttons answer to C♯ too
-(Start, Next try, Run, Another set). They're in the middle of the keyboard, a short reach from where the hands are, so they
-only work while the screen isn't listening to the keys: not while a run counts in or plays, not in the look (where you can tap
-the rhythm or try a bar, so the look's Start is a tap), not in Endless notes (where Stop is a tap), and not while you play a
-scale at your own speed. A key pressed in a technique run's count-in, or just after its last note, isn't part of the run. While
-the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They can be turned off in Settings.
+presses Again: C♯ for a new passage, C♯ again to start it without waiting out the look, and after it the next one; D♯ to read
+it again. Any screen's primary button (the orange one, or Play) answers to C♯: the drills' Start, Next try, Run and Another
+set, Today's next step. They're in the middle of the keyboard, a short reach from where the hands are, so only a deliberate
+press counts: the key on its own, with no other key in the moment before it. A C♯ played in a passage you're trying in the
+look, or among the notes of a scale, presses nothing. While a run counts in or plays, every key is music; Endless notes' Stop
+is a tap; and the buttons that mustn't be pressed by accident never answer to the piano: clearing your progress, removing a
+piece, the Metronome you play along with, the timing calibration's Start. A key pressed in a technique run's count-in, or just
+after its last note, isn't part of the run. While the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They
+can be turned off in Settings.
 
 ### Playing to a tempo
 
@@ -183,8 +186,8 @@ asking. Nothing leaves the tablet unless you back it up.
 
 ## The sight-reading flow
 
-1. **Look.** The passage appears with thirty seconds on a bar at the top. You can tap its rhythm on any key or try a bar; nothing
-   is scored.
+1. **Look.** The passage appears with thirty seconds on a bar at the top (10, 20 or 30 in Settings, or no limit). You can tap
+   its rhythm on any key or try a bar; nothing is scored. Start, or the piano's C♯4, begins the count-in whenever you're ready.
 2. **Count in.** One bar of clicks at the passage's tempo (two, in Settings), seen as well as heard: a cell for each beat
    lights on its click, and the cursor waits at the first note, pulsing with it. The timed drills (rhythm, scales, arpeggios,
    finger independence, listen and play back) show the same cells.
@@ -248,7 +251,7 @@ success.
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
 | Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
 | Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
-| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
+| Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key. No line moves across the music while you tap: keeping the pulse is the point. Afterwards each note shows where its tap landed against the click, green on the beat, amber more than 10% of a beat off with an arrow, a ring wherever the tap was 5% or more off, outlined red if missed; and each bar is summed up: one that ran early or late as a whole and by how much, the notes in it well off, where you came back on the beat | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
 | Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position (C to G from middle C), then just out of it, then leaps of a sixth to a ninth either way, then anywhere an octave either side |
 | Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys; last, improvise an answer phrase (not scored) |
 | Scales | A named scale with its fingering, octaves and tempo; play it in sixteenths to the click | Evenness of the gaps between notes, a slip at each thumb crossing and octave, evenness of touch, legato overlap, and the hands' sync | The exams' order of keys and octaves; the tempo rises in small steps from a comfortable speed |

@@ -51,7 +51,7 @@
         }
         @if (ShowStart)
         {
-            <button type="button" class="mu-btn mu-primary" data-piano="@(PianoKey ? "go" : null)" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+            <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
         }
     }
 </section>
@@ -81,9 +81,6 @@
 
     /// <summary>Whether the bar has Start: a screen that starts its runs itself (Sight-read, after its look) can leave it off.</summary>
     [Parameter] public bool ShowStart { get; set; } = true;
-
-    /// <summary>Whether the piano's go key presses Start: not while the screen listens to the keys before a run (the look).</summary>
-    [Parameter] public bool PianoKey { get; set; } = true;
 
     /// <summary>What Start does on a screen that starts its runs itself with the music it's showing; otherwise Start runs Music.</summary>
     [Parameter] public EventCallback OnStart { get; set; }

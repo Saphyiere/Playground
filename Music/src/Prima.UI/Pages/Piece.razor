@@ -41,7 +41,7 @@ else
                     <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
                     @if (view == View.Scroll)
                     {
-                        <button type="button" class="mu-btn mu-primary" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
                     }
                 </div>
             </section>
@@ -162,7 +162,7 @@ else
                 <div class="control-row">
                     @if (removing)
                     {
-                        <button type="button" class="mu-btn mu-primary" @onclick="Remove">Remove it</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
                         <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
                     }
                     else

@@ -50,6 +50,9 @@ public sealed class PrimaSettings
 
     public int CountInBars { get; set; } = 1;
 
+    /// <summary>How long Sight-read's look lasts before the count-in starts by itself, in seconds; 0 waits for Start.</summary>
+    public int LookSeconds { get; set; } = 30;
+
     /// <summary>Letter names after a wrong answer in drills.</summary>
     public bool LetterNames { get; set; } = true;
 

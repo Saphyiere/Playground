@@ -40,7 +40,8 @@
     }
     else
     {
-        <button type="button" class="mu-btn mu-primary" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
+        @* Not the piano's go key: the key you tap with may be that C♯. *@
+        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
         @if (result is not null)
         {
             <button type="button" class="mu-btn" @onclick="Save">Keep this offset</button>

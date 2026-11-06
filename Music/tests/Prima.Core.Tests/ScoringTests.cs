@@ -493,3 +493,24 @@ public class LiveJudgeTests
         Assert.Equal(LiveKind.Right, judge.Play(60, At(1) + 200_000_000)!.Kind);
     }
 }
+
+public class RhythmByBarTests
+{
+    [Fact]
+    public void EachBarSaysWhereItsTapsLandedAndWhatWasMissed()
+    {
+        // A beat of a second: bar 1 on the beat, bar 2 a fifth of a beat late, bar 3 one tapped early and one missed, bar 4 on the
+        // beat on average but with one note late and one early.
+        NoteResult Tapped(string id, double ms) => new(id, 0, 0, Outcome.Right, ms, ms / 10, Grading.BandOf(ms / 10));
+        NoteResult[] notes = [Tapped("a", 10), Tapped("b", -10), Tapped("c", 180), Tapped("d", 220), Tapped("e", -150), new("f", 0, 0, Outcome.Missed), Tapped("g", 150), Tapped("h", -140)];
+
+        var bars = RhythmScorer.ByBar(notes, [1, 1, 2, 2, 3, 3, 4, 4], 1e9);
+
+        Assert.Equal([1, 2, 3, 4], bars.Select(b => b.Bar));
+        Assert.Equal((0.0, 0, 0, false), (Math.Round(bars[0].Percent!.Value, 6), bars[0].Early, bars[0].Late, bars[0].Off));
+        Assert.Equal((20.0, 2, true), (Math.Round(bars[1].Percent!.Value, 6), bars[1].Late, bars[1].Off));
+        Assert.Equal((-15.0, 1, 1), (Math.Round(bars[2].Percent!.Value, 6), bars[2].Early, bars[2].Missed));
+        Assert.Equal((1, 1, true), (bars[3].Early, bars[3].Late, bars[3].Off));
+        Assert.Null(RhythmScorer.ByBar([new NoteResult("x", 0, 0, Outcome.Missed)], [5], 1e9)[0].Percent);
+    }
+}

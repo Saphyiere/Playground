@@ -7,10 +7,11 @@
 
 @*
     The piano's two buttons, so the hands needn't leave the keys between runs: the C♯ above middle C presses the screen's button
-    marked data-piano="go" (its main one: Start, Next, Run…), the D♯ beside it the one marked data-piano="again". They're in the
-    middle, a short reach from where the hands are. Only between runs: while one counts in or plays every key is music, and a
-    button that shows while the screen is listening to the keys (Endless notes' Stop, the look's Start) isn't marked. While the
-    piano is plugged in, the marked buttons say which key presses them.
+    marked data-piano="go", or else its primary button (the orange one, or Play), and the D♯ beside it the one marked
+    data-piano="again". They're in the middle, a short reach from where the hands are, so only a deliberate press counts: the key
+    on its own, with no other key in the moment before it, not a C♯ played in a passage. While a run counts in or plays every
+    key is music, and a button that mustn't be pressed by accident (clearing your progress, removing a piece, stopping the music
+    you're playing along with) is marked data-piano="off". While the piano is plugged in, the buttons say which key presses them.
 *@
 
 @code {
@@ -18,6 +19,7 @@
     public const int Go = 61, Again = 63;
 
     private IJSObjectReference? module;
+    private long otherKeyNs;
 
     protected override void OnInitialized()
     {
@@ -42,7 +44,13 @@
 
     private void OnReceived(MidiEvent e)
     {
-        if (e.Kind != MidiKind.NoteOn || e.Note is not (Go or Again) || !Settings.PianoButtons || Registry.Current?.Phase is Phase.CountIn or Phase.Playing) return;
+        if (e.Kind != MidiKind.NoteOn) return;
+        if (e.Note is not (Go or Again))
+        {
+            otherKeyNs = e.TimeNs;
+            return;
+        }
+        if (e.TimeNs - otherKeyNs < 400_000_000 || !Settings.PianoButtons || Registry.Current?.Phase is Phase.CountIn or Phase.Playing) return;
 
         _ = InvokeAsync(async () =>
         {

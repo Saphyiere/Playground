@@ -45,6 +45,14 @@
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.CountInBars == 2)" @onclick="() => Save(() => Options.CountInBars = 2)"><span class="mu-led"></span>Two bars</button>
     </div>
     <div class="control-row">
+        <span class="control-label">Look before playing</span>
+        @foreach (var (seconds, label) in LookChoices)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.LookSeconds == seconds)" @onclick="() => Save(() => Options.LookSeconds = seconds)"><span class="mu-led"></span>@label</button>
+        }
+    </div>
+    <p class="section-note">How long Sight-read shows a passage before the count-in starts by itself. Start (or the C♯ above middle C) begins it sooner, whenever you're ready.</p>
+    <div class="control-row">
         <span class="control-label">After a wrong note</span>
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = true)"><span class="mu-led"></span>Say its name</button>
         <button type="button" class="mu-toggle" aria-pressed="@On(!Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = false)"><span class="mu-led"></span>Only show it</button>
@@ -82,7 +90,7 @@
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = true)"><span class="mu-led"></span>On</button>
         <button type="button" class="mu-toggle" aria-pressed="@On(!Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = false)"><span class="mu-led"></span>Off</button>
     </div>
-    <p class="section-note">Between runs, the C♯ above middle C presses the screen's main button (Start, Next, Run, Another set) and the D♯ beside it presses Again, so you needn't reach for the tablet. The buttons they press are marked C♯4 and D♯4. While a run plays, every key is music.</p>
+    <p class="section-note">Between runs, the C♯ above middle C presses the screen's main button (Start, Next, Run, Another set, the look's Start) and the D♯ beside it presses Again, so you needn't reach for the tablet. Press the key on its own: one played among other notes, in a passage you're trying, doesn't count. The buttons they press are marked C♯4 and D♯4. While a run plays, every key is music.</p>
     <div class="control-row">
         <span class="control-label">Timing</span>
         <span class="control-value">@(Options.CalibratedOn is { } day ? $"{Options.TimingOffsetMs:+0;−0;0} ms, from {day.ToString("d MMMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
@@ -136,7 +144,7 @@
         <button type="button" class="mu-btn" @onclick="Restore">Restore a backup</button>
         @if (confirming)
         {
-            <button type="button" class="mu-btn mu-primary" @onclick="StartOver">Clear my progress</button>
+            <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="StartOver">Clear my progress</button>
             <button type="button" class="mu-btn" @onclick="() => confirming = false">Keep it</button>
         }
         else
@@ -198,6 +206,8 @@
     }
 
     private static readonly string[] Fonts = ["Leipzig", "Bravura", "Leland"];
+
+    private static readonly (int Seconds, string Label)[] LookChoices = [(10, "10 s"), (20, "20 s"), (30, "30 s"), (0, "Until I start")];
 
     private static readonly (string Value, string Label)[] ClefChoices = [("both", "Both clefs"), ("treble", "Treble"), ("bass", "Bass")];
 

@@ -51,6 +51,10 @@
         {
             <li>@result.Missed missed, @result.Extra extra.</li>
         }
+        @foreach (var line in BarWords())
+        {
+            <li>@line</li>
+        }
         @if (tryIndex >= Tries)
         {
             <li>@SetWords()</li>
@@ -68,6 +72,7 @@
     private string mei = "";
     private PlaySession? session;
     private RhythmResult? result;
+    private IReadOnlyList<BarTiming> bars = [];
     private Sheet? sheet;
     private readonly List<double> accuracies = [];
     private RhythmState? before;
@@ -123,28 +128,31 @@
         var expected = score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
         var beats = score.Bars.Count * meter.BarTicks / (double)meter.BeatTicks;
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
+        // No line moves across the music: keeping the pulse is the point. The count-in shows in the bar.
         session.Start(new ClickPlan(Tempo, meter.Beats, 1, state.StageForTry(tryIndex)), beats, expected);
-        _ = Cursor(meter);
-    }
-
-    private async Task Cursor(Meter meter)
-    {
-        await Task.Delay(50);
-        if (sheet is not null && session is not null) await sheet.StartCursor(session.MsUntil(0), 60_000.0 / Tempo * Ticks.Quarter / meter.BeatTicks, 0, 60_000.0 / Tempo, session.MsUntil(0));
     }
 
     private async Task Scored()
     {
         if (session is null || score is null || session.Phase != Phase.Done) return;
 
-        await (sheet?.StopCursor() ?? Task.CompletedTask);
         var meter = score.Meter;
         var expected = score.Expected();
         var beatNs = 60e9 / Tempo;
         var onsets = expected.Select(e => session.TimeAt(e.Tick / (double)meter.BeatTicks)).ToList();
         var taps = session.Played.Select(p => p.OnNs).ToList();
         result = RhythmScorer.Score(onsets, [.. expected.Select(e => e.Id)], meter.Beats, taps, beatNs, beatNs * meter.Beats, Settings.TimingOffsetMs);
-        await (sheet?.ShowMarks(result.Notes.Select(n => n.Outcome != Outcome.Right ? new SheetMark(n.Id, "missed") : n.Band == Band.Off ? new SheetMark(n.Id, n.ErrorPercent < 0 ? "early" : "late") : null).OfType<SheetMark>()) ?? Task.CompletedTask);
+        // Every note marked by where its tap landed against the click: green within a tenth of a beat, amber with an arrow further
+        // out, a ring where the tap landed whenever it was a twentieth of a beat or more off, outlined red when missed.
+        await (sheet?.ShowMarks(result.Notes.Zip(expected).Select(p =>
+        {
+            if (p.First.Outcome != Outcome.Right || p.First.ErrorMs is not { } ms) return new SheetMark(p.First.Id, "missed");
+            var percent = ms / (beatNs / 1e6) * 100;
+            var kind = Math.Abs(percent) <= Grading.AudiblePercent ? "right" : percent < 0 ? "early" : "late";
+            var landed = p.Second.Tick / (double)Ticks.Quarter + percent / 100 * meter.BeatTicks / Ticks.Quarter;
+            return new SheetMark(p.First.Id, kind, Quarter: Math.Abs(percent) >= Grading.InTimePercent ? landed : null);
+        })) ?? Task.CompletedTask);
+        bars = RhythmScorer.ByBar(result.Notes, [.. expected.Select(e => e.Bar)], beatNs);
         accuracies.Add(result.Accuracy);
         var measures = new { accuracy = result.Accuracy, lean = result.LeanPercent, steadiness = result.SteadinessPercent, drift = result.DriftPercent, missed = result.Missed, extra = result.Extra, stage = state.StageForTry(tryIndex).ToString() };
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "rhythm", state.StageForTry(tryIndex).ToString(), null, state.Level, Tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Accuracy, result.Missed == 0 && result.Extra == 0, null));
@@ -159,6 +167,24 @@
             started = DateTime.Now;
         }
         StateHasChanged();
+    }
+
+    // Bar by bar, against the click: one that ran early or late as a whole, by how much; the notes in it well off either way; where
+    // you came back on the beat; the missed notes.
+    private IEnumerable<string> BarWords()
+    {
+        var wasOff = false;
+        foreach (var bar in bars)
+        {
+            var parts = new List<string>();
+            if (bar.Percent is > Grading.AudiblePercent or < -Grading.AudiblePercent) parts.Add($"ran {(bar.Percent > 0 ? "late" : "early")}, about {Math.Abs(bar.Percent.Value):0}% of a beat {(bar.Percent > 0 ? "behind" : "ahead of")} the click");
+            else if (bar.Early + bar.Late > 0) parts.Add(string.Join(" and ", new[] { bar.Late > 0 ? $"{bar.Late} late" : null, bar.Early > 0 ? $"{bar.Early} early" : null }.OfType<string>()));
+            else if (wasOff && bar.Percent is not null) parts.Add("back on the beat");
+            if (bar.Missed > 0) parts.Add($"{bar.Missed} missed");
+            if (parts.Count > 0) yield return $"Bar {bar.Bar}: {string.Join("; ", parts)}.";
+            wasOff = bar.Off;
+        }
+        if (bars.Count > 0 && !bars.Any(b => b.Off || b.Missed > 0)) yield return "Every note landed on the beat.";
     }
 
     private string SetWords() => before is null ? "" : state.Level > before.Level ? $"On to rhythm level {state.Level}." : state.Level < before.Level ? $"Back to level {state.Level} for now." : state.Stage != before.Stage ? $"Next set starts with the click {StageName(state.Stage).ToLowerInvariant()}." : "Same again next time.";
