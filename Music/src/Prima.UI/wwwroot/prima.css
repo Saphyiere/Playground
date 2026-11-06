@@ -346,13 +346,17 @@ body {
 }
 
 /* Play: the one big action. Studio's orange key; Vinyl's mustard disc. */
+/* The screen's play key: the accent, as tall as any button, a little wider, its ▶ and the piano's key beside it. */
 .mu-play {
-    width: 76px;
-    height: 76px;
+    min-width: 96px;
+    height: 48px;
+    padding: 0 22px;
+    box-sizing: border-box;
     flex: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     border: 0;
     border-radius: var(--mu-r-control);
     background: var(--accent);
@@ -372,6 +376,11 @@ body {
 
 [data-theme="vinyl"] .mu-play:active {
     transform: scale(0.97);
+}
+
+.mu-play svg {
+    width: 22px;
+    height: 22px;
 }
 
 /* The piano's buttons: while it's plugged in, a button the C♯ or D♯ above middle C presses wears the key's name, and a press from the
@@ -399,16 +408,6 @@ body {
     content: "D♯4";
 }
 
-.mu-play {
-    position: relative;
-}
-
-[data-piano-keys] .mu-play::after {
-    position: absolute;
-    right: 6px;
-    bottom: 6px;
-}
-
 /* Inside Vinyl's round disc. */
 [data-theme="vinyl"][data-piano-keys] .mu-play::after {
     right: 50%;
@@ -432,15 +431,17 @@ body {
 }
 
 /* Toggle: a latching key with its LED (Studio); an outlined square with a dot (Vinyl). */
+/* A toggle: its lamp and its words side by side on one line, as tall as a button. */
 .mu-toggle {
     min-width: 104px;
-    height: 64px;
-    padding: 10px 12px;
+    height: 48px;
+    padding: 0 14px;
     box-sizing: border-box;
     display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
     border: 1.5px solid var(--button-edge);
     border-radius: var(--mu-r-control);
     background: var(--button);
@@ -456,12 +457,7 @@ body {
 }
 
 [data-theme="vinyl"] .mu-toggle {
-    height: 48px;
     padding: 0 16px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
     border-color: var(--ink-faint);
     color: var(--ink-muted);
     font-size: 13px;
@@ -2370,7 +2366,14 @@ a.mu-btn {
     gap: 10px;
 }
 
+/* The filters start as wide as the widest of them and share their line alike (in portrait three and two); the search keeps
+   its size, beside them or under them. */
+.control-row.library-filters > .mu-toggle {
+    flex-basis: 184px;
+}
+
 .library-filters .text-field {
+    flex-grow: 0;
     margin-left: auto;
 }
 
@@ -3010,15 +3013,10 @@ html[data-full] .piece .summary {
 }
 
 /* A row of choices, tidy: its toggles share the row alike (a number as wide as a word beside it), up to a size, never narrower
-   than their words; and in Studio, where a toggle is a tall key with its lamp, the − and + and any key beside them as tall. */
+   than their words. */
 .control-row > .mu-toggle {
     flex: 1 1 64px;
     min-width: max-content;
-    max-width: 168px;
-}
-
-[data-theme="studio"] .control-row:has(> .mu-toggle) .mu-btn {
-    min-width: 64px;
-    min-height: 64px;
+    max-width: 192px;
 }
 
