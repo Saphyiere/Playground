@@ -243,10 +243,13 @@ internal sealed class Progress(Stream inner, long? total, int everyMb, Func<long
     }
 }
 
-/// <summary>Comma-separated values with quoted fields (RFC 4180): quotes inside a field are doubled, and a field may hold newlines.</summary>
+/// <summary>
+/// Comma-separated values with quoted fields (RFC 4180): quotes inside a field are doubled, and a field may hold newlines. Tab-separated
+/// ones read the same way with a tab for the delimiter.
+/// </summary>
 internal static class Csv
 {
-    public static IEnumerable<string[]> Read(TextReader reader)
+    public static IEnumerable<string[]> Read(TextReader reader, char delimiter = ',')
     {
         var fields = new List<string>();
         var field = new StringBuilder();
@@ -265,14 +268,17 @@ internal static class Csv
                 continue;
             }
 
+            if (c == delimiter)
+            {
+                fields.Add(field.ToString());
+                field.Clear();
+                continue;
+            }
+
             switch (c)
             {
                 case '"':
                     quoted = true;
-                    break;
-                case ',':
-                    fields.Add(field.ToString());
-                    field.Clear();
                     break;
                 case '\r':
                     break;

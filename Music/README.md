@@ -54,8 +54,28 @@ files, then Mutopia's PDFs and MIDI, then half a minute preparing. `-- prepare` 
 to the grader, say). Downloads are kept in `artifacts/library-cache`, so a second run only fetches what's missing;
 `-- pdmx` or `-- mutopia` runs one source.
 
-Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC and PDF. For MIDI, MuseScore files or Humdrum, export
-MusicXML on the PC first.
+### More music, for your tablet only
+
+The tool also builds a **local collection**: about 1,200 more pieces whose terms allow personal, non-commercial use (CC BY-NC-SA
+4.0) but not a place in this public repo, so they're never committed. They're Craig Sapp's Humdrum editions (Mozart's, Haydn's
+and Scarlatti's sonatas, Joplin, Bach's 370 chorales) and the DCML's research corpora as MuseScore files (Beethoven's sonatas,
+Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Liszt, the Bach
+sons and more), converted with webmscore. [docs/library.md](docs/library.md) has the list and what's left out. It needs Node.js
+with npm, and git (without git it downloads each repository as a zip):
+
+```bash
+dotnet run --project Music/tools/Prima.Library -- local
+```
+
+It clones the repositories into `artifacts/library-cache`, installs Verovio's build that reads Humdrum and webmscore from npm
+there, converts and prepares everything into `artifacts/library-local`, and packs it as `artifacts/prima-collection.zip`
+(about 26 MB). A first run takes about 7 minutes. Copy that file to the tablet (over USB, or through a cloud drive) and open it
+in the Library with **Import a file**; it's stored in the background, a minute or so. `-- local humdrum` or `-- local dcml`
+runs one source again, `-- local prepare` only prepares again.
+
+Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC, MIDI (written out as notation: best from a file
+exported from notation software), PDF, and the local collection's zip. For MuseScore files or Humdrum, export MusicXML on the
+PC first.
 
 ## Putting it on the tablet
 
@@ -129,4 +149,5 @@ The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SI
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
-Mutopia Project.
+Mutopia Project. The local collection's pieces are CC BY-NC-SA 4.0 and credited the same way. The Library tool fetches webmscore
+(GPL) and Verovio from npm to convert them; neither goes into the app beyond the Verovio it already has.

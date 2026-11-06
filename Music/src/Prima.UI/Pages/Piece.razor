@@ -232,7 +232,7 @@ else
                     <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture) from @piece.File.</li>
                 }
             </ul>
-            @if (piece.Imported)
+            @if (piece.Origin != "bundle")
             {
                 <div class="control-row">
                     @if (removing)
@@ -376,7 +376,7 @@ else
     private async Task<byte[]?> ReadFile(string? file)
     {
         if (file is null) return null;
-        if (piece!.Imported)
+        if (piece!.Origin != "bundle")
         {
             var path = Path.Combine(Store.FilesPath, file);
             return File.Exists(path) ? await File.ReadAllBytesAsync(path) : null;
@@ -874,7 +874,11 @@ else
 
     private async Task Remove()
     {
-        if (piece is { Imported: true, IsPdf: true, File: { } file }) File.Delete(Path.Combine(Store.FilesPath, file));
+        // A PDF that isn't the bundle's keeps its file, and maybe its MIDI, beside the imports.
+        if (piece is { IsPdf: true } && piece.Origin != "bundle")
+        {
+            foreach (var file in new[] { piece.File, piece.Midi }.OfType<string>()) File.Delete(Path.Combine(Store.FilesPath, file));
+        }
         await Store.DeletePieceAsync(Id);
         Nav.NavigateTo("library");
     }

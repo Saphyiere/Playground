@@ -6,6 +6,10 @@
 <PageHead Title="Credits" Kicker="Where the music comes from"><a class="mu-btn" href="library">Library</a></PageHead>
 
 <p class="page-note">The bundled pieces are public domain or openly licensed, and each is credited as its licence asks. Engravings from MuseScore users come through PDMX (Long et al., 2024, CC BY 4.0); the PDFs and their MIDI come from the Mutopia Project. Prima engraves the MusicXML itself with Verovio (LGPL), and draws the PDFs with pdf.js (Apache 2.0).</p>
+@if (pieces.Any(p => p.Origin == "collection"))
+{
+    <p class="page-note">The local collection, imported from the Library tool's file, is for this tablet only: Craig Sapp's Humdrum editions and the DCML's annotated corpora (EPFL), both CC BY-NC-SA 4.0, non-commercial and shared alike.</p>
+}
 
 @foreach (var source in pieces.Where(p => !p.Imported).GroupBy(p => p.Source ?? "Other").OrderBy(g => g.Key))
 {

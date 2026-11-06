@@ -11,35 +11,45 @@ namespace Prima.Library;
 /// Prepares the bundle so the app has nothing to do but store it: Verovio (the app's own copy, run in Node) engraves each
 /// MusicXML piece as MEI, a collection engraved as one score is split into its pieces, and each gets its bars numbered and its
 /// excerpts cut and graded. The MEI goes into the bundle gzipped, beside the MusicXML it was made from. Done on the tablet, this
-/// took minutes and froze the screen.
+/// took minutes and froze the screen. The local collection's Humdrum pieces (.krn) are engraved the same way by Verovio's build
+/// that reads Humdrum, from the npm packages in <c>modules</c>.
 /// </summary>
 internal static class Prepare
 {
-    public static async Task<List<BundledPiece>> Run(IReadOnlyList<BundledPiece> pieces, string root, string output)
+    public static async Task<List<BundledPiece>> Run(IReadOnlyList<BundledPiece> pieces, string root, string output, string? modules = null)
     {
         var engraved = Directory.CreateTempSubdirectory("prima-mei");
         try
         {
-            Console.WriteLine($"Preparing {pieces.Count(p => p.Format == "mxl")} MusicXML pieces: Verovio engraves them (about a minute)…");
+            var tools = Path.Combine(root, "Music", "tools", "Prima.Library");
             var toolkit = Path.Combine(root, "Music", "src", "Prima.UI", "wwwroot", "verovio", "verovio-toolkit-wasm.js");
-            var script = Path.Combine(root, "Music", "tools", "Prima.Library", "to-mei.cjs");
-            Process node;
-            try
+            var folder = Path.Combine(output, "pieces");
+            (string Kind, string Format, string[] Arguments)[] runs =
+            [
+                ("MusicXML", "mxl", [Path.Combine(tools, "to-mei.cjs"), toolkit, folder, engraved.FullName]),
+                ("Humdrum", "krn", [Path.Combine(tools, "kern-to-mei.mjs"), modules ?? "", folder, engraved.FullName]),
+            ];
+            foreach (var (kind, format, arguments) in runs.Where(r => pieces.Any(p => p.Format == r.Format)))
             {
-                node = Process.Start(new ProcessStartInfo("node", [script, toolkit, Path.Combine(output, "pieces"), engraved.FullName]) { RedirectStandardError = true })!;
+                Console.WriteLine($"Preparing {pieces.Count(p => p.Format == format)} {kind} pieces: Verovio engraves them (a minute or two)…");
+                Process node;
+                try
+                {
+                    node = Process.Start(new ProcessStartInfo("node", arguments) { RedirectStandardError = true })!;
+                }
+                catch (Win32Exception)
+                {
+                    throw new InvalidOperationException("Preparing the music needs Node.js (nodejs.org), which runs Verovio. Install it, then run this again with: -- prepare");
+                }
+                var errors = node.StandardError.ReadToEndAsync();
+                await node.WaitForExitAsync();
+                if (node.ExitCode != 0) throw new InvalidOperationException($"Verovio stopped: {await errors}");
             }
-            catch (Win32Exception)
-            {
-                throw new InvalidOperationException("Preparing the music needs Node.js (nodejs.org), which runs Verovio. Install it, then run this again with: -- prepare");
-            }
-            var errors = node.StandardError.ReadToEndAsync();
-            await node.WaitForExitAsync();
-            if (node.ExitCode != 0) throw new InvalidOperationException($"Verovio stopped: {await errors}");
 
             var prepared = new List<BundledPiece>();
             foreach (var piece in pieces)
             {
-                if (piece.Format != "mxl")
+                if (piece.Format is not ("mxl" or "krn"))
                 {
                     prepared.Add(piece);
                     continue;

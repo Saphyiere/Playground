@@ -615,6 +615,45 @@ reads.
 The credits screen shows, for each piece: title, composer, encoder or project, source link, licence name and link, and
 "converted to MusicXML" where that's true.
 
+### The local collection (built, November 2026)
+
+The repo is public, so what's in `Music/library` is shared on GitHub, and only Tier A goes there: the 237 pieces above, kept
+as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
+instead: the Library tool builds it on the owner's PC (`-- local`) into `artifacts/library-local`, which git ignores, and packs
+it as `artifacts/prima-collection.zip` for the tablet's **Import a file**. Nothing in it is committed.
+
+| Source | What | Licence (checked as it's read) | Pieces | Left out, and why |
+|---|---|---|---|---|
+| Sapp, Humdrum ([craigsapp](https://github.com/craigsapp)) | Mozart's sonatas (Alte Mozart-Ausgabe), Haydn's (Universal Edition, 1901), Scarlatti's (Longo), Joplin, Bach's 370 chorales | CC BY-NC-SA 4.0, in each repository's LICENSE.txt | 576 | His Beethoven sonatas, Chopin mazurkas and preludes and Hummel preludes: no licence at all ("Copyright 2008 by Craig Stuart Sapp"), so all rights reserved |
+| DCML ([DCMLab](https://github.com/DCMLab)), MuseScore 3 | Beethoven's sonatas, Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Dvořák's Silhouettes, Debussy (Préludes, Images, Estampes, Children's Corner, Suite bergamasque, Pour le piano, single pieces), Liszt's Années, Medtner's Tales, Ravel's Jeux d'eau and Miroirs, Couperin, Handel HWV 430, C. P. E., J. C. and W. F. Bach, Scarlatti | CC BY-NC-SA 4.0, in each README | 625 | Rachmaninoff's Corelli Variations (1931, in US copyright until 2028); Debussy's pieces first published after 1930 (Images oubliées 1977, Étude retrouvée 1980, Les soirs illuminés 2003, Danse bohémienne 1932, Page d'album 1933); `bach_solo` (violin and cello); the Mozart sonatas (Sapp's edition has them); 6 Scarlatti sonatas also in Sapp's |
+
+- **Humdrum** is engraved by Verovio's build that reads it (`verovio-module-hum.mjs` from the npm package of the app's
+  version, 6.3.0); the app's own copy leaves Humdrum out. The MEI it makes is what the app reads. A chorale is set on the grand
+  staff with Verovio's `satb2gs` filter (soprano and alto above, tenor and bass below).
+- **MuseScore files** are converted to MusicXML with webmscore 1.2.1 (MuseScore's engine for the web, GPL, used only by the
+  tool), one file a run, since after some files its memory breaks and every later file fails; under Node 22 it needs Node's own
+  `navigator` made writable and `fetch` hidden while it loads. The DCML's harmony labels are taken out first (they'd print as
+  chord symbols), and so are the instrument's names (they'd print as "Piano" and "Pno.").
+- **Size and time**: about 1,200 pieces, 26 MB packed; a first run about 7 minutes. Stored on the tablet in about a minute
+  (20 seconds in the preview); the levels run 7–12, most of each piece reading at 7–9.
+- The titles come from each corpus's metadata, and Debussy's from a list by Lesure number, since the DCML's metadata for him is
+  mostly dedications and engravers' headings. Grieg's Norwegian titles come without their diacritics.
+
+**Sites that are free to read but not to take in bulk.** Their files go on the tablet by hand, one at a time, and never into
+the repo:
+
+- **IMSLP** ([imslp.org](https://imslp.org)): mostly scans of public-domain editions, each file with its own status (some
+  public domain only in Canada). Its robots.txt disallows `/wiki/File:`, `/images/`, `/imglnks/` and `/wiki/Special:` for all
+  robots, and file links send a script to a bot check (`friendlyredirect.html`). A scan imports as a PDF.
+- **SheetMusic-Free** ([sheetmusic-free.com](https://sheetmusic-free.com)): arrangements of current pop songs. Its terms grant
+  "Print copies for personal use" and "View the sheet music on your personal devices", and forbid "Redistribute any downloaded
+  content", "Edit, modify, or alter the sheet music" and "Use automated systems to access or download content"; its robots.txt
+  disallows its download links.
+- **Ichigo's Sheet Music** ([ichigos.com](https://ichigos.com/sheets/)): fan transcriptions of game and anime music, PDF and
+  MIDI. Its [legal page](https://ichigos.com/legal) allows non-commercial use ("Can I use printed sheet music from this site for
+  personal use?: Yes"), says its files "may not be reposted on other sites", and its FAQ asks anyone "taking loads of midis" to
+  email first. Its robots.txt disallows only the forums. Its MIDI files now import as notation.
+
 ### Import
 
 - **MusicXML (`.musicxml`, `.mxl`), MEI and `**kern`:** shown by Verovio directly, then graded and excerpted like the bundle.
@@ -631,9 +670,12 @@ The credits screen shows, for each piece: title, composer, encoder or project, s
   bars to the page, so the follower can follow a PDF without OMR. This is an idea and untested. It holds only when the MIDI
   is score MIDI with the same bars and repeats.
 - **MuseScore (`.mscz`):** convert to MusicXML in MuseScore on the PC. webmscore is too heavy, and GPL.
-- **MIDI files:** not turned into notation on the tablet. Notation from MIDI needs quantising, hand splits and spelling, which
-  even research systems get visibly wrong. Import MIDI as MusicXML through MuseScore on the PC, or use it only alongside a
-  PDF as above.
+- **MIDI files** (built November 2026): written out as notation by the Core (`MidiNotation`), which suits score MIDI, the
+  kind notation software exports: hands from the tracks (or middle C), bars from the time signatures, the key from the
+  signature or the notes (Krumhansl and Kessler's profiles), each beat snapped to sixteenths, thirty-seconds or triplets by
+  which fits best, held notes as a second voice, ties across beats and barlines, and a file that starts late (LilyPond's,
+  after a grace note) moved back onto the beat. All 104 Mutopia MIDI files in the bundle convert, and their notation sounds
+  the file's notes exactly. Performance MIDI comes out ragged, and a pickup comes out as a full bar.
 
 ### The full-page view
 

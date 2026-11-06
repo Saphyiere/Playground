@@ -5,12 +5,30 @@ namespace Prima.Core.Library;
 /// <summary>A note in a MIDI file: its key, when it starts and ends in seconds, and how hard it's struck.</summary>
 public sealed record FileNote(int Midi, double Start, double End, int Velocity);
 
+/// <summary>A note as the file has it, for notation: its track and channel, and when it starts and ends in the file's ticks.</summary>
+public sealed record TickNote(int Track, int Channel, int Midi, long On, long Off, int Velocity);
+
 /// <summary>
 /// A Standard MIDI File, read for what a PDF piece needs from the MIDI made with it: the notes in seconds (to hear the piece on the
-/// piano), the first tempo and time signature (for the scroll's defaults), and how many bars there are.
+/// piano), the first tempo and time signature (for the scroll's defaults), and how many bars there are. For notation it also keeps
+/// the notes in ticks with their tracks, the time and key signatures, and the tracks' names.
 /// </summary>
 public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int BeatsPerBar, int BeatUnit, double Seconds, int Bars)
 {
+    /// <summary>Ticks to a quarter note.</summary>
+    public int Division { get; init; } = 480;
+
+    public IReadOnlyList<TickNote> Ticked { get; init; } = [];
+
+    /// <summary>Each time signature and the tick it starts at.</summary>
+    public IReadOnlyList<(long Tick, int Count, int Unit)> Meters { get; init; } = [];
+
+    /// <summary>Each key signature (sharps positive, flats negative) and the tick it starts at.</summary>
+    public IReadOnlyList<(long Tick, int Fifths, bool Minor)> Keys { get; init; } = [];
+
+    /// <summary>The tracks' names, by track, where they have them: the first track's is the file's own, often the piece's title.</summary>
+    public IReadOnlyList<(int Track, string Name)> Names { get; init; } = [];
+
     public static MidiFile Read(ReadOnlySpan<byte> data)
     {
         if (data.Length < 14 || !data[..4].SequenceEqual("MThd"u8)) throw new FormatException("Not a MIDI file.");
@@ -21,9 +39,12 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
         // Every event from every track, by tick; then the tempo map turns ticks into seconds.
         var tempos = new List<(long Tick, int MicrosPerQuarter)>();
         var meters = new List<(long Tick, int Count, int Unit)>();
-        var ons = new Dictionary<(int Channel, int Key), Stack<(long Tick, int Velocity)>>();
-        var notes = new List<(int Key, long On, long Off, int Velocity)>();
+        var keys = new List<(long Tick, int Fifths, bool Minor)>();
+        var names = new List<(int Track, string Name)>();
+        var ons = new Dictionary<(int Track, int Channel, int Key), Stack<(long Tick, int Velocity)>>();
+        var notes = new List<TickNote>();
         var lastTick = 0L;
+        var trackNumber = 0;
 
         var at = 8 + (int)BinaryPrimitives.ReadUInt32BigEndian(data[4..8]);
         while (at + 8 <= data.Length)
@@ -51,6 +72,8 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
                         var meta = track.Slice(i, Math.Min(size, track.Length - i));
                         if (type == 0x51 && size == 3) tempos.Add((tick, meta[0] << 16 | meta[1] << 8 | meta[2]));
                         else if (type == 0x58 && size >= 2) meters.Add((tick, meta[0], 1 << meta[1]));
+                        else if (type == 0x59 && size == 2) keys.Add((tick, (sbyte)meta[0], meta[1] == 1));
+                        else if (type == 0x03 && size > 0) names.Add((trackNumber, System.Text.Encoding.Latin1.GetString(meta).Trim()));
                         i += size;
                         status = 0;
                     }
@@ -65,19 +88,20 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
                         var channel = status & 0x0F;
                         var d1 = track[i++];
                         var d2 = kind is 0xC0 or 0xD0 ? (byte)0 : track[i++];
-                        if (kind == 0x90 && d2 > 0) Push(ons, (channel, d1), (tick, d2));
+                        if (kind == 0x90 && d2 > 0) Push(ons, (trackNumber, channel, d1), (tick, d2));
                         else if (kind == 0x80 || kind == 0x90 && d2 == 0)
                         {
-                            if (ons.TryGetValue((channel, d1), out var open) && open.Count > 0)
+                            if (ons.TryGetValue((trackNumber, channel, d1), out var open) && open.Count > 0)
                             {
                                 var (onTick, velocity) = open.Pop();
-                                notes.Add((d1, onTick, tick, velocity));
+                                notes.Add(new TickNote(trackNumber, channel, d1, onTick, tick, velocity));
                             }
                         }
                     }
                     else i++;
                     lastTick = Math.Max(lastTick, tick);
                 }
+                trackNumber++;
             }
             at = end;
         }
@@ -100,11 +124,18 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
         var bpm = 60_000_000.0 / (tempos.Count > 0 ? tempos[0].MicrosPerQuarter : 500_000) * meter.Unit / 4;
         var barTicks = (long)division * 4 * meter.Count / meter.Unit;
         var lastNote = notes.Count == 0 ? 0 : notes.Max(n => n.Off);
-        return new MidiFile([.. notes.OrderBy(n => n.On).Select(n => new FileNote(n.Key, Seconds(n.On), Seconds(n.Off), n.Velocity))], bpm, meter.Count, meter.Unit,
-            Seconds(Math.Max(lastNote, 0)), barTicks > 0 ? (int)Math.Ceiling(lastNote / (double)barTicks) : 0);
+        return new MidiFile([.. notes.OrderBy(n => n.On).Select(n => new FileNote(n.Midi, Seconds(n.On), Seconds(n.Off), n.Velocity))], bpm, meter.Count, meter.Unit,
+            Seconds(Math.Max(lastNote, 0)), barTicks > 0 ? (int)Math.Ceiling(lastNote / (double)barTicks) : 0)
+        {
+            Division = division,
+            Ticked = [.. notes.OrderBy(n => n.On).ThenByDescending(n => n.Midi)],
+            Meters = [.. meters.OrderBy(m => m.Tick)],
+            Keys = [.. keys.OrderBy(k => k.Tick)],
+            Names = names,
+        };
     }
 
-    private static void Push(Dictionary<(int, int), Stack<(long, int)>> ons, (int, int) key, (long, int) value)
+    private static void Push(Dictionary<(int, int, int), Stack<(long, int)>> ons, (int, int, int) key, (long, int) value)
     {
         if (!ons.TryGetValue(key, out var stack)) ons[key] = stack = new Stack<(long, int)>();
         stack.Push(value);

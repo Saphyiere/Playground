@@ -13,14 +13,14 @@
 @if (Prep.Running)
 {
     <section class="mu-screen library-prep" aria-live="polite">
-        <div class="mu-screen-head"><span>Preparing the collection</span><span>@Prep.Progress.Done of @Prep.Progress.Total</span></div>
+        <div class="mu-screen-head"><span>@(Prep.Adding is { } adding ? $"Adding {adding}" : "Preparing the collection")</span><span>@Prep.Progress.Done of @Prep.Progress.Total</span></div>
         <div class="mu-meter" role="img" aria-label="@($"{Prep.Progress.Done} of {Prep.Progress.Total} pieces ready")">
             @for (var i = 0; i < 20; i++)
             {
                 <span class="@(i < 20 * Prep.Progress.Done / Math.Max(1, Prep.Progress.Total) ? "on" : "")"></span>
             }
         </div>
-        <p class="page-panel-line">Once only: each piece is engraved, cut into excerpts and graded. The ones done are below already.</p>
+        <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are below already.</p>
     </section>
 }
 @if (problem is not null)
@@ -33,7 +33,7 @@
     {
         <button type="button" class="mu-toggle" aria-pressed="@(filter == key ? "true" : "false")" @onclick="() => filter = key"><span class="mu-led"></span>@label</button>
     }
-    <input class="text-field text-field-short" type="search" placeholder="Title or composer" aria-label="Find a piece" @bind="search" @bind:event="oninput" />
+    <input class="text-field text-field-short" type="search" placeholder="Title or composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
 </div>
 @if (filter == "near" && reading is not null)
 {
@@ -68,7 +68,7 @@
 }
 else if (pieces.Count == 0 && !Prep.Running)
 {
-    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import a MusicXML, MEI, ABC or PDF file meanwhile.</p>
+    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import a MusicXML, MEI, ABC, MIDI or PDF file meanwhile.</p>
 }
 
 <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
@@ -85,6 +85,8 @@ else if (pieces.Count == 0 && !Prep.Running)
     private string? search;
     private string? problem;
     private DateTime lastLoad;
+    private CancellationTokenSource? typing;
+    private bool holding;
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,16 +96,35 @@ else if (pieces.Count == 0 && !Prep.Running)
         _ = Prep.EnsureAsync();
     }
 
-    // While the collection's prepared, the list fills in, a second at a time at most.
+    // While pieces are stored, the list fills in (and the meter moves) a second at a time at most: with a thousand pieces listed,
+    // drawing it again for each one stored kept the screen busy.
     private void Changed() => _ = InvokeAsync(async () =>
     {
-        if (DateTime.Now - lastLoad > TimeSpan.FromSeconds(1) || !Prep.Running)
-        {
-            lastLoad = DateTime.Now;
-            pieces = await Store.GetPiecesAsync();
-        }
+        if (DateTime.Now - lastLoad < TimeSpan.FromSeconds(1) && Prep.Running) return;
+
+        lastLoad = DateTime.Now;
+        pieces = await Store.GetPiecesAsync();
         StateHasChanged();
     });
+
+    protected override bool ShouldRender() => !holding;
+
+    // The list follows the search once typing pauses for a quarter of a second, not at every key.
+    private async Task Typed(ChangeEventArgs e)
+    {
+        holding = true;
+        typing?.Cancel();
+        var mine = typing = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(250, mine.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        (holding, search) = (false, e.Value?.ToString());
+    }
 
     private IEnumerable<PieceRecord> Shown() => pieces.Where(p => filter switch
     {
@@ -136,5 +157,9 @@ else if (pieces.Count == 0 && !Prep.Running)
         Nav.NavigateTo($"library/{Uri.EscapeDataString(id)}");
     }
 
-    public void Dispose() => Prep.Changed -= Changed;
+    public void Dispose()
+    {
+        Prep.Changed -= Changed;
+        typing?.Cancel();
+    }
 }

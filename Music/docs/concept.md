@@ -130,6 +130,14 @@ a PDF plays out; this is what came of it.
   Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), each starting with
   the key, metre and clefs in force there, so no piece is the whole collection to open or engrave. An import is read and graded
   on the tablet, away from the screen's thread.
+- **A local collection**: more music for this tablet alone, never in the repo, whose terms allow personal, non-commercial use
+  but not a place in a public repo. The Library tool builds it on the PC (`-- local`): Craig Sapp's Humdrum editions (Mozart's,
+  Haydn's and Scarlatti's sonatas, Joplin's rags, Bach's 370 chorales on a grand staff) and the DCML's research corpora as
+  MuseScore files (Beethoven's sonatas, Bach's suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The
+  Seasons, Debussy, and more), both CC BY-NC-SA 4.0: about 1,200 pieces, prepared like the bundle and packed in one file.
+  **Import a file** with that file stores them in the background with the same meter, its pieces credited like the
+  collection's; those already here stay as they are. The list then holds about 1,500 pieces, so it's drawn again a second at a
+  time at most while pieces are stored, and the search follows once typing pauses.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
@@ -164,8 +172,12 @@ a PDF plays out; this is what came of it.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
-- **Imports**: MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages. MIDI, MuseScore and
-  Humdrum files need converting to MusicXML on the PC first.
+- **Imports**: MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages. A MIDI file is
+  written out as notation first, since it holds when notes sound, not how they're written: the hands from its tracks (or
+  middle C), the bars from its time signatures, the key from its signature or its notes, each beat snapped to sixteenths,
+  thirty-seconds or triplets, a hand's held notes as a second voice, ties across beats and barlines. One exported from notation
+  software comes out close to its score; one recorded from playing comes out ragged, and a pickup comes out as a full bar.
+  MuseScore and Humdrum files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
@@ -364,9 +376,10 @@ Everything lives in one SQLite file on the tablet.
 - **Attempts**: one per passage, rhythm or technique run, keeping its settings (the level's step, the key it was in and the key it
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
   passage can be made again (one spot does) and a result recomputed if the scoring changes.
-- **Pieces**: the collection and imported pieces, with their sources and licences, levels, and the MEI Verovio made from each
-  notation piece (bars numbered in order, a pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its
-  systems found on each page with their bars, its metre and tempo, and where you were. Imported files sit beside the data file.
+- **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
+  others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
+  pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
+  bars, its metre and tempo, and where you were. Imported files, and a local collection's PDFs and MIDI, sit beside the data file.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Streak**: the days practised and the freezes used.
 
