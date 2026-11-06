@@ -107,8 +107,9 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   wrong key turns the note grey, named in grey, with a red head where the key is, named in red, and the cursor waits on; the
   note stays so once it's put right, so the slip shows where it was. A trill's or a mordent's extra notes aren't slips. Afterwards: the notes
   right first time, the wrong keys, and notes a minute at your own pace.
-- The mode is kept for each screen. The tempo's − and + move by a metronome's marks (… 60, 63, 66, 69, 72, 76 …), so a step
-  is about the same share of the tempo, slow or fast. Stop ends a run where it is, and its summary covers the music up to there.
+- The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
+  marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
+  tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to there.
 
 ### Drills
 
@@ -142,12 +143,15 @@ a PDF plays out; this is what came of it.
   turn by the screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
   (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
-  In time or Wait for me, the tempo, and Play, from the start or from the bar of a note you tap (it's lit until you play). A
+  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it (it's lit; a scroll is never
+  a tap). On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
+  keys over the run's controls, Play at the end. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
   with it; a note played twice keeps the mark of the latest time. **Loop** plays from the start bar to a bar you choose, again
-  and again until you stop. While a run plays, tapping a note starts it again from that bar, and **‹ Bar** goes back a bar (in
+  and again until you stop: press the loop key on the bar, then tap the bar to loop back from, and the loop's bars are lit;
+  press it again for none (it's in Options too). While a run plays, tapping a bar starts it again from there, and **‹ Bar** goes back a bar (in
   a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. While it plays, the music
   scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
   bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It

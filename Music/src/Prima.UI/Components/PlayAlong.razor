@@ -21,6 +21,8 @@
         <CountIn Session="session" />
     }
     @Readouts
+    @* In portrait a piece's bar puts its run's controls on a row of their own, under its figures and keys. *@
+    <span class="play-bar-break" aria-hidden="true"></span>
     @if (Running)
     {
         @if (Mode == PlayMode.InTime)
@@ -51,7 +53,20 @@
         </div>
         @if (Mode == PlayMode.InTime)
         {
-            <div class="mu-readout play-tempo"><span class="mu-readout-label">Tempo</span><TempoControl Value="Tempo" ValueChanged="TempoChanged" /></div>
+            @* The tempo as its figure; tapped, its − and + and a field to type it, under it. *@
+            <div class="play-tempo-pick">
+                <button type="button" class="mu-readout play-tempo-figure" aria-expanded="@On(tempoOpen)" aria-label="@($"Tempo {Tempo:0}: change it")" @onclick="() => tempoOpen = !tempoOpen">
+                    <span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span>
+                </button>
+                @if (tempoOpen)
+                {
+                    <div class="tempo-pop" role="dialog" aria-label="Tempo">
+                        <TempoControl Value="Tempo" ValueChanged="TempoChanged" />
+                        <input class="text-field tempo-entry" type="number" min="20" max="240" step="1" inputmode="numeric" aria-label="Type a tempo" value="@Tempo.ToString("0", CultureInfo.InvariantCulture)" @onchange="TypedTempo" />
+                        <button type="button" class="mu-btn" @onclick="() => tempoOpen = false">Done</button>
+                    </div>
+                }
+            </div>
         }
         @if (ShowStart)
         {
@@ -120,6 +135,13 @@
 
     private string ModeKey => $"Play.Mode.{Name}";
 
+    private bool tempoOpen;
+
+    private async Task TypedTempo(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var bpm)) await TempoChanged.InvokeAsync(Math.Clamp(Math.Round(bpm), 20, 240));
+    }
+
     private static string On(bool on) => on ? "true" : "false";
 
     protected override async Task OnInitializedAsync()
@@ -146,6 +168,7 @@
     {
         if (Running || (with ?? Music) is not { Notes.Count: > 0 }) return;
 
+        tempoOpen = false;
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
 

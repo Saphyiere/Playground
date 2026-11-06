@@ -38,6 +38,9 @@ else
                 @if (!piece.IsPdf)
                 {
                     <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(explain)" disabled="@playing" @onclick="ToggleExplain"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
+                    <button type="button" class="mu-btn piece-tool" aria-label="@(loopTo is { } last ? $"Loop bars {from} to {last}: take it away" : "Loop: then tap the bar to loop back from")" aria-pressed="@On(loopTo is not null || choosingLoop)" disabled="@playing" @onclick="ToggleLoop">
+                        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M15.5 7A6 6 0 0 0 4.3 8.6M4.5 13A6 6 0 0 0 15.7 11.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16 3.5V7.5H12M4 16.5V12.5H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    </button>
                 }
                 <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(options)" disabled="@playing" @onclick="ToggleOptions">
                     <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
@@ -101,7 +104,7 @@ else
                 }
                 else if (mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnNoteTapped="NoteTapped" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="BarTapped" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
                 @if (view == View.Pages && !explain)
                 {
@@ -191,6 +194,10 @@ else
             @if (explain && explained is { } symbol)
             {
                 <SymbolCard Entry="symbol.Entry" Note="@symbol.Note" OnClose="() => explained = null" />
+            }
+            else if (choosingLoop)
+            {
+                <p class="explain-hint">Tap the bar to loop back from: the loop starts at bar @from.</p>
             }
             else if (explain)
             {
@@ -289,6 +296,10 @@ else
     private bool explain;
     private (GlossaryEntry? Entry, string? Note)? explained;
     private XDocument? meiDocument;
+    // Choosing a loop's last bar on the sheet; the bars lit last; the piece's MEI measure ids, in order.
+    private bool choosingLoop;
+    private (int From, int? To)? litBars;
+    private List<string>? measureIds;
     private bool playing;
     private PlayOutcome? outcome;
     private DateTime started;
@@ -377,6 +388,14 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // The bars chosen, lit on the sheet: the bar to start at (none for the first), or the loop's first to last.
+        if (sheet is not null && !playing && (from, loopTo) != litBars)
+        {
+            litBars = (from, loopTo);
+            var lit = loopTo is not null || from > FirstBar;
+            await sheet.HighlightBars(lit ? MeasureOf(from) : null, loopTo is { } last ? MeasureOf(last) : null);
+        }
+
         // Once: a render while the import below is awaited mustn't listen to the piano a second time.
         if (piece is null || listening) return;
 
@@ -463,7 +482,7 @@ else
 
     private void ToggleOptions() => options = !options;
 
-    private void ToggleExplain() => (explain, explained, options) = (!explain, null, false);
+    private void ToggleExplain() => (explain, explained, options, choosingLoop) = (!explain, null, false, false);
 
     // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
     private void SymbolTapped(SheetSymbol symbol)
@@ -562,24 +581,65 @@ else
         await Store.SetSettingAsync(HandsKey, HandName);
     }
 
-    private async Task NoteTapped(string id)
+    // A bar tapped, anywhere in it: the start goes there (and any loop goes); choosing a loop, the loop runs between the start and
+    // it; while playing, the run starts again from it.
+    private async Task BarTapped(string measureId)
     {
-        if (expected.FirstOrDefault(n => n.Id == id) is not { } note) return;
+        if (BarOf(measureId) is not { } bar) return;
         if (playing)
         {
-            await Restart(note.Bar);
+            await Restart(bar);
             return;
         }
 
-        StartAt(note.Bar);
-        if (sheet is not null) await sheet.Highlight(note.Bar == FirstBar ? null : id);
+        if (choosingLoop)
+        {
+            (choosingLoop, loopTo) = (false, Math.Max(bar, from));
+            StartAt(Math.Min(bar, from));
+            return;
+        }
+
+        loopTo = null;
+        StartAt(bar);
+    }
+
+    // The loop key: off, it waits for a tap on the bar to loop back from; on, it takes the loop away.
+    private void ToggleLoop()
+    {
+        (explain, explained, options) = (false, null, false);
+        if (loopTo is not null)
+        {
+            (loopTo, choosingLoop) = (null, false);
+            StartAt(from);
+        }
+        else choosingLoop = !choosingLoop;
+    }
+
+    // The piece's bars by their MEI ids, in order (the bars are numbered in order too), for taps on the sheet and its lit bars.
+    private List<string> MeasureIds()
+    {
+        meiDocument ??= mei is null ? null : XDocument.Parse(mei);
+        return measureIds ??= meiDocument?.Descendants().Where(e => e.Name.LocalName == "measure").Select(m => (string?)m.Attribute(XNamespace.Xml + "id") ?? "").ToList() ?? [];
+    }
+
+    private int? BarOf(string measureId)
+    {
+        var index = MeasureIds().IndexOf(measureId);
+        return score is not null && index >= 0 && index < score.Bars.Count ? score.Bars[index].Number : null;
+    }
+
+    private string? MeasureOf(int bar)
+    {
+        var index = bar - FirstBar;
+        return index >= 0 && index < MeasureIds().Count ? MeasureIds()[index] : null;
     }
 
     // The run plays in the scrolling view, a line at a time.
     private async Task Starting()
     {
         (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
-        if (sheet is not null) await sheet.Highlight(null);
+        (choosingLoop, litBars) = (false, null);
+        if (sheet is not null) await sheet.HighlightBars(null);
         if (view == View.Scroll) return;
 
         repainted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

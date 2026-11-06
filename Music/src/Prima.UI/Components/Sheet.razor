@@ -45,6 +45,9 @@
 
     [Parameter] public EventCallback<string> OnNoteTapped { get; set; }
 
+    /// <summary>A bar tapped, on a note or anywhere in its space: its MEI id.</summary>
+    [Parameter] public EventCallback<string> OnBarTapped { get; set; }
+
     /// <summary>What's this: a tap names the symbol under it (<see cref="OnSymbolTapped"/>) instead of a note.</summary>
     [Parameter] public bool Explain { get; set; }
 
@@ -94,6 +97,9 @@
 
     [JSInvokable]
     public Task NoteTapped(string id) => OnNoteTapped.InvokeAsync(id);
+
+    [JSInvokable]
+    public Task BarTapped(string id) => OnBarTapped.InvokeAsync(id);
 
     [JSInvokable]
     public Task SymbolTapped(string id, string kind, string? within) => OnSymbolTapped.InvokeAsync(new SheetSymbol(id, kind, within));
@@ -148,10 +154,10 @@
     /// <summary>Which of these notes are on the page showing.</summary>
     public async Task<string[]> OnPage(IEnumerable<string> ids) => module is null ? [] : await module.InvokeAsync<string[]>("onPage", element, ids.ToArray());
 
-    /// <summary>A pale box behind the bar a note is in, while following; null takes it away.</summary>
-    public async Task Highlight(string? id)
+    /// <summary>A pale band behind bars, by their MEI ids: the one to start at, or a loop's first to last; null takes it away.</summary>
+    public async Task HighlightBars(string? first, string? last = null)
     {
-        if (module is not null) await module.InvokeVoidAsync("highlight", element, id);
+        if (module is not null) await module.InvokeVoidAsync("highlightBars", element, first, last);
     }
 
     public async ValueTask DisposeAsync()

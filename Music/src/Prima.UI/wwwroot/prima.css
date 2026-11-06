@@ -2941,3 +2941,88 @@ html[data-full] .piece .summary {
     align-self: flex-start;
 }
 
+/* The play bar's tempo: its figure, a key to tap, and under it when open its − and +, and a field to type it. */
+.play-tempo-pick {
+    position: relative;
+}
+
+.play-tempo-figure {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: var(--mu-r-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.play-tempo-figure[aria-expanded="true"] {
+    background: var(--meter-off);
+}
+
+.tempo-pop {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--mu-r-panel);
+    background: var(--screen);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+}
+
+[data-theme="vinyl"] .tempo-pop {
+    background: var(--surface);
+}
+
+.tempo-entry {
+    width: 88px;
+}
+
+.play-bar-break {
+    display: none;
+}
+
+/* A piece's bar: its keys, switches and figures one height. In landscape one even row; in portrait the title, then its figures
+   and keys, then the run's controls, Play at the row's end. */
+.piece-bar .mu-btn,
+.piece-bar .play-mode,
+.piece-bar .play-tempo-figure {
+    height: 44px;
+    box-sizing: border-box;
+}
+
+.piece-bar .play-mode-option {
+    display: flex;
+    align-items: center;
+}
+
+@media (orientation: portrait) {
+    .piece-bar .play-bar-break {
+        display: block;
+        flex-basis: 100%;
+        height: 0;
+    }
+
+    .piece-bar .piece-actions {
+        margin-left: auto;
+    }
+
+    .piece-bar .play-mode {
+        margin-left: 0;
+    }
+
+    .piece-bar .play-mode ~ .mu-btn.mu-primary {
+        margin-left: auto;
+    }
+}
+
