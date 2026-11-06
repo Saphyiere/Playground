@@ -48,8 +48,9 @@ export function pixelsPerMm() {
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
     const state = sheets.get(element) ?? {};
-    // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's).
-    if (state.mei !== mei) state.marks = null;
+    // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's). What
+    // Verovio is given is the music without its verses.
+    if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei) });
     Object.assign(state, { mei, options, dotnet, tk });
     sheets.set(element, state);
     draw(element, state);
@@ -91,7 +92,7 @@ function draw(element, state) {
         svgHtml5: true,
     };
     tk.setOptions(state.loaded);
-    load(tk, state, state.mei);
+    load(tk, state, state.music);
     state.pages = tk.getPageCount();
     music.innerHTML = tk.renderToSVG(Math.min(options.page ?? 1, state.pages));
     // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own.
@@ -99,7 +100,7 @@ function draw(element, state) {
     const bars = music.querySelectorAll(".measure").length;
     if (options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
         tk.setOptions({ breaks: "encoded" });
-        load(tk, state, withSystemBreaks(state.mei, Math.ceil(bars / systems.length), firstMeasure(options)));
+        load(tk, state, withSystemBreaks(state.music, Math.ceil(bars / systems.length), firstMeasure(options)));
         state.pages = tk.getPageCount();
         music.innerHTML = tk.renderToSVG(1);
     }
@@ -127,6 +128,19 @@ function firstMeasure(options) {
     return options.measures ? parseInt(options.measures, 10) - 1 : 0;
 }
 
+// The MEI without a song's verses, where an import kept them as words under the music (a whole verse to a direction): they'd
+// lie over each other and stretch their bars to fit, and they're not for playing. The directions a player reads (dolce,
+// cresc., rit., D.C. al Fine) are short, and stay.
+function withoutVerses(mei) {
+    if (!mei.includes("<dir")) return mei;
+    const ns = "http://www.music-encoding.org/ns/mei";
+    const doc = new DOMParser().parseFromString(mei, "application/xml");
+    const verses = [...doc.getElementsByTagNameNS(ns, "dir")].filter(d => d.textContent.trim().length > 60);
+    if (verses.length === 0) return mei;
+    for (const verse of verses) verse.remove();
+    return new XMLSerializer().serializeToString(doc);
+}
+
 // The MEI with a system break before every `perSystem`th bar, counting from the first shown.
 function withSystemBreaks(mei, perSystem, from = 0) {
     const ns = "http://www.music-encoding.org/ns/mei";
@@ -142,7 +156,7 @@ function withSystemBreaks(mei, perSystem, from = 0) {
 function ensureLoaded(state) {
     if (state.tk.current === state) return;
     state.tk.setOptions(state.loaded);
-    load(state.tk, state, state.mei);
+    load(state.tk, state, state.music);
 }
 
 // The page a note is on (1 for the first), or 0 if it isn't in the music.
