@@ -404,7 +404,8 @@
             if (listening.Phase == Phase.Done && stage == Stage.Hear) BeginLook();
             StateHasChanged();
         });
-        listening.Start(new ClickPlan(tempo, meter.Beats, Math.Max(1, Settings.CountInBars)), passage.Score.Bars.Where(b => b.Number > 0).Sum(b => b.Length ?? meter.BarTicks) / BeatTicks, [], all);
+        listening.Start(new ClickPlan(tempo, meter.Beats, Math.Max(1, Settings.CountInBars)), passage.Score.Bars.Where(b => b.Number > 0).Sum(b => b.Length ?? meter.BarTicks) / BeatTicks, [], all,
+            Settings.TimingOffsetMs);
     }
 
     // The run, on the play bar, In time or Wait for me: Duet's own part for you and the piano's for it, Read ahead's window.

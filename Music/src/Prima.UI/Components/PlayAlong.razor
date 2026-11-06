@@ -234,7 +234,7 @@
             else StateHasChanged();
         });
         var plan = new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars), listen ? ClickStage.CountInOnly : ClickStage.Throughout);
-        run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano);
+        run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano, Settings.TimingOffsetMs);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
         var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
         if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));

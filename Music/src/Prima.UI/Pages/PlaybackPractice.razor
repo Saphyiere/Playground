@@ -104,7 +104,7 @@ else
         session?.Dispose();
         session = new PlaySession(Click, Keyboard, Clock, Registry);
         session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Ended) : InvokeAsync(StateHasChanged);
-        session.Start(new ClickPlan(Tempo, passage!.Score.Meter.Beats, 1), Beats, expected, piano);
+        session.Start(new ClickPlan(Tempo, passage!.Score.Meter.Beats, 1), Beats, expected, piano, Settings.TimingOffsetMs);
     }
 
     private async Task Ended()

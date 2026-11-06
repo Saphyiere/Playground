@@ -26,9 +26,15 @@ public sealed class PlaySession : IDisposable
     private readonly SessionRegistry registry;
     private readonly Dictionary<int, (long On, int Velocity)> held = [];
     private readonly List<PlayedNote> played = [];
+    private readonly List<(double Beat, int Midi, bool On)> pianoToCome = [];
     private Timer? watch;
     private double endBeat;
+    private long lateNs;
     private long[]? beatTimes;
+
+    // How far ahead the piano's notes are sent: enough for the tablet's MIDI queue, late enough that the click's beat times are
+    // settled by then.
+    private const long AheadNs = 200_000_000;
 
     public PlaySession(Click click, IKeyboard keyboard, IClock clock, SessionRegistry registry)
     {
@@ -56,21 +62,24 @@ public sealed class PlaySession : IDisposable
 
     /// <summary>
     /// Starts the click and the run: <paramref name="beats"/> of music after the count-in. <paramref name="pianoPart"/> is played
-    /// on the piano at its beats, each a key and how many beats it's held.
+    /// on the piano at its beats, each a key and how many beats it's held, <paramref name="lateMs"/> after the beat: the timing
+    /// offset, where your own notes land after the click, so the piano's land with them.
     /// </summary>
-    public void Start(ClickPlan plan, double beats, IReadOnlyList<(int Midi, double Beat, double Beats)> expected, IReadOnlyList<(int Midi, double Beat, double Beats)>? pianoPart = null)
+    public void Start(ClickPlan plan, double beats, IReadOnlyList<(int Midi, double Beat, double Beats)> expected,
+        IReadOnlyList<(int Midi, double Beat, double Beats)>? pianoPart = null, double lateMs = 0)
     {
         Stop();
         lock (played) played.Clear();
         held.Clear();
         beatTimes = null;
-        (Plan, Expected, endBeat) = (plan, expected, beats);
+        (Plan, Expected, endBeat, lateNs) = (plan, expected, beats, (long)(lateMs * 1e6));
         registry.Current = this;
         click.Start(plan);
-        foreach (var (midi, beat, length) in pianoPart ?? [])
+        // Each key down at its beat and up just before its last; a key let go where the next starts goes up first.
+        lock (pianoToCome)
         {
-            keyboard.Send([0x9F, (byte)midi, 72], TimeAt(beat));
-            keyboard.Send([0x8F, (byte)midi, 0], TimeAt(beat + length) - 20_000_000);
+            pianoToCome.Clear();
+            pianoToCome.AddRange((pianoPart ?? []).SelectMany(p => new[] { (p.Beat, p.Midi, On: true), (p.Beat + p.Beats, p.Midi, On: false) }).OrderBy(e => e.Item1).ThenBy(e => e.On));
         }
         SetPhase(Phase.CountIn);
         watch = new Timer(_ => Tick(), null, 20, 20);
@@ -114,6 +123,7 @@ public sealed class PlaySession : IDisposable
 
         watch?.Dispose();
         watch = null;
+        lock (pianoToCome) pianoToCome.Clear();
         if (Plan is not null) beatTimes = [.. Enumerable.Range(0, Plan.FirstMusicBeat + (int)Math.Ceiling(endBeat) + 4).Select(click.BeatTime)];
         click.Stop();
         keyboard.Silence();
@@ -131,6 +141,7 @@ public sealed class PlaySession : IDisposable
     {
         watch?.Dispose();
         watch = null;
+        lock (pianoToCome) pianoToCome.Clear();
         if (Phase is Phase.CountIn or Phase.Playing)
         {
             click.Stop();
@@ -142,6 +153,24 @@ public sealed class PlaySession : IDisposable
     private void Tick()
     {
         var now = clock.NowNs;
+
+        // The piano's part goes out a little ahead of each note, its time worked out then from the click's beats as they stand.
+        // Worked out at the start, it was early by the speaker's delay: the tablet's click knows when its beats really sound only
+        // once its audio timestamp settles, a moment after it starts. Until then a note waits unless it's nearly due.
+        lock (pianoToCome)
+        {
+            var sent = 0;
+            foreach (var (beat, midi, on) in pianoToCome)
+            {
+                var at = TimeAt(beat) + lateNs - (on ? 0 : 20_000_000);
+                if (at > now + AheadNs || click.Approximate && at > now + 50_000_000) break;
+
+                keyboard.Send(on ? [0x9F, (byte)midi, 72] : [0x8F, (byte)midi, 0], at);
+                sent++;
+            }
+            pianoToCome.RemoveRange(0, sent);
+        }
+
         if (Phase == Phase.CountIn && now >= TimeAt(Math.Min(0, Expected.Count == 0 ? 0 : Expected.Min(e => e.Beat))) - 50_000_000) SetPhase(Phase.Playing);
         if (now >= TimeAt(endBeat + 1)) Finish();
     }

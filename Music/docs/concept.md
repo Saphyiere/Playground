@@ -367,8 +367,12 @@ a drop.
 - **MIDI over USB** from the P-225B is the only input. It gives exact notes, chords, velocity, the pedals and timing, in every
   drill. There's no microphone and no on-screen keyboard.
 - **Sound from the piano.** Prima sends notes back to the piano over MIDI, so Duet, Hear first and Listen and play back play
-  through the piano itself.
-- **Latency** is calibrated once (play along to a click; the median offset is taken out). How much timing jitter the keyboard
+  through the piano itself, and so do a piece's Listen and play along. Each note goes out a fifth of a second ahead, its time
+  worked out then from the click's beats: the tablet's click knows when its beats really sound only once its audio timestamp
+  settles, a moment after it starts, so notes timed at the start came early by the speaker's delay.
+- **Latency** is calibrated once (play along to a click; the median offset is taken out). The piano's own notes are played that
+  much after the beat, so they land where yours do: the piano's hand with yours in play along, Listen with the way you hear
+  the beat. How much timing jitter the keyboard
   and the tablet add is unknown until measured. Prima estimates the USB and MIDI path's share from the piano's Active Sensing
   messages, which arrive at a fixed interval (our idea, untested); differences smaller than that aren't shown.
 
