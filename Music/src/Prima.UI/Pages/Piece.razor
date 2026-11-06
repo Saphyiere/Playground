@@ -70,7 +70,7 @@ else
         }
         else
         {
-            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back">
+            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="() => playing = false">
                 <Readouts>
                     <p class="piece-bar-title">@piece.Title</p>
                     <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
@@ -184,7 +184,7 @@ else
                                 </span>
                             }
                         </div>
-                        <p class="section-note">Tap a note to start from its bar, and while you play to go back to it (‹ Bar goes back a bar). Loop plays from the start bar to the one you choose, again and again until you stop. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats.</p>
+                        <p class="section-note">Tap a note to start from its bar, and while you play to go back to it (‹ Bar goes back a bar). Loop plays from the start bar to the one you choose, again and again until you stop. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
                     <div class="control-row">
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
@@ -558,16 +558,18 @@ else
         StartAt(from);
     }
 
-    // Back a bar while playing (to the loop's start, in a loop), or to a tapped note's bar: the run stops and starts again there.
+    // Back a bar while playing (to the loop's start, in a loop), or to a tapped note's bar: the run stops and starts again there,
+    // still listening if it was.
     private Task Back(int bar) => Restart(loopTo is null ? Math.Max(FirstBar, bar - 1) : from);
 
     private async Task Restart(int bar)
     {
         if (play is null) return;
 
+        var listening = play.Listening;
         await play.Stop();
         StartAt(bar);
-        await play.Start(music);
+        await (listening ? play.Listen(music) : play.Start(music));
     }
 
     private string HandsKey => $"Library.Hands.{Id}";

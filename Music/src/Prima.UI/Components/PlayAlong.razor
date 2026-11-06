@@ -12,7 +12,8 @@
     click that never waits, the cursor moving with the beat, each note marked as it's played, and the timing summed up after.
     Wait for me: no click; the cursor waits at each note or chord until its keys are played, a wrong key is marked where it was,
     and the pace is your own. The mode is kept for each screen. The screen gives the music and its sheet, puts its own readouts
-    in the bar, and gets the outcome.
+    in the bar, and gets the outcome. A screen can offer Listen too: the piano plays the music at the tempo, the click only
+    counting in and the cursor moving with it, and nothing is judged, so you can hear how it goes or play along.
 *@
 
 <section class="reading-bar play-bar @BarClass" aria-label="Playing">
@@ -25,9 +26,9 @@
     <span class="play-bar-break" aria-hidden="true"></span>
     @if (Running)
     {
-        @if (Mode == PlayMode.InTime)
+        @if (Mode == PlayMode.InTime || listening)
         {
-            <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">@(listening ? "Listening" : "Tempo")</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
         <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
         @if (OnBack.HasDelegate)
@@ -71,6 +72,12 @@
         @if (ShowStart)
         {
             <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+        }
+        @if (ShowListen)
+        {
+            @* The piano plays it, so it needs one that takes notes from the tablet. *@
+            <button type="button" class="mu-btn" disabled="@(!CanStart || !Keyboard.CanSend || !Settings.SendToPiano)"
+                    aria-label="@(Keyboard.CanSend && Settings.SendToPiano ? "Listen: the piano plays it" : "Listen needs the piano, playing notes from the tablet (Settings)")" @onclick="() => Listen()">Listen</button>
         }
     }
 </section>
@@ -117,9 +124,18 @@
     /// <summary>Back while a run plays, given the bar it's at: a screen that can start again from an earlier bar offers it.</summary>
     [Parameter] public EventCallback<int> OnBack { get; set; }
 
+    /// <summary>Listen beside Start: the piano plays the music, its notes and its piano part (Duet's), with nothing judged.</summary>
+    [Parameter] public bool ShowListen { get; set; }
+
+    /// <summary>When Listen ends, played through or stopped; it has no outcome.</summary>
+    [Parameter] public EventCallback OnListened { get; set; }
+
     public PlayMode Mode { get; private set; }
 
     public bool Running => session?.Phase is Phase.CountIn or Phase.Playing || wait is not null;
+
+    /// <summary>Whether the run going is Listen's.</summary>
+    public bool Listening => listening && Running;
 
     private PlaySession? session;
     private PlayOutcome? last;
@@ -128,6 +144,7 @@
     private Timer? ticker;
     private long? stoppedNs;
     private int bar;
+    private bool listening;
     private Dictionary<string, Spelled> pitches = [];
     private Dictionary<string, ExpectedNote> notes = [];
     private readonly Dictionary<string, SheetMark> drawn = [];
@@ -164,7 +181,15 @@
     /// Starts a run in the chosen mode: the screen's Start, the piano's go key, or the screen itself with the music it's about to
     /// show (a parameter set in the same step wouldn't have reached here yet).
     /// </summary>
-    public async Task Start(PlayMusic? with = null)
+    public Task Start(PlayMusic? with = null) => Run(with, listen: false);
+
+    /// <summary>
+    /// Listen: the piano plays the music at the tempo, its notes and any piano part, after the count-in (the click only counts in),
+    /// the cursor moving with it. Nothing is judged, so you can play along or only listen.
+    /// </summary>
+    public Task Listen(PlayMusic? with = null) => Run(with, listen: true);
+
+    private async Task Run(PlayMusic? with, bool listen)
     {
         if (Running || (with ?? Music) is not { Notes.Count: > 0 }) return;
 
@@ -175,7 +200,7 @@
         // A run stopped to start again (back a bar) leaves nothing ticking.
         session?.Dispose();
         ticker?.Dispose();
-        (session, wait, playing, stoppedNs, last, ticker) = (null, null, music, null, null, null);
+        (session, wait, playing, stoppedNs, last, ticker, listening) = (null, null, music, null, null, null, listen);
         pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
         notes = music.Notes.ToDictionary(n => n.Id);
         drawn.Clear();
@@ -184,7 +209,7 @@
         var first = music.Notes.MinBy(n => n.Tick)!;
         bar = first.Bar;
 
-        if (Mode == PlayMode.WaitForMe)
+        if (Mode == PlayMode.WaitForMe && !listen)
         {
             var judge = wait = new WaitJudge(music.Notes, music.Ornamented);
             // The preview's simulated player answers the step waited for: its keys, or a key beside its first.
@@ -196,20 +221,23 @@
             return;
         }
 
-        // In time: beats from the run's beat 0, the click's, with a pickup's before it.
+        // In time: beats from the run's beat 0, the click's, with a pickup's before it. Listen gives the piano the notes as well as
+        // any piano part, expects nothing, and hears the click only in the count-in.
         var from = music.FromTick / (double)music.BeatTicks;
         double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
-        var expected = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
+        var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
+        IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. timed, .. music.PianoPart ?? []] : music.PianoPart;
         var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
         run.Changed += () => _ = InvokeAsync(async () =>
         {
             if (run.Phase == Phase.Done) await Ended(run);
             else StateHasChanged();
         });
-        run.Start(new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars)), expected.Max(e => e.Item2 + e.Item3), expected, music.PianoPart);
+        var plan = new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars), listen ? ClickStage.CountInOnly : ClickStage.Throughout);
+        run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
-        var live = new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
-        run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
+        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
+        if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
             var now = Clock.NowNs;
@@ -219,7 +247,7 @@
                 bar = at;
                 StateHasChanged();
             }
-            await Draw(live.Due(now));
+            if (live is not null) await Draw(live.Due(now));
         }), null, 100, 100);
         StateHasChanged();
         // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat, from
@@ -251,6 +279,14 @@
         ticker = null;
         var sheet = SheetOf();
         if (sheet is not null) await sheet.StopCursor();
+        if (listening)
+        {
+            listening = false;
+            StateHasChanged();
+            await OnListened.InvokeAsync();
+            return;
+        }
+
         var from = music.FromTick / (double)music.BeatTicks;
         // Stopped early, only the notes due by then count.
         var due = stoppedNs is { } at ? music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= at).ToList() : music.Notes;

@@ -160,7 +160,11 @@ a PDF plays out; this is what came of it.
   with it; a note played twice keeps the mark of the latest time. **Loop** plays from the start bar to a bar you choose, again
   and again until you stop: press the loop key on the bar, then tap the bar to loop back from, and the loop's bars are lit;
   press it again for none (it's in Options too). While a run plays, tapping a bar starts it again from there, and **‹ Bar** goes back a bar (in
-  a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. While it plays, the music
+  a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
+  so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
+  played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
+  they move a run, still listening. It needs the piano taking notes from the tablet, as play along does. While it plays, the music
   scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
   bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
   doesn't move your level.
