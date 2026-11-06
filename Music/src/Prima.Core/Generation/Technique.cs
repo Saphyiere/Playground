@@ -23,7 +23,11 @@ public enum HandUse
 public sealed record TechniqueNote(string Id, int Midi, int Finger, int Index, bool CrossingNext, bool SeamNext);
 
 /// <summary>A scale or arpeggio to play: its score with fingering, each hand's notes in order, and how many notes to a beat.</summary>
-public sealed record TechniqueItem(string Name, Key Key, ScaleKind Kind, int Octaves, HandUse Hands, Score Score, IReadOnlyList<TechniqueNote> Right, IReadOnlyList<TechniqueNote> Left, int NotesPerBeat);
+public sealed record TechniqueItem(string Name, Key Key, ScaleKind Kind, int Octaves, HandUse Hands, Score Score, IReadOnlyList<TechniqueNote> Right, IReadOnlyList<TechniqueNote> Left, int NotesPerBeat)
+{
+    /// <summary>What its progress is kept under: its name, and its octaves past one, as more octaves are their own item.</summary>
+    public string Id => Octaves > 1 ? $"{Name}, {Octaves} octaves" : Name;
+}
 
 /// <summary>
 /// The scale book: the standard fingerings for every major and minor scale (one octave going up, repeated for more), and
@@ -198,6 +202,37 @@ public static class Technique
             bars.Add(new Bar(b + 1, voices));
         }
         return new TechniqueItem(name, key, kind, octaves, hands, new Score(key, new Meter(4, 4), bars) { Title = name }, rightNotes, leftNotes, perBeat);
+    }
+}
+
+/// <summary>
+/// What a technique drill plays, chosen freely whatever the reading level, or the day's: the key, a minor scale's form, the
+/// octaves (0 for an arpeggio's broken triad within a fifth), the hands, and finger independence's pattern (1 the five-finger
+/// pattern, 2 the 3–4 trill, 3 the 4–5 trill).
+/// </summary>
+public sealed record TechniqueChoice(Key Key, ScaleKind Form, int Octaves, HandUse Hands, int Pattern)
+{
+    /// <summary>The scale, arpeggio or pattern for drill "scales", "arpeggios" or "independence".</summary>
+    public TechniqueItem Item(string drill) => drill switch
+    {
+        "arpeggios" => Octaves <= 0 ? Technique.Arpeggio(Key, 1, Hands, brokenTriad: true) : Technique.Arpeggio(Key, Octaves, Hands),
+        "independence" => Technique.FingerPattern(Key with { Minor = false }, Pattern, Hands),
+        _ => Technique.Scale(Key, Key.Minor ? (Form == ScaleKind.MelodicMinor ? ScaleKind.MelodicMinor : ScaleKind.HarmonicMinor) : ScaleKind.Major, Math.Max(1, Octaves), Hands),
+    };
+
+    /// <summary>
+    /// The day's: the plan's key for the drill, at the octaves the reading level gives (one to level 2, two to 6, three to 9, then
+    /// four; an arpeggio starts as a broken triad at level 1), a minor scale melodic every other day from level 6.
+    /// </summary>
+    public static TechniqueChoice Today(string drill, Key scaleKey, Key arpeggioKey, int level, int pattern, DateOnly day)
+    {
+        var octaves = level <= 2 ? 1 : level <= 6 ? 2 : level <= 9 ? 3 : 4;
+        return drill switch
+        {
+            "arpeggios" => new(arpeggioKey, ScaleKind.Arpeggio, level <= 1 ? 0 : Math.Min(octaves, 2 + level / 6), HandUse.Right, pattern),
+            "independence" => new(scaleKey with { Minor = false }, ScaleKind.Major, 1, HandUse.Right, pattern),
+            _ => new(scaleKey, scaleKey.Minor && level >= 6 && day.DayNumber % 2 == 1 ? ScaleKind.MelodicMinor : ScaleKind.HarmonicMinor, octaves, HandUse.Right, pattern),
+        };
     }
 }
 

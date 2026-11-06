@@ -1301,6 +1301,13 @@ a {
     margin-left: 16px;
 }
 
+/* A label and its keys that wrap to the next line together, not the label left at the end of the one before. */
+.control-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
 [data-theme="vinyl"] .control-label {
     font-size: 13px;
     letter-spacing: 0.1em;

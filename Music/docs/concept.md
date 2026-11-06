@@ -89,7 +89,7 @@ the piano is plugged in, the buttons they press are marked C♯4 and D♯4. They
 ### Playing to a tempo
 
 Every screen that plays music to a tempo has the same play bar: the screen's own figures, then the mode, the tempo and Start
-(the piano's C♯4). For now that's a Library piece; Sight-read and the technique drills are moving to it.
+(the piano's C♯4). A Library piece, Scales, Arpeggios and Finger independence play this way; Sight-read is moving to it.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, and the lean.
@@ -256,6 +256,13 @@ every note after it, and the result says how many were wrong, missed or extra. A
 Technique results are compared with your own earlier runs, since there are no amateur norms; differences under about 10 ms are
 shown as below what anyone can hear. Repetitions are capped per set and per day, with
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
+
+What a technique drill plays is yours to choose, whatever your reading level: the key, stepped easier or harder in the exams'
+order (C, A minor, G, F, D …), a minor scale harmonic or melodic, one to four octaves (or an arpeggio's broken triad), and
+the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
+tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
+comfortable speed the In time runs start a little under; the tempo can also be set with − and +. Wait for me runs are practice
+for the notes: they count towards the set's five runs and the day, not towards evenness or the tempo.
 
 ## The daily plan
 

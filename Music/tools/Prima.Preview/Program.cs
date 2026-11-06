@@ -247,10 +247,10 @@ static class Seeds
             var sd = 9.5 - 3.5 * progress + rng.Double();
             var bpm = tempo * 2;
             var hand = new { IoiSdMs = sd / 100 * 60_000 / bpm, IoiSdPercent = sd, PlainIoiSdMs = sd / 100 * 60_000 / bpm * 1.2, Bpm = bpm, CrossingMs = 22 - 12 * progress + rng.Int(6), SeamMs = 8 + rng.Int(5), VelocitySd = 9 - 3 * progress + rng.Double(), LegatoMs = -6 + rng.Int(9) };
-            var measures = new { valid = true, right = hand, left = (object?)null, sync = (double?)null, item = item.Name, hands = "Right" };
-            await store.AddAttemptAsync(new AttemptRecord(0, at.AddSeconds(run * 40), day, kind, "Right", item.Name, 3, tempo, null, null, "[]", null, JsonSerializer.Serialize(measures), sd, true, null));
+            var measures = new { valid = true, right = hand, left = (object?)null, sync = (double?)null, item = item.Id, hands = "Right" };
+            await store.AddAttemptAsync(new AttemptRecord(0, at.AddSeconds(run * 40), day, kind, "Right", item.Id, 3, tempo, null, null, "[]", null, JsonSerializer.Serialize(measures), sd, true, null));
         }
-        await store.SaveTrackAsync($"technique:{drill}:{item.Name}:Right", new TechniqueState(tempo, 92, [9.6, 10.1, 9.2], DateOnly.FromDateTime(DateTime.Now).AddDays(-40), [7.1, 6.8, 6.4], 0, tempo - 4));
+        await store.SaveTrackAsync($"technique:{drill}:{item.Id}:Right", new TechniqueState(tempo, 92, [9.6, 10.1, 9.2], DateOnly.FromDateTime(DateTime.Now).AddDays(-40), [7.1, 6.8, 6.4], 0, tempo - 4));
     }
 
     private static async Task NoteAnswers(PrimaStore store, Rng rng, DateOnly day, DateTime at, double progress, (Clef Clef, int Midi)[] notes, Dictionary<(Clef, int), NoteCard> cards)
