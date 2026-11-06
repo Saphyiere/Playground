@@ -2,7 +2,10 @@
    120, 126 … 208), so each step is about the same share of the tempo, slow or fast. *@
 <span class="tempo-control">
     <button type="button" class="mu-btn" aria-label="Slower" disabled="@Disabled" @onclick="() => ValueChanged.InvokeAsync(Marks.LastOrDefault(m => m < Math.Round(Value), Marks[0]))">−</button>
-    <span class="tempo-figure" aria-label="@($"{Value:0} beats a minute")">@Value.ToString("0", CultureInfo.InvariantCulture)</span>
+    @if (Figure)
+    {
+        <span class="tempo-figure" aria-label="@($"{Value:0} beats a minute")">@Value.ToString("0", CultureInfo.InvariantCulture)</span>
+    }
     <button type="button" class="mu-btn" aria-label="Faster" disabled="@Disabled" @onclick="() => ValueChanged.InvokeAsync(Marks.FirstOrDefault(m => m > Math.Round(Value), Marks[^1]))">+</button>
 </span>
 
@@ -15,4 +18,7 @@
     [Parameter] public EventCallback<double> ValueChanged { get; set; }
 
     [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The figure between − and +; off where the tempo shows already (in a field beside them).</summary>
+    [Parameter] public bool Figure { get; set; } = true;
 }

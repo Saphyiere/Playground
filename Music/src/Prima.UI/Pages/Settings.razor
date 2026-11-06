@@ -20,7 +20,7 @@
         <span class="control-label">Minutes a day</span>
         @foreach (var m in new[] { 5, 10, 15, 20, 30, 45 })
         {
-            <button type="button" class="mu-toggle mu-toggle-number" aria-pressed="@On(Options.DailyMinutes == m)" @onclick="() => ChooseMinutes(m)"><span class="mu-led"></span>@m</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.DailyMinutes == m)" @onclick="() => ChooseMinutes(m)"><span class="mu-led"></span>@m</button>
         }
     </div>
     <p class="section-note">@(gradually ?? "Prima never raises this by itself. About twenty minutes holds the whole plan.")</p>

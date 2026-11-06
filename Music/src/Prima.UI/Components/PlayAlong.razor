@@ -61,8 +61,8 @@
                 @if (tempoOpen)
                 {
                     <div class="tempo-pop" role="dialog" aria-label="Tempo">
-                        <TempoControl Value="Tempo" ValueChanged="TempoChanged" />
-                        <input class="text-field tempo-entry" type="number" min="20" max="240" step="1" inputmode="numeric" aria-label="Type a tempo" value="@Tempo.ToString("0", CultureInfo.InvariantCulture)" @onchange="TypedTempo" />
+                        <input class="text-field tempo-entry" type="number" min="20" max="240" step="1" inputmode="numeric" aria-label="Tempo, to type" value="@Tempo.ToString("0", CultureInfo.InvariantCulture)" @onchange="TypedTempo" />
+                        <TempoControl Value="Tempo" ValueChanged="TempoChanged" Figure="false" />
                         <button type="button" class="mu-btn" @onclick="() => tempoOpen = false">Done</button>
                     </div>
                 }

@@ -39,9 +39,9 @@
             <button type="button" class="mu-btn" disabled="@playing" @onclick="() => Choose(today with { Hands = choice.Hands })">Today's</button>
         }
     </div>
-    <div class="control-row">
-        @if (Key != "independence")
-        {
+    @if (Key != "independence")
+    {
+        <div class="control-row">
             <span class="control-label">Octaves</span>
             @if (Key == "arpeggios")
             {
@@ -50,16 +50,16 @@
             @for (var n = 1; n <= 4; n++)
             {
                 var octaves = n;
-                <button type="button" class="mu-toggle mu-toggle-number" aria-pressed="@On(choice.Octaves == octaves)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = octaves })"><span class="mu-led"></span>@octaves</button>
+                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Octaves == octaves)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = octaves })"><span class="mu-led"></span>@octaves</button>
             }
+        </div>
+    }
+    <div class="control-row">
+        <span class="control-label">Hands</span>
+        @foreach (var h in new[] { HandUse.Right, HandUse.Left, HandUse.Together })
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Hands == h)" disabled="@playing" @onclick="() => Choose(choice with { Hands = h })"><span class="mu-led"></span>@HandName(h)</button>
         }
-        <span class="control-group">
-            <span class="control-label @(Key != "independence" ? "control-label-gap" : "")">Hands</span>
-            @foreach (var h in new[] { HandUse.Right, HandUse.Left, HandUse.Together })
-            {
-                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Hands == h)" disabled="@playing" @onclick="() => Choose(choice with { Hands = h })"><span class="mu-led"></span>@HandName(h)</button>
-            }
-        </span>
     </div>
     <p class="control-note">Runs @runs of @TechniqueState.RunsPerSet. Stop if anything hurts.</p>
 </section>
