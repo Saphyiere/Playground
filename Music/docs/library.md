@@ -620,7 +620,7 @@ The credits screen shows, for each piece: title, composer, encoder or project, s
 The repo is public, so what's in `Music/library` is shared on GitHub, and only Tier A goes there: the 237 pieces above, kept
 as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
 instead: the Library tool builds it on the owner's PC (`-- local`) into `artifacts/library-local`, which git ignores, and packs
-it as `artifacts/prima-collection.zip` for the tablet's **Import a file**. Nothing in it is committed.
+it as `artifacts/prima-collection.zip` for the tablet's **Import files**. Nothing in it is committed.
 
 | Source | What | Licence (checked as it's read) | Pieces | Left out, and why |
 |---|---|---|---|---|

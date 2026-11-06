@@ -113,6 +113,9 @@ public interface IFiles
 
     /// <summary>Lets the owner pick a file; its name and bytes, or null if none was picked or the host can't.</summary>
     Task<(string Name, byte[] Data)?> PickAsync();
+
+    /// <summary>Lets the owner pick any number of files; their names and bytes, none if none were picked or the host can't.</summary>
+    Task<IReadOnlyList<(string Name, byte[] Data)>> PickManyAsync();
 }
 
 /// <summary>No files outside the app: for a host without them, like the preview.</summary>
@@ -121,6 +124,8 @@ public sealed class NoFiles : IFiles
     public Task<bool> OfferAsync(string path, string title) => Task.FromResult(false);
 
     public Task<(string Name, byte[] Data)?> PickAsync() => Task.FromResult<(string, byte[])?>(null);
+
+    public Task<IReadOnlyList<(string Name, byte[] Data)>> PickManyAsync() => Task.FromResult<IReadOnlyList<(string, byte[])>>([]);
 }
 
 /// <summary>The tablet's own bars, status along the top and navigation along the bottom: hidden for full screen, where the host can.</summary>

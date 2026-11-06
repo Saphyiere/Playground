@@ -8,7 +8,7 @@
 
 <PageTitle>Library · Prima</PageTitle>
 
-<PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import a file</button></PageHead>
+<PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import files</button></PageHead>
 
 @if (Prep.Running)
 {
@@ -23,9 +23,9 @@
         <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are below already.</p>
     </section>
 }
-@if (problem is not null)
+@if (note is not null)
 {
-    <p class="control-note" role="status">@problem</p>
+    <p class="control-note" role="status">@note</p>
 }
 
 <div class="control-row library-filters">
@@ -68,7 +68,7 @@
 }
 else if (pieces.Count == 0 && !Prep.Running)
 {
-    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import a MusicXML, MEI, ABC, MIDI or PDF file meanwhile.</p>
+    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
 }
 
 <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
@@ -83,7 +83,7 @@ else if (pieces.Count == 0 && !Prep.Running)
     private ReadingState? reading;
     private string filter = "all";
     private string? search;
-    private string? problem;
+    private string? note;
     private DateTime lastLoad;
     private CancellationTokenSource? typing;
     private bool holding;
@@ -137,24 +137,27 @@ else if (pieces.Count == 0 && !Prep.Running)
 
     private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
 
+    // One piece imported opens; several (or a zip of them) stay here, with a line saying what came in.
     private async Task Import()
     {
-        problem = null;
-        if (await Files.PickAsync() is not { } picked)
+        note = null;
+        var picked = await Files.PickManyAsync();
+        if (picked.Count == 0)
         {
-            problem = "No file chosen.";
+            note = "No file chosen.";
             return;
         }
 
-        problem = $"Reading {picked.Name}…";
+        note = picked.Count == 1 ? $"Reading {picked[0].Name}…" : $"Reading {picked.Count} files…";
         StateHasChanged();
-        var (id, why) = await Prep.ImportAsync(picked.Name, picked.Data);
-        if (id is null)
+        var (id, said) = await Prep.ImportAsync(picked);
+        if (id is not null)
         {
-            problem = why;
+            Nav.NavigateTo($"library/{Uri.EscapeDataString(id)}");
             return;
         }
-        Nav.NavigateTo($"library/{Uri.EscapeDataString(id)}");
+        note = said;
+        pieces = await Store.GetPiecesAsync();
     }
 
     public void Dispose()

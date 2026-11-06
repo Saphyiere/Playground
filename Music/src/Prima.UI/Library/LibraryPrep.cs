@@ -102,88 +102,137 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
     }
 
     /// <summary>
-    /// Imports a file the owner picked: MusicXML (.musicxml, .xml, .mxl), MEI or ABC as notation, MIDI written out as notation, a
-    /// PDF as pages, or a collection from the Library tool (a zip), which is stored in the background with its progress shown. The
-    /// piece's id, or why it couldn't be imported; neither for a collection that's being added.
+    /// Imports the files the owner picked, one or several: MusicXML (.musicxml, .xml, .mxl), MEI or ABC as notation, MIDI written
+    /// out as notation, PDFs as pages, and zips holding any of them. A PDF takes the MIDI file of the same name, when there's one,
+    /// to be heard on the piano and scrolled at its tempo (the MIDI comes in as notation as well). A collection from the Library
+    /// tool (a zip with its manifest) is stored in the background with its progress shown. The piece to open when one came in, and
+    /// a line about what came in and what couldn't.
     /// </summary>
-    public async Task<(string? Id, string? Problem)> ImportAsync(string name, byte[] data)
+    public async Task<(string? Id, string? Note)> ImportAsync(IReadOnlyList<(string Name, byte[] Data)> picked)
     {
-        var extension = Path.GetExtension(name).ToLowerInvariant();
-        var title = Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
-        var id = $"import-{Guid.NewGuid():N}";
-        var record = new PieceRecord(id, "import", title, "", null, "mei", name, null, null, null, null, null, null, null, null, null, null, null, null, null, null, DateTimeOffset.Now, null);
-        switch (extension)
+        // A zip is opened up and its music taken like any file picked; anything else in it (a text file, a picture) is passed over.
+        var files = new List<(string Name, byte[] Data)>();
+        var notes = new List<string>();
+        foreach (var (name, data) in picked)
         {
-            case ".pdf":
-                if (data.Length < 5 || data[0] != '%' || data[1] != 'P' || data[2] != 'D' || data[3] != 'F') return (null, $"{name} isn't a PDF.");
-                Directory.CreateDirectory(store.FilesPath);
-                await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, id + ".pdf"), data);
-                await store.SavePieceAsync(record with { Format = "pdf", File = id + ".pdf" }, null, []);
-                return (id, null);
-            case ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc":
+            if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                files.Add((name, data));
+                continue;
+            }
+
+            ZipArchive zip;
+            try
+            {
+                zip = new ZipArchive(new MemoryStream(data), ZipArchiveMode.Read);
+            }
+            catch (InvalidDataException)
+            {
+                notes.Add($"{name} isn't a zip that opens.");
+                continue;
+            }
+
+            // The Library tool's collection: its manifest says what's in it.
+            LibraryManifest? collection = null;
+            if (zip.GetEntry("manifest.json") is { } manifest)
+            {
                 try
                 {
-                    var (mei, graded, excerpts) = await ReadMusic(data, extension.TrimStart('.'), record);
-                    var (fileTitle, composer) = Header(mei);
-                    await store.SavePieceAsync(graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, mei, excerpts);
-                    return (id, null);
-                }
-                catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
-                {
-                    return (null, $"{name} couldn't be read as music.");
-                }
-            case ".zip":
-                LibraryManifest? collection;
-                ZipArchive? zip = null;
-                try
-                {
-                    zip = new ZipArchive(new MemoryStream(data), ZipArchiveMode.Read);
-                    await using var manifest = zip.GetEntry("manifest.json")?.Open();
-                    using var text = manifest is null ? null : new StreamReader(manifest);
-                    collection = text is null ? null : LibraryManifest.Read(await text.ReadToEndAsync());
+                    await using var stream = manifest.Open();
+                    collection = LibraryManifest.Read(await new StreamReader(stream).ReadToEndAsync());
                 }
                 catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException)
                 {
-                    collection = null;
                 }
-                if (zip is null || collection is null)
-                {
-                    zip?.Dispose();
-                    return (null, $"{name} isn't a collection made by Prima's Library tool.");
-                }
-
+            }
+            if (collection is { Pieces.Count: > 0 })
+            {
                 var have = await store.GetPieceIdsAsync();
                 var adding = Entries(collection).Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
                 if (adding.Count == 0)
                 {
                     zip.Dispose();
-                    return (null, $"Everything in {name} is in the Library already.");
+                    notes.Add($"Everything in {name} is in the Library already.");
+                    continue;
                 }
 
                 // After the bundle's own run (started here if the Library hasn't been opened yet), so one thing is stored at a time.
                 var before = EnsureAsync();
                 running = AddCollection(before, zip, adding, name);
-                return (null, null);
-            case ".mid" or ".midi":
-                try
+                continue;
+            }
+
+            using (zip)
+            {
+                var music = zip.Entries.Where(e => e.Name.Length > 0 && !e.Name.StartsWith('.') && !e.FullName.StartsWith("__MACOSX/", StringComparison.Ordinal)
+                    && Path.GetExtension(e.Name).ToLowerInvariant() is ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc" or ".mid" or ".midi" or ".pdf").ToList();
+                if (music.Count == 0) notes.Add($"{name} has no music in it that Prima reads.");
+                foreach (var entry in music)
                 {
-                    // A MIDI file has no notation of its own: the Core writes it out (MidiNotation says how), and it's read as MEI.
-                    var score = await Task.Run(() => MidiNotation.Read(data, title));
-                    var (mei, graded, excerpts) = await ReadMusic(System.Text.Encoding.UTF8.GetBytes(MeiWriter.Write(score)), "mei", record);
-                    await store.SavePieceAsync(graded with { Title = score.Title ?? title }, mei, excerpts);
-                    return (id, null);
+                    await using var stream = entry.Open();
+                    using var bytes = new MemoryStream();
+                    await stream.CopyToAsync(bytes);
+                    files.Add((entry.Name, bytes.ToArray()));
                 }
-                catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
-                {
-                    return (null, $"{name} couldn't be read as music.");
-                }
-            case ".mscz" or ".mscx":
-                return (null, "Export it from MuseScore as MusicXML (File, Export), then import that.");
-            case ".krn":
-                return (null, "Humdrum files need converting to MusicXML first (Verovio's own site does it).");
-            default:
-                return (null, $"Prima reads MusicXML, MEI, ABC, MIDI and PDF files, and collections from its Library tool, not {extension} ones.");
+            }
         }
+
+        // A PDF's MIDI is the MIDI file of the same name beside it: "Numb.pdf" and "Numb.mid".
+        var midiOf = files.Where(f => Path.GetExtension(f.Name).ToLowerInvariant() is ".mid" or ".midi")
+            .GroupBy(f => Path.GetFileNameWithoutExtension(f.Name), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Data, StringComparer.OrdinalIgnoreCase);
+        var imported = new List<string>();
+        foreach (var (name, data) in files)
+        {
+            var extension = Path.GetExtension(name).ToLowerInvariant();
+            var title = Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
+            var id = $"import-{Guid.NewGuid():N}";
+            var record = new PieceRecord(id, "import", title, "", null, "mei", name, null, null, null, null, null, null, null, null, null, null, null, null, null, null, DateTimeOffset.Now, null);
+            switch (extension)
+            {
+                case ".pdf":
+                    if (data.Length < 5 || data[0] != '%' || data[1] != 'P' || data[2] != 'D' || data[3] != 'F')
+                    {
+                        notes.Add($"{name} isn't a PDF.");
+                        continue;
+                    }
+                    var midi = midiOf.GetValueOrDefault(Path.GetFileNameWithoutExtension(name));
+                    Directory.CreateDirectory(store.FilesPath);
+                    await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, id + ".pdf"), data);
+                    if (midi is not null) await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, id + ".mid"), midi);
+                    await store.SavePieceAsync(record with { Format = "pdf", File = id + ".pdf", Midi = midi is null ? null : id + ".mid" }, null, []);
+                    imported.Add(id);
+                    continue;
+                case ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc" or ".mid" or ".midi":
+                    try
+                    {
+                        // A MIDI file has no notation of its own: the Core writes it out (MidiNotation says how), and it's read as MEI.
+                        var score = extension is ".mid" or ".midi" ? await Task.Run(() => MidiNotation.Read(data, title)) : null;
+                        var bytes = score is null ? data : System.Text.Encoding.UTF8.GetBytes(MeiWriter.Write(score));
+                        var (mei, graded, excerpts) = await ReadMusic(bytes, score is null ? extension.TrimStart('.') : "mei", record);
+                        var (fileTitle, composer) = Header(mei);
+                        await store.SavePieceAsync(graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, mei, excerpts);
+                        imported.Add(id);
+                    }
+                    catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
+                    {
+                        notes.Add($"{name} couldn't be read as music.");
+                    }
+                    continue;
+                case ".mscz" or ".mscx":
+                    notes.Add($"{name}: export it from MuseScore as MusicXML (File, Export), then import that.");
+                    continue;
+                case ".krn":
+                    notes.Add($"{name}: Humdrum files need converting to MusicXML first (Verovio's own site does it).");
+                    continue;
+                default:
+                    notes.Add($"{name}: Prima reads MusicXML, MEI, ABC, MIDI and PDF files, and zips of them, not {extension} ones.");
+                    continue;
+            }
+        }
+
+        if (imported.Count == 1 && notes.Count == 0) return (imported[0], null);
+        var count = imported.Count switch { 0 => null, 1 => "1 piece imported.", _ => $"{imported.Count} pieces imported." };
+        return (null, notes.Count == 0 && count is null ? null : string.Join(" ", new[] { count }.Concat(notes).OfType<string>()));
     }
 
     private async Task AddCollection(Task before, ZipArchive zip, List<(BundledPiece Piece, PreparedPiece? Part)> adding, string name)

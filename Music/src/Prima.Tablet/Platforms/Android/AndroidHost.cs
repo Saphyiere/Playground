@@ -9,7 +9,7 @@ public sealed class AndroidClock : IClock
     public long NowNs => JavaSystem.NanoTime();
 }
 
-/// <summary>The tablet's share sheet for backups, and its file picker for restoring and importing.</summary>
+/// <summary>The tablet's share sheet for backups, and its file picker for restoring and importing (one file, or several at once).</summary>
 public sealed class AndroidFiles : IFiles
 {
     public async Task<bool> OfferAsync(string path, string title)
@@ -30,6 +30,19 @@ public sealed class AndroidFiles : IFiles
         using var memory = new MemoryStream();
         await stream.CopyToAsync(memory);
         return (picked.FileName, memory.ToArray());
+    }
+
+    public async Task<IReadOnlyList<(string Name, byte[] Data)>> PickManyAsync()
+    {
+        var files = new List<(string Name, byte[] Data)>();
+        foreach (var picked in (await FilePicker.Default.PickMultipleAsync() ?? []).OfType<FileResult>())
+        {
+            await using var stream = await picked.OpenReadAsync();
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            files.Add((picked.FileName, memory.ToArray()));
+        }
+        return files;
     }
 }
 

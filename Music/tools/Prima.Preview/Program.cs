@@ -21,7 +21,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddHubOpt
 builder.Services.AddSingleton<IClock, StopwatchClock>();
 builder.Services.AddSingleton<SimulatedKeyboard>();
 builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<SimulatedKeyboard>());
-// The Library's music (Music/library), and a file picker /files/next fills.
+// The Library's music (Music/library), and a file picker /files/next fills (?path=…, repeated for several files).
 var root = new DirectoryInfo(AppContext.BaseDirectory);
 while (root is not null && !File.Exists(Path.Combine(root.FullName, "Directory.Build.props"))) root = root.Parent;
 builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root?.FullName ?? ".", "Music", "library")));
@@ -119,10 +119,10 @@ app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyb
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 // The next file "picked" for an import: a file on this machine, by path.
-app.MapGet("/files/next", (string path, PreviewFiles files) =>
+app.MapGet("/files/next", (string[] path, PreviewFiles files) =>
 {
-    files.Next = File.Exists(path) ? (Path.GetFileName(path), File.ReadAllBytes(path)) : null;
-    return Results.Text(files.Next is null ? "no such file" : $"next pick: {files.Next.Value.Name}");
+    files.Next = [.. path.Where(File.Exists).Select(p => (Path.GetFileName(p), File.ReadAllBytes(p)))];
+    return Results.Text(files.Next.Count == 0 ? "no such file" : $"next pick: {string.Join(", ", files.Next.Select(f => f.Name))}");
 });
 // Plays a piece's notes in order at a tempo, as if from the piano: for following along. From event "from", "count" of them.
 app.MapGet("/keys/piece", async (string id, int? from, int? count, double? bpm, int? skip, PrimaStore store, SimulatedKeyboard keys) =>
@@ -273,17 +273,24 @@ static class Seeds
     }
 }
 
-/// <summary>The preview's file picker: it hands over whatever /files/next set, once.</summary>
+/// <summary>The preview's file picker: it hands over whatever /files/next set (one path or several), once.</summary>
 sealed class PreviewFiles : IFiles
 {
-    public (string Name, byte[] Data)? Next { get; set; }
+    public List<(string Name, byte[] Data)> Next { get; set; } = [];
 
     public Task<bool> OfferAsync(string path, string title) => Task.FromResult(false);
 
     public Task<(string Name, byte[] Data)?> PickAsync()
     {
-        var next = Next;
-        Next = null;
+        (string Name, byte[] Data)? next = Next.Count > 0 ? Next[0] : null;
+        Next = [];
+        return Task.FromResult(next);
+    }
+
+    public Task<IReadOnlyList<(string Name, byte[] Data)>> PickManyAsync()
+    {
+        IReadOnlyList<(string Name, byte[] Data)> next = Next;
+        Next = [];
         return Task.FromResult(next);
     }
 }

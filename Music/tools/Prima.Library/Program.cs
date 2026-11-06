@@ -10,7 +10,7 @@
 // The local collection is more music, for your own tablet only, and never committed: music whose terms allow personal,
 // non-commercial use but not a place in a public repo. Craig Sapp's Humdrum editions and the DCML's MuseScore corpora, both
 // CC BY-NC-SA 4.0 (Humdrum.cs, Dcml.cs), are prepared the same way into artifacts/library-local and packed as
-// artifacts/prima-collection.zip, which the app imports (Library, Import a file). It also needs npm, which comes with Node.js,
+// artifacts/prima-collection.zip, which the app imports (Library, Import files). It also needs npm, which comes with Node.js,
 // and git (without git, each repository comes as a zip).
 //
 //   dotnet run --project Music/tools/Prima.Library -- local           both its sources, then prepare and pack
@@ -101,7 +101,7 @@ using (var zip = ZipFile.Open(collection, ZipArchiveMode.Create))
 }
 var parts = manifest.Pieces.Sum(p => p.Prepared?.Count ?? 1);
 Console.WriteLine($"{parts} pieces in {collection} ({new FileInfo(collection).Length / 1_000_000} MB; {kinds}), in {clock.Elapsed:m\\:ss}. " +
-    "Copy it to the tablet and open it in the Library with Import a file. It stays out of the repo.");
+    "Copy it to the tablet and open it in the Library with Import files. It stays out of the repo.");
 
 static string? FindRoot(string from)
 {

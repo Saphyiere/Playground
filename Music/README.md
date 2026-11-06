@@ -73,12 +73,14 @@ Humdrum and webmscore from npm there, converts and prepares everything into `art
 `artifacts/prima-collection.zip` (about 26 MB). A first run takes about 7 minutes. If it stops because Windows won't let it
 delete a folder in the cache, something has a file in it open (Visual Studio's Git window, or a virus scan of the new files):
 close it, or delete the folder yourself, and run it again; it picks up where it stopped. Copy that file to the tablet (over USB, or through a cloud drive) and open it
-in the Library with **Import a file**; it's stored in the background, a minute or so. `-- local humdrum` or `-- local dcml`
+in the Library with **Import files**; it's stored in the background, a minute or so. `-- local humdrum` or `-- local dcml`
 runs one source again, `-- local prepare` only prepares again.
 
-Imports on the tablet: MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC, MIDI (written out as notation: best from a file
-exported from notation software), PDF, and the local collection's zip. For MuseScore files or Humdrum, export MusicXML on the
-PC first.
+Imports on the tablet (**Import files**, one or several at once): MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC, MIDI
+(written out as notation: best from a file exported from notation software), PDF, and zips of any of them, like a download that
+bundles a song's files. A PDF picked or zipped with a MIDI file of the same name takes that MIDI too, to be heard on the piano
+and scrolled at its tempo. The local collection's zip is recognised by its manifest. For MuseScore files or Humdrum, export
+MusicXML on the PC first.
 
 ## Putting it on the tablet
 

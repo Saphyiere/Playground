@@ -135,7 +135,7 @@ a PDF plays out; this is what came of it.
   Haydn's and Scarlatti's sonatas, Joplin's rags, Bach's 370 chorales on a grand staff) and the DCML's research corpora as
   MuseScore files (Beethoven's sonatas, Bach's suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The
   Seasons, Debussy, and more), both CC BY-NC-SA 4.0: about 1,200 pieces, prepared like the bundle and packed in one file.
-  **Import a file** with that file stores them in the background with the same meter, its pieces credited like the
+  **Import files** with that file stores them in the background with the same meter, its pieces credited like the
   collection's; those already here stay as they are. The list then holds about 1,500 pieces, so it's drawn again a second at a
   time at most while pieces are stored, and the search follows once typing pauses.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
@@ -172,7 +172,10 @@ a PDF plays out; this is what came of it.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
-- **Imports**: MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages. A MIDI file is
+- **Imports** (**Import files**, one or several at once, or a zip of them, like a download that bundles a song's files):
+  MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages, and takes a MIDI file of the same
+  name picked or zipped with it, to be heard on the piano and scrolled at its tempo. One piece imported opens; several stay in
+  the Library with a line saying what came in and what couldn't. A MIDI file is
   written out as notation first, since it holds when notes sound, not how they're written: the hands from its tracks (or
   middle C), the bars from its time signatures, the key from its signature or its notes, each beat snapped to sixteenths,
   thirty-seconds or triplets, a hand's held notes as a second voice, ties across beats and barlines. One exported from notation
