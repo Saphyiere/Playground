@@ -150,9 +150,10 @@ export function band(element, top, bottom) {
     element.appendChild(band);
 }
 
+// pdf.js 6 lets a document go through the task that loaded it; a failure there mustn't stop the page closing.
 export function close(element) {
     const view = views.get(element);
     if (!view) return;
-    view.doc.destroy();
     views.delete(element);
+    Promise.resolve(view.doc.loadingTask?.destroy()).catch(() => {});
 }

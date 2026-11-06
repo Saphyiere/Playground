@@ -67,7 +67,7 @@
                 await module.DisposeAsync();
             }
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }

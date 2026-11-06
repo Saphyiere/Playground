@@ -25,7 +25,7 @@
             module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/CountIn.razor.js");
             await module.InvokeVoidAsync("start", beats, (Session.TimeAt(-plan.FirstMusicBeat) - Clock.NowNs) / 1e6, plan.BeatNs / 1e6, plan.FirstMusicBeat, plan.BeatsPerBar);
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }
@@ -40,7 +40,7 @@
                 await module.DisposeAsync();
             }
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }

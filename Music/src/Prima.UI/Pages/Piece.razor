@@ -656,7 +656,7 @@ else
             if (keys is not null) await keys.InvokeVoidAsync("dispose");
             if (turns is not null) await turns.DisposeAsync();
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
         self?.Dispose();

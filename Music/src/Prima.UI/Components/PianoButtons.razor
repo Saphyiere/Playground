@@ -35,7 +35,7 @@
             module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PianoButtons.razor.js");
             await ShowKeys();
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }
@@ -50,7 +50,7 @@
             {
                 if (module is not null) await module.InvokeVoidAsync("press", e.Note == Go ? "go" : "again");
             }
-            catch (JSDisconnectedException)
+            catch (Exception e) when (e is JSDisconnectedException or JSException)
             {
             }
         });
@@ -63,7 +63,7 @@
         {
             if (module is not null) await module.InvokeVoidAsync("showKeys", Keyboard.Name is not null && Settings.PianoButtons);
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }
@@ -81,7 +81,7 @@
         {
             if (module is not null) await module.DisposeAsync();
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }

@@ -49,7 +49,7 @@
                 await sheet.InvokeVoidAsync("warm");
             }
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }
@@ -64,7 +64,7 @@
             if (page is not null) await page.DisposeAsync();
             if (sheet is not null) await sheet.DisposeAsync();
         }
-        catch (JSDisconnectedException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
         {
         }
     }

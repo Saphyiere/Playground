@@ -83,24 +83,22 @@
         refresh = new Timer(_ => InvokeAsync(StateHasChanged), null, 3000, 3000);
     }
 
-    private void OnReceived(MidiEvent e)
+    // The piano's messages come on their own thread: the lists change on the screen's, between drawings, never during one.
+    private void OnReceived(MidiEvent e) => _ = InvokeAsync(() =>
     {
-        lock (notes)
+        if (e.Kind == MidiKind.Control) pedals[e.Data1] = e.Data2;
+        if (e.Kind == MidiKind.NoteOn)
         {
-            if (e.Kind == MidiKind.Control) pedals[e.Data1] = e.Data2;
-            if (e.Kind == MidiKind.NoteOn)
-            {
-                notes.Insert(0, (e, lastNoteNs == 0 ? null : (e.TimeNs - lastNoteNs) / 1e6));
-                if (notes.Count > 10) notes.RemoveAt(notes.Count - 1);
-                velocities.Add(e.Velocity);
-                if (velocities.Count > 12) velocities.RemoveAt(0);
-                lastNoteNs = e.TimeNs;
-                lowest |= e.Note == NoteName.LowestKey;
-                highest |= e.Note == NoteName.HighestKey;
-            }
+            notes.Insert(0, (e, lastNoteNs == 0 ? null : (e.TimeNs - lastNoteNs) / 1e6));
+            if (notes.Count > 10) notes.RemoveAt(notes.Count - 1);
+            velocities.Add(e.Velocity);
+            if (velocities.Count > 12) velocities.RemoveAt(0);
+            lastNoteNs = e.TimeNs;
+            lowest |= e.Note == NoteName.LowestKey;
+            highest |= e.Note == NoteName.HighestKey;
         }
-        _ = InvokeAsync(StateHasChanged);
-    }
+        StateHasChanged();
+    });
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 
