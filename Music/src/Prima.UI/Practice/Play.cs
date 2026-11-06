@@ -27,11 +27,21 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// <summary>The opening pickup's length: Verovio's times count from the very start, a pickup's notes included.</summary>
     public long PickupTicks => Score.Bars.Count > 0 && Score.Bars[0].Number == 0 ? Score.Bars[0].Length ?? 0 : 0;
 
-    /// <summary>Notes with a trill or mordent, whose extra notes aren't slips.</summary>
-    public IReadOnlySet<string> Ornamented => Score.Marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
+    /// <summary>Notes with a trill or mordent, whose extra notes aren't slips: each time they're played.</summary>
+    public IReadOnlySet<string> Ornamented
+    {
+        get
+        {
+            var marked = Score.Marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
+            return Notes.Where(n => marked.Contains(SheetId(n.Id))).Select(n => n.Id).ToHashSet();
+        }
+    }
 
-    /// <summary>Where a tick is on the sheet, in quarter notes from the start: the cursor's measure.</summary>
+    /// <summary>A tick of the run in quarter notes from its start: the cursor's measure, which it's given the run's onsets in.</summary>
     public double QuarterOf(long tick) => (tick + PickupTicks) / (double)Ticks.Quarter;
+
+    /// <summary>The note on the sheet a run's note is: one played again has its pass after the id ("n12~2").</summary>
+    public static string SheetId(string id) => id.Split('~')[0];
 }
 
 /// <summary>

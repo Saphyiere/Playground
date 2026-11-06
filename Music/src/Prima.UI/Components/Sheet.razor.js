@@ -100,6 +100,7 @@ function draw(element, state) {
     if (options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
         tk.setOptions({ breaks: "encoded" });
         load(tk, state, withSystemBreaks(state.mei, Math.ceil(bars / systems.length), firstMeasure(options)));
+        state.pages = tk.getPageCount();
         music.innerHTML = tk.renderToSVG(1);
     }
     state.timemap = tk.renderToTimemap({ includeMeasures: true });
@@ -130,6 +131,8 @@ function firstMeasure(options) {
 function withSystemBreaks(mei, perSystem, from = 0) {
     const ns = "http://www.music-encoding.org/ns/mei";
     const doc = new DOMParser().parseFromString(mei, "application/xml");
+    // Only these: the file's own line and page breaks (an engraving's) would split it again, a page break onto a page not shown.
+    for (const old of [...doc.getElementsByTagNameNS(ns, "sb"), ...doc.getElementsByTagNameNS(ns, "pb")]) old.remove();
     const measures = [...doc.getElementsByTagNameNS(ns, "measure")];
     for (let i = from + perSystem; i < measures.length; i += perSystem) measures[i].parentNode.insertBefore(doc.createElementNS(ns, "sb"), measures[i]);
     return new XMLSerializer().serializeToString(doc);
@@ -180,12 +183,13 @@ export function highlight(element, id) {
 // Where each moment of the music is on the sheet: for every onset in Verovio's time map that's on this page, its time in quarter
 // notes, the left edge of its first note head and its system's top and bottom, in px from the sheet's corner; and each system's
 // end, the barline closing its last bar at the time that bar ends.
-function positions(element, state) {
+function positions(element, state, onsets = state.options.onsets) {
     const box = element.getBoundingClientRect();
     const points = [];
-    // Onsets given by .NET (a stretch of a real piece, where Verovio's time map is the whole piece's) take its place.
-    if (state.options.onsets) {
-        for (const [id, q] of state.options.onsets) {
+    // Onsets given by .NET take its place: a stretch of a real piece, where Verovio's time map is the whole piece's, or a run's
+    // own (Verovio's map plays repeats its own way, and a run can start anywhere). A note played twice has two.
+    if (onsets) {
+        for (const [id, q] of onsets) {
             const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
             if (!head) continue;
             const system = head.closest(".system");
@@ -209,8 +213,8 @@ function positions(element, state) {
     // ends, instead of stopping on the note. Bar times are the time map's, moved onto the stretch's times for a stretch.
     const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, q: e.qstamp }));
     let shift = 0;
-    if (state.options.onsets) {
-        const known = state.options.onsets.map(([id, q]) => ({ q, entry: state.timemap.find(e => e.on?.includes(id)) })).find(o => o.entry);
+    if (onsets) {
+        const known = onsets.map(([id, q]) => ({ q, entry: state.timemap.find(e => e.on?.includes(id)) })).find(o => o.entry);
         if (!known) return points;
         shift = known.q - known.entry.qstamp;
     }
@@ -230,12 +234,13 @@ function positions(element, state) {
 
 // Moves a cursor in the look's accent with the music: bar 1 starts `msUntilStart` from now, at `msPerQuarter`, from quarter
 // `startQuarter` of the music (later than 0 after a pickup). Until then (the count-in) it waits at the first note and pulses
-// with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. A guide only: nothing is scored from it.
-export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat) {
+// with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. Given the run's own onsets ([id, quarter]), it goes
+// from note to note of those, through repeats or from wherever the run starts. A guide only: nothing is scored from it.
+export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, onsets) {
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
-    const points = positions(element, state);
+    const points = positions(element, state, onsets ?? state.options.onsets);
     state.points = points;
     if (points.length === 0) return;
     const bars = windowQuarters ? measures(element, state) : null;

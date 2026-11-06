@@ -191,4 +191,60 @@ public class MusicTests
         Assert.Equal(Ticks.Half, expected.Single(n => n.Tick == 960).Length);
         Assert.Equal("Fixture", read.Title);
     }
+
+    // Two bars repeated from the start, then a repeat with first and second endings, and a bar after: 2/4, a half note a bar.
+    private const string Repeats = """
+        <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+        <scoreDef meter.count="2" meter.unit="4" key.sig="0"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/></staffGrp></scoreDef>
+        <section>
+        <measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="4" dur="2"/></layer></staff></measure>
+        <measure n="2" right="rptend"><staff n="1"><layer n="1"><note xml:id="b" pname="d" oct="4" dur="2"/></layer></staff></measure>
+        <measure n="3" left="rptstart"><staff n="1"><layer n="1"><note xml:id="c" pname="e" oct="4" dur="2"/></layer></staff></measure>
+        <ending n="1"><measure n="4" right="rptend"><staff n="1"><layer n="1"><note xml:id="d" pname="f" oct="4" dur="2"/></layer></staff></measure></ending>
+        <ending n="2"><measure n="5"><staff n="1"><layer n="1"><note xml:id="e" pname="g" oct="4" dur="2"/></layer></staff></measure></ending>
+        <measure n="6"><staff n="1"><layer n="1"><note xml:id="f" pname="a" oct="4" dur="2"/></layer></staff></measure>
+        </section></score></mdiv></body></music></mei>
+        """;
+
+    [Fact]
+    public void Reading_keeps_repeat_signs_and_endings()
+    {
+        var score = MeiReader.Read(Repeats);
+
+        Assert.Equal([false, false, true, false, false, false], score.Bars.Select(b => b.RepeatStart));
+        Assert.Equal([false, true, false, true, false, false], score.Bars.Select(b => b.RepeatEnd));
+        Assert.Equal(["", "", "", "1", "2", ""], score.Bars.Select(b => string.Join(",", b.Endings)));
+    }
+
+    [Theory]
+    [InlineData(0, new[] { 0, 1, 0, 1, 2, 3, 2, 4, 5 })]
+    [InlineData(1, new[] { 1, 0, 1, 2, 3, 2, 4, 5 })]
+    [InlineData(2, new[] { 2, 3, 2, 4, 5 })]
+    [InlineData(4, new[] { 4, 5 })]
+    public void Play_order_takes_each_repeat_twice_and_the_second_ending_second(int from, int[] expected)
+    {
+        Assert.Equal(expected, MeiReader.Read(Repeats).PlayOrder(from));
+    }
+
+    [Fact]
+    public void Music_without_repeats_plays_as_written()
+    {
+        var score = MeiReader.Read(MeiWriter.Write(new Score(new Key(0), new Meter(4, 4), [new Bar(1, []), new Bar(2, []), new Bar(3, [])])));
+
+        Assert.Equal([0, 1, 2], score.PlayOrder());
+        Assert.Equal([1, 2], score.PlayOrder(1));
+    }
+
+    [Fact]
+    public void Performed_notes_run_on_through_the_repeats_and_name_each_pass()
+    {
+        var score = MeiReader.Read(Repeats);
+        var bar = score.Meter.BarTicks;
+
+        var notes = score.Performed(score.PlayOrder());
+
+        Assert.Equal(["a", "b", "a~2", "b~2", "c", "d", "c~2", "e", "f"], notes.Select(n => n.Id));
+        Assert.Equal(Enumerable.Range(0, 9).Select(k => (long)k * bar), notes.Select(n => n.Tick));
+        Assert.Equal([1, 2, 1, 2, 3, 4, 3, 5, 6], notes.Select(n => n.Bar));
+    }
 }

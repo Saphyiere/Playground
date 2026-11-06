@@ -67,6 +67,15 @@ public sealed record Bar(int Number, IReadOnlyList<Voice> Voices)
 
     public Meter? NewMeter { get; init; }
 
+    /// <summary>A start-repeat sign before the bar.</summary>
+    public bool RepeatStart { get; init; }
+
+    /// <summary>An end-repeat sign after the bar.</summary>
+    public bool RepeatEnd { get; init; }
+
+    /// <summary>In a first or second ending: the times through the repeat that play the bar (none: every time).</summary>
+    public IReadOnlyList<int> Endings { get; init; } = [];
+
     public string Id => $"m{Number}";
 }
 
@@ -171,6 +180,61 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
             }
             return total;
         }
+    }
+
+    /// <summary>
+    /// The bars in the order they're played from bar index <paramref name="from"/> on (indexes into <see cref="Bars"/>): each
+    /// repeat twice, back to its start-repeat sign or, without one, the bar after the last repeat (or the beginning), the second
+    /// time by its second ending. From the middle of a repeat it goes back to that repeat's start. D.C. and D.S. aren't followed.
+    /// </summary>
+    public IReadOnlyList<int> PlayOrder(int from = 0)
+    {
+        var order = new List<int>();
+        var taken = new HashSet<int>();
+        var back = 0;
+        for (var j = 0; j < from; j++) back = Bars[j].RepeatEnd ? j + 1 : Bars[j].RepeatStart ? j : back;
+        if (from < Bars.Count && Bars[from].RepeatStart) back = from;
+        var pass = from < Bars.Count && Bars[from].Endings.Count > 0 ? Bars[from].Endings.Min() : 1;
+        for (var i = from; i < Bars.Count; i++)
+        {
+            var bar = Bars[i];
+            if (bar.Endings.Count > 0 && !bar.Endings.Contains(pass)) continue;
+            if (bar.RepeatStart && pass == 1) back = i;
+            order.Add(i);
+            if (bar.RepeatEnd && taken.Add(i))
+            {
+                (i, pass) = (back - 1, 2);
+                continue;
+            }
+            // A repeat done: the next goes back no further than the bar after it.
+            var lastEnding = bar.Endings.Count > 0 && (i + 1 == Bars.Count || Bars[i + 1].Endings.Count == 0);
+            if (bar.RepeatEnd || (pass > 1 && lastEnding)) (back, pass) = (i + 1, 1);
+        }
+        return order;
+    }
+
+    /// <summary>
+    /// The notes to play through bars in an order (<see cref="PlayOrder"/>'s, or a loop's): each bar's notes timed on from the bar
+    /// before, so the music's own ticks hold until the first jump; a note played again has its pass after its id ("n12~2").
+    /// </summary>
+    public IReadOnlyList<ExpectedNote> Performed(IReadOnlyList<int> order)
+    {
+        var starts = BarStarts().ToList();
+        var lengths = WithSignatures().Select(w => (long)(w.Bar.Length ?? w.Meter.BarTicks)).ToList();
+        var byBar = Expected().ToLookup(n => n.Bar);
+        var notes = new List<ExpectedNote>();
+        var passes = new Dictionary<int, int>();
+        var at = order.Count > 0 ? starts[order[0]].Start : 0;
+        for (var k = 0; k < order.Count; k++)
+        {
+            var (bar, written) = starts[order[k]];
+            var pass = passes[order[k]] = passes.GetValueOrDefault(order[k]) + 1;
+            var shift = at - written;
+            string Again(string id) => pass == 1 ? id : $"{id}~{pass}";
+            foreach (var n in byBar[bar.Number]) notes.Add(n with { Id = Again(n.Id), Tick = n.Tick + shift, ChordId = n.ChordId is { } c ? Again(c) : null });
+            at += lengths[order[k]];
+        }
+        return notes;
     }
 
     /// <summary>

@@ -406,7 +406,10 @@ else
         if (score is null || !barStarts.TryGetValue(bar, out var start)) return;
 
         from = bar;
-        music = new PlayMusic(score, [.. expected.Where(n => n.Tick >= start && (handStaff is null || n.Staff == handStaff))], Math.Max(0, start));
+        // Through the repeats from that bar, as they're played (bars are numbered in order, so its index is its number on from the
+        // first's).
+        var notes = score.Performed(score.PlayOrder(bar - FirstBar));
+        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], Math.Max(0, start));
     }
 
     private string HandsKey => $"Library.Hands.{Id}";

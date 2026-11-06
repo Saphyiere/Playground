@@ -160,7 +160,7 @@
             StateHasChanged();
             // Read ahead's covers go: the cursor waits, so there's no time to keep ahead of.
             await sheet.StopCursor();
-            await sheet.CursorAt(wait.Current[0].Id);
+            await sheet.CursorAt(PlayMusic.SheetId(wait.Current[0].Id));
             return;
         }
 
@@ -190,9 +190,11 @@
             await Draw(live.Due(now));
         }), null, 100, 100);
         StateHasChanged();
-        // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat.
+        // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat, from
+        // note to note of the run itself, so it goes back at a repeat as the notes do.
         await Task.Delay(50);
-        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters);
+        var onsets = music.Notes.GroupBy(n => n.Tick).Select(g => (PlayMusic.SheetId(g.First().Id), music.QuarterOf(g.Key))).ToList();
+        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters, onsets);
     }
 
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
@@ -258,7 +260,7 @@
 
             bar = judge.Current[0].Bar;
             StateHasChanged();
-            if (SheetOf() is { } sheet) await sheet.CursorAt(judge.Current[0].Id);
+            if (SheetOf() is { } sheet) await sheet.CursorAt(PlayMusic.SheetId(judge.Current[0].Id));
         });
     }
 
@@ -289,18 +291,20 @@
     }
 
     // A note's mark on the sheet. A wrong one shows the key played, a red head that many staff positions from the written one,
-    // which turns grey, each named; an early or late one when it was played, a ring on its line.
+    // which turns grey, each named; an early or late one when it was played, a ring on its line. A note played again (a repeat)
+    // marks the same note on the sheet, the latest time through.
     private SheetMark MarkOf(PlayMusic music, string id, LiveKind kind, int? key, double errorPercent)
     {
         var name = kind.ToString().ToLowerInvariant();
-        if (kind == LiveKind.Wrong && key is { } played && pitches.TryGetValue(id, out var written))
+        var sheetId = PlayMusic.SheetId(id);
+        if (kind == LiveKind.Wrong && key is { } played && pitches.TryGetValue(sheetId, out var written))
         {
             var spelled = music.Score.Key.Spell(played);
-            return new SheetMark(id, name, spelled.ToString(), spelled.Diatonic - written.Diatonic, Written: written.ToString());
+            return new SheetMark(sheetId, name, spelled.ToString(), spelled.Diatonic - written.Diatonic, Written: written.ToString());
         }
         return kind is LiveKind.Early or LiveKind.Late && notes.TryGetValue(id, out var note)
-            ? new SheetMark(id, name, Quarter: music.QuarterOf(note.Tick) + errorPercent / 100 * music.BeatTicks / Ticks.Quarter)
-            : new SheetMark(id, name);
+            ? new SheetMark(sheetId, name, Quarter: music.QuarterOf(note.Tick) + errorPercent / 100 * music.BeatTicks / Ticks.Quarter)
+            : new SheetMark(sheetId, name);
     }
 
     public void Dispose()

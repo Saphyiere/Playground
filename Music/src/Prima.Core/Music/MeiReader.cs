@@ -1,14 +1,16 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Prima.Core.Music;
 
 /// <summary>
 /// Reads MEI into a score: Prima's own (from <see cref="MeiWriter"/>) and the MEI Verovio makes from an imported MusicXML,
-/// Humdrum or ABC file, keeping every id. It reads bars in written order (repeats aren't expanded), staves and layers, notes,
-/// chords and rests through beams, tuplets and grace groups, durations by value or by ticks, ties (as attributes or tie
-/// elements), accidentals as written or implied (by the key, by an earlier one in the bar, or marked as gestural), and key,
-/// metre and clef changes. Printed marks other than ties aren't read: Verovio engraves them from the MEI itself.
+/// Humdrum or ABC file, keeping every id. It reads bars in written order with their repeat signs and endings (which
+/// <see cref="Score.PlayOrder"/> follows), staves and layers, notes, chords and rests through beams, tuplets and grace groups,
+/// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
+/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. Printed marks other than ties aren't read:
+/// Verovio engraves them from the MEI itself.
 /// </summary>
 public static class MeiReader
 {
@@ -33,6 +35,7 @@ public static class MeiReader
         Key? newKey = null;
         Meter? newMeter = null;
         var number = 0;
+        var startsNext = false;
         foreach (var element in score.Descendants().Where(e => e.Name == Mei + "measure" || (e.Name == Mei + "scoreDef" && e != firstDef)))
         {
             if (element.Name == Mei + "scoreDef")
@@ -65,7 +68,18 @@ public static class MeiReader
             // Bars are numbered in order, a pickup 0, whatever the file says: files repeat numbers (two endings both 17) or skip
             // them. Renumber puts the same numbers in the MEI, so the printed ones agree.
             number = bars.Count == 0 ? (pickup ? 0 : 1) : number + 1;
-            bars.Add(new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter });
+            // Repeat signs: a start before the bar (or a both after the one before), an end after it (or before the next); an
+            // ending's number says which time through plays it ("1", "2", "1, 2").
+            var (left, right) = ((string?)element.Attribute("left"), (string?)element.Attribute("right"));
+            if (left is "rptend" or "rptboth" && bars.Count > 0) bars[^1] = bars[^1] with { RepeatEnd = true };
+            var ending = element.Ancestors(Mei + "ending").FirstOrDefault();
+            var endingName = (string?)ending?.Attribute("n") ?? (string?)ending?.Attribute("label") ?? "";
+            var endings = Regex.Matches(endingName, @"\d+").Select(m => int.Parse(m.Value, CultureInfo.InvariantCulture)).ToList();
+            var repeatStart = left is "rptstart" or "rptboth" || startsNext;
+            var repeatEnd = right is "rptend" or "rptboth";
+            var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter };
+            bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });
+            startsNext = right == "rptboth";
             (newKey, newMeter) = (null, null);
         }
 

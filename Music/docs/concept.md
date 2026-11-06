@@ -141,7 +141,9 @@ a PDF plays out; this is what came of it.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
   In time or Wait for me, the tempo, and Play, from the start or from the bar of a note you tap (it's lit until you play). A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
-  the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. While
+  the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
+  each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
+  with it; a note played twice keeps the mark of the latest time. While
   it plays, the music scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
   bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
   doesn't move your level.

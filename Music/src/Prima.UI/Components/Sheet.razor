@@ -80,9 +80,9 @@
     /// <paramref name="startQuarter"/> of the music. Until then it waits at the first note, pulsing with the click's beats: one
     /// every <paramref name="beatMs"/>, one of them <paramref name="msUntilBeat"/> from now.
     /// </summary>
-    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null)
+    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null, IReadOnlyList<(string Id, double Quarter)>? onsets = null)
     {
-        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat);
+        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, onsets?.Select(o => new object[] { o.Id, o.Quarter }).ToArray());
     }
 
     /// <summary>Read ahead's look: only the opening view of <paramref name="quarters"/> shows.</summary>
