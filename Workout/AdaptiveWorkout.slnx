@@ -3,6 +3,8 @@
     <Project Path="build/AdaptiveWorkout.Build/AdaptiveWorkout.Build.csproj" />
   </Folder>
   <Folder Name="/kit/">
+    <Project Path="../Kit/Playground.AI.Assist/Playground.AI.Assist.csproj" />
+    <Project Path="../Kit/Playground.AI.Assist.Tests/Playground.AI.Assist.Tests.csproj" />
     <Project Path="../Kit/Playground.Kit/Playground.Kit.csproj" />
     <Project Path="../Kit/Playground.Updates/Playground.Updates.csproj" />
     <Project Path="../Kit/Playground.Updates.Android/Playground.Updates.Android.csproj" />
