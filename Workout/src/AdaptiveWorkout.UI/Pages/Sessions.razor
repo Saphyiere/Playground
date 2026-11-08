@@ -1,6 +1,7 @@
 @page "/sessions"
 @inject WorkoutStore Store
 @inject WorkoutFlow Flow
+@inject Trainer Trainer
 @inject AppNavigation Navigation
 
 <PageTitle>Choose session</PageTitle>
@@ -138,10 +139,11 @@
         loaded = true;
     }
 
+    // Finishing opens Claude's look back, when there's a key for it.
     private async Task FinishAsync()
     {
-        Flow.Finish();
-        await LoadAsync();
+        if (Flow.Finish() is { } finished && await Trainer.LooksBackAsync()) Navigation.Open($"look-back/{finished.Id}");
+        else await LoadAsync();
     }
 
     private async Task CancelAsync()

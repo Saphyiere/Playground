@@ -2,12 +2,15 @@
 // cloud session can render and screenshot them (see CLAUDE.md). /seed/{scenario} fills the data; the other endpoints stand in for
 // the watch and the phone's notification.
 using AdaptiveWorkout.Core;
+using AdaptiveWorkout.Preview;
 using AdaptiveWorkout.UI;
+using AdaptiveWorkout.UI.Assist;
 using AdaptiveWorkout.UI.Storage;
 using AdaptiveWorkout.UI.Watch;
 using AdaptiveWorkout.UI.Workouts;
 using Microsoft.Data.Sqlite;
 using AdaptiveWorkout.Preview.Components;
+using Playground.AI.Assist;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +20,9 @@ var noticeLog = new List<string>();
 builder.Services.AddSingleton<WorkoutNotice>(new LogNotice(noticeLog));
 builder.Services.AddSingleton<WatchLink>(sp => new LogWatchLink(sp.GetRequiredService<WorkoutStore>(), noticeLog));
 builder.Services.AddSingleton<FlowRegistry>();
+// Claude answers from the workout itself (PreviewClaude), never the API; the key is kept in memory (AddAdaptiveWorkout's default).
+builder.Services.AddSingleton<PreviewClaude>();
+builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
 builder.Services.AddAdaptiveWorkout(dbPath);
 // fresh per page load here, so reseeding between screenshots isn't masked by a cached workout; the newest is kept for /watch-next
 builder.Services.AddScoped<WorkoutFlow>(sp => sp.GetRequiredService<FlowRegistry>().Latest = ActivatorUtilities.CreateInstance<WorkoutFlow>(sp));
@@ -32,7 +38,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
+        foreach (var table in new[] { "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
             new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     if (scenario == "empty") return "empty";
@@ -219,6 +225,43 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         }
     }
 
+    // A back day with every planned set done, for Finish to open its look back: rows hit the goal, the superset held, one pulldown ran
+    // long (Stop tapped late) and the last pushdowns came after a short rest. The watch read through it, every 5 seconds.
+    if (scenario == "lookback")
+    {
+        var workout = new WorkoutSession { TemplateId = back.Id, StartedAt = now.AddMinutes(-48) };
+        await store.StartSessionAsync(workout);
+        var at = workout.StartedAt.AddMinutes(1);
+        var order = 1;
+        var beats = new List<HeartRateSample>();
+        void Beat(DateTimeOffset from, int seconds, int bpmFrom, int bpmTo)
+        {
+            for (var s = 0; s < seconds; s += 5) beats.Add(new HeartRateSample { At = from.AddSeconds(s), Bpm = bpmFrom + (bpmTo - bpmFrom) * s / Math.Max(1, seconds) });
+        }
+        async Task Round(int seconds, int restAfter, params (Exercise Exercise, double? Weight, int Reps, bool Goal)[] sets)
+        {
+            foreach (var set in sets)
+                await store.InsertSetAsync(workout, new WorkoutSet { ExerciseId = set.Exercise.Id, Order = order++, StartedAt = at, StoppedAt = at.AddSeconds(seconds), Weight = set.Weight, Reps = set.Reps, HitGoal = set.Goal });
+            Beat(at, seconds, 112, 146);
+            Beat(at.AddSeconds(seconds), restAfter, 146, 108);
+            at = at.AddSeconds(seconds + restAfter);
+        }
+        await Round(40, 135, (rows, 100, 10, false));
+        await Round(40, 135, (rows, 100, 10, false));
+        await Round(42, 150, (rows, 100, 10, true));
+        await Round(45, 120, (pullUps, null, 10, false), (dips, null, 12, false));
+        await Round(45, 120, (pullUps, null, 10, false), (dips, null, 12, false));
+        await Round(48, 150, (pullUps, null, 9, false), (dips, null, 11, false));
+        await Round(42, 135, (pulldown, 120, 10, false));
+        await Round(280, 90, (pulldown, 120, 10, false));
+        await Round(40, 150, (pulldown, 120, 8, false));
+        await Round(38, 120, (pushdown, 50, 12, false));
+        await Round(36, 20, (pushdown, 50, 12, false));
+        await Round(35, 0, (pushdown, 50, 11, false));
+        await store.AddHeartRateAsync(beats);
+        return "lookback";
+    }
+
     if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
@@ -241,7 +284,32 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     return scenario;
 }
 
-app.MapGet("/seed/{scenario}", async (string scenario, WorkoutStore store) => Results.Text(await Seed(scenario, store)));
+app.MapGet("/seed/{scenario}", async (string scenario, WorkoutStore store, PreviewClaude claude) =>
+{
+    claude.Reset();
+    return Results.Text(await Seed(scenario, store));
+});
+
+// The stand-in Claude: a key on the phone or not (one ending a1B2), a key file for Settings to find, and how it answers: slower, or
+// with a kind of trouble (/claude/script?delay=60000, ?fail=offline).
+app.MapGet("/claude/key", async (bool? clear, IAssistKeyStore keys) =>
+{
+    if (clear == true) await keys.RemoveAsync();
+    else await keys.SetAsync("sk-ant-api03-preview-000000000000000000a1B2");
+    return Results.Text(clear == true ? "no key" : "key set");
+});
+app.MapGet("/claude/file", async (string? text, ClaudeKeyFile file) =>
+{
+    await File.WriteAllTextAsync(file.Path, text ?? "sk-ant-api03-preview-000000000000000000c3D4");
+    return Results.Text($"wrote {file.Path}");
+});
+app.MapGet("/claude/script", (int? delay, string? fail, PreviewClaude claude) =>
+{
+    claude.Reset();
+    if (delay is { } ms) claude.DelayMs = ms;
+    if (fail is not null) claude.Fail = Enum.Parse<AnswerKind>(fail, ignoreCase: true);
+    return Results.Text($"delay {claude.DelayMs} ms, failing with {claude.Fail?.ToString() ?? "nothing"}");
+});
 
 app.MapGet("/notice-log", (string? clear) =>
 {

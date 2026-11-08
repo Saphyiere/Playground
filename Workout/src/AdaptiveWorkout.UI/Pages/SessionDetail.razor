@@ -3,6 +3,7 @@
 @inject WorkoutFlow Flow
 @inject AppSettings Settings
 @inject AppNavigation Navigation
+@inject Trainer Trainer
 
 <PageTitle>@name</PageTitle>
 
@@ -66,6 +67,22 @@
             </div>
         </section>
 
+        @* Claude's look back at it, when there's one kept, or a way to ask for one. *@
+        @if (lookBack is { } kept)
+        {
+            <a class="block" href="look-back/@Id" aria-labelledby="look-back-heading">
+                <div class="spread">
+                    <h2 id="look-back-heading" class="label">Look back</h2>
+                    <Icon Name="forward" Size="16" />
+                </div>
+                <p class="body">@kept.Summary</p>
+            </a>
+        }
+        else if (canAsk)
+        {
+            <a class="btn tall" href="look-back/@Id">Look back with Claude</a>
+        }
+
         @if (session.WarmUpEndedAt is { } warmedUpAt)
         {
             @Phase("Warm-up", session.StartedAt, warmedUpAt)
@@ -107,6 +124,8 @@
     private List<HeartRateSample> samples = [];
     private int? burned;
     private bool confirming;
+    private LookBackRecord? lookBack;
+    private bool canAsk;
 
     [Parameter] public long Id { get; set; }
 
@@ -129,6 +148,8 @@
         var during = samples.Where(s => s.At >= from && s.At <= to).ToList();
         session.AverageBpm ??= during.Count == 0 ? 0 : during.Average(s => s.Bpm);
         burned = Calories.BurnedByDay([session], sets, exercises, await Store.GetBodyWeightsAsync(), Settings) is { Count: > 0 } byDay ? byDay.Values.Single() : null;
+        lookBack = await Trainer.GetAsync(Id);
+        canAsk = lookBack is null && await Trainer.HasKeyAsync();
     }
 
     private static string Unit(WeightUnit unit) => unit == WeightUnit.Kilograms ? "kg" : "lb";

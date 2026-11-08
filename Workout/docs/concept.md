@@ -90,12 +90,15 @@ The icon at the top right of Today, after Stats:
 - **Look:** **Logbook**, a printed training log, warm paper and a red pen; or **Telemetry**, a dark instrument panel, with every number on a ruler. Choosing one switches the whole app at once.
 - **Calories:** my goal a day (1,800 to start), and maintenance on a day without a workout, worked out from my body and latest weigh-in (see *Calories* below).
 - **Body:** sex, age, height, and how I spend a usual day outside workouts: from sitting most of it to physical work all day. Each workout adds its own.
+- **Claude:** the key on the phone, shown by its start and last four characters, with **Test** and **Remove**; without one, how to
+  get it there (a key file copied over USB, taken into secure storage when the app opens, or now with **Look for the key file**).
+  **Look back after each workout**, on or off, and what this month's look backs cost. See *Claude's look back*.
 
 Everything is remembered.
 
 ### Getting around
 
-Every screen below Today has its way back at the top, naming the screen it goes back to, and the phone's back gesture does the same: one screen per step, back the way I came. Finishing what a screen was opened for (saving a session or routine, deleting a workout, choosing in Change) also goes back there, never on to a fresh copy of a screen I'd already left, so back never walks through finished forms. Starting a workout from the session picker, and switching the workout between its views, take the screen's place instead of stacking up. Two or more screens in, **Today** at the top right (a house in Telemetry) goes straight home, and finishing or cancelling a workout always lands on Today.
+Every screen below Today has its way back at the top, naming the screen it goes back to, and the phone's back gesture does the same: one screen per step, back the way I came. Finishing what a screen was opened for (saving a session or routine, deleting a workout, choosing in Change) also goes back there, never on to a fresh copy of a screen I'd already left, so back never walks through finished forms. Starting a workout from the session picker, and switching the workout between its views, take the screen's place instead of stacking up. Two or more screens in, **Today** at the top right (a house in Telemetry) goes straight home. Finishing a workout opens Claude's look back in its place (with a key on the phone), which goes back to Today; cancelling one lands on Today.
 
 ## Flows
 
@@ -178,6 +181,7 @@ The break screen reads **Rest 0:48**: the word big beside the timer, counting up
 The app is suggestive, especially in simple mode:
 - Weight and reps pre-fill from the previous set in this session; the first set of an exercise pre-fills from the first set the last time I did it.
 - **Hit goal:** every set's entry on the break screen has a **Hit goal** checkbox. Next time, that exercise's first set suggests the weight of the set I marked plus 5 (in that set's unit), and the following sets pre-fill from it as usual. Assisted weights move toward less assistance (−40 becomes −35); bodyweight stays bodyweight.
+- **Claude's plan:** once a look back's plan is taken (**Use for next time**), the next time I do each of its exercises, the first set pre-fills from Claude's weight × reps instead, and Next on the break screen says **From Claude's look back**. Its sets count where the session doesn't plan them, and its rest becomes the exercise's countdown. It's for that one time: once the exercise is done again, the rules above are back.
 
 ### Next-step rules
 
@@ -261,7 +265,7 @@ Sets vary (3 × 10 one day, 5 × 5 another, 2 × 6 then 2 × 12 at a lower weigh
 
 "Flat" over a stretch (the same weight × reps for a month) is a signal too: time to push.
 
-**(later)** Suggestions from my method: "Last time 10, 10, 10 at 100. Try 105."
+Suggestions from my method ("Last time 10, 10, 10 at 100. Try 105.") come from Claude's look back after each workout (see *Claude's look back*).
 
 ### Improvement (the default lead signal)
 
@@ -271,6 +275,48 @@ Until I choose a lead signal, one number stands for "better", so the Gym trend h
 - **A workout's improvement** is how its exercises did against the last time I did each, averaged (the geometric mean, so +10% and the same ratio down even out). Exercises done for the first time are left out; with none to compare, a workout has no improvement. It's worked out once after Finish and stored; workouts finished before this existed get theirs the first time Gym opens.
 - **The trend** is each exercise's change since its first time, averaged over every exercise compared so far. More workouts in a week don't inflate it: bench +10% and curls +10% is +10%.
 - **A trend of some workouts** (a routine's, a session's or an exercise's, on Stats) compares each of them only with the last of them that had each exercise, the other workouts left out. It's worked out from their sets when Stats opens, not stored.
+
+## Claude's look back
+
+After **Finish**, with a key on the phone and the look back on in Settings, the screen fades into a look back at the workout, by
+Claude through the apps' shared [framework](../../Kit/Playground.AI.Assist/README.md):
+
+- **At once,** the workout's own numbers: time, sets, volume and heart rate. **While Claude reads,** a heartbeat runs across a monitor
+  at a resting 72 a minute: the pen drawing on a strip of ECG paper in Logbook, the heart channel's trace on the panel in
+  Telemetry, with how long it's been. It takes about half a minute.
+- **Then Claude's words,** line by line: a sentence or two on the day; a few lines on what went up or slipped; **Next time**, each
+  weight exercise's sets × reps at a weight, its rest, how it moves from today (Up 5, Same weight, More reps), and why, from the
+  numbers; and **Sets that looked off**, each with what the app saw and what Claude made of it (counted, its time left out, left
+  out, or a typo?), with **Fix a set** opening the workout to change one.
+- **Use for next time** takes the plan (see *Pre-filled and suggested values*); the stamp says it's set. **Not now** leaves my own
+  suggestions as they are.
+- **Trouble** says what it was: no connection, Claude busy, the key or the month's credit or the spend limit. **Try again** asks
+  once more, or **Claude in Settings** goes to the key.
+- **It's kept** with the workout: the workout's page shows its first lines and opens it again. A workout from before, or one finished
+  with the look back off, has **Look back with Claude** there instead.
+
+What Claude is sent, and what holds it to its answer:
+
+- **The workout as the app reads it,** and nothing else: each set's weight, reps and Hit goal, how long it ran, the rest before it,
+  and the heart rate at its start, through it and at its lowest in the rest before; each exercise's planned sets, rest countdown,
+  what the last look back said for today, and its last three times before this workout; the hit-goal step, my weigh-in before it,
+  and my calorie goal against maintenance. Never the raw heart-rate stream.
+- **What looks off, found by the app,** so Claude only judges it: a set over 3 minutes or 3 times its usual length (a late tap on
+  Stop, or the walk to the next machine); a rest under 30 seconds or half its countdown; heart rate climbing by 15 through a rest
+  and falling by 10 through the set after it (the set done before Start was tapped); a weight 2.5 times (or under 0.4 times) the
+  exercise's others, or 30 reps and more that are 3 times its others (a typo); and Hit goal ticked on fewer reps than an earlier set
+  at the same weight, or left empty when every set reached last time's goal.
+- **My method is the rule** (see *Adaptive*): up a step after a hit goal, or when every set reached its reps; the same weight when
+  reps fall short; down only after two short workouts running. Never a swapped or added exercise, until I'm lighter and steady.
+  While I eat below maintenance, a flat day isn't a failure. Rest gets longer when reps drop set to set and shorter when they hold;
+  heart rate only weighs in beside the reps, since a watch reads it poorly at the wrist while lifting, and a low one is never a
+  reason to go heavier.
+- **Its answer is checked** before it's shown: one plan for each weight exercise of the workout and none for timed ones; 1 to 10
+  sets, 1 to 50 reps, a rest of 30 seconds to 5 minutes in steps of 15; a weight whole hit-goal steps from one used today or in its
+  last times, by at most a tenth of it or one step; bodyweight stays bodyweight; notes only about the workout's sets. An answer
+  that fails is asked for once more, with what was wrong.
+- **Cost:** about 10 to 25 cents a workout on Claude Opus 5.5 at medium effort, from the plan's monthly API credits; Settings shows
+  this month's.
 
 ## Consistency
 
@@ -345,7 +391,15 @@ HeartRateSample    At, Bpm                      (matched to sessions, sets and r
 FoodEntry          Id, At, Calories
 BodyWeightEntry    Id, At, Weight, WeightUnit
 Settings           CalorieGoal 1800, Sex, BirthYear, HeightCm, DailyActivity (Sitting), Unit lb; maintenance 2200 until it can be worked out
+LookBack           SessionId, At, Kind, Summary, Notes, Input, Answer, Cost, AppliedAt   (Claude's look back at a workout, one each, as JSON;
+                                                                                      gone with its workout)
+ClaudeCall         Id, At, SessionId, Task, Version, Model, Attempt, Kind, Summary, Question, Reply, tokens in and out, Cost, Ms, MessageId, Error
+                                                                                     (every call to Claude, kept for the month's cost)
 ```
+
+Settings also keep, by key, each exercise's rest countdown (`RestTarget:<exercise>`), Claude's plan for its next time once taken
+(`Trainer:<exercise>`: the workout it looked back at, weight, unit, reps, sets and rest), and `LookBack` = `off` when the look back
+is turned off. The Claude key is never in the data file: it's in the phone's secure storage.
 
 **(proposed)** Stored locally on the phone (SQLite). Backup or Google sync later.
 

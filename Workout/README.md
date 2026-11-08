@@ -15,6 +15,7 @@ build/
 docs/                       The app concept and data model (concept.md).
 src/
   AdaptiveWorkout.Core/     Business logic (plain .NET 10): next step, plan changes, suggestions, history, schedule, consistency, improvement, calories, maintenance and what workouts burn.
+                            Assist/ has Claude's look back: what it's sent about a workout, what it answers, and the checks on it.
   AdaptiveWorkout.UI/       The app's screens (Razor) and storage (SQLite via Dapper). Any host can show them.
   AdaptiveWorkout.Phone/    Phone app: .NET MAUI Blazor Hybrid host for the UI, Android only.
   AdaptiveWorkout.Watch/    Watch app: .NET for Android targeting Wear OS. Shows heart rate and sends it to the phone.
@@ -88,6 +89,24 @@ If the watch doesn't open, it should at least show a "Workout started" notificat
 
 If an Android build ever fails over output paths, temporarily remove the two artifacts lines in the repo root's `Directory.Build.props` to rule out the `artifacts/` output folder.
 
+## Claude's look back: first run
+
+Finishing a workout opens Claude's look back at it, asked with your Anthropic API key. The key lives in the phone's secure storage,
+never in the app's data or the repo; the [AI framework's README](../Kit/Playground.AI.Assist/README.md#getting-the-key-onto-a-device)
+has the whole story, from the Console's workspace and spend limit to what to do if the phone is lost.
+
+1. In the Claude Console, make an API key in the workspace for your apps, and save it alone in a file named `claude-key.txt`,
+   outside the repo.
+2. Open the app once, so its folder is there, plug the phone in and copy the file across:
+   `adb push claude-key.txt /sdcard/Android/data/com.saphyiere.adaptiveworkout/files/`. Delete the copy on the PC with Shift+Delete.
+3. Open the app: it takes the key into secure storage and deletes the file on the phone. **Settings › Claude** shows the key
+   masked; **Test** checks it with Anthropic without spending anything.
+4. Finish a workout. The look back takes about half a minute; **Use for next time** takes its plan.
+5. Try it in a **Release** build once: Release builds trim the app, and the answer's JSON schema is made from its records, so check
+   that a look back still arrives there.
+
+Android's backups leave the key out (`Platforms/Android/Resources/xml`), so after a restore or a reinstall, push the file again.
+
 ## Design
 
 The app wears the [Kit](../Kit/README.md)'s two looks, Logbook and Telemetry, switched in **Settings** (the icon at the top right of Today, after Stats). The Kit has the themes' tokens, fonts and shared pieces, and how they work; `src/AdaptiveWorkout.UI/wwwroot/app.css` has this app's own screens, in the same tokens.
@@ -105,7 +124,13 @@ The watch wears the phone's theme too. The phone sends its theme's id with each 
 dotnet test --project tests/AdaptiveWorkout.Core.Tests
 ```
 
-Tests are only for business logic in `Core`: no UI, wording, or plumbing tests.
+Tests are only for business logic in `Core`: no UI, wording, or plumbing tests. The look back's tests never call Claude: they check
+what the app works out and sends, and the checks on an answer.
+
+The preview host (`tools/AdaptiveWorkout.Preview`, see the repo's CLAUDE.md) has a stand-in Claude that answers a look back from
+the workout itself after a moment: `/claude/key` puts a key on the "phone" (`?clear=true` takes it off), `/claude/file` leaves a key
+file to be found, and `/claude/script?delay=8000&fail=offline` slows it down or makes it fail. `/seed/lookback` sets up a back day
+ready for **Finish**.
 
 ## Why these choices
 

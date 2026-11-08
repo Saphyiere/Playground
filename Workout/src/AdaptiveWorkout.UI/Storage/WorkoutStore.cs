@@ -12,7 +12,7 @@ namespace AdaptiveWorkout.UI.Storage;
 /// All work runs on a background thread, one piece at a time in call order: the screen never waits on SQLite,
 /// a write can be started without waiting for it, and every read sees the writes started before it.
 /// </summary>
-public sealed class WorkoutStore(string databasePath) : ISettingStore
+public sealed partial class WorkoutStore(string databasePath) : ISettingStore
 {
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS Routine (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL);
@@ -27,6 +27,11 @@ public sealed class WorkoutStore(string databasePath) : ISettingStore
         CREATE TABLE IF NOT EXISTS BodyWeightEntry (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Weight REAL NOT NULL, WeightUnit INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS HeartRateSample (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Bpm INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS SessionExercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, PlannedSets INTEGER, SupersetGroup INTEGER);
+        -- Each call to Claude (never the key): when, for which workout, the task and model, how it went, what was asked and answered,
+        -- and what it used and cost. A workout deleted keeps its calls, so a month's cost stays true.
+        CREATE TABLE IF NOT EXISTS ClaudeCall (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, SessionId INTEGER, Task TEXT NOT NULL, Version INTEGER NOT NULL, Model TEXT NOT NULL, Attempt INTEGER NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Question TEXT NOT NULL, Reply TEXT NOT NULL, InputTokens INTEGER NOT NULL, OutputTokens INTEGER NOT NULL, CacheReadTokens INTEGER NOT NULL, CacheWriteTokens INTEGER NOT NULL, Cost REAL NOT NULL, Ms INTEGER NOT NULL, MessageId TEXT NOT NULL, Error TEXT NOT NULL);
+        -- The trainer's look back at a workout, one each: how the asking went, what it was asked and said (JSON), and when its plan was applied.
+        CREATE TABLE IF NOT EXISTS LookBack (SessionId INTEGER PRIMARY KEY REFERENCES WorkoutSession (Id) ON DELETE CASCADE, At TEXT NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Notes TEXT NOT NULL, Input TEXT, Answer TEXT, Cost REAL NOT NULL, AppliedAt TEXT);
         -- One workout's sets, and the heart rate during it, found without reading every row ever logged.
         CREATE INDEX IF NOT EXISTS WorkoutSetBySession ON WorkoutSet (SessionId, "Order");
         CREATE INDEX IF NOT EXISTS HeartRateSampleByTime ON HeartRateSample (At);

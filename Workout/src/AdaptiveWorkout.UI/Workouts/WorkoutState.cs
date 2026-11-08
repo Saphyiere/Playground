@@ -25,6 +25,9 @@ public sealed class WorkoutState
     public required IReadOnlyList<WorkoutSet> PastSets { get; init; }
     public required double HitGoalStep { get; init; }
 
+    /// <summary>The trainer's applied plans for exercises' next times, by exercise; each counts only for the time after the workout it looked back at.</summary>
+    public Dictionary<long, TrainerTarget> TrainerTargets { get; init; } = [];
+
     public HashSet<long> Skipped { get; } = [];
 
     /// <summary>Sets up to this order were entered at an earlier rest, or before the workout was reopened.</summary>
@@ -98,7 +101,7 @@ public sealed class WorkoutState
     public void Refresh()
     {
         var exerciseIds = Plan.Select(e => e.ExerciseId).Concat(Sets.Select(s => s.ExerciseId)).Distinct();
-        setsLastTime = exerciseIds.ToDictionary(id => id, id => History(id).FirstOrDefault()?.Sets.Count ?? 0);
+        setsLastTime = exerciseIds.ToDictionary(id => id, id => TrainerFor(id)?.Sets ?? History(id).FirstOrDefault()?.Sets.Count ?? 0);
 
         var stopped = Sets.Where(s => s.StoppedAt is not null).ToList();
         Next = WorkoutPlan.Next(Plan, stopped, setsLastTime, Skipped);
@@ -108,6 +111,10 @@ public sealed class WorkoutState
 
         MoveOn = WorkoutPlan.Next(Plan, stopped, setsLastTime, [.. Skipped, .. WorkoutPlan.Blocks(Plan)[at].Select(e => e.ExerciseId)]);
     }
+
+    /// <summary>The trainer's plan for this time of an exercise: applied from the look back at the last time I did it; null otherwise.</summary>
+    public TrainerTarget? TrainerFor(long exerciseId) =>
+        TrainerTargets.TryGetValue(exerciseId, out var target) && History(exerciseId).FirstOrDefault()?.Session.Id == target.SessionId ? target : null;
 
     /// <summary>The last 3 sessions that had this exercise, newest first.</summary>
     public IReadOnlyList<PastSession> History(long exerciseId)
@@ -132,19 +139,19 @@ public sealed class WorkoutState
     public SetValues? SuggestionFor(WorkoutSet set)
     {
         var before = Sets.TakeWhile(s => s.Order < set.Order).Where(s => s.ExerciseId == set.ExerciseId).ToList();
-        return SetSuggestion.For(before, History(set.ExerciseId).FirstOrDefault()?.Sets ?? [], HitGoalStep);
+        return SetSuggestion.For(before, History(set.ExerciseId).FirstOrDefault()?.Sets ?? [], HitGoalStep, TrainerFor(set.ExerciseId));
     }
 
     /// <summary>
     /// What the next set of this exercise starts with, as Start fills it in (see <see cref="SetSuggestion"/>), so the weights can be
-    /// ready during the rest. Empty for a time exercise, or with nothing to go on.
+    /// ready during the rest: the trainer's plan for its first set when one is applied. Empty for a time exercise, or with nothing to go on.
     /// </summary>
     public SetValues? NextValues(long exerciseId)
     {
         if (Exercises[exerciseId].Measure != ExerciseMeasure.Weight) return null;
 
         var lastTime = History(exerciseId).FirstOrDefault()?.Sets ?? [];
-        return SetSuggestion.For([.. Sets.Where(s => s.ExerciseId == exerciseId)], lastTime, HitGoalStep);
+        return SetSuggestion.For([.. Sets.Where(s => s.ExerciseId == exerciseId)], lastTime, HitGoalStep, TrainerFor(exerciseId));
     }
 
     /// <summary>"Set 2 of 3", "Set 4", or "Superset · round 1 of 3".</summary>

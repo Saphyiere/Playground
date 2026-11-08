@@ -116,7 +116,8 @@ Release builds don't, so asking Claude would work from Visual Studio and fail on
 
 ### What leaves the device
 
-- Only what a question needs, and only when you press its button. Nothing runs in the background.
+- Only what a question needs, and only when you press its button. Nothing runs in the background. The workout app's look back is
+  asked by **Finish** (and can be turned off in its Settings).
   - The trainer gets your sets, their times, heart-rate summaries (not the raw stream) and body weight.
   - The teacher gets your practice results.
   - Reading a PDF sends the page images.
@@ -435,6 +436,20 @@ this session's template. Its notes say which flags it acted on.
 - The app uses the answer to pre-fill. For that workout it takes the place of the +5 after a hit goal, and **Next** shows
   "Trainer: 105 × 10". You can always change it.
 
+### What's built
+
+The look back after Finish, decided below: the trainer's next-session plan and its look at the workout, in one question.
+
+- **The task** is `Workout/src/AdaptiveWorkout.Core/Assist/`: `LookBackFacts` works out each set's time, rest and heart rate and the
+  flags above, `LookBackTask` asks (Opus 5.5 at medium effort, so the wait after Finish stays about half a minute), and
+  `LookBackPlan` checks the answer: one plan per weight exercise, sets, reps and rest in range, and a weight that's whole hit-goal
+  steps from one used today or in its last times, by at most 10% or one step. It answers in one record: highlights, the next time
+  of each exercise with its rest and a why, and a note on each flagged set. Its tests never call Claude.
+- **The phone:** Finish opens the look back, with a heartbeat trace while Claude reads; **Use for next time** keeps each exercise's
+  plan for its next time, where it takes the place of the +5 after a hit goal, and its rest becomes the exercise's countdown.
+  Settings › Claude has the key (from `claude-key.txt`, as the framework's README says), Test, the look back on or off, and the
+  month's cost. The workout app's [concept](../Workout/docs/concept.md) has the whole behavior.
+
 ### Evidence
 
 - **ACSM position stand on progression (2009):** raise the load 2–10% once you can do one or two reps more than the target.
@@ -482,6 +497,7 @@ going, short technique.
 4. **The framework:** `Kit/Playground.AI.Assist`, named so it says what it's for. It's built, with its tests.
 5. **First:** PDF to notation, with Prima's screens designed by the Prima session, against the shapes the framework session
    sent it.
+6. **The trainer:** a look back after every workout, opened by Finish, with its plan for the next time taken with a tap.
 
 Still open: the models. Opus 5.5 is the default, and each task can try Sonnet 5.5 once it measures as well.
 
@@ -491,7 +507,8 @@ Still open: the models. Opus 5.5 is the default, and each task can try Sonnet 5.
    devices, with a task working end to end in a Release build.
 2. **PDF to notation.** The endpoint is built (above). Next: the measuring tool on the PC, then the tablet's screens (the Prima
    session) and wiring.
-3. **The trainer.** Core's flags and inputs first, tested, then the question itself.
+3. **The trainer.** Built: the look back after Finish (part 4, What's built). Still to try on the phone: a real answer, and a
+   Release build.
 4. **The teacher.**
 
 ---

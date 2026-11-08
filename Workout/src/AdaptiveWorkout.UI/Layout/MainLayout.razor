@@ -5,6 +5,8 @@
 @inject ThemeSetting ThemeSetting
 @inject AppSettings Settings
 @inject WorkoutStore Store
+@inject ClaudeKeyFile KeyFile
+@inject Playground.AI.Assist.IAssistKeyStore Keys
 @inject IJSRuntime JS
 
 @* Pages wait for the saved theme, so the components that draw per theme don't start in the wrong one, and for the saved calorie
@@ -28,7 +30,8 @@
         // The opening's timing (AppLaunch): Blazor is running, then the saved settings are read.
         Launch.Step("Blazor");
         ThemeSetting.Changed += OnThemeChanged;
-        await Task.WhenAll(ThemeSetting.LoadAsync(), Store.LoadAsync(Settings));
+        // A Claude key copied over USB is taken in as the app opens; Settings says what became of it.
+        await Task.WhenAll(ThemeSetting.LoadAsync(), Store.LoadAsync(Settings), KeyFile.ImportAsync(Keys));
         Launch.Step("settings");
         themeLoaded = true;
     }

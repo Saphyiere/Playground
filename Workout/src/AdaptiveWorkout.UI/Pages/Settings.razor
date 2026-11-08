@@ -1,6 +1,10 @@
 @page "/settings"
+@using System.Diagnostics
 @inject AppSettings AppSettings
 @inject WorkoutStore Store
+@inject IClaude Claude
+@inject IAssistKeyStore Keys
+@inject ClaudeKeyFile KeyFile
 
 <PageTitle>Settings</PageTitle>
 
@@ -97,6 +101,74 @@
             }
         </div>
     </section>
+
+    @* Claude: the key on this phone, masked, with a line on what last happened to it; the look back after each workout; and this
+       month's cost. The key arrives as a file over USB, and lives in secure storage, never in the app's data. *@
+    <section class="stack" aria-labelledby="claude-heading">
+        <h2 id="claude-heading" class="label">Claude</h2>
+        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only the workout's sets, their heart rate and your weigh-in are sent.</p>
+        <div class="spread baseline">
+            <span class="label">Key</span>
+            @if (maskedKey is { } masked)
+            {
+                <span class="name big tabular" aria-label="@($"The key on this phone, ending {masked[^4..]}")">@masked</span>
+            }
+            else
+            {
+                <span class="note">None on this phone</span>
+            }
+        </div>
+        @if (maskedKey is null)
+        {
+            <button type="button" class="btn tall" @onclick="LookForKeyAsync">Look for the key file</button>
+        }
+        else if (removingKey)
+        {
+            <div class="grid-2 appear">
+                <button type="button" class="btn tall" @onclick="() => removingKey = false">Keep it</button>
+                <button type="button" class="btn tall fill" @onclick="RemoveKeyAsync">Remove it</button>
+            </div>
+        }
+        else
+        {
+            <div class="grid-2">
+                <button type="button" class="btn tall" disabled="@testing" @onclick="TestKeyAsync">@(testing ? "Testing…" : "Test")</button>
+                <button type="button" class="btn tall" @onclick="() => (removingKey, keyNote) = (true, null)">Remove…</button>
+            </div>
+        }
+        @if (removingKey)
+        {
+            <p class="note" role="status">The app forgets the key; the next look back needs it pushed again. The key itself stays good in the Claude Console until you disable it there.</p>
+        }
+        else if (keyNote is { } note)
+        {
+            <p class="note" role="status">@note</p>
+        }
+        @if (maskedKey is null)
+        {
+            <ol class="key-howto note">
+                <li>In the Claude Console, make an API key in the workspace for your apps, the one with a monthly spend limit.</li>
+                <li>Save the key alone in a text file named claude-key.txt, anywhere but the repo.</li>
+                <li>Plug the phone into the PC, open the app once so its folder is there, and copy the file across: <code class="key-command">adb push claude-key.txt /sdcard/Android/data/<wbr />com.saphyiere.adaptiveworkout/<wbr />files/</code></li>
+                <li>Delete the file on the PC with Shift+Delete. The app takes the key into secure storage the next time it opens, or now with Look for the key file, and deletes the copy on the phone.</li>
+            </ol>
+        }
+        <div class="field-group">
+            <span class="field-label" id="look-back-label">Look back after each workout</span>
+            <div class="segmented" role="group" aria-labelledby="look-back-label">
+                <button type="button" aria-pressed="@(lookBackOn ? "true" : "false")" @onclick="() => SetLookBackAsync(true)">On</button>
+                <button type="button" aria-pressed="@(lookBackOn ? "false" : "true")" @onclick="() => SetLookBackAsync(false)">Off</button>
+            </div>
+        </div>
+        @if (maskedKey is not null || spend.Cost > 0)
+        {
+            <div class="spread baseline">
+                <span class="label">This month</span>
+                <span class="name big tabular">@spend.Cost.ToString("$0.00", CultureInfo.InvariantCulture)</span>
+            </div>
+            <p class="note">What Anthropic charged for @(spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs") this month, as the app counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
+        }
+    </section>
 </div>
 
 @code {
@@ -116,6 +188,14 @@
     private int? feet;
     private double? inches;
 
+    // Claude: the key on this phone, masked; what last happened to it; whether Finish opens the look back; and this month's cost.
+    private string? maskedKey;
+    private string? keyNote;
+    private bool testing;
+    private bool removingKey;
+    private bool lookBackOn = true;
+    private ClaudeSpend spend = new(0, 0);
+
     protected override async Task OnInitializedAsync()
     {
         goal = AppSettings.CalorieGoal;
@@ -128,6 +208,51 @@
 
         // The latest weigh-in, as Today finds it.
         latestWeight = (await Store.GetBodyWeightsSinceAsync(DateTimeOffset.Now.AddDays(-30), 10)).MaxBy(w => w.At);
+
+        maskedKey = await Keys.GetAsync() is { } key ? AssistKey.Mask(key) : null;
+        // What became of a key file since the app opened, while it still holds: a key taken in that's since been removed says nothing.
+        keyNote = KeyFile.Found switch
+        {
+            { Result: KeyImportResult.Saved } when maskedKey is not null => $"Key taken in from {AssistKey.FileName}",
+            { Result: KeyImportResult.NotAKey } wrong when maskedKey is null => wrong.Detail,
+            _ => maskedKey is null ? $"No {AssistKey.FileName} in the app's folder yet" : null,
+        };
+        lookBackOn = (await Store.GetSettingsAsync()).GetValueOrDefault(Trainer.SettingKey) != "off";
+        var now = DateTimeOffset.Now;
+        spend = await Store.GetClaudeSpendAsync(new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset));
+    }
+
+    private async Task TestKeyAsync()
+    {
+        testing = true;
+        var watch = Stopwatch.StartNew();
+        var answer = await Claude.TestAsync();
+        keyNote = answer.Ok ? $"Works: Claude answered in {watch.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s" : answer.Summary;
+        testing = false;
+    }
+
+    private async Task RemoveKeyAsync()
+    {
+        await Keys.RemoveAsync();
+        (maskedKey, removingKey, keyNote) = (null, false, "The key is off this phone.");
+    }
+
+    private async Task LookForKeyAsync()
+    {
+        var found = await KeyFile.ImportAsync(Keys);
+        maskedKey = await Keys.GetAsync() is { } key ? AssistKey.Mask(key) : null;
+        keyNote = found.Result switch
+        {
+            KeyImportResult.Saved => $"Key taken in from {AssistKey.FileName}",
+            KeyImportResult.NotAKey => found.Detail,
+            _ => $"No {AssistKey.FileName} in the app's folder yet",
+        };
+    }
+
+    private Task SetLookBackAsync(bool on)
+    {
+        lookBackOn = on;
+        return Store.SetSettingAsync(Trainer.SettingKey, on ? null : "off");
     }
 
     // Changes a setting, then saves them all.

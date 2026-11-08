@@ -5,4 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <!-- The trainer's questions to Claude (Assist/) are tasks of the apps' shared framework. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Kit\Playground.AI.Assist\Playground.AI.Assist.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 on: cloud backups and moving to a new phone carry everything but the Claude key's secure storage, encrypted to this phone. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="com.saphyiere.adaptiveworkout.microsoft.maui.essentials.preferences.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="com.saphyiere.adaptiveworkout.microsoft.maui.essentials.preferences.xml" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using AdaptiveWorkout.Core;
 using AdaptiveWorkout.UI.Storage;
 using AdaptiveWorkout.UI.Watch;
@@ -278,10 +279,10 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         Announce();
     }
 
-    /// <summary>Stops a running set, saves the one being logged, and closes the session; a cool-down ends with it.</summary>
-    public void Finish()
+    /// <summary>Stops a running set, saves the one being logged, and closes the session; a cool-down ends with it. Returns the workout finished.</summary>
+    public WorkoutSession? Finish()
     {
-        if (Current is not { } state) return;
+        if (Current is not { } state) return null;
 
         StopSet();
         foreach (var entry in state.ToConfirm) Save(store.UpdateSetAsync(entry));
@@ -302,6 +303,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         Current = null;
         watch.Close();
         Announce();
+        return state.Session;
     }
 
     /// <summary>Throws away the open session and its sets, e.g. one started by mistake.</summary>
@@ -433,6 +435,48 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     public void AdjustRestTarget(long exerciseId, int seconds) =>
         SetPreference(RestTargetKey(exerciseId), Math.Clamp((int)RestTarget(exerciseId).TotalSeconds + seconds, 15, 600).ToString(CultureInfo.InvariantCulture));
 
+    /// <summary>
+    /// Takes the trainer's plan for each exercise's next time (see <see cref="TrainerTarget"/>): its first set pre-fills from it, and
+    /// its rest counts down from it. Both are remembered with the settings.
+    /// </summary>
+    public void ApplyTrainer(IReadOnlyList<(long ExerciseId, TrainerTarget Target)> targets)
+    {
+        foreach (var (exerciseId, target) in targets)
+        {
+            foreach (var (key, value) in new[] { (TrainerKey(exerciseId), JsonSerializer.Serialize(target)), (RestTargetKey(exerciseId), target.RestSeconds.ToString(CultureInfo.InvariantCulture)) })
+            {
+                preferences[key] = value;
+                Save(store.SetSettingAsync(key, value));
+            }
+
+            Current?.TrainerTargets[exerciseId] = target;
+        }
+
+        Current?.Refresh();
+        Announce();
+    }
+
+    /// <summary>The setting that keeps the trainer's plan for an exercise's next time.</summary>
+    public static string TrainerKey(long exerciseId) => $"Trainer:{exerciseId}";
+
+    /// <summary>The setting that keeps an exercise's rest countdown.</summary>
+    public static string RestTargetKey(long exerciseId) => $"RestTarget:{exerciseId}";
+
+    /// <summary>A trainer's plan as the settings keep it; null for none, or one that can't be read.</summary>
+    public static TrainerTarget? ReadTrainerTarget(string? saved)
+    {
+        if (saved is null) return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<TrainerTarget>(saved);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Creates (or links to) an exercise picked by name mid-workout.</summary>
     public Task<Exercise> GetOrCreateExerciseAsync(string name, ExerciseMeasure measure) => store.GetOrCreateExerciseAsync(name, measure);
 
@@ -512,12 +556,13 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
             PastSets = pastSets,
             HitGoalStep = settings.HitGoalStep,
             LoggedThrough = sets.Count == 0 ? 0 : sets[^1].Order,
+            TrainerTargets = preferences.Where(p => p.Key.StartsWith("Trainer:", StringComparison.Ordinal))
+                .Select(p => (Id: long.TryParse(p.Key["Trainer:".Length..], CultureInfo.InvariantCulture, out var id) ? id : 0, Target: ReadTrainerTarget(p.Value)))
+                .Where(p => p is { Id: > 0, Target: not null }).ToDictionary(p => p.Id, p => p.Target!),
         };
         state.Refresh();
         return state;
     }
-
-    private static string RestTargetKey(long exerciseId) => $"RestTarget:{exerciseId}";
 
     private void SetPreference(string key, string value)
     {

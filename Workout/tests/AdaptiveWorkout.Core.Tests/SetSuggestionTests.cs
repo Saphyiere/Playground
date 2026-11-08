@@ -41,6 +41,22 @@ public class SetSuggestionTests
     }
 
     [Fact]
+    public void For_TheTrainersNextTime_TakesThePlaceOfTheHitGoalStep()
+    {
+        var trainer = new TrainerTarget(7, 102.5, WeightUnit.Pounds, 8, 3, 150);
+
+        Assert.Equal(new SetValues(102.5, WeightUnit.Pounds, 8, false, FromTrainer: true), SetSuggestion.For([], [Set(95, 10, hitGoal: true)], 5, trainer));
+    }
+
+    [Fact]
+    public void For_ThePreviousSetThisSession_ComesBeforeTheTrainer()
+    {
+        var trainer = new TrainerTarget(7, 105, WeightUnit.Pounds, 10, 3, 150);
+
+        Assert.Equal(new SetValues(105, WeightUnit.Pounds, 9, false), SetSuggestion.For([Set(105, 9)], [], 5, trainer));
+    }
+
+    [Fact]
     public void For_IsEmptyForAnExerciseIHaveNeverDone()
     {
         Assert.Null(SetSuggestion.For([], [], 5));

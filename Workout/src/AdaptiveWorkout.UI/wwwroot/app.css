@@ -1,5 +1,5 @@
 /* The workout app's own screens, in the looks of Kit/Playground.Kit/wwwroot/kit.css (loaded first, with its tokens): the
-   workout's steps and supersets, the rest and set entries, Today's week and meters, history, and the charts. */
+   workout's steps and supersets, the rest and set entries, Today's week and meters, history, the charts, and Claude's look back. */
 
 /* The workout's name in its masthead. */
 .title.workout {
@@ -946,4 +946,254 @@ button.set-line:active {
 
 [data-theme="telemetry"] .meter-over {
     background: repeating-linear-gradient(135deg, var(--fuel) 0 1px, transparent 1px 4px);
+}
+
+/* Claude's look back after Finish. The screen fades in; a heartbeat runs across a monitor while Claude reads; its words then arrive
+   line by line. In Logbook the pen draws the trace on a strip of ECG paper; in Telemetry it's the heart channel's trace on the panel,
+   sweeping over the last pass. Telemetry's tiles never move, so there it only lights up. */
+.screen.look-back {
+    animation: look-in 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes look-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes look-on {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.monitor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.monitor svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.monitor .grid-minor {
+    stroke: var(--wash);
+    stroke-width: 0.5;
+}
+
+.monitor .grid-major {
+    stroke: color-mix(in srgb, var(--mark) 25%, transparent);
+    stroke-width: 0.75;
+}
+
+.monitor .trace {
+    fill: none;
+    stroke: var(--mark);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.monitor .trace.past {
+    opacity: 0.14;
+}
+
+/* Three beats a pass, 2.5 seconds a pass: 72 a minute. The pen moves at an even pace across, as a monitor's does. */
+.monitor .sweep {
+    transform-box: view-box;
+    transform-origin: 0 0;
+    animation: sweep 2.5s linear infinite;
+}
+
+.monitor .cursor {
+    fill: var(--mark);
+    opacity: 0.6;
+    transform-box: view-box;
+    animation: cursor 2.5s linear infinite;
+}
+
+@keyframes sweep {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+
+@keyframes cursor {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(326px);
+    }
+}
+
+.monitor-word {
+    font-family: var(--font-words);
+    font-style: italic;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--ink-muted);
+}
+
+/* Claude's summary, in the print's own voice, and its highlights, each set off by the pen. */
+.look-summary {
+    font-family: var(--font-words);
+    font-size: 22px;
+    line-height: 30px;
+    color: var(--ink);
+    text-wrap: pretty;
+}
+
+.highlights {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.highlights li {
+    position: relative;
+    padding-left: 20px;
+    font-family: var(--font-words);
+    font-size: 17px;
+    line-height: 24px;
+    color: var(--ink);
+}
+
+.highlights li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 11px;
+    width: 10px;
+    height: 2px;
+    background: var(--mark);
+    transform: rotate(-8deg);
+}
+
+.arrive {
+    animation: look-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
+}
+
+.next-lift .row-text,
+.set-note .row-text {
+    gap: 2px;
+    width: 100%;
+}
+
+/* Settings › Claude: the steps for getting a key onto the phone, and the command, which may wrap anywhere at phone width. */
+.key-howto {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.key-command {
+    display: block;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: var(--field-tint);
+    border-left: 2px solid var(--rule);
+    font-family: ui-monospace, "Martian Mono", monospace;
+    font-size: 12px;
+    line-height: 18px;
+    font-style: normal;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+[data-theme="telemetry"] .screen.look-back,
+[data-theme="telemetry"] .arrive {
+    animation-name: look-on;
+}
+
+[data-theme="telemetry"] .monitor {
+    padding: 12px;
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+}
+
+[data-theme="telemetry"] .monitor .grid-minor {
+    stroke: var(--rule);
+    stroke-width: 0.5;
+    opacity: 0.45;
+}
+
+[data-theme="telemetry"] .monitor .grid-major {
+    stroke: var(--rule);
+    stroke-width: 1;
+}
+
+[data-theme="telemetry"] .monitor .trace {
+    stroke: var(--channel);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--channel) 60%, transparent));
+}
+
+[data-theme="telemetry"] .monitor .trace.past {
+    opacity: 0.25;
+    filter: none;
+}
+
+[data-theme="telemetry"] .monitor .cursor {
+    fill: var(--channel);
+    opacity: 0.9;
+}
+
+[data-theme="telemetry"] .monitor-word {
+    font-family: var(--font-label);
+    font-style: normal;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--channel);
+}
+
+[data-theme="telemetry"] .look-summary {
+    font-size: 19px;
+    line-height: 27px;
+    font-weight: 600;
+}
+
+[data-theme="telemetry"] .highlights li {
+    font-size: 16px;
+    line-height: 22px;
+}
+
+[data-theme="telemetry"] .highlights li::before {
+    top: 10px;
+    width: 8px;
+    transform: none;
+}
+
+/* With less motion asked for, the trace stays drawn and the pen's line, which would stand still, goes. */
+@media (prefers-reduced-motion: reduce) {
+    .monitor .cursor {
+        display: none;
+    }
 }

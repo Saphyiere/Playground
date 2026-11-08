@@ -1,6 +1,7 @@
 @page "/workout/advanced"
 @implements IDisposable
 @inject WorkoutFlow Flow
+@inject Trainer Trainer
 @inject AppNavigation Navigation
 
 <PageTitle>@(state?.Name ?? "Workout")</PageTitle>
@@ -192,9 +193,10 @@
         Navigation.Replace("workout");
     }
 
-    private Task FinishAsync()
+    // Finishing opens Claude's look back in the workout's place, when there's a key for it; else it's back to Today.
+    private async Task FinishAsync()
     {
-        Flow.Finish();
-        return Navigation.HomeAsync();
+        if (Flow.Finish() is { } finished && await Trainer.LooksBackAsync()) Navigation.Replace($"look-back/{finished.Id}");
+        else await Navigation.HomeAsync();
     }
 }

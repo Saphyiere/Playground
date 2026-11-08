@@ -1,0 +1,289 @@
+@page "/look-back/{SessionId:long}"
+@implements IDisposable
+@inject Trainer Trainer
+@inject WorkoutStore Store
+@inject AppSettings Settings
+@inject AppNavigation Navigation
+
+@* Claude's look back at a finished workout. Finish fades into it: the workout's own numbers at once, then a heartbeat trace while Claude
+   reads the sets, then its words line by line: how it went, the plan for each exercise's next time (Use for next time takes it), and
+   what it made of any set that looked off. Opened again from the workout's page, it shows what was kept. *@
+
+<PageTitle>Look back</PageTitle>
+
+@if (session is not null)
+{
+    var telemetry = Theme == Theme.Telemetry;
+    var time = TimeText.Format((session.FinishedAt ?? session.StartedAt) - session.StartedAt);
+    var volume = WorkoutStats.Volume(sets, Settings.Unit).ToString("N0", CultureInfo.CurrentCulture);
+    <div class="screen look-back">
+        <PageHeader Back="" BackText="Today" Label="@($"{name} · {session.StartedAt.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)}")" Title="Look back" />
+
+        @* The workout's own numbers don't wait for Claude. *@
+        <section class="block" aria-label="The workout">
+            <div class="grid-2 readouts">
+                <div class="row-text">
+                    <span class="label">Time</span>
+                    <span class="number sm" style="--chars: @time.Length">@time</span>
+                </div>
+                <div class="row-text">
+                    <span class="label">Sets</span>
+                    <span class="number sm">@sets.Count</span>
+                </div>
+                <div class="row-text">
+                    <span class="label">Volume</span>
+                    <span class="inline baseline">
+                        <span class="number sm" style="--chars: @volume.Length">@volume</span>
+                        <span class="unit">@Unit(Settings.Unit)</span>
+                    </span>
+                </div>
+                <div class="row-text">
+                    <span class="label">Heart rate</span>
+                    @if (heartRate is { } bpm)
+                    {
+                        <span class="inline baseline">
+                            <span class="number sm">@bpm.Average</span>
+                            <span class="unit">avg · @bpm.Max max</span>
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="note">No readings</span>
+                    }
+                </div>
+            </div>
+        </section>
+
+        @if (record is null)
+        {
+            @* While Claude reads: a monitor's trace, drawn across and again, at a resting 72 beats a minute. *@
+            <section class="monitor channel-heart" role="status" aria-live="polite">
+                <svg viewBox="0 0 326 96" aria-hidden="true">
+                    @for (var x = 0; x <= 326; x += 8)
+                    {
+                        <line class="@(x % 40 == 0 ? "grid-major" : "grid-minor")" x1="@x" y1="0" x2="@x" y2="96" />
+                    }
+                    @for (var y = 0; y <= 96; y += 8)
+                    {
+                        <line class="@(y % 40 == 0 ? "grid-major" : "grid-minor")" x1="0" y1="@y" x2="326" y2="@y" />
+                    }
+                    <defs>
+                        <clipPath id="sweep">
+                            <rect class="sweep" x="0" y="0" width="326" height="96" />
+                        </clipPath>
+                    </defs>
+                    <path class="trace past" d="@Trace" />
+                    <path class="trace" d="@Trace" clip-path="url(#sweep)" />
+                    <rect class="cursor" x="-1" y="0" width="2" height="96" />
+                </svg>
+                <div class="spread baseline">
+                    <p class="monitor-word">@(telemetry ? "Claude · reading" : "Claude is reading your workout")</p>
+                    <Clock Since="askedAt" Class="caption tabular" />
+                </div>
+                <span class="sr-only">Claude is reading your workout.</span>
+            </section>
+        }
+        else if (record is { Answer: { } answer, Input: { } input })
+        {
+            <section class="stack look-words">
+                <p class="look-summary arrive" style="--i: 0">@record.Summary</p>
+                @if (answer.Highlights.Count > 0)
+                {
+                    <ul class="highlights">
+                        @for (var i = 0; i < answer.Highlights.Count; i++)
+                        {
+                            <li class="arrive" style="--i: @(i + 1)">@answer.Highlights[i]</li>
+                        }
+                    </ul>
+                }
+                @foreach (var note in record.Notes)
+                {
+                    <p class="note arrive" style="--i: @(answer.Highlights.Count + 1)">@note</p>
+                }
+            </section>
+
+            <section class="stack arrive" style="--i: @(answer.Highlights.Count + 2)" aria-labelledby="next-heading">
+                <h2 id="next-heading" class="label">Next time</h2>
+                <div class="ledger">
+                    @foreach (var lift in answer.NextTime)
+                    {
+                        <div class="row next-lift">
+                            <span class="row-text">
+                                <span class="spread baseline">
+                                    <span class="name">@(input.Exercises.FirstOrDefault(e => e.Id == lift.ExerciseId)?.Name ?? "An exercise")</span>
+                                    <span class="pen-note">@Change(input, lift)</span>
+                                </span>
+                                <span class="spread baseline">
+                                    <span class="name big tabular">@Plan(input, lift)</span>
+                                    <span class="caption tabular">rest @TimeText.Format(TimeSpan.FromSeconds(lift.RestSeconds))</span>
+                                </span>
+                                <span class="note">@lift.Why</span>
+                            </span>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            @if (answer.SetNotes.Count > 0)
+            {
+                <section class="stack arrive" style="--i: @(answer.Highlights.Count + 3)" aria-labelledby="sets-heading">
+                    <div class="spread baseline">
+                        <h2 id="sets-heading" class="label">Sets that looked off</h2>
+                        <a class="btn-ghost" href="history/@SessionId">Fix a set</a>
+                    </div>
+                    <div class="ledger">
+                        @foreach (var note in answer.SetNotes)
+                        {
+                            var set = input.Workout.Sets.FirstOrDefault(s => s.Id == note.SetId);
+                            <div class="row set-note">
+                                <span class="row-text">
+                                    <span class="spread baseline">
+                                        <span class="name">@(set is null ? "A set" : $"{set.Exercise}, set {set.Number}")</span>
+                                        <span class="caption">@Treated(note.TreatedAs)</span>
+                                    </span>
+                                    @if (set is { Flags: [var flag, ..] })
+                                    {
+                                        <span class="caption">@flag.Detail</span>
+                                    }
+                                    <span class="body">@note.Note</span>
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            <div class="push-down stack arrive" style="--i: @(answer.Highlights.Count + 4)">
+                @if (record.AppliedAt is null)
+                {
+                    <button type="button" class="btn tall" @onclick="Navigation.HomeAsync">Not now</button>
+                    <button type="button" class="btn-primary save" @onclick="ApplyAsync">Use for next time</button>
+                }
+                else
+                {
+                    <p class="center"><span class="stamp">Set for next time</span></p>
+                    <p class="note center">Each exercise's first set starts from it, and its rest counts down from it.</p>
+                    <button type="button" class="btn-primary go" @onclick="Navigation.HomeAsync">Done</button>
+                }
+            </div>
+        }
+        else
+        {
+            <section class="block stack arrive" role="alert">
+                <p class="look-summary">@record.Summary</p>
+                @foreach (var note in record.Notes)
+                {
+                    <p class="note">@note</p>
+                }
+                @if (record.Kind is AnswerKind.NoKey or AnswerKind.KeyRejected or AnswerKind.OutOfCredit or AnswerKind.SpendLimit)
+                {
+                    <a class="btn tall" href="settings">Claude in Settings</a>
+                }
+            </section>
+            <div class="push-down stack">
+                @if (record.Kind is AnswerKind.NeedMore or AnswerKind.Cannot or AnswerKind.NoKey or AnswerKind.KeyRejected or AnswerKind.OutOfCredit or AnswerKind.SpendLimit)
+                {
+                    <button type="button" class="btn-primary go" @onclick="Navigation.HomeAsync">Done</button>
+                }
+                else
+                {
+                    <button type="button" class="btn tall" @onclick="Navigation.HomeAsync">Not now</button>
+                    <button type="button" class="btn-primary go" @onclick="AskAgainAsync">Try again</button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    // One heartbeat, 108 wide on a baseline at 60: flat, the P wave's bump, the sharp QRS spike, then the T wave's wider bump. Three fill the
+    // monitor's 326.
+    private const string Beat = "h14 q6 -10 12 0 h8 l3 6 l4 -50 l4 58 l4 -14 h11 q9 -16 18 0 h30";
+    private static readonly string Trace = $"M0 60 {Beat} {Beat} {Beat} h2";
+
+    [Parameter] public long SessionId { get; set; }
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    private WorkoutSession? session;
+    private string name = "Workout";
+    private List<WorkoutSet> sets = [];
+    private (int Average, int Max)? heartRate;
+    private LookBackRecord? record;
+    private DateTimeOffset askedAt = DateTimeOffset.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Trainer.Changed += OnTrainerChanged;
+        session = await Store.GetSessionAsync(SessionId) is { FinishedAt: not null } finished ? finished : null;
+        if (session is null)
+        {
+            await Navigation.HomeAsync();
+            return;
+        }
+
+        name = session.TemplateId is long templateId ? (await Store.GetTemplateAsync(templateId))?.Name ?? name : name;
+        sets = await Store.GetSessionSetsAsync(SessionId);
+        heartRate = WorkoutStats.HeartRate(await Store.GetHeartRateAsync(session.StartedAt, session.FinishedAt!.Value), session.StartedAt, session.FinishedAt!.Value);
+
+        // Asked once, as Finish opens this; after that, what was kept.
+        if (!Trainer.IsAsking(SessionId)) record = await Trainer.GetAsync(SessionId);
+        if (record is null && !Trainer.IsAsking(SessionId)) _ = Trainer.AskAsync(SessionId);
+        askedAt = Trainer.AskedAt(SessionId) ?? DateTimeOffset.Now;
+    }
+
+    private void OnTrainerChanged(long sessionId)
+    {
+        if (sessionId != SessionId) return;
+
+        _ = InvokeAsync(async () =>
+        {
+            record = Trainer.IsAsking(SessionId) ? null : await Trainer.GetAsync(SessionId);
+            askedAt = Trainer.AskedAt(SessionId) ?? askedAt;
+            StateHasChanged();
+        });
+    }
+
+    private Task ApplyAsync() => Trainer.ApplyAsync(SessionId);
+
+    private Task AskAgainAsync()
+    {
+        record = null;
+        _ = Trainer.AskAsync(SessionId);
+        askedAt = Trainer.AskedAt(SessionId) ?? DateTimeOffset.Now;
+        return Task.CompletedTask;
+    }
+
+    // "3 × 10 at 105 lb", "3 × 12 at bodyweight", "3 × 8 at -35 lb" (assisted), in the unit its sets used today.
+    private static string Plan(LookBackInput input, NextLift lift)
+    {
+        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
+        var bodyweight = today.All(s => s.Weight is null) && lift.Weight == 0;
+        var unit = (today.Count > 0 ? today[^1].Unit : input.Body.Unit) == WeightUnit.Kilograms ? "kg" : "lb";
+        return $"{lift.Sets} × {lift.Reps} at {(bodyweight ? "bodyweight" : $"{SetSummary.WeightText(lift.Weight)} {unit}")}";
+    }
+
+    // How the plan moves from today's working weight (the one with the most sets; the heavier on a tie), or for bodyweight its reps.
+    private static string Change(LookBackInput input, NextLift lift)
+    {
+        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
+        if (today.Count == 0) return "";
+        if (today.All(s => s.Weight is null)) return lift.Reps > today.Max(s => s.Reps ?? 0) ? "More reps" : "Same again";
+
+        var working = today.GroupBy(s => s.Weight ?? 0).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).First().Key;
+        var change = Math.Round(lift.Weight - working, 2);
+        return change > 0 ? $"Up {SetSummary.WeightText(change)}" : change < 0 ? $"Down {SetSummary.WeightText(-change)}" : "Same weight";
+    }
+
+    private static string Treated(SetTreatment treatment) => treatment switch
+    {
+        SetTreatment.TimeIgnored => "Time left out",
+        SetTreatment.SetIgnored => "Left out",
+        SetTreatment.LikelyTypo => "A typo?",
+        _ => "Counted",
+    };
+
+    private static string Unit(WeightUnit unit) => unit == WeightUnit.Kilograms ? "kg" : "lb";
+
+    public void Dispose() => Trainer.Changed -= OnTrainerChanged;
+}
