@@ -9,7 +9,9 @@ namespace Prima.Core.Music;
 /// Humdrum or ABC file, keeping every id. It reads bars in written order with their repeat signs and endings (which
 /// <see cref="Score.PlayOrder"/> follows), staves and layers, notes, chords and rests through beams, tuplets and grace groups,
 /// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
-/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A piece's slurs, dynamics, hairpins, pedal
+/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A note under an 8va, 15ma or 8vb line is read
+/// at the octave it sounds (its oct.ges, which Verovio writes from MusicXML), keeping the one it's printed in as the tone's
+/// <see cref="Tone.Ottava"/>; the line itself Verovio engraves. A piece's slurs, dynamics, hairpins, pedal
 /// marks and ornaments are read as its <see cref="Score.FileMarks"/>, for judging how it's played; Verovio engraves them from
 /// the MEI itself.
 /// </summary>
@@ -232,10 +234,14 @@ public static class MeiReader
         private Tone ReadTone(XElement note, XElement holder)
         {
             var step = Enum.Parse<Step>(((string)note.Attribute("pname")!).ToUpperInvariant());
+            // The octave it's printed in, and the one it sounds in, which is the key to play: under an 8va, 15ma or 8vb line the
+            // file gives that as well.
             var octave = (int)note.Attribute("oct")!;
+            var sounds = (int?)note.Attribute("oct.ges") ?? octave;
             var accid = note.Element(Mei + "accid");
             var written = (string?)note.Attribute("accid") ?? (string?)accid?.Attribute("accid");
             var gestural = (string?)note.Attribute("accid.ges") ?? (string?)accid?.Attribute("accid.ges");
+            // An accidental lasts the bar on its line or space, so the bar's earlier ones are found by the printed octave.
             int alter;
             if (written is not null) alter = Alter(written);
             else if (gestural is not null) alter = Alter(gestural);
@@ -244,8 +250,9 @@ public static class MeiReader
 
             var id = IdOf(note);
             var tie = (string?)note.Attribute("tie") ?? (string?)holder.Attribute("tie");
-            return new Tone(id, new Spelled(step, alter, octave))
+            return new Tone(id, new Spelled(step, alter, sounds))
             {
+                Ottava = sounds - octave,
                 TieToNext = tie is "i" or "m" || tied.Any(t => t.Start == id),
                 TiedFromPrevious = tie is "t" or "m" || tied.Any(t => t.End == id),
             };

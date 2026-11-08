@@ -278,6 +278,10 @@ asking. Nothing leaves the tablet unless you back it up.
 
 - A note counts if its pitch is right and it lands within a timing window around its place. The research used ±0.25 s; here the
   window scales with tempo.
+- Its pitch is the key it sounds: under an 8va, 15ma or 8vb line, an octave or two from where it's printed (a piece's file gives
+  both). A wrong key shows beside the printed note as far from it as the keys are apart, both named as they sound, and a tapped
+  note is named by its key and placed where it's printed. Levels read the print, so a passage under an 8va line has the ledger
+  lines it's printed with.
 - Timing is a share of the beat: under about 5% is in time, 5–10% is audible, over 10% is off. These bands are the research's
   design inference from the perception studies. In-time accuracy, the headline, counts right notes that aren't off, so
   audible ones count too (our choice: the 5% line is where listeners start to notice, too strict a bar for reading at sight).

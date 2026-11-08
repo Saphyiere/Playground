@@ -286,6 +286,80 @@ public class MusicTests
         Assert.Equal("Fixture", read.Title);
     }
 
+    // An 8va line over a bar's last three notes and a chord, as Verovio writes it from MusicXML: each note under it printed in its
+    // written octave (oct) with the one it sounds in (oct.ges). F♯5 comes before the line, F5 in the bar after.
+    private const string UnderAn8va = """
+        <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+        <scoreDef meter.count="4" meter.unit="4" key.sig="0"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/></staffGrp></scoreDef>
+        <section>
+        <measure n="1"><staff n="1"><layer n="1">
+        <note xml:id="a" pname="f" oct="5" dur="4" accid="s"/><note xml:id="b" pname="g" oct="5" oct.ges="6" dur="4"/>
+        <note xml:id="c" pname="f" oct="5" oct.ges="6" dur="4"/>
+        <chord xml:id="d" dur="4"><note xml:id="d1" pname="a" oct="4" oct.ges="5"/><note xml:id="d2" pname="e" oct="5" oct.ges="6"/></chord>
+        </layer></staff><octave staff="1" startid="#b" endid="#d" dis="8" dis.place="above"/></measure>
+        <measure n="2"><staff n="1"><layer n="1"><note xml:id="e" pname="f" oct="5" dur="1"/></layer></staff></measure>
+        </section></score></mdiv></body></music></mei>
+        """;
+
+    private static Dictionary<string, Tone> TonesOf(Score score) => score.Bars.SelectMany(b => b.Voices).SelectMany(v => v.Events.OfType<Notes>()).SelectMany(n => n.Tones).ToDictionary(t => t.Id);
+
+    [Fact]
+    public void NotesUnderAn8vaLineAreExpectedAnOctaveAboveWhereTheyrePrinted()
+    {
+        var read = MeiReader.Read(UnderAn8va);
+        var tones = TonesOf(read);
+        string[] ids = ["a", "b", "c", "d1", "d2", "e"];
+
+        // F♯5; under the line G6, F♯6 (the sharp lasts the bar on its line of the staff) and A5 with E6; F5 after it.
+        Assert.Equal([78, 91, 90, 81, 88, 77], read.Expected().Select(n => n.Midi));
+        // Each keeps where it's printed, which the sheet's marks go by.
+        Assert.Equal(["F♯5", "G5", "F♯5", "A4", "E5", "F5"], ids.Select(id => tones[id].Written.ToString()));
+        Assert.Equal([0, 1, 1, 1, 1, 0], ids.Select(id => tones[id].Ottava));
+
+        // Played as it sounds, waiting at each note, every note is right first time.
+        var judge = new Prima.Core.Scoring.WaitJudge(read.Expected());
+        foreach (var key in new[] { 78, 91, 90, 81, 88, 77 }) judge.Play(key, 0);
+        Assert.Equal((6, 0), (judge.Result().RightFirstTime, judge.Result().WrongKeys));
+    }
+
+    [Theory]
+    [InlineData("8", "below", -1)]
+    [InlineData("15", "above", 2)]
+    [InlineData("15", "below", -2)]
+    public void NotesUnderOtherOctaveLinesAreExpectedWhereTheLineMovesThem(string dis, string place, int octaves)
+    {
+        // C3 and G2 on the bass staff under the line, then C3 after it.
+        var mei = $"""
+            <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+            <scoreDef meter.count="2" meter.unit="4" key.sig="0"><staffGrp><staffDef n="1" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef>
+            <section>
+            <measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="3" oct.ges="{3 + octaves}" dur="4"/><note xml:id="b" pname="g" oct="2" oct.ges="{2 + octaves}" dur="4"/></layer></staff>
+            <octave staff="1" startid="#a" endid="#b" dis="{dis}" dis.place="{place}"/></measure>
+            <measure n="2"><staff n="1"><layer n="1"><note xml:id="c" pname="c" oct="3" dur="2"/></layer></staff></measure>
+            </section></score></mdiv></body></music></mei>
+            """;
+
+        var read = MeiReader.Read(mei);
+
+        Assert.Equal([48 + 12 * octaves, 43 + 12 * octaves, 48], read.Expected().Select(n => n.Midi));
+        Assert.Equal(["C3", "G2", "C3"], new[] { "a", "b", "c" }.Select(id => TonesOf(read)[id].Written.ToString()));
+    }
+
+    [Fact]
+    public void NotesUnderAnOctaveLineAreWrittenBackWhereTheyrePrinted()
+    {
+        var read = MeiReader.Read(UnderAn8va);
+
+        var mei = MeiWriter.Write(read);
+        var reread = MeiReader.Read(mei);
+
+        Assert.Equal(read.Expected(), reread.Expected());
+        Assert.Equal(TonesOf(read), TonesOf(reread));
+        // In its written octave with the one it sounds in, and without a sharp: the one before the line lasts on its line.
+        var c = System.Xml.Linq.XDocument.Parse(mei).Descendants().Single(e => (string?)e.Attribute(System.Xml.Linq.XNamespace.Xml + "id") == "c");
+        Assert.Equal(("5", "6", null, "s"), ((string?)c.Attribute("oct"), (string?)c.Attribute("oct.ges"), (string?)c.Attribute("accid"), (string?)c.Attribute("accid.ges")));
+    }
+
     // Two bars repeated from the start, then a repeat with first and second endings, and a bar after: 2/4, a half note a bar.
     private const string Repeats = """
         <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>

@@ -77,24 +77,24 @@ public static class Grader
         // semitone up), which a minor piece needs and a file often doesn't say is minor.
         if (played.Any(n => n.Event.Tones.Any(t => Chromatic(t.Pitch, KeyAt(signatures, n.At))))) Need(7, "accidentals");
 
-        // Range and leaps per hand (in steps of the scale), and ledger lines.
+        // Range and leaps per hand (in steps of the scale), and ledger lines, as printed: an 8va line keeps its notes near the staff.
         foreach (var staff in new[] { 1, 2 })
         {
             var hand = played.Where(n => n.Staff == staff).OrderBy(n => n.At).ToList();
             if (hand.Count == 0) continue;
 
-            var steps = hand.SelectMany(n => n.Event.Tones.Select(t => t.Pitch.Diatonic)).ToList();
+            var steps = hand.SelectMany(n => n.Event.Tones.Select(t => t.Written.Diatonic)).ToList();
             var span = steps.Max() - steps.Min() + 1;
             Need(span switch { <= 5 => 1, <= 8 => 5, <= 10 => 6, <= 15 => 7, <= 17 => 8, <= 20 => 9, <= 22 => 10, _ => 11 }, $"a range of {span} notes");
             // Leaps in the tune, along its top line and not across a rest: the right hand's, and the left hand's when the hands take
             // turns. With the hands together the left hand's leaps are its accompaniment's pattern, graded by texture and range.
             if (staff == 2 && together) continue;
 
-            var line = hand.GroupBy(n => n.At).OrderBy(g => g.Key).Select(g => (At: g.Key, End: g.Max(n => n.At + n.Event.Length), Step: g.SelectMany(n => n.Event.Tones).Max(t => t.Pitch.Diatonic))).ToList();
+            var line = hand.GroupBy(n => n.At).OrderBy(g => g.Key).Select(g => (At: g.Key, End: g.Max(n => n.At + n.Event.Length), Step: g.SelectMany(n => n.Event.Tones).Max(t => t.Written.Diatonic))).ToList();
             var leap = line.Zip(line.Skip(1), (a, b) => b.At <= a.End ? Math.Abs(b.Step - a.Step) : 0).DefaultIfEmpty(0).Max();
             Need(leap switch { <= 1 => 1, <= 2 => 2, <= 4 => 3, 5 => 5, <= 7 => 6, <= 9 => 7, <= 11 => 9, _ => 10 }, $"leaps of {Intervals[Math.Min(leap, Intervals.Length - 1)]}");
             // One ledger line past the level's, as the generator's accompaniment sometimes goes.
-            var ledger = hand.SelectMany(n => n.Event.Tones.Select(t => Ledger(t.Pitch, n.Clef))).Max();
+            var ledger = hand.SelectMany(n => n.Event.Tones.Select(t => Ledger(t.Written, n.Clef))).Max();
             if (ledger > 1) Need(Lowest(s => s.LedgerLines + 1 >= ledger), $"{ledger} ledger lines");
         }
 
@@ -211,14 +211,14 @@ public static class Grader
         var density = Math.Min(1, notes.Sum(n => n.Event.Tones.Count) / Math.Max(1, beats) / 4);
         var intervals = notes.GroupBy(n => n.Staff).SelectMany(g =>
         {
-            var tops = g.OrderBy(n => n.At).Select(n => n.Event.Tones.Max(t => t.Pitch.Diatonic)).ToList();
+            var tops = g.OrderBy(n => n.At).Select(n => n.Event.Tones.Max(t => t.Written.Diatonic)).ToList();
             return tops.Zip(tops.Skip(1), (a, b) => Math.Abs(b - a));
         }).ToList();
         var leaps = intervals.Count == 0 ? 0 : intervals.Count(i => i > 2) / (double)intervals.Count;
         var classes = notes.SelectMany(n => n.Event.Tones).GroupBy(t => ((t.Pitch.Midi % 12) + 12) % 12).Select(g => (double)g.Count()).ToList();
         var total = classes.Sum();
         var entropy = -classes.Sum(c => c / total * Math.Log2(c / total)) / Math.Log2(12);
-        var range = notes.GroupBy(n => n.Staff).Average(g => g.SelectMany(n => n.Event.Tones).Max(t => t.Pitch.Diatonic) - g.SelectMany(n => n.Event.Tones).Min(t => t.Pitch.Diatonic)) / 22.0;
+        var range = notes.GroupBy(n => n.Staff).Average(g => g.SelectMany(n => n.Event.Tones).Max(t => t.Written.Diatonic) - g.SelectMany(n => n.Event.Tones).Min(t => t.Written.Diatonic)) / 22.0;
         var variety = Math.Min(1, notes.Select(n => n.Event.Length).Distinct().Count() / 6.0);
         return Math.Clamp(0.3 * density + 0.2 * leaps + 0.2 * entropy + 0.15 * Math.Min(1, range) + 0.15 * variety, 0, 0.999);
     }

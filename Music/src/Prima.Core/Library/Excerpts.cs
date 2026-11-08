@@ -65,11 +65,12 @@ public static class Excerpts
         return cuts;
     }
 
-    // A bar's music, as text: each voice's onsets, lengths and pitches.
+    // A bar's music, as text: each voice's onsets, lengths and pitches as printed, so bars written out again under an 8va line
+    // are a repeat, as they read.
     private static string Fingerprint(Bar bar) => string.Join(';', bar.Voices.OrderBy(v => v.Staff).ThenBy(v => v.Layer).Select(v =>
         string.Join(',', v.Events.Select(e => e switch
         {
-            Notes n => $"{n.Start}:{n.Length}:{string.Join('.', n.Tones.Select(t => t.Pitch.Midi))}",
+            Notes n => $"{n.Start}:{n.Length}:{string.Join('.', n.Tones.Select(t => t.Written.Midi))}",
             Rest r => $"{r.Start}:{r.Length}:r",
             _ => "",
         }))));

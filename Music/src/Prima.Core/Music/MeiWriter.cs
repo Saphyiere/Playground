@@ -6,7 +6,8 @@ namespace Prima.Core.Music;
 /// <summary>
 /// Writes a score as MEI for Verovio to engrave: the grand staff (or one rhythm line), every note, chord, rest and bar with its id,
 /// beams by the beat, tuplets, ties, accidentals as a printed score shows them (the key signature's and those earlier in the bar
-/// aren't repeated), and the printed marks. No XML declaration: Verovio reads the text as it is.
+/// aren't repeated), notes under an octave line where they're printed with the octave they sound in, and the printed marks. No
+/// XML declaration: Verovio reads the text as it is.
 /// </summary>
 public static class MeiWriter
 {
@@ -244,10 +245,13 @@ public static class MeiWriter
 
     private static void WriteNote(XmlWriter xml, Tone tone, Notes notes, Key key, Dictionary<(Step, int), int> accidentals, bool inChord, bool onTheLine)
     {
+        // Printed where it's written; under an octave line, with the octave it sounds in as well.
+        var printed = tone.Written;
         xml.WriteStartElement("note", Ns);
         xml.WriteAttributeString("id", XmlNs, tone.Id);
-        xml.WriteAttributeString("pname", tone.Pitch.Step.ToString().ToLowerInvariant());
-        xml.WriteAttributeString("oct", tone.Pitch.Octave.ToString(CultureInfo.InvariantCulture));
+        xml.WriteAttributeString("pname", printed.Step.ToString().ToLowerInvariant());
+        xml.WriteAttributeString("oct", printed.Octave.ToString(CultureInfo.InvariantCulture));
+        if (tone.Ottava != 0) xml.WriteAttributeString("oct.ges", tone.Pitch.Octave.ToString(CultureInfo.InvariantCulture));
         if (onTheLine) xml.WriteAttributeString("loc", "0");
         if (!inChord)
         {
@@ -255,7 +259,8 @@ public static class MeiWriter
             WriteNoteFlags(xml, notes);
         }
 
-        var place = (tone.Pitch.Step, tone.Pitch.Octave);
+        // An accidental lasts the bar on its line or space.
+        var place = (printed.Step, printed.Octave);
         var current = accidentals.TryGetValue(place, out var alter) ? alter : key.AlterOf(tone.Pitch.Step);
         accidentals[place] = tone.Pitch.Alter;
         if (tone.Pitch.Alter != current && !tone.TiedFromPrevious) xml.WriteAttributeString("accid", Accid(tone.Pitch.Alter));

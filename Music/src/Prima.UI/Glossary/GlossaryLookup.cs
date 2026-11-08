@@ -53,7 +53,11 @@ public static class GlossaryLookup
         return keys.Select(k => GlossaryEntries.All.FirstOrDefault(e => e.Marks.Contains(k))).FirstOrDefault(e => e is not null);
     }
 
-    /// <summary>A note on the sheet by its id: its name and where it sits ("F♯5, on the top line of the treble staff").</summary>
+    /// <summary>
+    /// A note on the sheet by its id: its name and where it sits ("F♯5, on the top line of the treble staff"). Under an octave
+    /// line it's named by the key it plays, placed where it's printed, and the line said ("F6, on the top line of the treble
+    /// staff, played an octave higher for the 8va").
+    /// </summary>
     public static string? NoteLine(Score score, string id)
     {
         var clefs = new Dictionary<int, Clef> { [1] = Clef.Treble, [2] = Clef.Bass };
@@ -64,18 +68,29 @@ public static class GlossaryLookup
                 foreach (var e in voice.Events)
                 {
                     if (e is ClefChange change) clefs[voice.Staff] = change.Clef;
-                    else if (e is Notes notes && notes.Tones.FirstOrDefault(t => t.Id == id) is { } tone) return $"{tone.Pitch}, {Place(tone.Pitch, clefs.GetValueOrDefault(voice.Staff, Clef.Treble))}.";
+                    else if (e is Notes notes && notes.Tones.FirstOrDefault(t => t.Id == id) is { } tone) return Said(tone, clefs.GetValueOrDefault(voice.Staff, Clef.Treble));
                 }
             }
         }
         return null;
     }
 
+    private static string Said(Tone tone, Clef clef)
+    {
+        if (tone.Ottava == 0) return $"{tone.Pitch}, {Place(tone.Pitch, clef)}.";
+
+        var by = Math.Abs(tone.Ottava) switch { 1 => "an octave", 2 => "two octaves", var n => $"{n} octaves" };
+        var line = tone.Ottava switch { 1 => "the 8va", 2 => "the 15ma", -1 => "the 8vb", -2 => "the 15mb", _ => "its octave line" };
+        return $"{tone.Pitch}, {(tone.Pitch.Midi == 60 ? "middle C, " : "")}{Position(tone.Written, clef)}, played {by} {(tone.Ottava > 0 ? "higher" : "lower")} for {line}.";
+    }
+
     /// <summary>
     /// Where a note sits: on a line or in a space of the staff, counted from the bottom, or above or below it, on a ledger line or
     /// past one; middle C said as such.
     /// </summary>
-    public static string Place(Spelled pitch, Clef clef)
+    public static string Place(Spelled pitch, Clef clef) => pitch.Midi == 60 ? $"middle C, {Position(pitch, clef)}" : Position(pitch, clef);
+
+    private static string Position(Spelled pitch, Clef clef)
     {
         var staff = clef == Clef.Bass ? "bass" : "treble";
         // From the staff's bottom line (E4 in the treble, G2 in the bass): 0 the bottom line, 1 the first space … 8 the top line.
@@ -83,13 +98,12 @@ public static class GlossaryLookup
         string[] lines = ["bottom", "second", "middle", "fourth", "top"];
         string[] spaces = ["first", "second", "third", "top"];
         string[] ordinals = ["first", "second", "third", "fourth", "fifth", "sixth"];
-        var place = p switch
+        return p switch
         {
             >= 0 and <= 8 when p % 2 == 0 => $"on the {lines[p / 2]} line of the {staff} staff",
             >= 0 and <= 8 => $"in the {spaces[p / 2]} space of the {staff} staff",
             _ => Beyond(p < 0 ? -p : p - 8, p < 0 ? "below" : "above"),
         };
-        return pitch.Midi == 60 ? $"middle C, {place}" : place;
 
         // So many positions past the staff's outer line: just past it, on a ledger line, or past one.
         string Beyond(int steps, string side)

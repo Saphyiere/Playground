@@ -14,7 +14,10 @@ public enum Articulation
     Tenuto,
 }
 
-/// <summary>One pitch of a note or chord. Its id is the one the sheet's SVG carries, so marks find it.</summary>
+/// <summary>
+/// One pitch of a note or chord, as it sounds: the key to play. Under an octave line it's printed an octave or two from there, at
+/// <see cref="Written"/>. Its id is the one the sheet's SVG carries, so marks find it.
+/// </summary>
 public sealed record Tone(string Id, Spelled Pitch)
 {
     /// <summary>Tied on to the same pitch in this voice's next note.</summary>
@@ -25,6 +28,12 @@ public sealed record Tone(string Id, Spelled Pitch)
 
     /// <summary>The finger, 1 (thumb) to 5, printed above or below; for technique only.</summary>
     public int? Finger { get; init; }
+
+    /// <summary>The octave line it's under, as octaves it sounds above its printed note: 1 an 8va, 2 a 15ma, -1 an 8vb, -2 a 15mb.</summary>
+    public int Ottava { get; init; }
+
+    /// <summary>The note as printed, so its place on the staff: the pitch, moved back by the octave line it's under.</summary>
+    public Spelled Written => Pitch with { Octave = Pitch.Octave - Ottava };
 }
 
 /// <summary>A run of notes under one tuplet number: <see cref="Actual"/> notes in the time of <see cref="Normal"/>, like 3 in 2.</summary>
@@ -87,6 +96,7 @@ public enum MarkKind
     Diminuendo,
     PedalDown,
     PedalUp,
+    /// <summary>An 8va line. The notes under it say so themselves (<see cref="Tone.Ottava"/> 1), so they're printed an octave below the pitch they sound.</summary>
     OctaveUp,
     Fermata,
     Trill,

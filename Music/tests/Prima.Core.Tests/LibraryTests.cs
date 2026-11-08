@@ -38,6 +38,19 @@ public class LibraryTests
     }
 
     [Fact]
+    public void NotesUnderAn8vaLineAreGradedAsPrinted()
+    {
+        // E6 to A6 under an 8va line are printed on the staff, E5 to A5, and read like those: not four ledger lines up.
+        Score Run(int octave, int ottava) => new(new Key(0), new Meter(4, 4), [new Bar(1, [new Voice(1, [.. new[] { Step.E, Step.F, Step.G, Step.A }.Select((step, i) => new Notes($"n{i}", i * Ticks.Quarter, Ticks.Quarter, [new Tone($"t{i}", P(step, octave)) { Ottava = ottava }]))])])]);
+
+        var (printed, under) = (Grader.Grade(Run(5, 0)), Grader.Grade(Run(6, 1)));
+
+        Assert.Equal((printed.Level, printed.Within), (under.Level, under.Within));
+        Assert.Equal(printed.Reasons, under.Reasons);
+        Assert.DoesNotContain(under.Reasons, r => r.EndsWith("ledger lines"));
+    }
+
+    [Fact]
     public void AMinorPiecesLeadingNoteIsntChromatic()
     {
         // A minor written with no signature, as files often are: G sharp is its leading note, not an accidental to grade.
