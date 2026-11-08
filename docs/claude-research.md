@@ -94,9 +94,10 @@ What keeps the key safe:
 - **It's kept in Android's secure storage**, not in the app's SQLite file. MAUI's `SecureStorage` encrypts with AES-256, using a
   key held in the Android Keystore. The SQLite file is the wrong place because Prima's **Back up** shares that file to Drive or
   the PC.
-- **It's left out of Android's Auto Backup.** Both apps have `allowBackup="true"`, and a restored secure-storage file can't be
-  decrypted on another device. Add Microsoft's backup rule that excludes
-  `${applicationId}.microsoft.maui.essentials.preferences.xml`. After a restore, the app then simply asks for the key again.
+- **It's left out of Android's backups.** Both apps have `allowBackup="true"`, and a restored secure-storage file can't be
+  decrypted on another device. Exclude `<package>.microsoft.maui.essentials.preferences.xml`, with the package written out, in
+  both the Android 11 rules and the Android 12 ones. Leave out Microsoft's sample `<include>` line: it would back up only shared
+  preferences, not the app's data. The framework's README has the files. After a restore, the app simply asks for the key again.
 - **It stays in C#.** The screens run in a WebView, and the key is never handed to JavaScript. Prima's WebView also draws
   imported PDFs with pdf.js.
 - **Spending has limits everywhere.** The workspace has its spend limit, every request has a token limit, and the app retries at

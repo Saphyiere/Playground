@@ -99,16 +99,36 @@ These are the API's rules for structured outputs. `AssistSchema.For` refuses a r
 5. **The internet.** Add `<uses-permission android:name="android.permission.INTERNET" />` to the manifest if it isn't there.
    Debug builds add it on their own and Release builds don't, so without it, asking Claude works from Visual Studio and fails on
    the installed copy.
-6. **Auto Backup.** Leave secure storage out of Android's Auto Backup: `android:fullBackupContent="@xml/auto_backup_rules"` on
-   `<application>`, and in `Platforms/Android/Resources/xml/auto_backup_rules.xml`:
+6. **Backups.** Leave secure storage out of Android's backups, and nothing else. It's encrypted to the device, so a restored copy
+   can't be read anyway. On `<application>`, set `android:fullBackupContent="@xml/auto_backup_rules"` (Android 11 and before)
+   and `android:dataExtractionRules="@xml/data_extraction_rules"` (Android 12 on, for cloud backups and moving to a new
+   device). In `Platforms/Android/Resources/xml/`, write the package name out in full: `${applicationId}` isn't filled in there.
+   Don't add an `<include>`, which would back up only what it names and leave out the app's own data. For Prima:
+
+   `auto_backup_rules.xml`:
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
    <full-backup-content>
-       <include domain="sharedpref" path="." />
-       <exclude domain="sharedpref" path="${applicationId}.microsoft.maui.essentials.preferences.xml" />
+       <exclude domain="sharedpref" path="com.saphyiere.prima.microsoft.maui.essentials.preferences.xml" />
    </full-backup-content>
    ```
+
+   `data_extraction_rules.xml`:
+
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <data-extraction-rules>
+       <cloud-backup>
+           <exclude domain="sharedpref" path="com.saphyiere.prima.microsoft.maui.essentials.preferences.xml" />
+       </cloud-backup>
+       <device-transfer>
+           <exclude domain="sharedpref" path="com.saphyiere.prima.microsoft.maui.essentials.preferences.xml" />
+       </device-transfer>
+   </data-extraction-rules>
+   ```
+
+   For the phone, the name is `com.saphyiere.adaptiveworkout.microsoft.maui.essentials.preferences.xml`.
 7. **The key stays in C#.** It never goes in the app's SQLite file or settings (Prima's Back up shares that file), and never to
    the web view or JavaScript.
 8. **Asking from the screens.** Screens take `IClaude`. A preview host registers a stand-in that answers from saved replies, so

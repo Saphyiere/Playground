@@ -46,6 +46,12 @@ public sealed record ReadingResult(bool Ok, string Summary, Score? Score, string
 {
     /// <summary>Each system's reading after its comparison, in the order of <see cref="Systems"/>; null where it couldn't be read.</summary>
     public IReadOnlyList<SystemReading?> Readings { get; init; } = [];
+
+    /// <summary>
+    /// What stopped the reading part way, for the screen to offer the way on: NoKey, KeyRejected, OutOfCredit, SpendLimit, Busy or
+    /// Offline. Null when nothing did.
+    /// </summary>
+    public AnswerKind? StoppedBy { get; init; }
 }
 
 /// <summary>
@@ -120,7 +126,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         run.Spend(read.Usage.Cost);
         if (!read.Ok)
         {
-            if (Stopping.Contains(read.Kind)) run.Stop(read.Summary);
+            if (Stopping.Contains(read.Kind)) run.Stop(read.Summary, read.Kind);
             run.Set(at, SystemStep.Failed, read.Summary);
             return;
         }
@@ -146,7 +152,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         run.Spend(compare.Usage.Cost);
         if (!compare.Ok)
         {
-            if (Stopping.Contains(compare.Kind)) run.Stop(compare.Summary);
+            if (Stopping.Contains(compare.Kind)) run.Stop(compare.Summary, compare.Kind);
             run.Keep(at, reading, SystemStep.Doubtful, $"Read, but not compared: {compare.Summary}");
             return;
         }
@@ -166,6 +172,8 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         public SystemReading?[] Readings => readings;
 
         public string? Stopped { get; private set; }
+
+        public AnswerKind? StoppedBy { get; private set; }
 
         public void Report()
         {
@@ -189,9 +197,12 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
             lock (gate) cost += more;
         }
 
-        public void Stop(string why)
+        public void Stop(string why, AnswerKind kind)
         {
-            lock (gate) Stopped ??= why;
+            lock (gate)
+            {
+                if (Stopped is null) (Stopped, StoppedBy) = (why, kind);
+            }
         }
 
         /// <summary>The notation from every system read, its doubts by bar, and a sentence on how it went.</summary>
@@ -220,7 +231,9 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
                 var summary = Stopped ?? (failed.Count > 0
                     ? $"{failed.Count} of {statuses.Length} systems couldn't be read. Page {failed[0].Page}, system {failed[0].Index}: {failed[0].Note}"
                     : $"Read {bars} bars from {statuses.Length} systems.{(doubtful switch { 0 => "", 1 => " 1 bar to check.", _ => $" {doubtful} bars to check." })}");
-                return new ReadingResult(failed.Count == 0 && Stopped is null, summary, score, mei, doubts, [.. statuses], cost, time.GetElapsedTime(started)) { Readings = [.. readings] };
+                var ok = failed.Count == 0 && Stopped is null;
+                var result = new ReadingResult(ok, summary, score, mei, doubts, [.. statuses], cost, time.GetElapsedTime(started));
+                return result with { Readings = [.. readings], StoppedBy = StoppedBy };
             }
         }
     }

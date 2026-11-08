@@ -357,6 +357,7 @@ public class TranscriptionTests
             ct: TestContext.Current.CancellationToken);
 
         Assert.True(result.Ok);
+        Assert.Null(result.StoppedBy);
         Assert.Equal("Read 2 bars from 2 systems.", result.Summary);
         Assert.Equal([72, 76], result.Score!.Bars.Select(b => NotesOf(result.Score, b.Number).Single().Tones[0].Pitch.Midi));
         Assert.Equal([(SystemStep.Done, ""), (SystemStep.Done, "1 bar corrected.")], result.Systems.Select(s => (s.Step, s.Note)));
@@ -410,6 +411,7 @@ public class TranscriptionTests
 
         Assert.False(result.Ok);
         Assert.Equal("This month's API credits are used up.", result.Summary);
+        Assert.Equal(AnswerKind.OutOfCredit, result.StoppedBy);
         Assert.Single(claude.Asked);
         Assert.All(result.Systems, s => Assert.Equal(SystemStep.Failed, s.Step));
         Assert.Null(result.Score);
