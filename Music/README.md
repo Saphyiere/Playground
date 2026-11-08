@@ -96,6 +96,27 @@ For the copy you use day to day, install **Release** (Ctrl+F5 with Release picke
 Release`). It compiles the whole app ahead of time, so it opens quickly, and it installs over a Debug build without losing your
 data. Don't uninstall the app to fix a build problem: that deletes your practice history.
 
+## Claude's key
+
+Reading a PDF's notes asks Claude, with your Anthropic API key. It goes onto the tablet once, as a file, and Prima keeps it in
+secure storage ([the framework's README](../Kit/Playground.AI.Assist/README.md) has the Console side):
+
+1. In the [Claude Console](https://platform.claude.com), make an API key in the workspace for the apps, the one with a monthly
+   spend limit. The Console shows it once: keep it in your password manager.
+2. Save it alone in a text file named `claude-key.txt`, outside the repo and outside OneDrive.
+3. Open Prima once on the tablet, so its folder exists. Then, with the tablet plugged in:
+
+   ```bash
+   adb push claude-key.txt /sdcard/Android/data/com.saphyiere.prima/files/
+   ```
+
+4. Delete the file on the PC with Shift+Delete.
+5. Open Prima, or press **Look for the key file** in **Settings › Claude**. Prima moves the key into secure storage and deletes the
+   file on the tablet. **Test** says whether it works.
+
+Push it again after reinstalling or restoring the app: secure storage isn't backed up. If the tablet is lost or the key leaks,
+disable it in the Console, make a new one and push that.
+
 ## Connecting the piano
 
 The P-225B's **USB TO HOST** port (a square USB-B socket on the back) goes to the tablet's USB-C port, with a USB-B to USB-C
@@ -148,6 +169,12 @@ curl -s http://127.0.0.1:5299/seed/empty
 The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `months`. The Library uses the bundle in `library/`
 and stores it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine.
+
+Claude in the preview is a stand-in that never calls the API (`tools/Prima.Preview/PreviewClaude.cs`). `/claude/key` puts a key
+on (one ending `a1B2`) and `/claude/key?clear=true` takes it off; `/claude/file` leaves a `claude-key.txt` for Settings to find;
+`/claude/spend` adds three pieces read this month. A PDF's systems are read from saved readings of Czerny's No. 13, whatever the
+PDF. `/claude/script?delay=…` sets how long each answer takes, in ms, and `?fail=OutOfCredit&after=2` (or `KeyRejected`,
+`SpendLimit`, `Busy`, `Offline`, `Cannot`) makes it fail after that many systems.
 
 ## Licences
 

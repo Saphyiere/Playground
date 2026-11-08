@@ -4,6 +4,8 @@
 @inject PrimaSettings Settings
 @inject PrimaStore Store
 @inject IJSRuntime JS
+@inject ClaudeKeyFile KeyFile
+@inject Playground.AI.Assist.IAssistKeyStore Keys
 
 @* Screens wait for the saved look, so the parts that draw per look don't start in the wrong one, and for the saved settings. *@
 @if (loaded)
@@ -28,7 +30,8 @@
     protected override async Task OnInitializedAsync()
     {
         LookSetting.Changed += OnLookChanged;
-        await Task.WhenAll(LookSetting.LoadAsync(), Store.LoadAsync(Settings));
+        // A Claude key copied over USB is taken in as Prima opens; Settings says what became of it.
+        await Task.WhenAll(LookSetting.LoadAsync(), Store.LoadAsync(Settings), KeyFile.ImportAsync(Keys));
         loaded = true;
     }
 

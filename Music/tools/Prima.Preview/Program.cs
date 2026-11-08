@@ -2,6 +2,7 @@
 // session can render and screenshot them (see CLAUDE.md). /seed/{scenario} sets up the data, and /keys/... plays a simulated piano.
 using System.Globalization;
 using Microsoft.Data.Sqlite;
+using Playground.AI.Assist;
 using System.Text.Json;
 using Prima.Core.Generation;
 using Prima.Core.Keyboard;
@@ -28,6 +29,9 @@ builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root
 builder.Services.AddSingleton<PreviewFiles>();
 builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>());
 builder.Services.AddSingleton<ISystemBars, NoSystemBars>();
+// Claude answers from saved replies (PreviewClaude), never the API; the key is kept in memory (AddPrima's default).
+builder.Services.AddSingleton<PreviewClaude>();
+builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
 builder.Services.AddPrima(dbPath);
 
 var app = builder.Build();
@@ -45,7 +49,7 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
+        foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay", "ClaudeCall" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     await store.LoadAsync(settings);
     await Seeds.Fill(scenario, store, settings);
@@ -123,6 +127,39 @@ app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyb
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 // The next file "picked" for an import: a file on this machine, by path.
+// The stand-in Claude: a key on the tablet or not (one ending a1B2, as in the mock-ups), a key file for Settings to find, how it
+// answers (?delay=ms, ?fail=OutOfCredit&after=2), and three pieces read this month for Settings' ledger.
+app.MapGet("/claude/key", async (bool? clear, IAssistKeyStore keys) =>
+{
+    if (clear == true) await keys.RemoveAsync();
+    else await keys.SetAsync("sk-ant-api03-preview-only-not-a-real-key-a1B2");
+    return Results.Text(clear == true ? "no key" : "key set");
+});
+app.MapGet("/claude/file", async (string? text, ClaudeKeyFile file) =>
+{
+    await File.WriteAllTextAsync(file.Path, text ?? "sk-ant-api03-preview-only-not-a-real-key-c3D4");
+    return Results.Text(file.Path);
+});
+app.MapGet("/claude/script", (int? delay, string? fail, int? after, PreviewClaude claude) =>
+{
+    claude.Reset();
+    if (delay is { } ms) claude.DelayMs = ms;
+    if (fail is not null) (claude.Fail, claude.FailAfter) = (Enum.Parse<AnswerKind>(fail, ignoreCase: true), after ?? 0);
+    return Results.Text($"delay {claude.DelayMs} ms, failing with {claude.Fail?.ToString() ?? "nothing"} after {claude.FailAfter}");
+});
+app.MapGet("/claude/spend", async (PrimaStore store) =>
+{
+    var pieces = await store.GetPiecesAsync();
+    var today = DateTimeOffset.Now;
+    foreach (var (number, cost, daysAgo) in new[] { ("No. 13", 0.74m, 0), ("No. 17", 0.81m, 2), ("No. 8", 0.62m, 6) })
+    {
+        if (pieces.FirstOrDefault(p => p.IsPdf && p.Title.EndsWith(number, StringComparison.Ordinal)) is not { } piece) continue;
+        await store.AddClaudeCallAsync(new AssistCall(today.AddDays(-Math.Min(daysAgo, today.Day - 1)), "prima.read-system", 1, "preview", 1, AnswerKind.Answered,
+            "Read.", "{}", "{}", 1, new Usage(0, 0, 0, 0, cost, TimeSpan.Zero), "preview", ""), piece.Id);
+    }
+    return Results.Text("spent");
+});
+
 app.MapGet("/files/next", (string[] path, PreviewFiles files) =>
 {
     files.Next = [.. path.Where(File.Exists).Select(p => (Path.GetFileName(p), File.ReadAllBytes(p)))];

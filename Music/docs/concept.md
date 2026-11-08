@@ -222,8 +222,15 @@ Settings.
 Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, and whether the
 right note is named after a wrong one in a note drill), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
 timing), notation (the
-music font and the sheet's size), the click (where it sounds, its sound and volume), and your data. A daily goal much above last
+music font and the sheet's size), the click (where it sounds, its sound and volume), Claude, and your data. A daily goal much above last
 week's average gets a note to go up gradually; Prima never raises it by itself.
+
+Claude: the Anthropic API key on this tablet, shown masked (`sk-ant-…a1B2`), with **Test** (asks the API whether the key works,
+which costs nothing) and **Remove**. Without a key, the steps to add one: a file named `claude-key.txt` holding the key, copied
+into Prima's folder over USB with `adb push`. Prima takes it in when it opens, or at once with **Look for the key file**, and
+deletes the file. The key lives in the tablet's secure storage, never in Prima's data file, its settings or the web view, and
+Android's backups leave it out, so a restored tablet needs it pushed again. **This month** says what Claude has cost since the
+1st, piece by piece.
 
 Your data: **Back up** shares the data file through the tablet's share sheet (to Drive, or to the PC); **Restore** takes a backup
 back, after checking it's one of Prima's; **Start over** clears levels, notes, history and the streak but keeps the settings, after
@@ -447,6 +454,8 @@ Everything lives in one SQLite file on the tablet.
   bars, its metre and tempo, and where you were. Imported files, and a local collection's PDFs and MIDI, sit beside the data file.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Streak**: the days practised and the freezes used.
+- **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no
+  images, and never the key), and the tokens and cost, so Settings can show the month's cost.
 
 ## How it's built
 

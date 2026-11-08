@@ -5,6 +5,10 @@
 @inject PrimaStore Store
 @inject IFiles Files
 @inject NavigationManager Nav
+@inject IClaude Claude
+@inject IAssistKeyStore Keys
+@inject ClaudeKeyFile KeyFile
+@using Playground.AI.Assist
 
 <PageTitle>Settings · Prima</PageTitle>
 
@@ -136,6 +140,80 @@
     </div>
 </section>
 
+<section class="settings-section" aria-labelledby="claude-heading">
+    <h2 id="claude-heading" class="section-title">Claude</h2>
+    <p class="section-note">Claude can read a PDF's printed notes into notation, so the piece works like the rest of the Library. It uses your Anthropic API key, kept in the tablet's secure storage apart from Prima's data, so Back up never carries it. Only the pages you ask it to read are sent.</p>
+    <div class="control-row">
+        <span class="control-label">Key</span>
+        @if (maskedKey is { } masked)
+        {
+            <span class="key-figure" aria-label="@($"The key on this tablet, ending {masked[^4..]}")">@masked</span>
+            <button type="button" class="mu-btn" disabled="@testing" @onclick="TestKey">@(testing ? "Testing…" : "Test")</button>
+            @if (removingKey)
+            {
+                <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="RemoveKey">Remove it</button>
+                <button type="button" class="mu-btn" @onclick="() => removingKey = false">Keep it</button>
+            }
+            else
+            {
+                <button type="button" class="mu-btn" @onclick="() => (removingKey, keyNote) = (true, null)">Remove…</button>
+            }
+        }
+        else
+        {
+            <span class="key-figure none">None on this tablet</span>
+            <button type="button" class="mu-btn" @onclick="LookForKey">Look for the key file</button>
+        }
+    </div>
+    @if (removingKey)
+    {
+        <p class="section-note" role="status">Prima forgets the key; reading another PDF needs it pushed again. The key itself stays good in the Claude Console until you disable it there.</p>
+    }
+    else if (keyNote is { } note)
+    {
+        <div class="control-row">
+            <span class="control-label" aria-hidden="true"></span>
+            <p class="mu-status" data-state="@(keyWorks ? "live" : null)" role="status"><span class="mu-led"></span>@note</p>
+        </div>
+    }
+    @if (maskedKey is null)
+    {
+        <div class="control-row control-row-top">
+            <span class="control-label">Adding one</span>
+            <ol class="key-howto">
+                <li>In the Claude Console, make an API key in the workspace for your apps, the one with a monthly spend limit.</li>
+                <li>Save the key alone in a text file named claude-key.txt, anywhere but the repo.</li>
+                <li>
+                    Plug the tablet into the PC, open Prima once so its folder is there, and copy the file across:
+                    <pre class="key-command">adb push claude-key.txt /sdcard/Android/data/com.saphyiere.prima/files/</pre>
+                </li>
+                <li>Delete the file on the PC with Shift+Delete. Prima takes the key into secure storage the next time it opens, or now with Look for the key file, and deletes the copy on the tablet.</li>
+            </ol>
+        </div>
+    }
+    @if (maskedKey is not null || spend.Count > 0)
+    {
+        <div class="control-row control-row-top">
+            <span class="control-label">This month</span>
+            <div class="spend">
+                <p class="spend-head"><span class="spend-total">@Money(spend.Sum(s => s.Cost))</span><span class="control-note">@SpendText()</span></p>
+                @if (spend.Count > 0)
+                {
+                    <table class="spend-ledger">
+                        <tbody>
+                            @foreach (var line in spend)
+                            {
+                                <tr><td>@(line.Title ?? (line.Piece is null ? "Tests and other questions" : "A piece no longer in the Library"))</td><td class="spend-when">@line.Last.ToLocalTime().ToString("d MMM", CultureInfo.InvariantCulture)</td><td class="spend-cost">@Money(line.Cost)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+        <p class="section-note">What Anthropic charged for each piece read, as Prima counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
+    }
+</section>
+
 <section class="settings-section" aria-labelledby="data-heading">
     <h2 id="data-heading" class="section-title">Your data</h2>
     <p class="section-note">Everything is in one file on this tablet: settings, levels, notes and every attempt. Nothing leaves it unless you send it.</p>
@@ -163,8 +241,62 @@
     private string? gradually;
     private bool confirming;
     private string? dataNote;
+    // Claude: the key on this tablet, masked; a line on what last happened to it (lit when it works); this month's cost by piece.
+    private string? maskedKey;
+    private string? keyNote;
+    private bool keyWorks;
+    private bool testing;
+    private bool removingKey;
+    private List<ClaudeSpend> spend = [];
 
-    protected override void OnInitialized() => (name, cue) = (Options.Name, Options.Cue);
+    protected override async Task OnInitializedAsync()
+    {
+        (name, cue) = (Options.Name, Options.Cue);
+        maskedKey = await Keys.GetAsync() is { } key ? AssistKey.Mask(key) : null;
+        (keyNote, keyWorks) = KeyFile.Found switch
+        {
+            { Result: KeyImportResult.Saved } => ($"Key taken in from {AssistKey.FileName}", true),
+            { Result: KeyImportResult.NotAKey } wrong => (wrong.Detail, false),
+            _ => (maskedKey is null ? $"No {AssistKey.FileName} in Prima's folder yet" : null, false),
+        };
+        var now = DateTimeOffset.Now;
+        spend = await Store.GetClaudeSpendAsync(new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset));
+    }
+
+    private async Task TestKey()
+    {
+        testing = true;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var answer = await Claude.TestAsync();
+        (testing, keyWorks) = (false, answer.Ok);
+        keyNote = answer.Ok ? $"Works: Claude answered in {watch.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s" : answer.Summary;
+    }
+
+    private async Task RemoveKey()
+    {
+        await Keys.RemoveAsync();
+        (maskedKey, removingKey, keyNote, keyWorks) = (null, false, "The key is off this tablet.", false);
+    }
+
+    private async Task LookForKey()
+    {
+        var found = await KeyFile.ImportAsync(Keys);
+        maskedKey = await Keys.GetAsync() is { } key ? AssistKey.Mask(key) : null;
+        (keyNote, keyWorks) = found.Result switch
+        {
+            KeyImportResult.Saved => ($"Key taken in from {AssistKey.FileName}", true),
+            KeyImportResult.NotAKey => (found.Detail, false),
+            _ => ($"No {AssistKey.FileName} in Prima's folder yet", false),
+        };
+    }
+
+    private string SpendText()
+    {
+        var pieces = spend.Count(s => s.Piece is not null);
+        return pieces switch { 0 => "nothing read yet", 1 => "on 1 piece read", _ => $"on {pieces} pieces read" };
+    }
+
+    private static string Money(decimal value) => "$" + value.ToString("0.00", CultureInfo.InvariantCulture);
 
     private Task SaveProfile() => Save(() => (Options.Name, Options.Cue) = (string.IsNullOrWhiteSpace(name) ? null : name.Trim(), string.IsNullOrWhiteSpace(cue) ? null : cue.Trim()));
 
