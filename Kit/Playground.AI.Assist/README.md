@@ -157,3 +157,15 @@ dotnet test --project Kit/Playground.AI.Assist.Tests
 The tests stand a fake API in for the network: the request's shape, the replies and their kinds, the checks and the second ask,
 the schema rules, and the key file. `ClaudeModels` holds the API's list prices from November 2026; change them when Anthropic
 does.
+
+Three more tests ask the real API, and are skipped unless `PLAYGROUND_CLAUDE_KEY` holds a key. They check that the key works,
+and that the API takes the request and answers in its schema, on Haiku and on Opus with its fallback. A run costs a few cents.
+A cloud session can't hold a key for Anthropic's own API, so run them on the PC, in a PowerShell window you close afterwards:
+
+```powershell
+$env:PLAYGROUND_CLAUDE_KEY = "sk-ant-…"
+```
+
+```powershell
+dotnet test --project Kit/Playground.AI.Assist.Tests
+```
