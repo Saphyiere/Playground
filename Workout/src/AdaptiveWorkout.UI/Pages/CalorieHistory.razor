@@ -141,6 +141,10 @@
                     {
                         @(bar.SoFar && !byWeek ? "Nothing logged yet today." : bar.Span.Days == 0 ? "Counts once today is over." : bar.To < firstLogged ? "Before you started logging." : "Nothing logged.")
                     }
+                    else if (!byWeek && answers.AtMaintenance.Contains(bar.From))
+                    {
+                        @($"Counted at maintenance, {CaloriesText(average)}, as you said: no loss, no gain.")
+                    }
                     else if (bar.Span.Logged == 0)
                     {
                         @($"Nothing logged, so {(byWeek ? "its days count" : "it counts")} as maintenance{(byWeek ? "" : $", {CaloriesText(average)}")}: no loss, no gain.")
@@ -186,6 +190,10 @@
                         </div>
                     }
                     <div class="inline right">
+                        @if (answers.AtMaintenance.Contains(bar.From))
+                        {
+                            <button type="button" class="btn-ghost" @onclick="() => CountAtMaintenanceAsync(bar.From, false)">Count as logged</button>
+                        }
                         @if (entries.Count > 0)
                         {
                             <button type="button" class="btn-ghost" @onclick="() => editingFood = !editingFood">@(editingFood ? "Done" : "Edit")</button>
@@ -198,6 +206,42 @@
                 }
             }
         </section>
+
+        @* Entries that look like slips, asked about once: a day logged far short of my usual, and a weigh-in far off the line. *@
+        @{
+            var (shortDays, usual) = Checks.ShortDays(days, today, answers.AnsweredDays);
+            var oddWeighIns = Checks.OddWeighIns(weighIns, DateTimeOffset.Now, answers.KeptWeighIns);
+        }
+        @if (shortDays.Count > 0 || oddWeighIns.Count > 0)
+        {
+            <section class="stack" aria-labelledby="checks-heading">
+                <h2 id="checks-heading" class="label">Worth a look</h2>
+                <div class="ledger">
+                    @foreach (var day in shortDays)
+                    {
+                        <div class="stack tight check" @key="day.Day">
+                            <p class="body">Was that all on @day.Day.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)? <span class="strong tabular">@CaloriesText(day.Eaten!.Value)</span>, under half your usual @CaloriesText(usual!.Value).</p>
+                            <div class="grid-2">
+                                <button type="button" class="btn tall" @onclick="() => CountAtMaintenanceAsync(day.Day, true)">Count at maintenance</button>
+                                <button type="button" class="btn tall" @onclick="() => AddTo(day.Day, monday)">Add food</button>
+                            </div>
+                            <button type="button" class="btn-ghost" @onclick="() => MarkRightAsync(day.Day)">It's right</button>
+                        </div>
+                    }
+                    @foreach (var (weighIn, expected) in oddWeighIns)
+                    {
+                        var weighUnit = weighIn.WeightUnit == WeightUnit.Kilograms ? "kg" : "lb";
+                        <div class="stack tight check" @key="weighIn.Id">
+                            <p class="body"><span class="strong tabular">@weighIn.Weight.ToString("0.#", CultureInfo.CurrentCulture) @weighUnit</span> on @weighIn.At.ToString(Theme.DayFormat, CultureInfo.CurrentCulture) is far off your line, which says about @expected.ToString("0.#", CultureInfo.CurrentCulture).</p>
+                            <div class="grid-2">
+                                <button type="button" class="btn tall" @onclick="() => KeepWeighInAsync(weighIn)">Keep it</button>
+                                <button type="button" class="btn tall" @onclick="() => DeleteWeighInAsync(weighIn)">Delete it</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
 
         @* This week, its days that are over: how I ate against my goal and maintenance, and what that should do to my weight. *@
         @{
@@ -358,6 +402,7 @@
     private List<(DateOnly Monday, CalorieSpan Span)> weeks = [];
     private bool byWeek;
     private int? picked;
+    private CheckAnswers answers = CheckAnswers.None;
     private bool addingFood;
     private int? foodAmount;
     private bool editingFood;
@@ -381,7 +426,8 @@
         await Flow.MeasureHeartRatesAsync();
         var (sessions, sets) = await Flow.LoadFinishedAsync();
         var exercises = (await Store.GetExercisesAsync()).ToDictionary(e => e.Id);
-        days = Calories.Days(food, weighIns, Settings, from, today, Calories.BurnedByDay(sessions, sets, exercises, weighIns, Settings));
+        answers = await Store.GetCheckAnswersAsync();
+        days = Calories.Days(food, weighIns, Settings, from, today, Calories.BurnedByDay(sessions, sets, exercises, weighIns, Settings), answers.AtMaintenance);
 
         // The weeks, each its days that are over: this week's only once one is.
         weeks.Clear();
@@ -426,6 +472,35 @@
 
     // "150 over goal", "60 under maintenance".
     private static string Against(double eaten, double mark, string what) => $"{CaloriesText(Math.Abs(eaten - mark))} {(eaten > mark ? "over" : "under")} {what}";
+
+    // A day logged short: counted at maintenance like a day I forgot, or as logged again.
+    private async Task CountAtMaintenanceAsync(DateOnly day, bool atMaintenance)
+    {
+        await Store.CountAtMaintenanceAsync(day, atMaintenance);
+        await LoadAsync();
+    }
+
+    private async Task MarkRightAsync(DateOnly day)
+    {
+        await Store.MarkDayRightAsync(day);
+        await LoadAsync();
+    }
+
+    // Opens the day on the chart (its days, five weeks from four Mondays back) with the food to add.
+    private void AddTo(DateOnly day, DateOnly monday) =>
+        (byWeek, picked, addingFood, editingFood) = (false, day.DayNumber - monday.AddDays(-28).DayNumber, true, false);
+
+    private async Task KeepWeighInAsync(BodyWeightEntry weighIn)
+    {
+        await Store.KeepWeighInAsync(weighIn.Id);
+        await LoadAsync();
+    }
+
+    private async Task DeleteWeighInAsync(BodyWeightEntry weighIn)
+    {
+        await Store.DeleteBodyWeightAsync(weighIn);
+        await LoadAsync();
+    }
 
     // Another bar closes the day's adding and editing.
     private void Pick(int index)

@@ -38,7 +38,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
+        foreach (var table in new[] { "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
             new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     if (scenario == "empty") return "empty";
@@ -189,7 +189,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     }
 
     // Ten weeks of food, some days not logged, a weigh-in every other day drifting down slower than the logs say, and body details.
-    if (scenario is "food" or "food-nobody")
+    if (scenario is "food" or "food-nobody" or "checks")
     {
         var random = new Random(7);
         for (var d = 70; d >= 1; d--)
@@ -203,7 +203,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         }
         for (var d = 70; d >= 4; d -= 2)
             await store.AddBodyWeightAsync(Math.Round(187.5 - (70 - d) * 0.075 + (random.NextDouble() - 0.5) * 1.6, 1), WeightUnit.Pounds, new DateTimeOffset(now.Date.AddDays(-d).AddHours(7), now.Offset));
-        if (scenario == "food")
+        if (scenario is "food" or "checks")
         {
             await store.SetSettingAsync("Sex", "Male");
             await store.SetSettingAsync("BirthYear", "1992");
@@ -269,7 +269,20 @@ async Task<string> Seed(string scenario, WorkoutStore store)
             await Session(back.Id, At(month, day, 18), true, (rows, 95, 10, null, false), (rows, 95, 10, null, false), (rows, 95, reps, null, false));
     }
 
-    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody") return $"seeded {scenario}";
+    // The food weeks, with two slips to ask about: three days ago only breakfast was logged, and a weigh-in five days ago reads 9 lb heavy.
+    if (scenario == "checks")
+    {
+        using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+        {
+            connection.Open();
+            var day = now.Date.AddDays(-3);
+            new SqliteCommand($"DELETE FROM FoodEntry WHERE At >= '{new DateTimeOffset(day, now.Offset):O}' AND At < '{new DateTimeOffset(day.AddDays(1), now.Offset):O}'", connection).ExecuteNonQuery();
+        }
+        await store.AddFoodAsync(850, new DateTimeOffset(now.Date.AddDays(-3).AddHours(8), now.Offset));
+        await store.AddBodyWeightAsync(191.4, WeightUnit.Pounds, new DateTimeOffset(now.Date.AddDays(-5).AddHours(7), now.Offset));
+    }
+
+    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
     var open = scenario switch { "track" => null, "auto" or "auto-last" => (long?)arms.Id, "done" => legs.Id, _ => back.Id };

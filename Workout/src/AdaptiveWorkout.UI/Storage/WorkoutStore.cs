@@ -32,6 +32,9 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         CREATE TABLE IF NOT EXISTS ClaudeCall (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, SessionId INTEGER, Task TEXT NOT NULL, Version INTEGER NOT NULL, Model TEXT NOT NULL, Attempt INTEGER NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Question TEXT NOT NULL, Reply TEXT NOT NULL, InputTokens INTEGER NOT NULL, OutputTokens INTEGER NOT NULL, CacheReadTokens INTEGER NOT NULL, CacheWriteTokens INTEGER NOT NULL, Cost REAL NOT NULL, Ms INTEGER NOT NULL, MessageId TEXT NOT NULL, Error TEXT NOT NULL);
         -- The trainer's look back at a workout, one each: how the asking went, what it was asked and said (JSON), and when its plan was applied.
         CREATE TABLE IF NOT EXISTS LookBack (SessionId INTEGER PRIMARY KEY REFERENCES WorkoutSession (Id) ON DELETE CASCADE, At TEXT NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Notes TEXT NOT NULL, Input TEXT, Answer TEXT, Cost REAL NOT NULL, AppliedAt TEXT);
+        -- What I said about an entry that looked like a slip: a day logged far short (Kind day, Item its date: maintenance or right),
+        -- or a weigh-in far off the line (Kind weigh-in, Item its id: keep).
+        CREATE TABLE IF NOT EXISTS DataCheck (Kind TEXT NOT NULL, Item TEXT NOT NULL, Answer TEXT NOT NULL, PRIMARY KEY (Kind, Item));
         -- One workout's sets, and the heart rate during it, found without reading every row ever logged.
         CREATE INDEX IF NOT EXISTS WorkoutSetBySession ON WorkoutSet (SessionId, "Order");
         CREATE INDEX IF NOT EXISTS HeartRateSampleByTime ON HeartRateSample (At);

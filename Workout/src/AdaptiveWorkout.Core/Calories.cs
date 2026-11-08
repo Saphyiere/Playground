@@ -144,10 +144,11 @@ public static class Calories
     /// Every day from <paramref name="from"/> through <paramref name="today"/>, which is still going: what I logged eating, by the day on
     /// the clock when I ate it, and maintenance at the weigh-in nearest before the day was out (else the first one after), with what
     /// that day's workouts burned (<paramref name="burned"/>, from <see cref="BurnedByDay"/>). A day before today with nothing logged,
-    /// since the first day in <paramref name="food"/> (everything I've logged), is one I forgot.
+    /// since the first day in <paramref name="food"/> (everything I've logged), is one I forgot; so is a day I said to count at
+    /// maintenance (<paramref name="atMaintenance"/>: one logged far short, see <see cref="Checks.ShortDays"/>), whatever it has logged.
     /// </summary>
     public static List<CalorieDay> Days(IEnumerable<FoodEntry> food, IEnumerable<BodyWeightEntry> weighIns, AppSettings settings, DateOnly from, DateOnly today,
-        IReadOnlyDictionary<DateOnly, int> burned)
+        IReadOnlyDictionary<DateOnly, int> burned, IReadOnlySet<DateOnly>? atMaintenance = null)
     {
         var eaten = food.GroupBy(f => DateOnly.FromDateTime(f.At.DateTime)).ToDictionary(g => g.Key, g => g.Sum(f => f.Calories));
         var firstLogged = eaten.Count == 0 ? today : eaten.Keys.Min();
@@ -159,7 +160,7 @@ public static class Calories
             while (weighedBy < byTime.Count && DateOnly.FromDateTime(byTime[weighedBy].At.DateTime) <= day) weighedBy++;
             var weighIn = weighedBy > 0 ? byTime[weighedBy - 1] : byTime.FirstOrDefault();
             var workouts = burned.GetValueOrDefault(day);
-            int? logged = eaten.TryGetValue(day, out var calories) ? calories : null;
+            int? logged = eaten.TryGetValue(day, out var calories) && atMaintenance?.Contains(day) != true ? calories : null;
             days.Add(new CalorieDay(day, logged, Maintenance(settings, weighIn, day) + workouts, workouts, logged is null && day >= firstLogged && day < today));
         }
 

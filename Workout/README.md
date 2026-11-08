@@ -130,7 +130,7 @@ what the app works out and sends, and the checks on an answer.
 The preview host (`tools/AdaptiveWorkout.Preview`, see the repo's CLAUDE.md) has a stand-in Claude that answers a look back from
 the workout itself after a moment: `/claude/key` puts a key on the "phone" (`?clear=true` takes it off), `/claude/file` leaves a key
 file to be found, and `/claude/script?delay=8000&fail=offline` slows it down or makes it fail. `/seed/lookback` sets up a back day
-ready for **Finish**; `/seed/plateau` has rows gone flat, with a back day open.
+ready for **Finish**; `/seed/plateau` has rows gone flat, with a back day open; `/seed/checks` has a half-logged day and a weigh-in far off the line.
 
 ## Why these choices
 

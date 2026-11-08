@@ -10,7 +10,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 | 2 | How many more could you have done? (**built**) | Each set's entry | S | Feeds the look back |
 | 3 | Plateau check (**built**) | Next on the rest screen, an exercise's Stats, the look back | M | Feeds the look back |
 | 4 | Maintenance from the scale (**built**) | Calories | M | No |
-| 5 | Odd food days and weigh-ins | Calories | M | No |
+| 5 | Odd food days and weigh-ins (**built**) | Calories | M | No |
 | 6 | Muscle map | Stats, the exercise list, the look back | L | Tags your exercises once |
 | 7 | Ask Claude | The spark icon on Today | M | About 10–25¢ a question |
 | 8 | The week, looked back | Today, on Monday | M | About 25¢ a week |

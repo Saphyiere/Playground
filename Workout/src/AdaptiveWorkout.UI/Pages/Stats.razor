@@ -136,7 +136,8 @@
         var today = DateOnly.FromDateTime(DateTime.Now);
         var monday = Consistency.WeekStart(today);
         var burned = Calories.BurnedByDay(sessions, sets, exercises, bodyWeights, Settings);
-        var thisWeek = Calories.Span([.. Calories.Days(await Store.GetFoodAsync(), bodyWeights, Settings, monday, today, burned).Where(d => d.Day < today)]);
+        var atMaintenance = (await Store.GetCheckAnswersAsync()).AtMaintenance;
+        var thisWeek = Calories.Span([.. Calories.Days(await Store.GetFoodAsync(), bodyWeights, Settings, monday, today, burned, atMaintenance).Where(d => d.Day < today)]);
         caloriesText = thisWeek.Days == 0 ? "Day by day, against your goal and maintenance"
             : thisWeek is { Logged: > 0, AverageEaten: double eaten } ? $"This week: {eaten:N0} a day · {thisWeek.LoggedText}" : "Nothing logged this week";
 
