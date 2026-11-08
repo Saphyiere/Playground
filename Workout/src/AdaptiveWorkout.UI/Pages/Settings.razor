@@ -5,6 +5,9 @@
 @inject IClaude Claude
 @inject IAssistKeyStore Keys
 @inject ClaudeKeyFile KeyFile
+@inject Updater Updates
+@using Playground.Updates
+@implements IDisposable
 
 <PageTitle>Settings</PageTitle>
 
@@ -169,6 +172,45 @@
             <p class="note">What Anthropic charged for @(spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs") this month, as the app counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
         }
     </section>
+
+    @* Updates: the version on this phone, and the newest release on GitHub with its changes, through the Kit's shared updater. *@
+    <section class="stack" aria-labelledby="updates-heading">
+        <h2 id="updates-heading" class="label">Updates</h2>
+        <p class="note">New versions come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your workouts stay; the app keeps a copy of them in Downloads first, in case.</p>
+        <div class="spread baseline">
+            <span class="label">This phone</span>
+            <span class="name big tabular">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
+        </div>
+        @if (Updates.Status is { Latest: { } newest, Step: UpdateStep.Available or UpdateStep.Downloading or UpdateStep.Installing or UpdateStep.Failed })
+        {
+            <div class="spread baseline">
+                <span class="label">Newest</span>
+                <span class="name big tabular">1.0.@newest.Build</span>
+            </div>
+            <p class="note">Out @newest.Published.ToLocalTime().ToString(Theme.DayFormat, CultureInfo.CurrentCulture) · @Megabytes(newest.Size)</p>
+            @if (Changes(newest) is { Count: > 0 } changes)
+            {
+                <ul class="update-changes note">
+                    @foreach (var change in changes)
+                    {
+                        <li>@change</li>
+                    }
+                </ul>
+            }
+            <div class="grid-2">
+                <button type="button" class="btn tall" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@(Updates.Status.Step == UpdateStep.Checking ? "Checking…" : "Check")</button>
+                <button type="button" class="btn tall fill" disabled="@UpdateBusy" @onclick="() => Updates.InstallAsync()">@(Updates.Status.Step == UpdateStep.Downloading ? $"Downloading… {(int)(Updates.Status.Progress * 100)}%" : "Install")</button>
+            </div>
+        }
+        else
+        {
+            <button type="button" class="btn tall" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@(Updates.Status.Step == UpdateStep.Checking ? "Checking…" : "Check")</button>
+        }
+        @if (Updates.Status.Message is { Length: > 0 } updateNote)
+        {
+            <p class="note" role="status">@updateNote</p>
+        }
+    </section>
 </div>
 
 @code {
@@ -196,8 +238,13 @@
     private bool lookBackOn = true;
     private ClaudeSpend spend = new(0, 0);
 
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
     protected override async Task OnInitializedAsync()
     {
+        // The updater's status is read straight from it, and the page redraws when it changes; it asks GitHub at most once in 20 hours.
+        Updates.Changed += Redraw;
+        _ = Updates.CheckAsync();
         goal = AppSettings.CalorieGoal;
         age = DateTime.Now.Year - AppSettings.BirthYear;
         if (AppSettings.HeightCm is double height)
@@ -263,4 +310,22 @@
     }
 
     private Task SaveFeetAndInchesAsync() => SaveAsync(() => AppSettings.HeightCm = feet is > 0 ? Math.Round(((feet ?? 0) * 12 + (inches ?? 0)) * 2.54, 1) : null);
+
+    private bool UpdateBusy => Updates.Status.Step is UpdateStep.Checking or UpdateStep.Downloading or UpdateStep.Installing;
+
+    private void Redraw(UpdateStatus status) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Updates.Changed -= Redraw;
+
+    // A release's changes, from the list in its notes, without the app's name each starts with: five, and how many more.
+    private static List<string> Changes(Release release)
+    {
+        var lines = release.Notes.Split('\n').Select(l => l.Trim()).Where(l => l.StartsWith("- ", StringComparison.Ordinal))
+            .Select(l => l[2..].StartsWith("Workout: ", StringComparison.Ordinal) ? l["- Workout: ".Length..] : l[2..])
+            .Select(l => l.Length > 0 ? char.ToUpperInvariant(l[0]) + l[1..] : l).ToList();
+        return lines.Count <= 6 ? lines : [.. lines.Take(5), $"And {lines.Count - 5} more"];
+    }
+
+    private static string Megabytes(long bytes) => (bytes / 1_000_000.0).ToString("0", CultureInfo.InvariantCulture) + " MB";
 }
+

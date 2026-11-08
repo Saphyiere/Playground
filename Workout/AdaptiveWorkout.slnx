@@ -4,6 +4,9 @@
   </Folder>
   <Folder Name="/kit/">
     <Project Path="../Kit/Playground.Kit/Playground.Kit.csproj" />
+    <Project Path="../Kit/Playground.Updates/Playground.Updates.csproj" />
+    <Project Path="../Kit/Playground.Updates.Android/Playground.Updates.Android.csproj" />
+    <Project Path="../Kit/Playground.Updates.Tests/Playground.Updates.Tests.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AdaptiveWorkout.Core/AdaptiveWorkout.Core.csproj" />

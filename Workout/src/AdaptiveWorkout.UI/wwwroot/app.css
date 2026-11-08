@@ -1153,6 +1153,15 @@ button.set-line:active {
     gap: 6px;
 }
 
+/* Settings › Updates: the newest release's changes, as a short list. */
+.update-changes {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .key-command {
     display: block;
     margin-top: 4px;

@@ -14,6 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\AdaptiveWorkout.Core\AdaptiveWorkout.Core.csproj" />
     <ProjectReference Include="..\..\..\Kit\Playground.Kit\Playground.Kit.csproj" />
+    <!-- Updates from the repo's GitHub releases: Settings › Updates shows the updater. -->
+    <ProjectReference Include="..\..\..\Kit\Playground.Updates\Playground.Updates.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,6 +11,7 @@ using AdaptiveWorkout.UI.Workouts;
 using Microsoft.Data.Sqlite;
 using AdaptiveWorkout.Preview.Components;
 using Playground.AI.Assist;
+using Playground.Updates;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +25,8 @@ builder.Services.AddSingleton<FlowRegistry>();
 builder.Services.AddSingleton<PreviewClaude>();
 builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
 builder.Services.AddAdaptiveWorkout(dbPath);
+// Updates: GitHub and the phone stood in for (Kit/Playground.Updates); /updates/{scenario} sets what's installed and what's out.
+builder.Services.AddStandInUpdates(new UpdateOptions("workout", "workout.apk") { DataFiles = [dbPath], BackupFolder = "Workout backups" }, "Workout");
 // fresh per page load here, so reseeding between screenshots isn't masked by a cached workout; the newest is kept for /watch-next
 builder.Services.AddScoped<WorkoutFlow>(sp => sp.GetRequiredService<FlowRegistry>().Latest = ActivatorUtilities.CreateInstance<WorkoutFlow>(sp));
 
@@ -313,6 +316,33 @@ app.MapGet("/seed/{scenario}", async (string scenario, WorkoutStore store, Previ
 
 // The stand-in Claude: a key on the phone or not (one ending a1B2), a key file for Settings to find, and how it answers: slower, or
 // with a kind of trouble (/claude/script?delay=60000, ?fail=offline).
+// What Settings › Updates shows: "ready" (1.0.7 installed, 1.0.9 out), "pc" (a build from the PC), "current" (1.0.9, the newest),
+// or "none" (no release yet). It checks again at once, as the Check button does.
+app.MapGet("/updates/{scenario}", async (string scenario, StandInUpdates standIn, Updater updates) =>
+{
+    const string notes = """
+        Changes since workout-1.0.7:
+
+        - Workout: Calories asks once about a half-logged day or a weigh-in far off the line
+        - Workout: Calories offers maintenance by the scale, when the logs and the scale disagree
+        - Workout: a lift that's gone flat says so, and Claude's look back reads reps left, the heart rate fall and plateaus
+        - Workout: the rest screen says how far heart rate has fallen since the set stopped
+        - Workout: Claude looks back at each workout as it finishes, and its plan for next time is a tap away
+        - Workout: the Logbook and Telemetry looks, their fonts and the shared screen pieces
+
+        Built from e70ce42. Signed by the key with SHA-256 968f7e9ccea0277bb04bd467b9a2e87b7217a5a2e10bff76d5a0bff119cc7169.
+        """;
+    switch (scenario)
+    {
+        case "ready": standIn.Show("1.0.7", 9, notes); break;
+        case "pc": standIn.Show("1.0", 9, notes); break;
+        case "current": standIn.Show("1.0.9", 9, notes); break;
+        case "none": standIn.Show("1.0", 0); break;
+        default: return Results.Text("ready, pc, current or none");
+    }
+    await updates.CheckAsync(evenIfRecent: true);
+    return Results.Text($"{updates.Status.Step}: {updates.Status.Message}");
+});
 app.MapGet("/claude/key", async (bool? clear, IAssistKeyStore keys) =>
 {
     if (clear == true) await keys.RemoveAsync();

@@ -107,6 +107,20 @@ has the whole story, from the Console's workspace and spend limit to what to do 
 
 Android's backups leave the key out (`Platforms/Android/Resources/xml`), so after a restore or a reinstall, push the file again.
 
+## Updates from GitHub
+
+The phone and watch apps are released with the other apps, from the repo's **Actions › Release › Run workflow**: a release,
+**Workout 1.0.N**, with `workout.apk` (the phone) and `workout-watch.apk`, whenever the app changed since its last one.
+[tools/release/README.md](../tools/release/README.md) has the one-time setup and how a release is made. Both are signed with the
+key Visual Studio signs with, so a release installs over a copy from Visual Studio as an update, keeping its data, and the watch
+still pairs with the phone.
+
+- **The phone** updates itself: **Settings › Updates** shows the newest release, and **Install** checks it, keeps a copy of the
+  data in Download/Workout backups, and hands it to Android to confirm (the Kit's
+  [Playground.Updates](../Kit/Playground.Updates/README.md)).
+- **The watch**, for now, from the PC over Wi-Fi: `adb connect` to the watch, then `adb install -r workout-watch.apk` from the
+  release. Whether the watch can install its own updates, the way the phone does, is still to be tried on it.
+
 ## Design
 
 The app wears the [Kit](../Kit/README.md)'s two looks, Logbook and Telemetry, switched in **Settings** (the icon at the top right of Today, after Stats). The Kit has the themes' tokens, fonts and shared pieces, and how they work; `src/AdaptiveWorkout.UI/wwwroot/app.css` has this app's own screens, in the same tokens.

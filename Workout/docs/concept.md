@@ -93,6 +93,11 @@ The icon at the top right of Today, after Stats:
 - **Claude:** the key on the phone, shown by its start and last four characters, with **Test** and **Remove**; without one, how to
   get it there (a key file copied over USB, taken into secure storage when the app opens, or now with **Look for the key file**).
   **Look back after each workout**, on or off, and what this month's look backs cost. See *Claude's look back*.
+- **Updates:** the version on the phone (1.0 for a build from the PC), and the newest release from the repo's GitHub releases
+  (Workout 1.0.N), with its changes, **Check** and **Install**, through the Kit's shared updater. The app checks at most once a
+  day. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on the
+  phone (so Android keeps my workouts), copies the data file to Download/Workout backups, and hands it to Android, which asks to
+  confirm; the first time, Android asks to let the app install apps.
 
 Everything is remembered.
 
