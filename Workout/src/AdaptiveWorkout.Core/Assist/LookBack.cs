@@ -6,7 +6,7 @@ namespace AdaptiveWorkout.Core.Assist;
 
 /// <summary>The trainer's look back at a finished workout: a few lines on how it went, the next time of each weight exercise, and notes on odd sets.</summary>
 public sealed record LookBack(
-    [property: Description("Two to four short lines on today, the most notable first: weights that went up, reps that beat the last time, a goal hit, sets that slipped. One plain sentence each.")]
+    [property: Description("Two to four short lines on today, the most notable first: weights that went up, reps that beat the last time, a goal hit, sets that slipped. Last, when the input's muscles has some missing, one line naming them. One plain sentence each.")]
     IReadOnlyList<string> Highlights,
     [property: Description("The next time of each weight exercise done today, one entry each, in today's order. Timed exercises aren't in it.")]
     IReadOnlyList<NextLift> NextTime,
@@ -53,8 +53,8 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
 {
     public override string Name => "workout.look-back";
 
-    // 2: reps left, the first minute's heart rate fall, and plateaus.
-    public override int Version => 2;
+    // 2: reps left, the first minute's heart rate fall, and plateaus. 3: the week's muscles, on its last planned workout.
+    public override int Version => 3;
 
     // The owner waits on the screen for it, and judging a workout's sets doesn't need the deepest thinking.
     public override EffortLevel Effort => EffortLevel.Medium;
@@ -80,6 +80,9 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
           0 and empty otherwise.
         - hitGoalStep: how much a weight moves, in the set's unit. body: the latest weigh-in, and the daily calorie goal against
           maintenance; a goal under maintenance means they're eating less to lose weight.
+        - muscles, only when today is the last workout their routine plans this week (null otherwise): the week's hard sets for each
+          muscle, Monday to today, counting 1 for each set of an exercise it's the main muscle of and half for each it helps with;
+          missing, the muscles that got none; and untagged, the week's exercises whose muscles aren't known yet, so not counted.
 
         Their method is the rule. They pick a weight and aim for three sets of 10, or the sets planned. When every set hits its reps
         they tick Hit goal, and the next time goes up one step; when reps fall short, the weight stays until they hit it.
@@ -111,6 +114,10 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
         means a late or missed tap: its weight and reps still count, only its times don't (timeIgnored). An odd number is usually a
         typo (likelyTypo: say what it probably should be, and plan from that). A goal box ticked or left wrong: say which. Leave a
         set out (setIgnored) only when nothing about it can be trusted. Report only what the data shows.
+
+        Muscles: when muscles has some missing, give them the last highlight, as a plain fact ("Nothing trained abs or calves this
+        week."). Point it out only: never suggest adding, swapping or changing an exercise for it, since the routine is theirs to
+        change. If an untagged exercise would probably have trained one, say it isn't counted yet. Nothing about muscles otherwise.
 
         Highlights: two to four short lines on today, the most notable first, with the exercises' names and the owner's numbers.
         The summary: one or two sentences on the day as a whole, for the top of the screen.

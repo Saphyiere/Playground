@@ -196,11 +196,66 @@ public class LookBackTests
         foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("repsLeft");
         foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("bpmDropFirstMinute");
         foreach (var exercise in kept["exercises"]!.AsArray()) { exercise!.AsObject().Remove("flatWorkouts"); exercise.AsObject().Remove("best"); }
+        kept.AsObject().Remove("muscles");
 
         var read = kept.Deserialize<LookBackInput>(AssistSchema.Json)!;
 
         Assert.Equal(input.Workout.Sets[0] with { Flags = read.Workout.Sets[0].Flags }, read.Workout.Sets[0]);
         Assert.Equal((0, ""), (read.Exercises[0].FlatWorkouts, read.Exercises[0].Best));
+        Assert.Null(read.Muscles);
+    }
+
+    // The six-day split: a session every day but Sunday.
+    private static readonly long?[] SixDays = [11, 12, 13, 14, 15, 16, null];
+
+    private static readonly Dictionary<long, MuscleTags> MuscleTagsOf = new()
+    {
+        [Rows] = new(Rows, [Muscle.Lats, Muscle.UpperBack], [Muscle.RearDelts, Muscle.Biceps], false),
+        [Curls] = new(Curls, [Muscle.Biceps], [Muscle.Forearms], true),
+    };
+
+    [Fact]
+    public void WeekMuscles_OnTheWeeksLastPlannedWorkout_CountsMondayToIt()
+    {
+        // Saturday is the routine's last day. Last Sunday's rows aren't this week's; Thursday's pull-ups aren't tagged yet.
+        var saturday = Today.AddDays(-1);
+        var lastWeek = Workout(1, Today.AddDays(-7), new Done(Rows, 100, 10), new Done(Rows, 100, 10));
+        var monday = Workout(2, Today.AddDays(-6), new Done(Rows, 100, 10), new Done(Rows, 100, 10), new Done(Curls, 30, 12));
+        var thursday = Workout(3, Today.AddDays(-3), new Done(PullUps, null, 10));
+        var today = Workout(4, saturday, new Done(Rows, 100, 10));
+        var all = new[] { lastWeek, monday, thursday, today };
+
+        var muscles = LookBackFacts.WeekMuscles(today.Session, [.. all.Select(w => w.Session)], [.. all.SelectMany(w => w.Sets)], Exercises, MuscleTagsOf, SixDays)!;
+
+        Assert.Equal(3, muscles.Week.Single(m => m.Muscle == Muscle.Lats).Sets);
+        Assert.Equal(2.5, muscles.Week.Single(m => m.Muscle == Muscle.Biceps).Sets);
+        Assert.Equal(0.5, muscles.Week.Single(m => m.Muscle == Muscle.Forearms).Sets);
+        Assert.DoesNotContain(Muscle.Lats, muscles.Missing);
+        Assert.Contains(Muscle.Calves, muscles.Missing);
+        Assert.Equal(["Pull-ups"], muscles.Untagged);
+    }
+
+    [Fact]
+    public void WeekMuscles_IsNull_WhileAPlannedDayIsToCome_OrWithoutARoutine()
+    {
+        var wednesday = Workout(4, Today.AddDays(-4), new Done(Rows, 100, 10));
+        var sunday = Workout(5, Today, new Done(Rows, 100, 10));
+
+        Assert.Null(LookBackFacts.WeekMuscles(wednesday.Session, [wednesday.Session], wednesday.Sets, Exercises, MuscleTagsOf, SixDays));
+        Assert.Null(LookBackFacts.WeekMuscles(sunday.Session, [sunday.Session], sunday.Sets, Exercises, MuscleTagsOf, null));
+        Assert.NotNull(LookBackFacts.WeekMuscles(sunday.Session, [sunday.Session], sunday.Sets, Exercises, MuscleTagsOf, SixDays));
+    }
+
+    [Fact]
+    public void WeekMuscles_GoWithTheInput()
+    {
+        var today = Workout(9, Today, new Done(Rows, 100, 10));
+        var muscles = LookBackFacts.WeekMuscles(today.Session, [today.Session], today.Sets, Exercises, MuscleTagsOf, SixDays);
+
+        var input = Input(today, context: Context() with { Muscles = muscles });
+
+        Assert.Equal(muscles, input.Muscles);
+        Assert.Contains("\"missing\":[\"chest\",", JsonSerializer.Serialize(input, AssistSchema.Json));
     }
 
     [Fact]

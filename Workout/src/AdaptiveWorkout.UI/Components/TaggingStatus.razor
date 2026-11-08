@@ -1,0 +1,40 @@
+@inject MuscleTagger Tagger
+@* Claude's tagging of the exercises' muscles, where the muscle screens need it: under way, gone wrong (with Try again), or waiting on a
+   key. Nothing when every exercise is tagged. The screen passes the tagger's state in, as it hears it change, so this redraws with it. *@
+@if (Tagging > 0)
+{
+    <p class="tagging" role="status"><span class="tagging-dot" aria-hidden="true"></span>Claude is tagging @Exercises(Tagging)…</p>
+}
+else if (Untagged > 0 && !HasKey)
+{
+    <p class="note">@Exercises(Untagged, true) tagged yet. With a Claude key in <a class="link" href="settings">Settings</a>, Claude tags @(Untagged == 1 ? "it; or tag it yourself" : "them; or tag them yourself").</p>
+}
+else if (Untagged > 0 && Trouble is string trouble)
+{
+    <div class="stack tight" role="status">
+        <p class="pen-note">@Exercises(Untagged, true) tagged yet. @trouble</p>
+        <button type="button" class="btn" @onclick="() => Tagger.TagAsync(retry: true)">Try again</button>
+    </div>
+}
+else if (Untagged > 0)
+{
+    <p class="note">@Exercises(Untagged, true) tagged yet.</p>
+}
+
+@code {
+    /// <summary>How many exercises aren't tagged yet.</summary>
+    [Parameter] public int Untagged { get; set; }
+
+    /// <summary>Whether there's a Claude key on this phone to tag with.</summary>
+    [Parameter] public bool HasKey { get; set; }
+
+    /// <summary>How many exercises Claude is tagging now (<see cref="MuscleTagger.Tagging"/>).</summary>
+    [Parameter] public int Tagging { get; set; }
+
+    /// <summary>What went wrong the last time Claude was asked (<see cref="MuscleTagger.Trouble"/>).</summary>
+    [Parameter] public string? Trouble { get; set; }
+
+    // "3 exercises", or with not: "1 exercise isn't", "3 exercises aren't".
+    private static string Exercises(int count, bool not = false) =>
+        $"{count} {(count == 1 ? "exercise" : "exercises")}{(not ? count == 1 ? " isn't" : " aren't" : "")}";
+}

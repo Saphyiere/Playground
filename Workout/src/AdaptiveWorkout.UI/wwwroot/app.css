@@ -1248,3 +1248,276 @@ button.set-line:active {
         display: none;
     }
 }
+
+/* The muscle map (Stats › Muscles): a figure from the front and one from the back, each muscle shaded by the week's hard sets. In
+   Logbook the muscles are drawn in ink and hatched, denser as the sets add up and cross-hatched from 10; the head, hands and feet
+   are a faint wash. The rows under it ink each muscle's sets on a hairline, the 10 to 20 band a wash, hatching past 20. */
+.muscle-map {
+    display: block;
+    width: 100%;
+    max-width: 330px;
+    height: auto;
+    margin: 0 auto;
+}
+
+.muscle-map .body {
+    fill: var(--field-tint);
+    stroke: var(--rule);
+    stroke-width: 0.6;
+}
+
+.muscle-map .m, .map-key .m {
+    stroke: var(--ink-muted);
+    stroke-width: 0.6;
+    stroke-linejoin: round;
+}
+
+.muscle-map .m:not(.lvl-0), .map-key .m:not(.lvl-0) {
+    stroke: var(--ink);
+    stroke-width: 0.8;
+}
+
+.muscle-map .hatch {
+    stroke: var(--ink);
+    stroke-width: 0.7;
+}
+
+.muscle-map .map-label {
+    fill: var(--ink-muted);
+    font-family: var(--font-label);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.map-key {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-family: var(--font-label);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--ink-muted);
+}
+
+.map-key-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.map-key svg {
+    display: block;
+}
+
+.muscle-row {
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 12px;
+}
+
+.muscle-row .number {
+    text-align: right;
+}
+
+.muscle-row .number.none {
+    color: var(--mark);
+}
+
+.band {
+    position: relative;
+    height: 14px;
+}
+
+.band::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 11px;
+    height: 1px;
+    background: var(--rule);
+}
+
+.band-zone {
+    position: absolute;
+    top: 0;
+    height: 12px;
+    background: var(--wash);
+    border-left: 1px solid var(--ink-muted);
+    border-right: 1px solid var(--ink-muted);
+}
+
+.band-fill, .band-over {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    height: 5px;
+    background: var(--ink);
+}
+
+.band-over {
+    background: repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 4px);
+}
+
+/* Claude tagging the exercises: a dot that beats while it asks. */
+.tagging {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-words);
+    font-style: italic;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--ink-muted);
+}
+
+.tagging-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--mark);
+    animation: tagging-beat 0.83s ease-out infinite;
+}
+
+@keyframes tagging-beat {
+    0%, 100% {
+        opacity: 0.35;
+        transform: scale(0.8);
+    }
+
+    12% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+}
+
+/* An exercise's muscles: each muscle's name, and Main or Helps. */
+.muscle-pick {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.muscle-pick .segmented.compact button {
+    min-width: 72px;
+}
+
+.caption.yours {
+    flex: none;
+    color: var(--mark);
+}
+
+/* Telemetry: the muscles light up in the training channel's lime, brighter with more sets, on dark figures; the band is a lime
+   outline on the ruler. Its tiles never move, so the tagging dot only fades. */
+[data-theme="telemetry"] .muscle-map .body {
+    fill: var(--surface-1);
+    stroke: var(--rule);
+}
+
+[data-theme="telemetry"] .muscle-map .m, [data-theme="telemetry"] .map-key .m {
+    fill: var(--wash);
+    stroke: var(--rule);
+    stroke-width: 0.6;
+}
+
+[data-theme="telemetry"] .muscle-map .m.lvl-1, [data-theme="telemetry"] .map-key .m.lvl-1 {
+    fill: color-mix(in srgb, var(--train) 28%, var(--ground));
+    stroke: color-mix(in srgb, var(--train) 45%, var(--ground));
+}
+
+[data-theme="telemetry"] .muscle-map .m.lvl-2, [data-theme="telemetry"] .map-key .m.lvl-2 {
+    fill: color-mix(in srgb, var(--train) 58%, var(--ground));
+    stroke: color-mix(in srgb, var(--train) 70%, var(--ground));
+}
+
+[data-theme="telemetry"] .muscle-map .m.lvl-3, [data-theme="telemetry"] .map-key .m.lvl-3 {
+    fill: var(--train);
+    stroke: var(--train);
+}
+
+[data-theme="telemetry"] .muscle-map .map-label {
+    font-size: 7px;
+}
+
+[data-theme="telemetry"] .map-key {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+[data-theme="telemetry"] .muscle-row .name {
+    font-size: 15px;
+}
+
+[data-theme="telemetry"] .muscle-row .number.none {
+    color: var(--ink-muted);
+}
+
+[data-theme="telemetry"] .band::before {
+    top: 6px;
+    height: 2px;
+    background: var(--rule);
+}
+
+[data-theme="telemetry"] .band-zone {
+    top: 1px;
+    height: 12px;
+    background: color-mix(in srgb, var(--train) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--train) 45%, transparent);
+    border-radius: 2px;
+}
+
+[data-theme="telemetry"] .band-fill, [data-theme="telemetry"] .band-over {
+    top: 4px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--train);
+}
+
+[data-theme="telemetry"] .band-over {
+    background: repeating-linear-gradient(135deg, var(--train) 0 1px, transparent 1px 4px);
+}
+
+[data-theme="telemetry"] .tagging {
+    font-family: var(--font-label);
+    font-style: normal;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--train);
+}
+
+[data-theme="telemetry"] .tagging-dot {
+    background: var(--train);
+    animation-name: tagging-glow;
+}
+
+@keyframes tagging-glow {
+    0%, 100% {
+        opacity: 0.3;
+    }
+
+    12% {
+        opacity: 1;
+    }
+}
+
+[data-theme="telemetry"] .caption.yours {
+    color: var(--train);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tagging-dot {
+        animation: none;
+    }
+}

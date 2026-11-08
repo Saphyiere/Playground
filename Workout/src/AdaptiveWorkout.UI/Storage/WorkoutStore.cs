@@ -19,7 +19,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         CREATE TABLE IF NOT EXISTS SessionTemplate (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, "Order" INTEGER NOT NULL, WarmUp INTEGER NOT NULL DEFAULT 0, CoolDown INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS RoutineDay (RoutineId INTEGER NOT NULL REFERENCES Routine (Id) ON DELETE CASCADE, Day INTEGER NOT NULL, TemplateId INTEGER REFERENCES SessionTemplate (Id), PRIMARY KEY (RoutineId, Day));
         CREATE TABLE IF NOT EXISTS Setting (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS Exercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, NameKey TEXT NOT NULL UNIQUE, Measure INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS Exercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, NameKey TEXT NOT NULL UNIQUE, Measure INTEGER NOT NULL, TaggedBy TEXT);
         CREATE TABLE IF NOT EXISTS TemplateExercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, TemplateId INTEGER NOT NULL REFERENCES SessionTemplate (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, PlannedSets INTEGER, SupersetGroup INTEGER);
         CREATE TABLE IF NOT EXISTS WorkoutSession (Id INTEGER PRIMARY KEY AUTOINCREMENT, TemplateId INTEGER REFERENCES SessionTemplate (Id), StartedAt TEXT NOT NULL, FinishedAt TEXT, LoggedAfterward INTEGER NOT NULL DEFAULT 0, Improvement REAL, ExercisesCompared INTEGER, WarmUp INTEGER NOT NULL DEFAULT 0, WarmUpEndedAt TEXT, CoolDown INTEGER NOT NULL DEFAULT 0, CoolDownStartedAt TEXT, AverageBpm REAL);
         CREATE TABLE IF NOT EXISTS WorkoutSet (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, StartedAt TEXT, StoppedAt TEXT, Weight REAL, WeightUnit INTEGER NOT NULL, Reps INTEGER, DurationSeconds INTEGER, HitGoal INTEGER NOT NULL DEFAULT 0, RepsLeft INTEGER);
@@ -35,6 +35,8 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         -- What I said about an entry that looked like a slip: a day logged far short (Kind day, Item its date: maintenance or right),
         -- or a weigh-in far off the line (Kind weigh-in, Item its id: keep).
         CREATE TABLE IF NOT EXISTS DataCheck (Kind TEXT NOT NULL, Item TEXT NOT NULL, Answer TEXT NOT NULL, PRIMARY KEY (Kind, Item));
+        -- The muscles an exercise trains: Main for the ones it's done for, else it helps. Who tagged it is the exercise's TaggedBy.
+        CREATE TABLE IF NOT EXISTS ExerciseMuscle (ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id) ON DELETE CASCADE, Muscle TEXT NOT NULL, Main INTEGER NOT NULL, PRIMARY KEY (ExerciseId, Muscle));
         -- One workout's sets, and the heart rate during it, found without reading every row ever logged.
         CREATE INDEX IF NOT EXISTS WorkoutSetBySession ON WorkoutSet (SessionId, "Order");
         CREATE INDEX IF NOT EXISTS HeartRateSampleByTime ON HeartRateSample (At);
@@ -73,6 +75,9 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
 
     // Sets got how many more reps they had in them after the table existed.
     private const string SetRepsLeft = "ALTER TABLE WorkoutSet ADD COLUMN RepsLeft INTEGER;";
+
+    // Exercises got who tagged their muscles (claude or owner; empty until tagged) after the table existed.
+    private const string ExerciseTaggedBy = "ALTER TABLE Exercise ADD COLUMN TaggedBy TEXT;";
 
     private const string ActiveRoutineKey = "ActiveRoutineId";
     private const string CalorieGoalKey = "CalorieGoal", SexKey = "Sex", BirthYearKey = "BirthYear", HeightKey = "HeightCm";
@@ -331,6 +336,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSession') WHERE name = 'WarmUp'") == 0) await connection.ExecuteAsync(WarmUpAndCoolDown);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSession') WHERE name = 'AverageBpm'") == 0) await connection.ExecuteAsync(SessionHeartRate);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSet') WHERE name = 'RepsLeft'") == 0) await connection.ExecuteAsync(SetRepsLeft);
+                    if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('Exercise') WHERE name = 'TaggedBy'") == 0) await connection.ExecuteAsync(ExerciseTaggedBy);
                     schemaReady = true;
                 }
 

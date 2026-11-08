@@ -1,0 +1,74 @@
+@page "/stats/muscles/exercises/{Id:long}"
+@inject WorkoutStore Store
+@inject AppNavigation Navigation
+
+<PageTitle>@(exercise?.Name ?? "Exercise")</PageTitle>
+
+@* What one exercise trains: the muscles it's mainly for, and the ones that help. Mine stays as I save it; Claude never changes it. *@
+@if (exercise is not null)
+{
+    <div class="screen">
+        <PageHeader Back="stats/muscles/exercises" BackText="Exercises" Label="Muscles" Title="@exercise.Name" />
+
+        <p class="note">Main counts each set as 1 for the muscle, Helps as ½. Tap again to clear; leave them all clear for cardio.</p>
+
+        <div class="ledger">
+            @foreach (var muscle in Muscles.All)
+            {
+                var role = main.Contains(muscle) ? Role.Main : helps.Contains(muscle) ? Role.Helps : Role.None;
+                <div class="muscle-pick" role="group" aria-labelledby="muscle-@muscle">
+                    <span class="name" id="muscle-@muscle">@Muscles.Name(muscle)</span>
+                    <div class="segmented compact">
+                        <button type="button" aria-pressed="@(role == Role.Main ? "true" : "false")" @onclick="() => Pick(muscle, Role.Main)">Main</button>
+                        <button type="button" aria-pressed="@(role == Role.Helps ? "true" : "false")" @onclick="() => Pick(muscle, Role.Helps)">Helps</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <span class="caption">@(saved is null ? "Not tagged yet" : saved.ByOwner ? "Tagged by you" : "Tagged by Claude")</span>
+        <button type="button" class="btn-primary" @onclick="SaveAsync">Save</button>
+    </div>
+}
+
+@code {
+    private enum Role { None, Main, Helps }
+
+    private Exercise? exercise;
+    private MuscleTags? saved;
+    private readonly HashSet<Muscle> main = [];
+    private readonly HashSet<Muscle> helps = [];
+
+    [Parameter] public long Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        exercise = (await Store.GetExercisesAsync()).Find(e => e.Id == Id);
+        if (exercise is null)
+        {
+            await Navigation.BackAsync("stats/muscles/exercises");
+            return;
+        }
+
+        saved = (await Store.GetMuscleTagsAsync()).GetValueOrDefault(Id);
+        main.UnionWith(saved?.Main ?? []);
+        helps.UnionWith(saved?.Helps ?? []);
+    }
+
+    // A muscle is main, helps, or neither; tapping what it is clears it.
+    private void Pick(Muscle muscle, Role role)
+    {
+        var was = main.Contains(muscle) ? Role.Main : helps.Contains(muscle) ? Role.Helps : Role.None;
+        main.Remove(muscle);
+        helps.Remove(muscle);
+        if (was == role) return;
+
+        (role == Role.Main ? main : helps).Add(muscle);
+    }
+
+    private async Task SaveAsync()
+    {
+        await Store.SaveMuscleTagsAsync([new MuscleTags(Id, [.. Muscles.All.Where(main.Contains)], [.. Muscles.All.Where(helps.Contains)], true)]);
+        await Navigation.BackAsync("stats/muscles/exercises");
+    }
+}

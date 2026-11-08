@@ -7,7 +7,9 @@ namespace AdaptiveWorkout.Core.Assist;
 /// odd about them, each exercise's last times, and the owner's step and body. The app does the arithmetic; Claude judges what it means.
 /// </summary>
 /// <param name="HitGoalStep">How much a weight moves after a hit goal, in the set's own unit.</param>
-public sealed record LookBackInput(double HitGoalStep, LookBackBody Body, LookBackWorkout Workout, IReadOnlyList<LookBackExercise> Exercises);
+/// <param name="Muscles">The week's muscles, when the workout is the week's last planned one; null otherwise, and in a look back kept before version 3.</param>
+public sealed record LookBackInput(double HitGoalStep, LookBackBody Body, LookBackWorkout Workout, IReadOnlyList<LookBackExercise> Exercises,
+    LookBackMuscles? Muscles = null);
 
 /// <summary>The latest weigh-in before the workout (null without one), and the day's calorie goal against maintenance (null until it can be worked out).</summary>
 public sealed record LookBackBody(double? Weight, WeightUnit Unit, int CalorieGoal, int? Maintenance);
@@ -36,6 +38,12 @@ public sealed record LookBackSet(long Id, long ExerciseId, string Exercise, int 
 public sealed record LookBackExercise(long Id, string Name, ExerciseMeasure Measure, int? PlannedSets, int RestCountdownSeconds, string TrainerSaid,
     IReadOnlyList<LookBackLastTime> LastTimes, int FlatWorkouts = 0, string Best = "");
 
+/// <summary>
+/// The week's hard sets for each muscle, Monday to the workout (see <see cref="Muscles.Count"/>): every muscle, top to bottom.
+/// <paramref name="Missing"/> got none; <paramref name="Untagged"/> are the week's exercises without muscles yet, whose sets aren't counted.
+/// </summary>
+public sealed record LookBackMuscles(IReadOnlyList<MuscleSets> Week, IReadOnlyList<Muscle> Missing, IReadOnlyList<string> Untagged);
+
 /// <summary>One earlier workout's sets of an exercise: compactly ("3 × 10 at 100"), whether a goal was hit, the weights used, and the usual rest.</summary>
 public sealed record LookBackLastTime(DateOnly Date, string Sets, bool HitGoal, IReadOnlyList<double> Weights, int? TypicalRestSeconds);
 
@@ -62,10 +70,11 @@ public sealed record SetFlag(SetFlagKind Kind, string Detail);
 
 /// <summary>
 /// What else the trainer is told about the owner and this workout: each exercise's rest countdown in seconds, what the last look back said
-/// for each exercise (<see cref="TrainerTarget"/>), the latest weigh-in, and the calorie goal against maintenance.
+/// for each exercise (<see cref="TrainerTarget"/>), the latest weigh-in, the calorie goal against maintenance, and the week's muscles when
+/// it's the week's last planned workout (see <see cref="LookBackFacts.WeekMuscles"/>).
 /// </summary>
 public sealed record LookBackContext(double HitGoalStep, IReadOnlyDictionary<long, int> RestTargets, IReadOnlyDictionary<long, TrainerTarget> Trainer,
-    BodyWeightEntry? WeighIn, WeightUnit Unit, int CalorieGoal, int? Maintenance);
+    BodyWeightEntry? WeighIn, WeightUnit Unit, int CalorieGoal, int? Maintenance, LookBackMuscles? Muscles = null);
 
 public static class LookBackFacts
 {
@@ -161,7 +170,28 @@ public static class LookBackFacts
         var workout = new LookBackWorkout(session.Id, name, DateOnly.FromDateTime(started), new TimeOnly(started.Hour, started.Minute), minutes, average,
             session.WarmUp, session.CoolDown, facts);
         var body = new LookBackBody(context.WeighIn?.Weight, context.WeighIn?.WeightUnit ?? context.Unit, context.CalorieGoal, context.Maintenance);
-        return new LookBackInput(context.HitGoalStep, body, workout, lookBackExercises);
+        return new LookBackInput(context.HitGoalStep, body, workout, lookBackExercises, context.Muscles);
+    }
+
+    /// <summary>
+    /// The week's muscles for a workout's look back, when it's the week's last planned one: the routine in use has no session on a later
+    /// day of the week. Counts the sets of the week's workouts up to it. Null without a routine, or while a planned day is still to come.
+    /// </summary>
+    /// <param name="sessions">Every workout, this one included or not.</param>
+    /// <param name="sets">Their sets, and this one's.</param>
+    /// <param name="routineWeek">The routine in use, Monday first: each day's session, or null for a rest day. Null without a routine.</param>
+    public static LookBackMuscles? WeekMuscles(WorkoutSession session, IReadOnlyList<WorkoutSession> sessions, IReadOnlyList<WorkoutSet> sets,
+        IReadOnlyDictionary<long, Exercise> exercises, IReadOnlyDictionary<long, MuscleTags> tags, IReadOnlyList<long?>? routineWeek)
+    {
+        var day = DateOnly.FromDateTime(session.StartedAt.DateTime);
+        var index = Schedule.DayIndex(day);
+        if (routineWeek is null || routineWeek.Skip(index + 1).Any(d => d is not null)) return null;
+
+        var upTo = sessions.Where(s => s.Id != session.Id && s.StartedAt <= session.StartedAt).Append(session);
+        var weekSets = Muscles.InWeek(upTo, sets.DistinctBy(s => s.Id), Consistency.WeekStart(day)).ToList();
+        var counts = Muscles.Count(weekSets, tags);
+        var untagged = weekSets.Select(s => s.ExerciseId).Distinct().Where(id => !tags.ContainsKey(id)).Select(id => exercises.TryGetValue(id, out var e) ? e.Name : $"Exercise {id}");
+        return new LookBackMuscles(counts, Muscles.Missing(counts), [.. untagged]);
     }
 
     // A set that ran over 3 minutes, or over 3 times (and over a minute past) the exercise's usual set.

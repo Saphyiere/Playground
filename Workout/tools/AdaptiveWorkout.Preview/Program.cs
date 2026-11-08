@@ -2,6 +2,7 @@
 // cloud session can render and screenshot them (see CLAUDE.md). /seed/{scenario} fills the data; the other endpoints stand in for
 // the watch and the phone's notification.
 using AdaptiveWorkout.Core;
+using AdaptiveWorkout.Core.Assist;
 using AdaptiveWorkout.Preview;
 using AdaptiveWorkout.UI;
 using AdaptiveWorkout.UI.Assist;
@@ -41,7 +42,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
+        foreach (var table in new[] { "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "ExerciseMuscle", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
             new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     if (scenario == "empty") return "empty";
@@ -285,7 +286,36 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         await store.AddBodyWeightAsync(191.4, WeightUnit.Pounds, new DateTimeOffset(now.Date.AddDays(-5).AddHours(7), now.Offset));
     }
 
-    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks") return $"seeded {scenario}";
+    // Last week and this week of the six-day split, to today, with last week's leg day missed. Claude tagged the exercises (Pull-ups
+    // are mine), and Hanging leg raises, made since, aren't tagged yet.
+    if (scenario == "muscles")
+    {
+        var raises = await store.GetOrCreateExerciseAsync("Hanging leg raises", ExerciseMeasure.Weight);
+        var made = (await store.GetExercisesAsync()).Where(e => e.Id != raises.Id).Select(e => new ExerciseToTag(e.Id, e.Name, e.Measure, ""));
+        await store.SaveMuscleTagsAsync(TagExercises.Tags(PreviewClaude.Tag(new ExercisesToTag([.. made], []))));
+        await store.SaveMuscleTagsAsync([new MuscleTags(pullUps.Id, [Muscle.Lats, Muscle.Biceps], [Muscle.UpperBack, Muscle.Forearms], true)]);
+        (Exercise, double?, int?, int?, bool)[] Sets(Exercise exercise, double? weight, int count) => [.. Enumerable.Repeat((exercise, weight, (int?)10, (int?)null, false), count)];
+        var days = new (long TemplateId, (Exercise, double?, int?, int?, bool)[] Sets)[]
+        {
+            (push.Id, [.. Sets(bench, 135, 4), .. Sets(dips, null, 3), .. Sets(skulls, 40, 3)]),
+            (back.Id, [.. Sets(rows, 100, 4), .. Sets(pullUps, null, 3), .. Sets(pulldown, 120, 3), .. Sets(pushdown, 50, 3)]),
+            (legs.Id, Sets(squat, 135, 5)),
+            (arms.Id, [.. Sets(curls, 30, 4), .. Sets(skulls, 40, 3)]),
+            (push.Id, [.. Sets(bench, 135, 4), .. Sets(dips, null, 3), .. Sets(skulls, 40, 3)]),
+            (back.Id, [.. Sets(rows, 100, 4), .. Sets(pullUps, null, 3), .. Sets(pulldown, 120, 3), .. Sets(pushdown, 50, 3)]),
+        };
+        var today = DateOnly.FromDateTime(now.Date);
+        var thisWeek = Consistency.WeekStart(today);
+        for (var day = thisWeek.AddDays(-7); day <= today; day = day.AddDays(1))
+        {
+            var index = Schedule.DayIndex(day);
+            var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(18, 0)), now.Offset);
+            if (index == 6 || (day < thisWeek && index == 2) || start > now) continue;
+            await Session(days[index].TemplateId, start, true, days[index].Sets);
+        }
+    }
+
+    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks" or "muscles") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
     var open = scenario switch { "track" => null, "auto" or "auto-last" => (long?)arms.Id, "done" => legs.Id, _ => back.Id };

@@ -9,8 +9,9 @@ namespace AdaptiveWorkout.Preview;
 /// <summary>
 /// Claude for the preview: never calls the API, so the screens can be checked without a key. A look back is worked out from its input
 /// the way the owner's method reads (up a step when every set reached 10 or a goal was hit, the same weight and a longer rest when reps
-/// dropped), with a note on each flagged set, and held to the task's own checks. Each answer waits a moment and is logged with a
-/// price, as the real one is. /claude/script slows it down, or makes it answer with a kind of trouble instead.
+/// dropped), with a note on each flagged set and the week's missing muscles; exercises are tagged by the words in their names. Each
+/// answer is held to the task's own checks, waits a moment and is logged with a price, as the real one is. /claude/script slows it
+/// down, or makes it answer with a kind of trouble instead.
 /// </summary>
 public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaude
 {
@@ -28,18 +29,54 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
     {
         if (await keys.GetAsync() is null) return new(AnswerKind.NoKey, default, "There's no Claude key on this device yet.", [], Usage.None);
         await Task.Delay(DelayMs, ct);
-        if (input is not LookBackInput workout || task is not AssistTask<LookBackInput, LookBack> lookBack)
-            throw new InvalidOperationException($"The preview has no answers for {task.Name}.");
-
-        var plan = Plan(workout);
-        var problems = lookBack.Check(workout, plan);
-        Answer<LookBack> answer = Fail is { } kind ? new(kind, null, Trouble(kind), [], Usage.None)
-            : problems.Count > 0 ? new(AnswerKind.CheckFailed, null, "Claude's answer didn't pass the task's checks.", problems, Usage.None)
-            : new(AnswerKind.Answered, plan, Summary(workout, plan), [], new Usage(7_400, 2_900, 0, 0, 0.09m, TimeSpan.FromMilliseconds(DelayMs)));
-        await log.WriteAsync(new AssistCall(DateTimeOffset.Now, task.Name, task.Version, "preview", 1, answer.Kind, answer.Summary,
-            JsonSerializer.Serialize(input, AssistSchema.Json), answer.Ok ? JsonSerializer.Serialize(answer.Value, AssistSchema.Json) : "", 0, answer.Usage, "preview", ""));
-        return (Answer<TAnswer>)(object)answer;
+        var took = TimeSpan.FromMilliseconds(DelayMs);
+        var answer = (task, input) switch
+        {
+            (AssistTask<LookBackInput, LookBack> lookBack, LookBackInput workout) when Plan(workout) is var plan =>
+                (object)Judge(lookBack, workout, plan, Summary(workout, plan), new Usage(7_400, 2_900, 0, 0, 0.09m, took)),
+            (AssistTask<ExercisesToTag, ExerciseTags> tagging, ExercisesToTag exercises) =>
+                Judge(tagging, exercises, Tag(exercises), $"Tagged {exercises.Exercises.Count} exercises by what they mainly train.", new Usage(1_900, 600, 0, 0, 0.02m, took)),
+            _ => throw new InvalidOperationException($"The preview has no answers for {task.Name}."),
+        };
+        var typed = (Answer<TAnswer>)answer;
+        await log.WriteAsync(new AssistCall(DateTimeOffset.Now, task.Name, task.Version, "preview", 1, typed.Kind, typed.Summary,
+            JsonSerializer.Serialize(input, AssistSchema.Json), typed.Ok ? JsonSerializer.Serialize(typed.Value, AssistSchema.Json) : "", 0, typed.Usage, "preview", ""));
+        return typed;
     }
+
+    // The answer as the real one comes back: the trouble it was told to have, the task's checks failing, or answered.
+    private Answer<T> Judge<TIn, T>(AssistTask<TIn, T> task, TIn input, T value, string summary, Usage usage) where T : class
+    {
+        var problems = task.Check(input, value);
+        return Fail is { } kind ? new(kind, null, Trouble(kind), [], Usage.None)
+            : problems.Count > 0 ? new(AnswerKind.CheckFailed, null, "Claude's answer didn't pass the task's checks.", problems, Usage.None)
+            : new(AnswerKind.Answered, value, summary, [], usage);
+    }
+
+    // What an exercise trains, by the words in its name, the first that matches; cardio and anything unknown trains none.
+    private static readonly (string[] Words, Muscle[] Primary, Muscle[] Secondary)[] ByName =
+    [
+        (["pulldown", "pull-up", "pull up", "chin"], [Muscle.Lats], [Muscle.Biceps, Muscle.UpperBack]),
+        (["row"], [Muscle.Lats, Muscle.UpperBack], [Muscle.RearDelts, Muscle.Biceps]),
+        (["dip"], [Muscle.Chest, Muscle.Triceps], [Muscle.FrontDelts]),
+        (["pushdown", "skull", "tricep"], [Muscle.Triceps], []),
+        (["chest", "bench"], [Muscle.Chest], [Muscle.FrontDelts, Muscle.Triceps]),
+        (["shoulder press", "overhead"], [Muscle.FrontDelts], [Muscle.SideDelts, Muscle.Triceps]),
+        (["lateral raise"], [Muscle.SideDelts], []),
+        (["face pull", "rear delt"], [Muscle.RearDelts], [Muscle.UpperBack]),
+        (["leg curl"], [Muscle.Hamstrings], []),
+        (["curl"], [Muscle.Biceps], [Muscle.Forearms]),
+        (["deadlift"], [Muscle.Hamstrings, Muscle.Glutes, Muscle.LowerBack], [Muscle.UpperBack, Muscle.Forearms]),
+        (["squat", "leg press", "lunge"], [Muscle.Quads, Muscle.Glutes], [Muscle.Hamstrings, Muscle.LowerBack]),
+        (["calf"], [Muscle.Calves], []),
+        (["plank", "crunch", "leg raise", "sit-up"], [Muscle.Abs], []),
+    ];
+
+    /// <summary>The preview's tags for some exercises, by the words in their names; the muscles seed uses them too.</summary>
+    public static ExerciseTags Tag(ExercisesToTag input) => new([.. input.Exercises.Select(e =>
+        ByName.FirstOrDefault(r => r.Words.Any(w => e.Name.Contains(w, StringComparison.OrdinalIgnoreCase))) is { Words: not null } match
+            ? new ExerciseTag(e.Id, match.Primary, match.Secondary)
+            : new ExerciseTag(e.Id, [], []))]);
 
     public async Task<Answer<string>> TestAsync(CancellationToken ct = default)
     {
@@ -84,6 +121,7 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
             SetFlagKind.OddNumber => new SetNote(s.Id, SetTreatment.LikelyTypo, $"Probably {Weight((s.Weight ?? 0) / 10)}: planned from that."),
             _ => new SetNote(s.Id, SetTreatment.Counted, "Every set reached the goal, so it's counted as a hit goal."),
         }).ToList();
+        if (input.Muscles is { Missing: [_, ..] missing }) highlights = [.. highlights.Take(3), $"Nothing trained {Muscles.List(missing).ToLowerInvariant()} this week."];
         return new LookBack([.. highlights.Take(4)], next, notes);
     }
 

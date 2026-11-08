@@ -6,7 +6,7 @@
 <PageTitle>Stats</PageTitle>
 
 @* How am I doing at each routine, session and exercise? Each one's change since its first time, and a tap opens its own trend.
-   Calories, first, open what I've eaten day by day. *@
+   Calories, first, open what I've eaten day by day, and Muscles which muscles the week trained. *@
 @if (loaded)
 {
     var key = ExerciseNames.Key(query);
@@ -21,6 +21,19 @@
                     <span class="row-text">
                         <span class="name">Calories eaten</span>
                         <span class="caption">@caloriesText</span>
+                    </span>
+                    <Icon Name="forward" Size="16" />
+                </a>
+            </div>
+        </section>
+
+        <section class="stack" aria-labelledby="muscles-heading">
+            <h2 id="muscles-heading" class="label">Muscles</h2>
+            <div class="ledger">
+                <a class="row" href="stats/muscles">
+                    <span class="row-text">
+                        <span class="name">Sets by muscle</span>
+                        <span class="caption">@musclesText</span>
                     </span>
                     <Icon Name="forward" Size="16" />
                 </a>
@@ -116,6 +129,7 @@
     private int workouts;
     private string query = "";
     private string caloriesText = "";
+    private string musclesText = "";
     private readonly List<(Routine Routine, bool InUse, int GymDays, int Workouts, double? Total)> routineRows = [];
     private readonly List<(SessionTemplate Template, string Days, int Workouts, double? Total)> sessionRows = [];
     private readonly List<(Exercise Exercise, int Workouts, DateTimeOffset Last, double? Total)> exerciseRows = [];
@@ -140,6 +154,14 @@
         var thisWeek = Calories.Span([.. Calories.Days(await Store.GetFoodAsync(), bodyWeights, Settings, monday, today, burned, atMaintenance).Where(d => d.Day < today)]);
         caloriesText = thisWeek.Days == 0 ? "Day by day, against your goal and maintenance"
             : thisWeek is { Logged: > 0, AverageEaten: double eaten } ? $"This week: {eaten:N0} a day · {thisWeek.LoggedText}" : "Nothing logged this week";
+
+        // This week's muscles, as on Muscles: how many got sets, and the ones still at none.
+        var tags = await Store.GetMuscleTagsAsync();
+        var muscles = Muscles.Count(Muscles.InWeek(sessions, sets, monday), tags);
+        var missing = Muscles.Missing(muscles);
+        musclesText = tags.Count == 0 ? "This week's hard sets for each muscle, once your exercises are tagged"
+            : missing.Count == muscles.Count ? "No sets this week yet"
+            : $"This week: {muscles.Count - missing.Count} of {muscles.Count}{(missing.Count == 0 ? "" : $" · none yet for {Muscles.List(missing).ToLowerInvariant()}")}";
 
         // How much better some workouts' exercises are than their first time among them, by the last of them; empty until there's a change.
         double? Total(IReadOnlyList<WorkoutSession> some, IEnumerable<WorkoutSet> theirSets) =>

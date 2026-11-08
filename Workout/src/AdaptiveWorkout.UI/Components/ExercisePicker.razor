@@ -1,4 +1,5 @@
 @inject WorkoutFlow Flow
+@inject MuscleTagger Tagger
 @* Finding an exercise by name: recent ones until I type, then matches, and a new one when nothing has that name. *@
 
 @{
@@ -72,5 +73,11 @@ else
             .OrderByDescending(g => g.Max(s => sessionStarts[s.SessionId])).Select(g => State.Exercises[g.Key]).Take(8)];
     }
 
-    private async Task PickNewAsync() => await OnPick.InvokeAsync(await Flow.GetOrCreateExerciseAsync(query, measure));
+    // A new exercise is tagged with its muscles by Claude meanwhile (see MuscleTagger).
+    private async Task PickNewAsync()
+    {
+        var exercise = await Flow.GetOrCreateExerciseAsync(query, measure);
+        _ = Tagger.TagAsync();
+        await OnPick.InvokeAsync(exercise);
+    }
 }

@@ -1,0 +1,99 @@
+@* The muscle map: a figure from the front and one from the back, each muscle shaded by its hard sets. In Logbook it's hatched in ink,
+   denser as the sets add up, and cross-hatched from 10; in Telemetry it lights up in the training channel's lime. Each muscle is drawn
+   on the figure's right side and mirrored to its left. *@
+<svg class="muscle-map" viewBox="0 0 250 262" role="img" aria-labelledby="muscle-map-title">
+    <title id="muscle-map-title">@Title</title>
+    @if (!telemetry)
+    {
+        <defs>
+            <pattern id="mm-hatch-1" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line class="hatch" x1="0" y1="0" x2="0" y2="5" />
+            </pattern>
+            <pattern id="mm-hatch-2" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line class="hatch" x1="0" y1="0" x2="0" y2="2.6" />
+            </pattern>
+            <pattern id="mm-hatch-3" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <path class="hatch" d="M0 0V2.6M0 0H2.6" />
+            </pattern>
+        </defs>
+    }
+    @foreach (var back in new[] { false, true })
+    {
+        <g transform="translate(@(back ? 130 : 0) 0)">
+            @foreach (var part in back ? BackBody : FrontBody)
+            {
+                <path class="body" d="@part" />
+                <path class="body" d="@part" transform="matrix(-1 0 0 1 120 0)" />
+            }
+            @foreach (var (muscle, path) in back ? BackMuscles : FrontMuscles)
+            {
+                // None; under 5; 5 to 9½; 10 and more, the band where growth is well served.
+                var level = Counts.FirstOrDefault(c => c.Muscle == muscle)?.Sets switch { null or 0 => 0, < 5 => 1, < Muscles.Low => 2, _ => 3 };
+                var fill = telemetry ? null : level == 0 ? "none" : $"url(#mm-hatch-{level})";
+                <path class="m lvl-@level" d="@path" fill="@fill" />
+                <path class="m lvl-@level" d="@path" fill="@fill" transform="matrix(-1 0 0 1 120 0)" />
+            }
+            <g>
+                <text class="map-label" x="60" y="260" text-anchor="middle">@(back ? "Back" : "Front")</text>
+            </g>
+        </g>
+    }
+</svg>
+
+@code {
+    /// <summary>Each muscle's hard sets; a muscle not in it has none.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<MuscleSets> Counts { get; set; } = [];
+
+    /// <summary>What the drawing shows, for a screen reader.</summary>
+    [Parameter] public string Title { get; set; } = "Front and back, shaded by sets";
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    private bool telemetry => Theme == Theme.Telemetry;
+
+    // The right half of each figure, on a 120 × 250 box with its middle at x = 60: head, neck, hands and feet, and the front's knee, unshaded.
+    private static readonly string[] FrontBody =
+    [
+        "M60 3C66 3 70.5 8 70.5 15C70.5 22 66 28 60 28Z",
+        "M60 28C62 28 64.5 27.5 65.5 27L66.5 35C64 37 62 38 60 38Z",
+        "M103.5 130.5L109.5 129C112 134 112 141 109 146C106.5 148 104 146.5 103.5 143Z",
+        "M62 118C68 116 74 114 79 112C82.5 115.5 85 119.5 86 123.5C79 119.5 70 120.5 63 126Z",
+        "M71 178C76 180.5 82 179 85 174C86.5 179 86 184 84 188C80 186 75 186.5 71.5 189C70.5 185 70.5 181 71 178Z",
+        "M75.5 231.5L81.5 231.5C85 235.5 87 240 85.5 244L72.5 244C71.5 240 73 235.5 75.5 231.5Z",
+    ];
+
+    private static readonly string[] BackBody =
+    [
+        "M60 3C66 3 70.5 8 70.5 15C70.5 22 66 28 60 28Z",
+        "M60 28C62 28 64.5 27.5 65.5 27L66 31C64 30 62 29.5 60 29.5Z",
+        "M103.5 130.5L109.5 129C112 134 112 141 109 146C106.5 148 104 146.5 103.5 143Z",
+        "M75.5 231.5L81.5 231.5C85 235.5 87 240 85.5 244L72.5 244C71.5 240 73 235.5 75.5 231.5Z",
+    ];
+
+    private static readonly (Muscle Muscle, string Path)[] FrontMuscles =
+    [
+        (Muscle.Chest, "M61 41C68 39 78 39 86 43C89 49 88 57 84 62C78 67 68 68 61 66Z"),
+        (Muscle.FrontDelts, "M86 42.5C86.5 38 90 35.5 94.5 35.5C97.5 41.5 98.5 50 97.5 58C93.5 60.5 89.5 61.5 86 61C88.5 55 88.5 48 86 42.5Z"),
+        (Muscle.SideDelts, "M96 35.5C100.5 36.5 103.5 41 103.5 48C103.5 53 101.5 57 99.5 58.5C100 50 99 42 96 35.5Z"),
+        (Muscle.Biceps, "M89 63C92 60.5 98 59.5 101 61.5C104 68 105 78 103.5 87.5C101.5 91.5 96.5 92.5 94 90.5C91 84 89 74 89 63Z"),
+        (Muscle.Forearms, "M95 95C99 93 104 94 106 98C109 108 110 118 109 127.5L103.5 129.5C100.5 120 97 108 95 95Z"),
+        (Muscle.Abs, "M61 69L71 69C73 80 73 95 71 106C69 112 65.5 115.5 61 117Z"),
+        (Muscle.Abs, "M73.5 69C79 71 84 76 85 84C85 94 82 104 77.5 109.5C76 111 74 111.5 72.5 110.5C74.5 98 75.5 82 73.5 69Z"),
+        (Muscle.Quads, "M64 127.5C71 121.5 80 120.5 86.5 125.5C89 139 89 156 85.5 171.5C82 177.5 76 179 71 176.5C66.5 166 64 148 64 127.5Z"),
+        (Muscle.Calves, "M72 191.5C76.5 188 83 189 85 196.5C87 208 85.5 220 81.5 229.5L75.5 229.5C72.5 218 70.5 204 72 191.5Z"),
+    ];
+
+    private static readonly (Muscle Muscle, string Path)[] BackMuscles =
+    [
+        (Muscle.UpperBack, "M60 30C63 33 70 36 79 37.5C83 38.2 85.5 39.5 86.5 41.5C82 45.5 77 51.5 72.5 58.5C68 65 64 71 60 76.5Z"),
+        (Muscle.RearDelts, "M87.5 42C88 38 90.5 35.5 94.5 35.5C97.5 41.5 98.5 50 97.5 58C93.5 60.5 90 61 87 60.5C89.5 55 90 48 87.5 42Z"),
+        (Muscle.SideDelts, "M96 35.5C100.5 36.5 103.5 41 103.5 48C103.5 53 101.5 57 99.5 58.5C100 50 99 42 96 35.5Z"),
+        (Muscle.Triceps, "M89 63C92 60.5 98 59.5 101 61.5C104 68 105 78 103.5 87.5C101.5 91.5 96.5 92.5 94 90.5C91 84 89 74 89 63Z"),
+        (Muscle.Forearms, "M95 95C99 93 104 94 106 98C109 108 110 118 109 127.5L103.5 129.5C100.5 120 97 108 95 95Z"),
+        (Muscle.Lats, "M74 60.5C79 53 85.5 48.5 89 52.5C90.5 62 88.5 76 84.5 88C80.5 96 75 100 70 101.5C69.5 88 70.5 72 74 60.5Z"),
+        (Muscle.LowerBack, "M61 79C64 75.5 67.5 77 68 82.5L69 104C69 111 67 115.5 61 117.5Z"),
+        (Muscle.Glutes, "M61 119.5C68 115.5 80 115 86 122.5C89 130.5 87 140 80.5 145C73.5 149.5 65.5 147.5 61 142.5Z"),
+        (Muscle.Hamstrings, "M63.5 150.5C70.5 147.5 80 147.5 85 153.5C88 164 87.5 173.5 84.5 180L70 180C66.5 172 63.5 162 63.5 150.5Z"),
+        (Muscle.Calves, "M70.5 191C75 185 84 187 86 196.5C88 206 85.5 216 81.5 222C78.5 226 74.5 226 72.5 222.5C69.5 212 68.5 200 70.5 191Z"),
+    ];
+}

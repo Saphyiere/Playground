@@ -1,0 +1,135 @@
+@page "/stats/muscles"
+@implements IDisposable
+@inject WorkoutStore Store
+@inject WorkoutFlow Flow
+@inject MuscleTagger Tagger
+@inject IAssistKeyStore Keys
+
+<PageTitle>Muscles</PageTitle>
+
+@* Which muscles did this week train, and which did it miss? Each muscle's hard sets (1 for each set of an exercise it's the main
+   muscle of, ½ for each it helps with), on the figures and against the 10 to 20 a week that grows a muscle well. Last week's too. *@
+@if (loaded)
+{
+    var monday = Consistency.WeekStart(DateOnly.FromDateTime(DateTime.Now)).AddDays(lastWeek ? -7 : 0);
+    var counts = Muscles.Count(Muscles.InWeek(sessions, sets, monday), tags);
+    var missing = Muscles.Missing(counts);
+    var scale = Math.Max(25, counts.Max(c => c.Sets));
+    var when = lastWeek ? "last week" : "this week";
+    <div class="screen">
+        <PageHeader Back="stats" BackText="Stats" Label="@($"Week of {monday.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)}")" Title="Muscles" />
+
+        <section class="stack" aria-labelledby="map-heading">
+            <div class="spread">
+                <h2 id="map-heading" class="label">Sets by muscle</h2>
+                <div class="segmented compact" role="group" aria-label="Week">
+                    <button type="button" aria-pressed="@(lastWeek ? "false" : "true")" @onclick="() => lastWeek = false">This week</button>
+                    <button type="button" aria-pressed="@(lastWeek ? "true" : "false")" @onclick="() => lastWeek = true">Last week</button>
+                </div>
+            </div>
+            <MuscleMap Counts="counts" Title="@($"Front and back, shaded by {when}'s sets")" />
+            <div class="map-key" aria-hidden="true">
+                @foreach (var (level, text) in new[] { (0, "None"), (1, "1–4"), (2, "5–9"), (3, "10+") })
+                {
+                    <span class="map-key-item">
+                        <svg viewBox="0 0 14 14" width="14" height="14">
+                            <rect class="m lvl-@level" x="0.5" y="0.5" width="13" height="13" fill="@(Theme == Theme.Telemetry ? null : level == 0 ? "none" : $"url(#mm-hatch-{level})")" />
+                        </svg>
+                        @text
+                    </span>
+                }
+            </div>
+            @if (missing.Count > 0)
+            {
+                <p class="pen-note">Missing: @string.Join(" · ", missing.Select(m => $"{Muscles.Name(m)}\u00a00"))</p>
+            }
+            <TaggingStatus Untagged="untagged" HasKey="hasKey" Tagging="Tagger.Tagging" Trouble="@Tagger.Trouble" />
+        </section>
+
+        <section class="stack" aria-labelledby="band-heading">
+            <h2 id="band-heading" class="label">Hard sets, against 10 to 20</h2>
+            <div class="ledger">
+                @foreach (var (muscle, count) in counts)
+                {
+                    <div class="muscle-row" role="meter" aria-label="@($"{Muscles.Name(muscle)}: {Muscles.SetsText(count)} sets {when}")" aria-valuemin="0" aria-valuemax="@Muscles.High" aria-valuenow="@count.ToString(CultureInfo.InvariantCulture)">
+                        <span class="name">@Muscles.Name(muscle)</span>
+                        <span class="band">
+                            <span class="band-zone" style="left: @Percent(Muscles.Low * 100.0 / scale); width: @Percent((Muscles.High - Muscles.Low) * 100.0 / scale)"></span>
+                            <span class="band-fill" style="width: @Percent(Math.Min(count, Muscles.High) * 100.0 / scale)"></span>
+                            @if (count > Muscles.High)
+                            {
+                                <span class="band-over" style="left: @Percent(Muscles.High * 100.0 / scale); width: @Percent((count - Muscles.High) * 100.0 / scale)"></span>
+                            }
+                        </span>
+                        <span class="number xs @(count == 0 ? "none" : "")">@Muscles.SetsText(count)</span>
+                    </div>
+                }
+            </div>
+            <p class="note">A set counts 1 for the muscles its exercise is mainly for, and ½ for the ones that help. About 10 to 20 hard sets a week grows a muscle well; past 20 there's less to gain.</p>
+        </section>
+
+        @{
+            // "9 tagged by Claude · 1 by you · 1 not yet".
+            var mine = tags.Values.Count(t => t.ByOwner);
+            var tagged = new[] { $"{tags.Count - mine} tagged by Claude", mine > 0 ? $"{mine} by you" : "", untagged > 0 ? $"{untagged} not yet" : "" };
+        }
+        <div class="ledger">
+            <a class="row" href="stats/muscles/exercises">
+                <span class="row-text">
+                    <span class="name">Exercises' muscles</span>
+                    <span class="caption">@string.Join(" · ", tagged.Where(t => t.Length > 0))</span>
+                </span>
+                <Icon Name="forward" Size="16" />
+            </a>
+        </div>
+    </div>
+}
+
+@code {
+    private bool loaded;
+    private bool lastWeek;
+    private bool hasKey;
+    private int untagged;
+    private List<WorkoutSession> sessions = [];
+    private List<WorkoutSet> sets = [];
+    private List<Exercise> exercises = [];
+    private Dictionary<long, MuscleTags> tags = [];
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    protected override async Task OnInitializedAsync()
+    {
+        (sessions, sets) = await Flow.LoadFinishedAsync();
+        hasKey = !string.IsNullOrWhiteSpace(await Keys.GetAsync());
+        await LoadTagsAsync();
+        loaded = true;
+    }
+
+    // Exercises not tagged yet are tagged now, and the screen fills in when they are: asked once the screen is live, so drawing it
+    // ahead (as a server does) doesn't ask too.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        Tagger.Changed += OnTagged;
+        _ = Tagger.TagAsync();
+    }
+
+    private async Task LoadTagsAsync()
+    {
+        exercises = await Store.GetExercisesAsync();
+        tags = await Store.GetMuscleTagsAsync();
+        untagged = exercises.Count(e => !tags.ContainsKey(e.Id));
+    }
+
+    private void OnTagged() => _ = InvokeAsync(async () =>
+    {
+        await LoadTagsAsync();
+        StateHasChanged();
+    });
+
+    // A CSS percentage, which takes a point whatever the phone's language.
+    private static string Percent(double value) => $"{value.ToString("0.##", CultureInfo.InvariantCulture)}%";
+
+    public void Dispose() => Tagger.Changed -= OnTagged;
+}

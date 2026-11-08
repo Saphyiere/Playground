@@ -2,6 +2,7 @@
 @page "/sessions/{Id:long}"
 @inject WorkoutStore Store
 @inject AppNavigation Navigation
+@inject MuscleTagger Tagger
 
 <PageTitle>@(Id is null ? "New session" : "Edit session")</PageTitle>
 
@@ -178,6 +179,7 @@
 
         AddExisting(await Store.GetOrCreateExerciseAsync(newName, newMeasure));
         exercises = await Store.GetExercisesAsync();
+        _ = Tagger.TagAsync();
     }
 
     private async Task SaveAsync()

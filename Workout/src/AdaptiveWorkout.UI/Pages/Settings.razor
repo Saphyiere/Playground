@@ -106,10 +106,11 @@
     </section>
 
     @* Claude: the key on this phone, masked, with a line on what last happened to it; the look back after each workout; and this
-       month's cost. The key arrives as a file over USB, and lives in secure storage, never in the app's data. *@
+       month's cost, its tagging of exercises with their muscles included. The key arrives as a file over USB, and lives in secure
+       storage, never in the app's data. *@
     <section class="stack" aria-labelledby="claude-heading">
         <h2 id="claude-heading" class="label">Claude</h2>
-        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only the workout's sets, their heart rate and your weigh-in are sent.</p>
+        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It also tags your exercises with the muscles they train, for the muscle map. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only what it needs is sent: your exercises' names and sets, the workout's heart rate, your weigh-in and your calorie goal.</p>
         <div class="spread baseline">
             <span class="label">Key</span>
             @if (maskedKey is { } masked)
@@ -169,7 +170,10 @@
                 <span class="label">This month</span>
                 <span class="name big tabular">@spend.Cost.ToString("$0.00", CultureInfo.InvariantCulture)</span>
             </div>
-            <p class="note">What Anthropic charged for @(spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs") this month, as the app counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
+            // "3 look backs", "3 look backs and tagging exercises", or "tagging exercises" when that's all it was.
+            var lookBacks = spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs";
+            var spentOn = spend.Taggings == 0 ? lookBacks : spend.LookBacks == 0 ? "tagging exercises" : $"{lookBacks} and tagging exercises";
+            <p class="note">What Anthropic charged for @spentOn this month, as the app counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
         }
     </section>
 
@@ -236,7 +240,7 @@
     private bool testing;
     private bool removingKey;
     private bool lookBackOn = true;
-    private ClaudeSpend spend = new(0, 0);
+    private ClaudeSpend spend = new(0, 0, 0);
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 

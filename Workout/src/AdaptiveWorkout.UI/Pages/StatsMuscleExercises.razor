@@ -1,0 +1,80 @@
+@page "/stats/muscles/exercises"
+@implements IDisposable
+@inject WorkoutStore Store
+@inject MuscleTagger Tagger
+@inject IAssistKeyStore Keys
+
+<PageTitle>Exercises' muscles</PageTitle>
+
+@* What each of my exercises trains, as Claude tagged it or I changed it; a tap changes it. *@
+@if (loaded)
+{
+    <div class="screen">
+        <PageHeader Back="stats/muscles" BackText="Muscles" Label="@($"{exercises.Count} {(exercises.Count == 1 ? "exercise" : "exercises")}")" Title="Exercises" />
+
+        <TaggingStatus Untagged="@exercises.Count(e => !tags.ContainsKey(e.Id))" HasKey="hasKey" Tagging="Tagger.Tagging" Trouble="@Tagger.Trouble" />
+
+        @if (exercises.Count == 0)
+        {
+            <p class="note">No exercises yet. Each one is tagged with its muscles as it's made.</p>
+        }
+        else
+        {
+            <div class="ledger">
+                @foreach (var exercise in exercises)
+                {
+                    var tag = tags.GetValueOrDefault(exercise.Id);
+                    <a class="row" href="stats/muscles/exercises/@exercise.Id">
+                        <span class="row-text">
+                            <span class="name">@exercise.Name</span>
+                            <span class="caption">@(tag is null ? "Not tagged yet" : Muscles.Text(tag))</span>
+                        </span>
+                        @if (tag is { ByOwner: true })
+                        {
+                            <span class="caption yours">Yours</span>
+                        }
+                        <Icon Name="forward" Size="16" />
+                    </a>
+                }
+            </div>
+            <p class="note">Claude tags each exercise from its name. Change any, and it stays as you set it.</p>
+        }
+    </div>
+}
+
+@code {
+    private bool loaded;
+    private bool hasKey;
+    private List<Exercise> exercises = [];
+    private Dictionary<long, MuscleTags> tags = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        hasKey = !string.IsNullOrWhiteSpace(await Keys.GetAsync());
+        await LoadAsync();
+        loaded = true;
+    }
+
+    // As on Muscles: exercises not tagged yet are tagged once the screen is live, and it fills in when they are.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        Tagger.Changed += OnTagged;
+        _ = Tagger.TagAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        exercises = await Store.GetExercisesAsync();
+        tags = await Store.GetMuscleTagsAsync();
+    }
+
+    private void OnTagged() => _ = InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Tagger.Changed -= OnTagged;
+}

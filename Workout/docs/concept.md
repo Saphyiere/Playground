@@ -72,6 +72,9 @@ How has my flat chest press been going? **An exercise** shows its line across ev
 
 **A routine** shows its sessions' workouts on one line, whichever routine was in use then, and its week: each day's session and how it's going.
 
+Which muscles did this week train? **Muscles**, after Calories at the top, says how many of the 15 got sets this week and which got
+none yet, and opens the muscle map (see *Muscle map*). An exercise's page shows what it trains too, and a tap changes it.
+
 Tapping a point on any line picks that workout in the list below, and tapping a workout opens it.
 
 ### Calories
@@ -92,7 +95,8 @@ The icon at the top right of Today, after Stats:
 - **Body:** sex, age, height, and how I spend a usual day outside workouts: from sitting most of it to physical work all day. Each workout adds its own.
 - **Claude:** the key on the phone, shown by its start and last four characters, with **Test** and **Remove**; without one, how to
   get it there (a key file copied over USB, taken into secure storage when the app opens, or now with **Look for the key file**).
-  **Look back after each workout**, on or off, and what this month's look backs cost. See *Claude's look back*.
+  **Look back after each workout**, on or off, and what this month's look backs cost, with Claude's tagging of exercises. See
+  *Claude's look back* and *Muscle map*.
 - **Updates:** the version on the phone (1.0 for a build from the PC), and the newest release from the repo's GitHub releases
   (Workout 1.0.N), with its changes, **Check** and **Install**, through the Kit's shared updater. The app checks at most once a
   day. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on the
@@ -244,7 +248,7 @@ When I start a set of something that isn't in the session's template:
 
 1. Type its name. Names I've used before are offered; picking one links to that exercise.
 2. For a new name, choose **Weight** or **Time**.
-3. The set starts.
+3. The set starts. With a key on the phone, Claude tags the new exercise with its muscles meanwhile (see *Muscle map*).
 
 ### Logging after the fact
 
@@ -293,6 +297,32 @@ weight doesn't read as getting weaker.
 - Claude's look back is told, and tries in this order: chasing reps at the same weight; a step back for a week, then building
   again; or a different rep range for a few weeks. Never a week off, and never a swap.
 
+## Muscle map
+
+Which muscles did this week train, and which did it miss? **Stats › Muscles**:
+
+- A figure from the front and one from the back, each muscle shaded by the week's hard sets: hatched in ink in Logbook, denser as
+  they add up and cross-hatched from 10; lit in the training channel's lime in Telemetry, brighter as they add up. A key under
+  them: none, 1–4, 5–9, 10+.
+- **Missing:** the muscles at none, in the pen: **Abs 0 · Calves 0**.
+- Each muscle's sets on a line against a band from 10 to 20, hatched past 20. **Last week** shows the week before.
+- **Exercises' muscles** lists every exercise with what it trains, and who said so; a tap opens one, where each muscle is **Main**,
+  **Helps**, or neither (all clear for cardio). Mine is kept as I save it, and Claude never changes it.
+
+How it counts: a set counts 1 for each muscle its exercise is mainly for, and ½ for each one that helps; counted this way, sets
+predicted growth best (Pelland 2024). About 10 to 20 hard sets a week grows a muscle well, with less to gain past 20 (Schoenfeld
+2017). A week runs Monday to Sunday, by the day each workout started. Empty sets don't count, and neither do exercises not tagged
+yet. The 15 muscles: chest; front, side and rear delts; biceps, triceps and forearms; lats, upper back and lower back; abs; glutes,
+quads, hamstrings and calves.
+
+**Claude tags them** (task `workout.tag-exercises`, at low effort): every exercise not tagged yet, in one question, with its name,
+weights or time, and how I did it last, and with the ones I tagged myself, to follow where one is alike. It's asked when an
+exercise is made, when the muscle screens open, and before a look back that needs the week's muscles; one asking at a time, and an
+exercise made during one is tagged right after. Its answer is checked: each exercise once, one to three main muscles and up to
+three that help, none of them both, and cardio with none. When it goes wrong, the screens say why, with **Try again**, and the same
+exercises aren't asked about again on their own until a new one is made. Without a key, the screens say how many aren't tagged, and
+I can tag them myself. It costs a few cents a time.
+
 ## Claude's look back
 
 After **Finish**, with a key on the phone and the look back on in Settings, the screen fades into a look back at the workout, by
@@ -319,6 +349,10 @@ What Claude is sent, and what holds it to its answer:
   the minute after; each exercise's planned sets, rest countdown, what the last look back said for today, its last three times
   before this workout, and whether it's gone flat (see *Plateaus*); the hit-goal step, my weigh-in before it, and my calorie goal
   against maintenance. Never the raw heart-rate stream.
+- **The week's muscles,** only on the week's last planned workout (the routine in use has nothing on a later day): each muscle's
+  hard sets from Monday to this workout, the ones at none, and the week's exercises not tagged yet, which are tagged first. When
+  some got none, the last highlight names them, as a fact: never a swapped, added or changed exercise. On the other days it says
+  nothing about muscles, since the week's other workouts are still to come.
 - **What was left in the tank** is read across an exercise's sets, never from one, since people guess about a rep low: every set at
   its reps with 3+ left means two steps up where that's within a tenth of the weight; 0 left on the last set, one step; reps
   missed with 2+ left, the same weight and a push closer.
@@ -405,6 +439,8 @@ Session            Id, TemplateId (empty = just tracking), StartedAt, FinishedAt
                    CoolDown, CoolDownStartedAt   (cooling down from Start cool-down until FinishedAt)
                    AverageBpm                    (worked out at Finish; 0 without readings)
 Exercise           Id, Name (unique, ignoring case and extra spaces), Measure (Weight | Time)
+                   TaggedBy                     (who tagged its muscles: claude or owner; empty until tagged)
+ExerciseMuscle     ExerciseId, Muscle, Main     (the muscles an exercise trains: Main for the ones it's done for, else it helps)
 Set                Id, SessionId, ExerciseId, Order,
                    StartedAt, StoppedAt         (empty when logged afterward)
                    Weight, WeightUnit, Reps     (weight exercises; empty weight = bodyweight, may be negative)
@@ -419,7 +455,8 @@ DataCheck          Kind, Item, Answer   (what I said about a slip: a day (its da
 LookBack           SessionId, At, Kind, Summary, Notes, Input, Answer, Cost, AppliedAt   (Claude's look back at a workout, one each, as JSON;
                                                                                       gone with its workout)
 ClaudeCall         Id, At, SessionId, Task, Version, Model, Attempt, Kind, Summary, Question, Reply, tokens in and out, Cost, Ms, MessageId, Error
-                                                                                     (every call to Claude, kept for the month's cost)
+                                                                                     (every call to Claude, kept for the month's cost;
+                                                                                      a tagging's has no SessionId)
 ```
 
 Settings also keep, by key, what the scale added to maintenance (`MaintenanceAdjust`, with when, and what it was before, for Undo), each exercise's rest countdown (`RestTarget:<exercise>`), Claude's plan for its next time once taken

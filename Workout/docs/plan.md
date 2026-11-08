@@ -11,7 +11,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 | 3 | Plateau check (**built**) | Next on the rest screen, an exercise's Stats, the look back | M | Feeds the look back |
 | 4 | Maintenance from the scale (**built**) | Calories | M | No |
 | 5 | Odd food days and weigh-ins (**built**) | Calories | M | No |
-| 6 | Muscle map | Stats, the exercise list, the look back | L | Tags your exercises once |
+| 6 | Muscle map (**built**) | Stats, the exercise list, the look back | L | Tags your exercises once |
 | 7 | Ask Claude | The spark icon on Today | M | About 10–25¢ a question |
 | 8 | The week, looked back | Today, on Monday | M | About 25¢ a week |
 
@@ -129,18 +129,21 @@ it asks once.
 
 - **Stats › Muscles:** this week's hard sets for each muscle, against a band of 10 to 20, with what's missing: **Abs 0 · Calves 0**.
 - Front and back figures shaded by sets: hatched in ink in Logbook, in the training channel's lime in Telemetry.
-- Your exercises, each with its muscles, in a list you can fix.
-- The look back points out gaps (pointing out only: you said no swaps).
+- Your exercises, each with its muscles, in a list you can fix: each muscle **Main** or **Helps**.
+- The look back on the week's last planned workout points out the muscles the week missed (pointing out only: you said no swaps),
+  so it doesn't say the same after every workout while the week's other days are still to come.
 
 **How it works.**
 
-- Claude tags your exercises once, and each new one as it's made: primary and secondary muscles, from 15.
+- Claude tags your exercises once, and each new one as it's made: primary and secondary muscles, from 15. It's also asked when the
+  muscle screens open, and before a look back that needs the week's muscles.
 - The 15: chest, front, side and rear delts, triceps, biceps, forearms, lats, upper back, lower back, abs, glutes, quads,
   hamstrings, calves.
 - A set counts 1 for its primary muscles and ½ for its secondary ones.
-- You correct any tag, and yours wins.
+- You correct any tag, and yours wins: Claude never changes it, and follows it for exercises that are alike.
 
-**Data.** `ExerciseMuscle`: exercise, muscle, primary or secondary.
+**Data.** `ExerciseMuscle`: exercise, muscle, and whether it's the main one or helps; each exercise says who tagged it
+(`Exercise.TaggedBy`: Claude or you).
 
 **Why.** Growth follows how many hard sets each muscle gets a week (Schoenfeld 2017), with diminishing returns. Counting secondary
 muscles as half predicted growth best (Pelland 2024).

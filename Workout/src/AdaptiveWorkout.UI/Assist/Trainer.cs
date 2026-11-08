@@ -12,7 +12,7 @@ namespace AdaptiveWorkout.UI.Assist;
 /// it, and applied with a tap so each exercise's next time starts from its plan. A look back still being asked keeps going when its
 /// screen closes; the screen showing it hears when it's done.
 /// </summary>
-public sealed class Trainer(WorkoutStore store, WorkoutFlow flow, IClaude claude, IAssistKeyStore keys, AppSettings settings)
+public sealed class Trainer(WorkoutStore store, WorkoutFlow flow, IClaude claude, IAssistKeyStore keys, AppSettings settings, MuscleTagger tagger)
 {
     /// <summary>The setting that turns the look back after Finish off ("off"); it's on otherwise.</summary>
     public const string SettingKey = "LookBack";
@@ -105,7 +105,7 @@ public sealed class Trainer(WorkoutStore store, WorkoutFlow flow, IClaude claude
     }
 
     // The workout as the trainer reads it: its sets, plan and heart rate, the workouts before it, the rest countdowns and the trainer's
-    // own last plans from the settings, and the weigh-in before it.
+    // own last plans from the settings, the weigh-in before it, and on the week's last planned workout the week's muscles.
     private async Task<LookBackInput> InputAsync(long sessionId)
     {
         var session = await store.GetSessionAsync(sessionId) ?? throw new InvalidOperationException("That workout isn't kept any more.");
@@ -133,8 +133,23 @@ public sealed class Trainer(WorkoutStore store, WorkoutFlow flow, IClaude claude
             if (WorkoutFlow.ReadTrainerTarget(saved.GetValueOrDefault(WorkoutFlow.TrainerKey(exerciseId))) is { } target) trainer[exerciseId] = target;
         }
 
+        // The week's muscles wait for exercises being tagged, only when they're needed; otherwise those are tagged meanwhile.
+        var routine = await store.GetActiveRoutineAsync();
+        var week = routine is null ? null : await store.GetRoutineWeekAsync(routine.Id);
+        List<WorkoutSet> withToday = [.. allSets, .. sets];
+        var muscles = LookBackFacts.WeekMuscles(session, sessions, withToday, exercises, await store.GetMuscleTagsAsync(), week);
+        if (muscles is { Untagged.Count: > 0 })
+        {
+            await tagger.TagAsync();
+            muscles = LookBackFacts.WeekMuscles(session, sessions, withToday, exercises, await store.GetMuscleTagsAsync(), week);
+        }
+        else
+        {
+            _ = tagger.TagAsync();
+        }
+
         var maintenance = Calories.Maintenance(settings, weighIn, DateOnly.FromDateTime(session.StartedAt.DateTime));
-        var context = new LookBackContext(settings.HitGoalStep, restTargets, trainer, weighIn, settings.Unit, settings.CalorieGoal, maintenance);
+        var context = new LookBackContext(settings.HitGoalStep, restTargets, trainer, weighIn, settings.Unit, settings.CalorieGoal, maintenance, muscles);
         return LookBackFacts.For(session, name, sets, plan, exercises, sessions, allSets, samples, context);
     }
 }

@@ -52,6 +52,17 @@
             </section>
         }
 
+        @* What it trains, for the muscle map; a tap changes it. *@
+        <div class="ledger">
+            <a class="row" href="stats/muscles/exercises/@exercise.Id">
+                <span class="row-text">
+                    <span class="caption">Muscles@(tags is null ? "" : tags.ByOwner ? " · yours" : " · by Claude")</span>
+                    <span class="name">@(tags is null ? "Not tagged yet" : Muscles.Text(tags))</span>
+                </span>
+                <Icon Name="forward" Size="16" />
+            </a>
+        </div>
+
         <section class="stack" aria-labelledby="workouts-heading">
             <h2 id="workouts-heading" class="label">Workouts</h2>
             @if (done.Count == 0)
@@ -89,6 +100,7 @@
     private WorkoutSet? best;
     private DateTimeOffset bestOn;
     private Plateau? plateau;
+    private MuscleTags? tags;
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 
@@ -106,6 +118,7 @@
 
         var (sessions, sets) = await Flow.LoadFinishedAsync();
         var exerciseSets = sets.Where(s => s.ExerciseId == Id).ToList();
+        tags = (await Store.GetMuscleTagsAsync()).GetValueOrDefault(Id);
         templateNames = (await Store.GetTemplatesAsync()).ToDictionary(t => t.Id, t => t.Name);
         var bodyWeights = await Store.GetBodyWeightsAsync();
         trend = Progress.Trend(sessions, exerciseSets, exercises, bodyWeights);
