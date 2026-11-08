@@ -164,7 +164,7 @@ I can leave simple mode at any moment, like leaving full screen. **Advanced mode
 
    A superset's round runs both exercises at once, split side by side: each one's name with its own **Change**, one timer, and each one's last three times under it.
 2. **Stop** ends the set, and rest starts counting.
-3. **Break.** The rest timer, live heart rate, and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, each with its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`), with **Edit** to see today's sets one by one: tapping a set changes its numbers or Hit goal, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal), so the weights can be ready before the rest is up.
+3. **Break.** The rest timer, live heart rate with how far it's fallen since the set stopped (**Down 34 from 152**: from its peak around the stop; in Telemetry the stop is marked on the last minute's line), and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, each with its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`), with **Edit** to see today's sets one by one: tapping a set changes its numbers or Hit goal, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal), so the weights can be ready before the rest is up.
 4. **Finish workout** is always reachable, in every state.
 
 The break screen reads **Rest 0:48**: the word big beside the timer, counting up. **Tapping the time** turns it into a countdown (and back); the choice sticks for later rests.
@@ -338,7 +338,7 @@ The watch streams heart rate (about once a second) for the whole session, sets a
 
 - heart rate during each set (readings between the set's start and stop)
 - heart rate during the warm-up and the cool-down
-- heart rate while resting (readings between sets)
+- heart rate while resting (readings between sets), and how far it falls after each set: from the peak within 10 seconds of the stop (it keeps climbing a moment after) to now. It's shown during the rest as it is, never as a rest to wait for: no study gives a heart rate to wait for between sets
 - the whole session's curve
 - the workout's average, from Start to its last set (through a cool-down, to Finish), for what it burned (see *Calories*)
 

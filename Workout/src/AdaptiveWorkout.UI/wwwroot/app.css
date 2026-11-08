@@ -934,6 +934,24 @@ button.set-line:active {
     flex: none;
 }
 
+/* In a rest, how far heart rate has fallen since the set stopped, and where it stopped on the last minute's line. */
+.heart-drop {
+    font-family: var(--font-label);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--channel, var(--mark));
+}
+
+.ruler .stop-mark {
+    stroke: var(--channel, var(--mark));
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.8;
+}
+
 /* NEXT on the rest screen, set off by a hairline. */
 [data-theme="telemetry"] .next-step {
     padding-top: 8px;

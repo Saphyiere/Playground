@@ -6,7 +6,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 
 | # | Part | Where you'll see it | Size | Claude |
 | --- | --- | --- | --- | --- |
-| 1 | Heart rate drop on the rest screen | The rest screen | S | Feeds the look back |
+| 1 | Heart rate drop on the rest screen (**built**) | The rest screen | S | Feeds the look back |
 | 2 | How many more could you have done? | Each set's entry | S | Feeds the look back |
 | 3 | Plateau check | Next on the rest screen, an exercise's Stats, the look back | M | Feeds the look back |
 | 4 | Maintenance from the scale | Calories | M | No |
@@ -67,7 +67,7 @@ hardly changes with it (Robinson 2024). People guess about one rep low on averag
 - The look back's plan for it says what to try.
 
 **How it works.** An exercise is flat when its best estimated one-rep max (the improvement measure the app already uses) hasn't
-been beaten in its last 3 workouts, across at least 2 weeks. The look back gets that, and tries in this order:
+been beaten in its last 4 workouts. The look back gets that, and tries in this order:
 
 1. Chase reps at the same weight.
 2. A small back-off: a step down for a week, then build again.
@@ -191,15 +191,14 @@ It opens in full, and each week's is kept.
 - **On the watch:** "how many more?" after Stop, and the heart rate drop during rests.
 - **One-tap fixes** for the look back's "a typo?" sets, instead of opening the workout.
 
-## Decisions
+## Decided
 
-1. **The order:** 1 to 8 as above?
-2. **Reps left:** 0, 1, 2, 3+, and optional? Should your own +5 rule use it too (say, +10 when every set had 3+ left), or only
-   Claude?
-3. **A plateau:** flat after 3 workouts across 2 weeks or more?
-4. **Maintenance from the scale:** ask with **Use it** (my pick), or adjust on its own?
-5. **The muscle map:** Claude tags and you fix (my pick), or you tag?
-6. **The week looked back:** on Today on Monday with no notification (my pick), or a notification Sunday evening?
+1. **The order:** 1 to 8 as above.
+2. **Reps left:** 0, 1, 2, 3+, and optional. Only Claude reads it for now; your own +5 rule stays as it is.
+3. **A plateau:** flat when the best isn't beaten in 4 workouts.
+4. **Maintenance from the scale:** it asks, with **Use it**.
+5. **The muscle map:** Claude tags, and you fix.
+6. **The week looked back:** on Today on Monday, with no notification.
 
 ## Sources
 
