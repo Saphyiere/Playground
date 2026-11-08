@@ -191,10 +191,71 @@ public class MusicTests
         var notes = read.Bars[0].Voices[0].Events.OfType<Notes>().ToList();
 
         Assert.Equal([Articulation.Staccato, Articulation.Staccato, Articulation.Tenuto, Articulation.None], notes.Select(n => n.Articulation));
-        Assert.Equal([false, false, true, false], notes.Select(n => n.Ornamented));
+        Assert.Equal([new Mark(MarkKind.Slur, "c", "d"), new Mark(MarkKind.Trill, "c")], read.FileMarks);
         Assert.Equal([true, true, false, true], read.Expected().Select(n => n.Lifted));
-        // They're kept on the notes for judging a run, not as the score's marks.
+        Assert.Equal([null, null, "c", "c"], read.Expected().Select(n => n.Slur));
+        // They're the file's, for judging a run, apart from the score's own marks that grading reads.
         Assert.Empty(read.Marks);
+    }
+
+    [Fact]
+    public void MarksPlacedByTheBeatAreTiedToTheNoteAtOrBeforeIt()
+    {
+        // 3/4: a dynamic on beat 1, a pedal down at 1 and up just before beat 3 (2.9), a hairpin from beat 2 to the next bar's
+        // beat 3, and a pedal mark under a staff with no note at its beat.
+        var mei = """
+            <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score><scoreDef><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2" meter.count="3" meter.unit="4"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef>
+            <section>
+            <measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="5" dur="4"/><note xml:id="b" pname="d" oct="5" dur="4"/><note xml:id="c" pname="e" oct="5" dur="4"/></layer></staff>
+            <staff n="2"><layer n="1"><note xml:id="g" pname="c" oct="3" dur="2" dots="1"/></layer></staff>
+            <dynam staff="1" tstamp="1">p <rend>dolce</rend></dynam><pedal staff="2" tstamp="1" dir="down"/><pedal staff="2" tstamp="2.9" dir="up"/>
+            <hairpin staff="1" tstamp="2" tstamp2="1m+3" form="cres"/></measure>
+            <measure n="2"><staff n="1"><layer n="1"><note xml:id="d" pname="f" oct="5" dur="4"/><note xml:id="e" pname="g" oct="5" dur="4"/><note xml:id="f" pname="a" oct="5" dur="4"/></layer></staff>
+            <staff n="2"><layer n="1"><note xml:id="h" pname="g" oct="2" dur="2" dots="1"/></layer></staff>
+            <pedal staff="2" tstamp="3" dir="bounce"/><dynam staff="1" tstamp="1">cresc.</dynam></measure>
+            </section></score></mdiv></body></music></mei>
+            """;
+
+        var marks = MeiReader.Read(mei).FileMarks;
+
+        Assert.Equal([
+            new Mark(MarkKind.Dynamic, "a", Text: "p"),
+            new Mark(MarkKind.PedalDown, "g"),
+            new Mark(MarkKind.PedalUp, "g") { StartOffset = 912 },
+            new Mark(MarkKind.Crescendo, "b", "f"),
+            new Mark(MarkKind.PedalUp, "h") { StartOffset = 960 },
+            new Mark(MarkKind.PedalDown, "h") { StartOffset = 960 },
+            new Mark(MarkKind.Crescendo, "d"),
+        ], marks);
+    }
+
+    [Fact]
+    public void MarkingsAreTimedEachTimeTheirBarsArePlayed()
+    {
+        // Two bars, repeated: p on the first note, f on bar 2's first; the pedal down and up on bar 1's bass whole note; a slur over
+        // bar 2's first two notes.
+        Notes N(string id, int start, int length, Step step, int octave = 4) => new(id, start, length, [new Tone($"{id}1", P(step, octave))]);
+        Voice Hands(string at, Step tune) => new(1, [N($"{at}a", 0, Ticks.Quarter, tune), N($"{at}b", Ticks.Quarter, Ticks.Quarter, tune), N($"{at}c", Ticks.Half, Ticks.Half, tune)]);
+        var bar1 = new Bar(1, [Hands("x", Step.C), new Voice(2, [N("bass", 0, Ticks.Whole, Step.C, 3)])]);
+        var bar2 = new Bar(2, [Hands("y", Step.D), new Voice(2, [N("bass2", 0, Ticks.Whole, Step.G, 2)])]) { RepeatEnd = true };
+        var score = new Score(new Key(0), new Meter(4, 4), [bar1, bar2])
+        {
+            Marks = [new Mark(MarkKind.Dynamic, "xa1", Text: "p"), new Mark(MarkKind.Dynamic, "ya1", Text: "f"), new Mark(MarkKind.PedalDown, "bass1"), new Mark(MarkKind.PedalUp, "bass1"), new Mark(MarkKind.Slur, "ya1", "yb1")],
+        };
+
+        var played = score.Performed(score.PlayOrder());
+        var markings = Prima.Core.Scoring.Markings.Of(score, played);
+
+        Assert.Equal([("p", 0L, 1920L), ("f", 1920L, 3840L), ("p", 3840L, 5760L), ("f", 5760L, 7680L)], markings.Dynamics.Select(d => (d.Level, d.From, d.To)));
+        // Down and up on the one note: held to its end, each time through.
+        Assert.Equal([(0L, 1920L), (3840L, 5760L)], markings.Pedal.Select(p => (p.Down, p.Up)));
+        // The slur's notes, each time through as their own.
+        Assert.Equal(["ya1", "ya1", "ya1~2", "ya1~2"], played.Where(n => n.Slur is not null).Select(n => n.Slur));
+
+        // Played from bar 2 alone, the f is there; from a bar with no dynamic, the one in force before it is.
+        Assert.Equal("f", Prima.Core.Scoring.Markings.Of(score, score.Performed([1])).Dynamics[0].Level);
+        var unmarked = score with { Marks = [.. score.Marks.Where(m => m.Text != "f")] };
+        Assert.Equal([("p", 1920L)], Prima.Core.Scoring.Markings.Of(unmarked, unmarked.Performed([1])).Dynamics.Select(d => (d.Level, d.From)));
     }
 
     [Fact]

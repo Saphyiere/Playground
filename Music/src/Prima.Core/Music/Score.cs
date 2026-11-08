@@ -44,12 +44,6 @@ public sealed record Notes(string Id, int Start, int Length, IReadOnlyList<Tone>
     public bool Grace { get; init; }
 
     public Articulation Articulation { get; init; }
-
-    /// <summary>A trill, mordent or turn printed on it, as read from a piece's MEI (a score made here has its ornaments as marks).</summary>
-    public bool Ornamented { get; init; }
-
-    /// <summary>The last note under a slur, as read from a piece's MEI (a score made here has its slurs as marks).</summary>
-    public bool EndsSlur { get; init; }
 }
 
 public sealed record Rest(string Id, int Start, int Length) : Event(Start, Length)
@@ -99,10 +93,21 @@ public enum MarkKind
     Mordent,
     /// <summary>Words above a note, like a drill's starting note's name.</summary>
     Text,
+    /// <summary>A turn, read from a piece's file; Prima writes none.</summary>
+    Turn,
 }
 
-/// <summary>Printed marks that aren't scored (dynamics, slurs, hairpins, pedal, 8va, ornaments), tied to notes by id.</summary>
-public sealed record Mark(MarkKind Kind, string StartId, string? EndId = null, string? Text = null);
+/// <summary>
+/// A printed mark (dynamics, slurs, hairpins, pedal, 8va, ornaments), tied to notes by id: a note's own, or a chord's. A mark a
+/// file places by the beat rather than on a note is tied to the note at or before that beat, <see cref="StartOffset"/> ticks
+/// after it (and its end <see cref="EndOffset"/> after its end note), like a pedal lifted just before the next beat.
+/// </summary>
+public sealed record Mark(MarkKind Kind, string StartId, string? EndId = null, string? Text = null)
+{
+    public long StartOffset { get; init; }
+
+    public long EndOffset { get; init; }
+}
 
 /// <summary>
 /// A piece of music: a key and metre to start, bars of voices, and printed marks. A piano score has two staves, treble and bass;
@@ -119,6 +124,16 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     public bool RhythmOnly { get; init; }
 
     public IReadOnlyList<Mark> Marks { get; init; } = [];
+
+    /// <summary>
+    /// A piece's own marks, as read from its file (slurs, dynamics, hairpins, pedal, ornaments), for judging how it's played.
+    /// They're kept apart from <see cref="Marks"/>, which the Library's grading and excerpt cuts read and which a file's marks
+    /// have never been part of, so a piece's level and excerpts don't change with them. Verovio engraves them from the file.
+    /// </summary>
+    public IReadOnlyList<Mark> FileMarks { get; init; } = [];
+
+    /// <summary>All the marks: the score's own and its file's.</summary>
+    public IEnumerable<Mark> AllMarks => Marks.Concat(FileMarks);
 
     /// <summary>The metre in force at each bar, in order.</summary>
     public IEnumerable<(Bar Bar, Key Key, Meter Meter)> WithSignatures()
@@ -153,22 +168,40 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     public IReadOnlyList<ExpectedNote> Expected()
     {
         var notes = new List<ExpectedNote>();
-        // The last note under a slur, a quarter or shorter, is lifted to end it: a note's id or its chord's (a piece read from MEI
-        // has it on the note).
-        var slurEnds = Marks.Where(m => m.Kind == MarkKind.Slur && m.EndId is not null).Select(m => m.EndId!).ToHashSet();
+        // Where each note and chord is, for the slurs: the notes under one are those of its voice from its first note to its last.
+        var places = new Dictionary<string, (int Staff, int Layer, long Tick)>();
+        foreach (var (bar, barStart) in BarStarts())
+        {
+            foreach (var voice in bar.Voices)
+            {
+                foreach (var n in voice.Events.OfType<Notes>().Where(n => !n.Grace))
+                {
+                    places[n.Id] = (voice.Staff, voice.Layer, barStart + n.Start);
+                    foreach (var t in n.Tones) places[t.Id] = (voice.Staff, voice.Layer, barStart + n.Start);
+                }
+            }
+        }
+        var slurs = AllMarks.Where(m => m.Kind == MarkKind.Slur && m.EndId is not null && places.ContainsKey(m.StartId) && places.ContainsKey(m.EndId))
+            .Select(m => (m.StartId, Voice: (places[m.StartId].Staff, places[m.StartId].Layer), From: places[m.StartId].Tick + m.StartOffset, To: places[m.EndId!].Tick + m.EndOffset)).ToList();
+        // The last note under a slur, a quarter or shorter, is lifted to end it: a note's id or its chord's.
+        var slurEnds = AllMarks.Where(m => m.Kind == MarkKind.Slur && m.EndId is not null).Select(m => m.EndId!).ToHashSet();
         foreach (var (bar, barStart) in BarStarts())
         {
             foreach (var voice in bar.Voices)
             {
                 foreach (var notesEvent in voice.Events.OfType<Notes>().Where(n => !n.Grace))
                 {
+                    var tick = barStart + notesEvent.Start;
+                    var slur = slurs.FirstOrDefault(s => s.Voice == (voice.Staff, voice.Layer) && s.From <= tick && tick <= s.To).StartId;
                     foreach (var tone in notesEvent.Tones.Where(t => !t.TiedFromPrevious))
                     {
                         // A tied note sounds for all its tied notes together.
                         var sounding = notesEvent.Length + (tone.TieToNext ? TiedLength(bar, voice, notesEvent, tone) : 0);
-                        notes.Add(new ExpectedNote(tone.Id, tone.Pitch.Midi, bar.Number, voice.Staff, barStart + notesEvent.Start, sounding, notesEvent.Tones.Count > 1 ? notesEvent.Id : null)
+                        notes.Add(new ExpectedNote(tone.Id, tone.Pitch.Midi, bar.Number, voice.Staff, tick, sounding, notesEvent.Tones.Count > 1 ? notesEvent.Id : null)
                         {
-                            Lifted = notesEvent.Articulation == Articulation.Staccato || notesEvent.Length <= Ticks.Quarter && (notesEvent.EndsSlur || slurEnds.Contains(tone.Id) || slurEnds.Contains(notesEvent.Id)),
+                            Lifted = notesEvent.Articulation == Articulation.Staccato || notesEvent.Length <= Ticks.Quarter && (slurEnds.Contains(tone.Id) || slurEnds.Contains(notesEvent.Id)),
+                            Articulation = notesEvent.Articulation,
+                            Slur = slur,
                         });
                     }
                 }
@@ -243,7 +276,7 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
             var pass = passes[order[k]] = passes.GetValueOrDefault(order[k]) + 1;
             var shift = at - written;
             string Again(string id) => pass == 1 ? id : $"{id}~{pass}";
-            foreach (var n in byBar[bar.Number]) notes.Add(n with { Id = Again(n.Id), Tick = n.Tick + shift, ChordId = n.ChordId is { } c ? Again(c) : null });
+            foreach (var n in byBar[bar.Number]) notes.Add(n with { Id = Again(n.Id), Tick = n.Tick + shift, ChordId = n.ChordId is { } c ? Again(c) : null, Slur = n.Slur is { } sl ? Again(sl) : null });
             at += lengths[order[k]];
         }
         return notes;
@@ -297,26 +330,31 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
         }
 
         var (firstBar, lastBar) = (taken[0].Bar.Number, taken[^1].Bar.Number);
-        var marks = new List<Mark>();
-        foreach (var mark in Marks)
+        return this with { Key = taken[0].Key, Meter = taken[0].Meter, Bars = bars, Marks = Within(Marks), FileMarks = Within(FileMarks) };
+
+        // The marks on these bars; a span that runs in or out is cut at their edges, from or to the edge's note.
+        List<Mark> Within(IEnumerable<Mark> source)
         {
-            if (!places.TryGetValue(mark.StartId, out var from)) continue;
-            if (mark.EndId is null)
+            var kept = new List<Mark>();
+            foreach (var mark in source)
             {
-                if (from.Bar >= firstBar && from.Bar <= lastBar) marks.Add(mark);
-                continue;
+                if (!places.TryGetValue(mark.StartId, out var from)) continue;
+                if (mark.EndId is null)
+                {
+                    if (from.Bar >= firstBar && from.Bar <= lastBar) kept.Add(mark);
+                    continue;
+                }
+
+                if (!places.TryGetValue(mark.EndId, out var to) || to.Bar < firstBar || from.Bar > lastBar) continue;
+
+                var startId = from.Bar >= firstBar ? mark.StartId : Edge(firstBar, from.Staff, start: true);
+                var endId = to.Bar <= lastBar ? mark.EndId : Edge(lastBar, to.Staff, start: false);
+                if (startId is null || endId is null || startId == endId && mark.Kind != MarkKind.OctaveUp) continue;
+
+                kept.Add(mark with { StartId = startId, EndId = endId, StartOffset = startId == mark.StartId ? mark.StartOffset : 0, EndOffset = endId == mark.EndId ? mark.EndOffset : 0 });
             }
-
-            if (!places.TryGetValue(mark.EndId, out var to) || to.Bar < firstBar || from.Bar > lastBar) continue;
-
-            var startId = from.Bar >= firstBar ? mark.StartId : Edge(firstBar, from.Staff, start: true);
-            var endId = to.Bar <= lastBar ? mark.EndId : Edge(lastBar, to.Staff, start: false);
-            if (startId is null || endId is null || startId == endId && mark.Kind != MarkKind.OctaveUp) continue;
-
-            marks.Add(mark with { StartId = startId, EndId = endId });
+            return kept;
         }
-
-        return this with { Key = taken[0].Key, Meter = taken[0].Meter, Bars = bars, Marks = marks };
     }
 }
 
@@ -331,4 +369,16 @@ public sealed record ExpectedNote(string Id, int Midi, int Bar, int Staff, long 
     /// shorter, which is lifted to end the slur. A longer note ending a phrase is held to its end.
     /// </summary>
     public bool Lifted { get; init; }
+
+    /// <summary>What its articulation asks: short (staccato), a stress (an accent), or held its whole length (tenuto).</summary>
+    public Articulation Articulation { get; init; }
+
+    /// <summary>The slur it's under, by the id of the slur's first note (a pass's own, played again), so its notes are joined.</summary>
+    public string? Slur { get; init; }
+
+    /// <summary>Its id as written, without the pass a repeat adds to it ("n12" for "n12~2").</summary>
+    public string WrittenId => Id.Split('~')[0];
+
+    /// <summary>Which time through a repeat it's played: "" the first, "~2" the second.</summary>
+    public string Pass => Id.Contains('~') ? Id[Id.IndexOf('~')..] : "";
 }

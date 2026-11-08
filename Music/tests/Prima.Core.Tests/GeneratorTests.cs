@@ -90,6 +90,27 @@ public class GeneratorTests
         Assert.NotEqual(MeiWriter.Write(PassageGenerator.Generate(spec, 42).Score), MeiWriter.Write(PassageGenerator.Generate(spec, 43).Score));
     }
 
+    [Theory]
+    [InlineData(2, new Articulation[0])]
+    [InlineData(3, new[] { Articulation.Staccato })]
+    [InlineData(5, new[] { Articulation.Staccato, Articulation.Accent })]
+    [InlineData(8, new[] { Articulation.Staccato, Articulation.Accent, Articulation.Tenuto })]
+    public void ArticulationComesInByLevel(int level, Articulation[] expected)
+    {
+        var asked = Many(level).SelectMany(p => p.Passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>()))).Select(n => n.Articulation).Where(a => a != Articulation.None).Distinct().Order();
+
+        Assert.Equal(expected, asked);
+    }
+
+    [Fact]
+    public void StaccatoIsOnShortNotesAndTenutoOnLongOnes()
+    {
+        var notes = Many(8).SelectMany(p => p.Passage.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>()))).ToList();
+
+        Assert.All(notes.Where(n => n.Articulation == Articulation.Staccato), n => Assert.True(n.Length <= Ticks.Quarter));
+        Assert.All(notes.Where(n => n.Articulation == Articulation.Tenuto), n => Assert.True(n.Length >= Ticks.Half));
+    }
+
     [Fact]
     public void LevelOneIsOneHandInStepsOnLongNotes()
     {

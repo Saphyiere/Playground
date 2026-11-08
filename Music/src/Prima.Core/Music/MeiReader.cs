@@ -9,9 +9,9 @@ namespace Prima.Core.Music;
 /// Humdrum or ABC file, keeping every id. It reads bars in written order with their repeat signs and endings (which
 /// <see cref="Score.PlayOrder"/> follows), staves and layers, notes, chords and rests through beams, tuplets and grace groups,
 /// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
-/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. Printed marks other than ties aren't read as
-/// the score's marks, since Verovio engraves them from the MEI itself; a slur's end and a note's ornament are kept on the note,
-/// for judging a run.
+/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A piece's slurs, dynamics, hairpins, pedal
+/// marks and ornaments are read as its <see cref="Score.FileMarks"/>, for judging how it's played; Verovio engraves them from
+/// the MEI itself.
 /// </summary>
 public static class MeiReader
 {
@@ -32,10 +32,10 @@ public static class MeiReader
 
         // Tie elements sit in the bar where the tie starts, so they're gathered from the whole score first.
         var tied = score.Descendants(Mei + "tie").Select(t => (Start: Id((string?)t.Attribute("startid")), End: Id((string?)t.Attribute("endid")))).ToList();
-        // So do slurs and ornaments, kept on their notes.
-        var slurEnds = score.Descendants(Mei + "slur").Select(s => Id((string?)s.Attribute("endid"))).ToHashSet();
-        var ornaments = score.Descendants().Where(e => e.Name.LocalName is "trill" or "mordent" or "turn").Select(o => Id((string?)o.Attribute("startid"))).ToHashSet();
         var bars = new List<Bar>();
+        // Each bar's metre, and the marks the bars hold beside their staves (slurs, dynamics, pedal…), placed once all are read.
+        var meters = new List<Meter>();
+        var controls = new List<(int Bar, XElement Mark)>();
         Key? newKey = null;
         Meter? newMeter = null;
         var number = 0;
@@ -58,7 +58,7 @@ public static class MeiReader
                 var accidentals = new Dictionary<(Step, int), int>();
                 foreach (var layer in staff.Elements(Mei + "layer"))
                 {
-                    var reader = new LayerReader(key, ppq, accidentals, tied, ornaments, slurEnds);
+                    var reader = new LayerReader(key, ppq, accidentals, tied);
                     reader.ReadChildren(layer, 1, 1);
                     voices.Add(new Voice(staffNumber, reader.Events, (int?)layer.Attribute("n") ?? 1));
                     length = Math.Max(length, reader.Tick);
@@ -82,12 +82,61 @@ public static class MeiReader
             var repeatStart = left is "rptstart" or "rptboth" || startsNext;
             var repeatEnd = right is "rptend" or "rptboth";
             var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter };
+            controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn").Select(e => (bars.Count, e)));
+            meters.Add(meter);
             bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });
             startsNext = right == "rptboth";
             (newKey, newMeter) = (null, null);
         }
 
-        return new Score(startKey, startMeter, bars) { Title = string.IsNullOrEmpty(title) ? null : title, RhythmOnly = staffCount == 1 };
+        // The marks: on a note (startid), or by the beat (tstamp, the metre's beats from 1), tied to the note at or before it on its
+        // staff with the ticks between; an end the same way (endid, or tstamp2: "2m+3" is two bars on, beat 3).
+        var fileMarks = new List<Mark>();
+        foreach (var (index, control) in controls)
+        {
+            var staves = ((string?)control.Attribute("staff") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(n => int.Parse(n, CultureInfo.InvariantCulture)).ToList();
+            if (Place(index, (string?)control.Attribute("startid"), (string?)control.Attribute("tstamp")) is not { } start) continue;
+
+            var ahead = Regex.Match((string?)control.Attribute("tstamp2") ?? "", @"^(\d+)m\+([\d.]+)$");
+            var end = control.Attribute("endid") is { } endId ? (Id((string)endId), 0L)
+                : ahead.Success ? Place(index + int.Parse(ahead.Groups[1].Value, CultureInfo.InvariantCulture), null, ahead.Groups[2].Value) : null;
+            var text = Regex.Replace(control.Value, @"\s+", " ").Trim();
+            var dynamic = Regex.Match(text, "^(ppp|pp|mp|mf|p|fff|ff|fp|fz|f|sfz|sf|rfz|rf)(?![a-z])");
+            MarkKind? kind = control.Name.LocalName switch
+            {
+                "slur" when end is not null => MarkKind.Slur,
+                "hairpin" when end is not null => (string?)control.Attribute("form") == "dim" ? MarkKind.Diminuendo : MarkKind.Crescendo,
+                "dynam" when text.StartsWith("cresc", StringComparison.OrdinalIgnoreCase) => MarkKind.Crescendo,
+                "dynam" when text.StartsWith("dim", StringComparison.OrdinalIgnoreCase) || text.StartsWith("decresc", StringComparison.OrdinalIgnoreCase) => MarkKind.Diminuendo,
+                "dynam" when dynamic.Success => MarkKind.Dynamic,
+                "pedal" => (string?)control.Attribute("dir") == "up" ? MarkKind.PedalUp : MarkKind.PedalDown,
+                "trill" => MarkKind.Trill,
+                "mordent" => MarkKind.Mordent,
+                "turn" => MarkKind.Turn,
+                _ => null,
+            };
+            if (kind is null) continue;
+
+            // A bounce is the pedal lifted and pressed again at once: a change.
+            if ((string?)control.Attribute("dir") == "bounce") fileMarks.Add(new Mark(MarkKind.PedalUp, start.Id) { StartOffset = start.Offset });
+            var hasEnd = kind is MarkKind.Slur or MarkKind.Crescendo or MarkKind.Diminuendo && end is not null;
+            fileMarks.Add(new Mark(kind.Value, start.Id, hasEnd ? end!.Value.Id : null, kind == MarkKind.Dynamic ? dynamic.Value : null) { StartOffset = start.Offset, EndOffset = hasEnd ? end!.Value.Offset : 0 });
+
+            // The note at or before a beat of a bar (on the mark's staff when it has notes there), and the ticks from it to the beat.
+            (string Id, long Offset)? Place(int at, string? noteId, string? beat)
+            {
+                if (noteId is not null) return (Id(noteId), 0);
+                if (at >= bars.Count || !double.TryParse(beat, NumberStyles.Float, CultureInfo.InvariantCulture, out var beats)) return null;
+
+                var tick = (long)Math.Round((beats - 1) * Ticks.Whole / meters[at].Unit);
+                var all = bars[at].Voices.SelectMany(v => v.Events.OfType<Notes>().Where(n => !n.Grace).Select(n => (v.Staff, Notes: n))).ToList();
+                var pool = all.Any(p => staves.Contains(p.Staff)) ? all.Where(p => staves.Contains(p.Staff)).Select(p => p.Notes).ToList() : all.Select(p => p.Notes).ToList();
+                var anchor = pool.Where(n => n.Start <= tick).MaxBy(n => n.Start) ?? pool.MinBy(n => n.Start);
+                return anchor is null ? null : (anchor.Tones.Count == 1 ? anchor.Tones[0].Id : anchor.Id, tick - anchor.Start);
+            }
+        }
+
+        return new Score(startKey, startMeter, bars) { Title = string.IsNullOrEmpty(title) ? null : title, RhythmOnly = staffCount == 1, FileMarks = fileMarks };
     }
 
     /// <summary>The MEI with its bars numbered as <see cref="Read"/> numbers them, so the bar numbers printed are the ones Prima says.</summary>
@@ -123,7 +172,7 @@ public static class MeiReader
     }
 
     // Walks a layer's children in order, keeping the tick, through beams, tuplets and grace groups.
-    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied, HashSet<string> ornaments, HashSet<string> slurEnds)
+    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied)
     {
         public List<Event> Events { get; } = [];
 
@@ -176,8 +225,6 @@ public static class MeiReader
                 Tuplet = tuplet,
                 Grace = isGrace,
                 Articulation = artics.Overlaps(["stacc", "stacciss", "spicc", "ten-stacc"]) ? Articulation.Staccato : artics.Contains("acc") ? Articulation.Accent : artics.Contains("ten") ? Articulation.Tenuto : Articulation.None,
-                Ornamented = element.DescendantsAndSelf().Any(e => e.Attribute("ornam") is not null) || notes.Append(element).Any(e => ornaments.Contains(IdOf(e))),
-                EndsSlur = notes.Append(element).Any(e => slurEnds.Contains(IdOf(e))),
             });
             Tick += length;
         }

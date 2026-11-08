@@ -492,7 +492,7 @@ public static class PassageGenerator
         }
 
         // Printed marks by level (ABRSM's table): dynamics, slurs over the first phrase, staccato and accents, hairpins, a pause at
-        // the end, and pedal under held bass notes. Not scored.
+        // the end, pedal under held bass notes, and tenuto. Judged as expression, apart from the notes and timing.
         private void Mark(List<Bar> bars, List<Mark> marks)
         {
             var melody = bars.SelectMany(b => b.Voices.Where(v => v.Staff == 1).SelectMany(v => v.Events.OfType<Notes>())).ToList();
@@ -518,6 +518,27 @@ public static class PassageGenerator
                 }
             }
             if (spec.Ornaments && melody.FirstOrDefault(n => n.Length >= Ticks.Half && n != melody[^1]) is { } held) marks.Add(new Mark(rng.Chance(0.5) ? MarkKind.Trill : MarkKind.Mordent, held.Tones[0].Id));
+
+            // Articulation, in about half the passages, on the tune past its first phrase's slur, never its last note or a tied or
+            // ornamented one: staccato from level 3 on one bar's quarters and eighths, an accent from level 4 on a downbeat, tenuto
+            // from level 7 on a half note or longer.
+            var ornamented = marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
+            var free = bars.Where(b => spec.Level < 4 || b.Number > 2).SelectMany(b => b.Voices.Where(v => v.Staff == 1).SelectMany(v => v.Events.OfType<Notes>().Select(n => (Bar: b.Number, Notes: n))))
+                .Where(x => x.Notes != melody[^1] && x.Notes.Tones.All(t => !t.TieToNext && !t.TiedFromPrevious && !ornamented.Contains(t.Id))).ToList();
+            var asked = new Dictionary<string, Articulation>();
+            var shortBars = free.Where(x => x.Notes.Length <= Ticks.Quarter).GroupBy(x => x.Bar).Where(g => g.Count() >= 2).ToList();
+            if (shortBars.Count > 0 && rng.Chance(0.5))
+            {
+                foreach (var x in rng.Pick(shortBars).Take(4)) asked[x.Notes.Id] = Articulation.Staccato;
+            }
+            var downbeats = free.Where(x => x.Notes.Start == 0 && !asked.ContainsKey(x.Notes.Id)).ToList();
+            if (spec.Level >= 4 && downbeats.Count > 0 && rng.Chance(0.5)) asked[rng.Pick(downbeats).Notes.Id] = Articulation.Accent;
+            var longNotes = free.Where(x => x.Notes.Length >= Ticks.Half && !asked.ContainsKey(x.Notes.Id)).ToList();
+            if (spec.Level >= 7 && longNotes.Count > 0 && rng.Chance(0.5)) asked[rng.Pick(longNotes).Notes.Id] = Articulation.Tenuto;
+            for (var i = 0; i < bars.Count && asked.Count > 0; i++)
+            {
+                bars[i] = bars[i] with { Voices = [.. bars[i].Voices.Select(v => v with { Events = [.. v.Events.Select(e => e is Notes n && asked.TryGetValue(n.Id, out var a) ? n with { Articulation = a } : e)] })] };
+            }
         }
     }
 }

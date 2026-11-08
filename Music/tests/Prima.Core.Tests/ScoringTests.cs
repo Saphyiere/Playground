@@ -13,8 +13,15 @@ public class ScoringTests
     // Eight quarters, C D E F G A B C, one a beat, in bars of four.
     private static List<ExpectedNote> Scale() => [.. new[] { 60, 62, 64, 65, 67, 69, 71, 72 }.Select((m, i) => new ExpectedNote($"n{i}", m, i / 4 + 1, 1, i * 480L, 480, null))];
 
-    private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long, long)>? damper = null) =>
-        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented, damper);
+    private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long, long)>? damper = null,
+        Markings? markings = null, (int, int)? range = null) =>
+        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented, damper, markings, range);
+
+    // A key down and up, in beats, struck this hard.
+    private static PlayedNote Hit(int midi, double down, double up, int velocity) => new(midi, At(down), At(up), velocity);
+
+    private static Markings Marked(IReadOnlyList<Markings.Dynamic>? dynamics = null, IReadOnlyList<Markings.Hairpin>? hairpins = null, IReadOnlyList<Markings.Pedalled>? pedal = null) =>
+        new(dynamics ?? [], hairpins ?? [], pedal ?? [], new HashSet<string>());
 
     private static PlayedNote P(int midi, double beats, double offsetMs = 0) => new(midi, At(beats) + (long)(offsetMs * Ms), At(beats) + (long)(offsetMs * Ms) + 400 * Ms, 70);
 
@@ -241,6 +248,117 @@ public class ScoringTests
 
         Assert.Equal([null, null, null, 100], result.Notes.Select(n => n.HeldPercent));
         Assert.Equal((1, 0), (result.HoldsJudged, result.LetGoEarly));
+    }
+
+    [Fact]
+    public void AStaccatoHeldLongAndATenutoLetGoShortAreFound()
+    {
+        // At 120 bpm a staccato quarter is short under 0.3 s, and a tenuto half is held nine tenths of its second.
+        var expected = new List<ExpectedNote>
+        {
+            new("s1", 60, 1, 1, 0, 480, null) { Articulation = Articulation.Staccato, Lifted = true },
+            new("s2", 62, 1, 1, 480, 480, null) { Articulation = Articulation.Staccato, Lifted = true },
+            new("t", 64, 1, 1, 960, 960, null) { Articulation = Articulation.Tenuto },
+        };
+        var result = Score(expected, [Held(60, 0, 0.3), Held(62, 1, 1.8), Held(64, 2, 3.7)]);
+
+        Assert.Equal([null, Touch.StaccatoHeldLong, Touch.TenutoShort], result.Notes.Select(n => n.Touch));
+        Assert.Equal(2, result.Touches);
+    }
+
+    [Fact]
+    public void UnderASlurANoteLetGoBeforeTheNextBreaksTheLine()
+    {
+        var expected = Scale().Take(5).Select((e, i) => i < 4 ? e with { Slur = "n0" } : e).ToList();
+        // The second note let go at 1.7 beats, 0.15 s before the third; the fifth isn't under the slur.
+        var result = Score(expected, [Held(60, 0, 1), Held(62, 1, 1.7), Held(64, 2, 3), Held(65, 3, 3.9), Held(67, 4.2, 5)]);
+
+        Assert.Equal([null, Touch.GapUnderSlur, null, null, null], result.Notes.Select(n => n.Touch));
+    }
+
+    [Fact]
+    public void AnAccentNoHarderThanTheNotesAroundItIsFound()
+    {
+        var expected = Enumerable.Range(0, 8).Select(i => new ExpectedNote($"n{i}", 60 + i, 1, 1, i * 240L, 240, null) { Articulation = i is 1 or 5 ? Articulation.Accent : Articulation.None }).ToList();
+        int[] velocities = [60, 62, 61, 63, 60, 80, 61, 62];
+        var result = Score(expected, expected.Select((e, i) => Hit(e.Midi, i * 0.5, i * 0.5 + 0.45, velocities[i])));
+
+        Assert.Equal(Touch.AccentNotStronger, result.Notes[1].Touch);
+        Assert.Null(result.Notes[5].Touch);
+        Assert.Equal(62, result.Notes[1].Velocity);
+    }
+
+    [Fact]
+    public void EachDynamicIsJudgedOnYourRangeAndAgainstTheOneBefore()
+    {
+        var marked = Marked(dynamics: [new("p", 0, 1920), new("f", 1920, 3840)]);
+
+        // With the range taken as 25 to 105: a p at 70 is loud for it, and an f at 72 is no louder than the p before it.
+        var loud = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, i < 4 ? 70 + i % 2 : 72 + i % 2)), markings: marked);
+        Assert.Equal([Loudness.TooLoud, Loudness.NoChange], loud.Dynamics.Select(d => d.Outcome));
+        Assert.Equal((1, 1), (loud.Dynamics[0].FromBar, loud.Dynamics[0].ToBar));
+
+        // On a range of 20 to 100: the p at 40 and the f at 85 are both right.
+        var right = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, i < 4 ? 40 + i % 2 : 85 + i % 2)), markings: marked, range: (20, 100));
+        Assert.Equal([Loudness.Right, Loudness.Right], right.Dynamics.Select(d => d.Outcome));
+        Assert.Equal(25.6, right.Dynamics[0].LevelPercent, 1);
+        Assert.True(right.TouchVaries);
+    }
+
+    [Fact]
+    public void AFixedTouchJudgesNoLoudness()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, 64)), markings: Marked(dynamics: [new("p", 0, 3840)]));
+
+        Assert.False(result.TouchVaries);
+        Assert.Empty(result.Dynamics);
+    }
+
+    [Fact]
+    public void ACrescendoMustGrow()
+    {
+        var crescendo = Marked(hairpins: [new(true, 0, 3360)]);
+
+        int[] even = [58, 63, 60, 62, 59, 63, 61, 60];
+        var flat = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, even[i])), markings: crescendo);
+        var grew = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, 50 + 5 * i)), markings: crescendo);
+        var fell = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, 90 - 5 * i)), markings: crescendo);
+
+        Assert.Equal(Swell.Flat, Assert.Single(flat.Hairpins).Outcome);
+        Assert.Equal((Swell.Right, 35.0), (Assert.Single(grew.Hairpins).Outcome, Math.Round(grew.Hairpins[0].Change, 6)));
+        Assert.Equal(Swell.WrongWay, Assert.Single(fell.Hairpins).Outcome);
+    }
+
+    [Fact]
+    public void ThePedalIsJudgedWhereItsMarked()
+    {
+        // Marked: beats 0 to 2, changed at 2, held to 4; and 5 to 6. Pedalled: changed in time at 2, held on past 4 to 4.6, nothing
+        // at 5, and down from 7 to 7.8 where nothing is marked.
+        var marked = Marked(pedal: [new(0, 960), new(960, 1920), new(2400, 2880)]);
+        var result = Score(Scale(), Scale().Select((e, i) => Held(e.Midi, i, i + 0.9)), damper: [(At(0.1), At(1.95)), (At(2.1), At(4.6)), (At(7), At(7.8))], markings: marked);
+
+        Assert.Equal([Pedalling.Right, Pedalling.NotLifted, Pedalling.NotPressed], result.Pedal.Select(p => p.Outcome));
+        Assert.Equal([(1, 1), (1, 1), (2, 2)], result.Pedal.Select(p => (p.FromBar, p.ToBar)));
+        Assert.Equal([2], result.ExtraPedal);
+    }
+
+    [Fact]
+    public void APedalPressedLateOrLetUpIsFound()
+    {
+        var marked = Marked(pedal: [new(0, 1920), new(1920, 3840)]);
+        var result = Score(Scale(), Scale().Select((e, i) => Held(e.Midi, i, i + 0.9)), damper: [(At(1), At(3.9)), (At(4), At(5))], markings: marked);
+
+        Assert.Equal([Pedalling.Late, Pedalling.LiftedEarly], result.Pedal.Select(p => p.Outcome));
+        Assert.Empty(result.ExtraPedal);
+    }
+
+    [Fact]
+    public void WithoutPedalMarksThePedalIsntJudged()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => Held(e.Midi, i, i + 0.9)), damper: [(At(0), At(8))]);
+
+        Assert.Empty(result.Pedal);
+        Assert.Empty(result.ExtraPedal);
     }
 
     [Fact]
