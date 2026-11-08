@@ -120,6 +120,9 @@ public sealed class WorkoutSet
     public int? DurationSeconds { get; set; }
 
     public bool HitGoal { get; set; }
+
+    /// <summary>How many more reps I could have done, when I said: 0 to 3, where 3 is three or more. Empty when I didn't say.</summary>
+    public int? RepsLeft { get; set; }
 }
 
 public sealed class FoodEntry

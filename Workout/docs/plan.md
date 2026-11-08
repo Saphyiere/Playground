@@ -7,7 +7,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 | # | Part | Where you'll see it | Size | Claude |
 | --- | --- | --- | --- | --- |
 | 1 | Heart rate drop on the rest screen (**built**) | The rest screen | S | Feeds the look back |
-| 2 | How many more could you have done? | Each set's entry | S | Feeds the look back |
+| 2 | How many more could you have done? (**built**) | Each set's entry | S | Feeds the look back |
 | 3 | Plateau check | Next on the rest screen, an exercise's Stats, the look back | M | Feeds the look back |
 | 4 | Maintenance from the scale | Calories | M | No |
 | 5 | Odd food days and weigh-ins | Calories | M | No |

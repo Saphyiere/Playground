@@ -92,6 +92,10 @@
                                     </label>
                                 }
                             </div>
+                            @if (!timed)
+                            {
+                                <RepsLeftPicker Id="@($"{id}-tank")" @bind-Value="repsLeft" />
+                            }
                             <div class="spread">
                                 <button type="button" class="btn-ghost" @onclick="() => confirming = true"><Icon Name="trash" Size="18" />Delete set</button>
                                 <div class="inline">
@@ -116,6 +120,7 @@
     private double? weight;
     private int? reps;
     private bool hitGoal;
+    private int? repsLeft;
     private int? minutes;
     private int? seconds;
 
@@ -140,14 +145,14 @@
     {
         editing = editing == set ? null : set;
         confirming = false;
-        (weight, reps, hitGoal) = (set.Weight, set.Reps, set.HitGoal);
+        (weight, reps, hitGoal, repsLeft) = (set.Weight, set.Reps, set.HitGoal, set.RepsLeft);
         (minutes, seconds) = (set.DurationSeconds / 60, set.DurationSeconds % 60);
     }
 
     private Task SaveAsync(WorkoutSet set)
     {
         if (Exercises[set.ExerciseId].Measure == ExerciseMeasure.Time) set.DurationSeconds = Math.Max(0, (minutes ?? 0) * 60 + (seconds ?? 0));
-        else (set.Weight, set.Reps, set.HitGoal) = (weight, reps, hitGoal);
+        else (set.Weight, set.Reps, set.HitGoal, set.RepsLeft) = (weight, reps, hitGoal, repsLeft);
         editing = null;
         return OnSave.InvokeAsync(set);
     }

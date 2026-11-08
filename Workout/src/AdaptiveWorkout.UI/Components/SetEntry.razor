@@ -1,6 +1,7 @@
 @inject WorkoutFlow Flow
 @inject AppSettings Settings
-@* One stopped set on the rest screen: weight, reps and Hit goal, pre-filled. Save (or Enter) tucks it into today's summary. *@
+@* One stopped set on the rest screen: weight, reps and Hit goal, pre-filled, and how many more reps it had in it if I say. Save (or
+   Enter) tucks it into today's summary. *@
 
 @{
     var exercise = State.Exercises[Set.ExerciseId];
@@ -28,6 +29,7 @@
             <span>Hit goal</span>
         </label>
     </div>
+    <RepsLeftPicker Id="@($"{id}-tank")" @bind-Value="Set.RepsLeft" @bind-Value:after="() => Flow.SaveSet(Set)" />
     <div class="spread">
         <p class="note">@(Set.Weight is double weight ? $"Hit goal: next time starts at {SetSummary.WeightText(weight + Settings.HitGoalStep)} {unit}" : "Bodyweight stays bodyweight")</p>
         <div class="inline">

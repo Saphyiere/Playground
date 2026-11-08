@@ -1,0 +1,32 @@
+@* How many more reps a set had in it: 0, 1, 2 or 3+, one tap, and optional. Tapping the one chosen clears it. Claude's look back
+   reads it; the app's own suggestions don't. *@
+<div class="tank" role="group" aria-labelledby="@Id">
+    <span class="field-label" id="@Id">Left in the tank</span>
+    <div class="segmented tank-choices">
+        @for (var reps = 0; reps <= 3; reps++)
+        {
+            var value = reps;
+            <button type="button" aria-pressed="@(Value == value ? "true" : "false")" aria-label="@Label(value)" @onclick="() => PickAsync(value)">@(value == 3 ? "3+" : value.ToString(CultureInfo.InvariantCulture))</button>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The label's id, unique on the screen.</summary>
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    /// <summary>0 to 3, where 3 is three or more; empty when not said.</summary>
+    [Parameter] public int? Value { get; set; }
+
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    private Task PickAsync(int value) => ValueChanged.InvokeAsync(Value == value ? null : value);
+
+    private static string Label(int value) => value switch
+    {
+        0 => "No more reps left",
+        1 => "1 more rep left",
+        2 => "2 more reps left",
+        _ => "3 or more reps left",
+    };
+}

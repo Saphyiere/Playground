@@ -71,6 +71,30 @@
     flex: none;
 }
 
+/* Left in the tank: how many more reps a set had in it, four small choices beside their label. */
+.tank {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.segmented.tank-choices {
+    grid-template-columns: repeat(4, 44px);
+    gap: 6px;
+}
+
+.segmented.tank-choices button {
+    height: 40px;
+    padding: 0;
+    font-family: var(--font-numbers);
+    font-size: 17px;
+}
+
+[data-theme="telemetry"] .segmented.tank-choices {
+    grid-template-columns: repeat(4, 40px);
+}
+
 /* The body weight sparkline: an ink line, and the latest weigh-in as the pen's dot. */
 .spark {
     display: block;
