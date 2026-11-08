@@ -148,29 +148,32 @@ a PDF plays out; this is what came of it.
 - **A piece** opens on its bar and its music. The bar ends with two keys: **Options**, which shows the piece's options in
   place of the music (the view, the hands, play along, where to start, a loop; a PDF's tempo and bars) until it's pressed again,
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
-  same key, or leaving the piece, brings everything back. A notation piece shows whole in one scroll unless it's been set to
-  Pages (kept for each piece). As pages: two systems at a time in landscape, the whole page in portrait under a slim bar. They
-  turn by the screen's outer thirds, a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
-  (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs.
+  same key, or leaving the piece, brings everything back. Between runs a piece fits the screen, only its music scrolling, with
+  About this piece under it; while a run plays About goes and the music has that space too. A notation piece shows whole in
+  one scroll unless it's been set to Pages (kept for each piece). As pages: two systems at a time in landscape, the whole page
+  in portrait under a slim bar. They turn by a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
+  (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. A tap
+  on the music never turns: it's for the bars.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
-  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it (it's lit; a scroll is never
-  a tap). On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
+  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it (it's lit, the first bar
+  too; a scroll is never a tap). On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
   keys over the run's controls, Play at the end. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
-  with it; a note played twice keeps the mark of the latest time. **Loop** plays from the start bar to a bar you choose, again
-  and again until you stop: press the loop key on the bar, then tap the bar to loop back from, and the loop's bars are lit;
-  press it again for none (it's in Options too). While a run plays, tapping a bar starts it again from there, and **‹ Bar** goes back a bar (in
+  with it; a note played twice keeps the mark of the latest time. **Loop** plays bars again and again until you stop: the loop
+  key on the bar loops the bar you start at, then a tap past either end stretches the loop to that bar and a tap inside trims
+  its nearer end, the loop's bars lit; the key again ends it (it's in Options too). While a run plays, tapping a bar starts it again from there, and **‹ Bar** goes back a bar (in
   a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
-  they move a run, still listening. It needs the piano taking notes from the tablet, as play along does. While it plays, the music
+  they move a run, still listening. It needs the piano taking notes from the tablet, as play along does: without
+  one its key looks off, and a tap on it says what it needs. While it plays, the music
   scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
   bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
   doesn't move your level.
-- **A PDF** turns by the same means. Portrait shows a whole page, and by default a half-page turn first shows the next page's
+- **A PDF** turns by the same means, and by a tap on the page's outer thirds. Portrait shows a whole page, and by default a half-page turn first shows the next page's
   top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
   × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can

@@ -75,9 +75,17 @@
         }
         @if (ShowListen)
         {
-            @* The piano plays it, so it needs one that takes notes from the tablet. *@
-            <button type="button" class="mu-btn" disabled="@(!CanStart || !Keyboard.CanSend || !Settings.SendToPiano)"
-                    aria-label="@(Keyboard.CanSend && Settings.SendToPiano ? "Listen: the piano plays it" : "Listen needs the piano, playing notes from the tablet (Settings)")" @onclick="() => Listen()">Listen</button>
+            @* The piano plays it, so it needs one that takes notes from the tablet: without one the key looks off, and a tap says
+               why for a few seconds. *@
+            var piano = Keyboard.CanSend && Settings.SendToPiano;
+            <div class="play-listen">
+                <button type="button" class="mu-btn @(piano ? "" : "mu-btn-off")" disabled="@(!CanStart)" aria-label="@(piano ? "Listen: the piano plays it" : "Listen: it needs the piano")"
+                        @onclick="() => piano ? Listen() : ListenNeeds()">Listen</button>
+                @if (listenNeeds is not null)
+                {
+                    <p class="tempo-pop play-why" role="status">@listenNeeds</p>
+                }
+            </div>
         }
     }
 </section>
@@ -153,6 +161,8 @@
     private string ModeKey => $"Play.Mode.{Name}";
 
     private bool tempoOpen;
+    // What Listen needs, said under it when it's tapped without a piano that takes notes.
+    private string? listenNeeds;
 
     private async Task TypedTempo(ChangeEventArgs e)
     {
@@ -188,6 +198,16 @@
     /// the cursor moving with it. Nothing is judged, so you can play along or only listen.
     /// </summary>
     public Task Listen(PlayMusic? with = null) => Run(with, listen: true);
+
+    private async Task ListenNeeds()
+    {
+        listenNeeds = Keyboard.Name is null ? "Listen plays it on your piano: plug in your keyboard."
+            : !Keyboard.CanSend ? "Listen plays it on the piano, and this one doesn't take notes from the tablet."
+            : "Listen plays it on your piano: turn Sound from the piano on in Settings.";
+        StateHasChanged();
+        await Task.Delay(4000);
+        listenNeeds = null;
+    }
 
     private async Task Run(PlayMusic? with, bool listen)
     {

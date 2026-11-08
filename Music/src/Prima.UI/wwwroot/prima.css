@@ -3064,6 +3064,26 @@ a.mu-btn {
     height: auto;
 }
 
+/* Between runs a piece fits the screen: the music takes what its head, its bar and About this piece leave, and is all that
+   scrolls. While a run plays About goes, and the music has that too. */
+.piece-fit {
+    height: 100%;
+}
+
+.piece-fit .piece-stage {
+    flex: 1 1 0;
+    min-height: 300px;
+}
+
+.piece-fit .piece-frame {
+    height: 100%;
+    min-height: 0;
+}
+
+.piece-playing .piece-about {
+    display: none;
+}
+
 /* The piece's own tools at the end of its bar: options and full screen, square keys with an icon, lit while on. */
 .piece-tool {
     width: 44px;
@@ -3534,6 +3554,28 @@ html[data-full] .piece .summary {
 
 [data-theme="vinyl"] .tempo-pop {
     background: var(--surface);
+}
+
+/* Listen without a piano that takes notes from the tablet: the key looks off, and a tap says what it needs, under it. */
+.play-listen {
+    position: relative;
+}
+
+.mu-btn-off {
+    opacity: 0.45;
+    box-shadow: none;
+}
+
+.play-why {
+    left: auto;
+    right: 0;
+    transform: none;
+    width: 300px;
+    margin: 0;
+    white-space: normal;
+    font-size: 15px;
+    line-height: 21px;
+    color: var(--on-screen);
 }
 
 .tempo-entry {

@@ -23,7 +23,8 @@
 }
 else
 {
-    <div class="piece">
+    @* It fits the screen, only the music scrolling, while there's no run's summary or reading of a PDF under it to read. *@
+    <div class="piece @(readingNotes || outcome is not null ? "" : "piece-fit") @(playing ? "piece-playing" : "")">
         <header class="reading-head">
             <div>
                 <p class="page-kicker">@Kicker()</p>
@@ -42,7 +43,7 @@ else
                 @if (!Pdf)
                 {
                     <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(explain)" disabled="@playing" @onclick="ToggleExplain"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
-                    <button type="button" class="mu-btn piece-tool" aria-label="@(loopTo is { } last ? $"Loop bars {from} to {last}: take it away" : "Loop: then tap the bar to loop back from")" aria-pressed="@On(loopTo is not null || choosingLoop)" disabled="@playing" @onclick="ToggleLoop">
+                    <button type="button" class="mu-btn piece-tool" aria-label="@(loopTo is null ? $"Loop bar {from}, then tap bars to stretch it" : loopTo == from ? $"Loop bar {from}: take it away" : $"Loop bars {from} to {loopTo}: take it away")" aria-pressed="@On(loopTo is not null)" disabled="@playing" @onclick="ToggleLoop">
                         <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M15.5 7A6 6 0 0 0 4.3 8.6M4.5 13A6 6 0 0 0 15.7 11.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16 3.5V7.5H12M4 16.5V12.5H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
                     </button>
                 }
@@ -113,7 +114,9 @@ else
                 {
                     <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="BarTapped" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
-                @if (view == View.Pages && !explain)
+                @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
+                   or the piano. *@
+                @if (Pdf && view == View.Pages)
                 {
                     <button type="button" class="turn-zone turn-back" aria-label="Back a page" @onclick="() => Tapped(-1)"></button>
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
@@ -191,7 +194,7 @@ else
                                 </span>
                             }
                         </div>
-                        <p class="section-note">Tap a note to start from its bar, and while you play to go back to it (‹ Bar goes back a bar). Loop plays from the start bar to the one you choose, again and again until you stop. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
+                        <p class="section-note">Tap a bar to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop plays bars again and again until you stop: the loop key on the bar loops the one you start at, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end; the key again ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
                     @if (piece.IsPdf && mei is null && pdfBytes is not null)
                     {
@@ -211,13 +214,13 @@ else
             {
                 <SymbolCard Entry="symbol.Entry" Note="@symbol.Note" OnClose="() => explained = null" />
             }
-            else if (choosingLoop)
-            {
-                <p class="explain-hint">Tap the bar to loop back from: the loop starts at bar @from.</p>
-            }
             else if (explain)
             {
                 <p class="explain-hint">What's this? Tap any symbol on the music.</p>
+            }
+            else if (loopTo == from && !playing && !options)
+            {
+                <p class="explain-hint">Looping bar @from: tap another bar to loop to it.</p>
             }
         </div>
 
@@ -328,9 +331,9 @@ else
     private bool explain;
     private (GlossaryEntry? Entry, string? Note)? explained;
     private XDocument? meiDocument;
-    // Choosing a loop's last bar on the sheet; the bars lit last; the piece's MEI measure ids, in order.
-    private bool choosingLoop;
-    private (int From, int? To)? litBars;
+    // A bar tapped to start at (lit even when it's the first); the bars lit last; the piece's MEI measure ids, in order.
+    private bool chosen;
+    private (int From, int? To, bool Chosen)? litBars;
     private List<string>? measureIds;
     private bool playing;
     private PlayOutcome? outcome;
@@ -432,11 +435,11 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // The bars chosen, lit on the sheet: the bar to start at (none for the first), or the loop's first to last.
-        if (sheet is not null && !playing && (from, loopTo) != litBars)
+        // The bars chosen, lit on the sheet: the bar to start at (the first only once tapped), or the loop's first to last.
+        if (sheet is not null && !playing && (from, loopTo, chosen) != litBars)
         {
-            litBars = (from, loopTo);
-            var lit = loopTo is not null || from > FirstBar;
+            litBars = (from, loopTo, chosen);
+            var lit = loopTo is not null || from > FirstBar || chosen;
             await sheet.HighlightBars(lit ? MeasureOf(from) : null, loopTo is { } last ? MeasureOf(last) : null);
         }
 
@@ -456,7 +459,7 @@ else
 
     private string PlaceText() => Pdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
 
-    private void ReadTheNotes() => (readingNotes, options, explain, choosingLoop) = (true, false, false, false);
+    private void ReadTheNotes() => (readingNotes, options, explain) = (true, false, false);
 
     private void CloseReading() => (readingNotes, readingBar, options) = (false, false, piece!.IsPdf && mei is null);
 
@@ -542,7 +545,7 @@ else
 
     private void ToggleOptions() => options = !options;
 
-    private void ToggleExplain() => (explain, explained, options, choosingLoop) = (!explain, null, false, false);
+    private void ToggleExplain() => (explain, explained, options) = (!explain, null, false);
 
     // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
     private void SymbolTapped(SheetSymbol symbol)
@@ -553,11 +556,12 @@ else
     }
 
     // Full screen: the piece alone, the tablet's own bars hidden too; the same button, or leaving the piece, brings them back.
+    // The page changes first, then the tablet's own bars, so the rail goes as the key is pressed.
     private async Task ToggleFullScreen()
     {
         fullScreen = !fullScreen;
-        SystemBars.Show(!fullScreen);
         if (turns is not null) await turns.InvokeVoidAsync("fullScreen", fullScreen);
+        SystemBars.Show(!fullScreen);
     }
 
     private async Task SetTempo(double bpm)
@@ -601,7 +605,11 @@ else
         get
         {
             var hand = HandName;
-            if (loopTo is { } to) return hand is null ? $"Loop bars {from}–{to}" : $"Loop bars {from}–{to}, {hand} hand";
+            if (loopTo is { } to)
+            {
+                var bars = to == from ? $"bar {from}" : $"bars {from}–{to}";
+                return hand is null ? $"Loop {bars}" : $"Loop {bars}, {hand} hand";
+            }
             return $"Play{(hand is null ? "" : $" the {hand} hand")}{(from > FirstBar ? $" from bar {from}" : "")}";
         }
     }
@@ -643,8 +651,8 @@ else
         await Store.SetSettingAsync(HandsKey, HandName);
     }
 
-    // A bar tapped, anywhere in it: the start goes there (and any loop goes); choosing a loop, the loop runs between the start and
-    // it; while playing, the run starts again from it.
+    // A bar tapped, anywhere in it: the start goes there, lit. In a loop, the loop's nearer end goes there instead: past either end
+    // it stretches the loop, inside it trims it (the end, when the bar is as near both). While playing, the run starts again from it.
     private async Task BarTapped(string measureId)
     {
         if (BarOf(measureId) is not { } bar) return;
@@ -654,27 +662,23 @@ else
             return;
         }
 
-        if (choosingLoop)
+        if (loopTo is { } last)
         {
-            (choosingLoop, loopTo) = (false, Math.Max(bar, from));
-            StartAt(Math.Min(bar, from));
+            var end = bar > last || bar > from && last - bar <= bar - from;
+            if (end) loopTo = bar;
+            StartAt(end ? from : bar);
             return;
         }
 
-        loopTo = null;
+        chosen = true;
         StartAt(bar);
     }
 
-    // The loop key: off, it waits for a tap on the bar to loop back from; on, it takes the loop away.
+    // The loop key: loops the bar the run starts at, which taps then stretch or trim; again, it takes the loop away.
     private void ToggleLoop()
     {
         (explain, explained, options) = (false, null, false);
-        if (loopTo is not null)
-        {
-            (loopTo, choosingLoop) = (null, false);
-            StartAt(from);
-        }
-        else choosingLoop = !choosingLoop;
+        SetLoop(loopTo is null ? from : null);
     }
 
     // The piece's bars by their MEI ids, in order (the bars are numbered in order too), for taps on the sheet and its lit bars.
@@ -700,7 +704,7 @@ else
     private async Task Starting()
     {
         (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
-        (choosingLoop, litBars) = (false, null);
+        litBars = null;
         if (sheet is not null) await sheet.HighlightBars(null);
         if (view == View.Scroll) return;
 
