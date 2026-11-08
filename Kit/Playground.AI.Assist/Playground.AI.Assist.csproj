@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The apps' questions to Claude: each kind of question is a task (a record in, a record out, its instructions and its
+    checks), sent through the Claude API with its answer held to a JSON schema made from the answer's record, and handed
+    back to the app in one shape, Answer<T>. Plain .NET, no UI: an app's Core holds its tasks, its host keeps the API key.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="13.6.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
+  </ItemGroup>
+
+</Project>

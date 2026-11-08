@@ -15,6 +15,9 @@ Design links:
 - Style directions, with both looks' mockups: https://claude.ai/artifact/2Z6jpTXARxNPY9AWAS2hxQ
 - The first design system (the mark and app icon): https://claude.ai/artifact/H9wJAoBQE834PEQ9qG4wmq
 
+The Kit also holds **Playground.AI.Assist**, a plain .NET library with no UI: how the apps ask Claude, each question a task
+with a typed answer. Its [README](Playground.AI.Assist/README.md) covers it.
+
 ## What's in it
 
 ```

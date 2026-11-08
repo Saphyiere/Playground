@@ -147,7 +147,7 @@ Every answer, whatever the task, looks like this:
 }
 ```
 
-- `status` is `answered`, `need_more` (the input wasn't enough, and `notes` says what's missing) or `cannot`.
+- `status` is `answered`, `needMore` (the input wasn't enough, and `notes` says what's missing) or `cannot`.
 - `answer` holds the task's record when the status is `answered`, and is null otherwise. That's the only null in the envelope.
 - Inside a task's record, nothing is optional. Lists can be empty, choices are enums, and no field is "maybe there".
 
@@ -163,10 +163,10 @@ else Show(a.Summary);         // what went wrong, in a sentence
 
 ### A task is four things
 
-1. **An input record**: what the app sends. Core builds it from its data. Its doc comments become the field descriptions Claude
-   reads.
-2. **An answer record**: its JSON schema is generated from the type, by the SDK's typed `Messages.Create<T>` or by
-   System.Text.Json's `JsonSchemaExporter`.
+1. **An input record**: what the app sends. Core builds it from its data. Its properties' `[Description]` attributes are the
+   field notes Claude reads.
+2. **An answer record**: its JSON schema is generated from the type with System.Text.Json's `JsonSchemaExporter`, then
+   tightened to the API's rules.
 3. **Instructions**: a markdown file per task, embedded in the assembly, with a version number. Changing it, or either record,
    means a new version.
 4. **Checks**: what a schema can't say. For example, the exercise must exist, the weight may change by at most 10%, and the bars
@@ -179,7 +179,8 @@ else Show(a.Summary);         // what went wrong, in a sentence
    "2026-11-08", "input": {…}}`. The serializer options are always the same, so the same data always makes the same bytes.
 2. **Fix the answer's shape.** `output_config.format` is the envelope's schema, with the task's answer record inside it. Claude
    can't write anything else.
-3. **Send it** through the official C# SDK, with a timeout. Long answers (reading a PDF) stream.
+3. **Send it** through the official C# SDK, on its beta endpoint so that on Opus and Sonnet a refused request is answered by
+   another model. If reading a PDF runs into the request timeout, its answers will need streaming.
 4. **Read the stop reason.** A finished answer is parsed. `max_tokens` is a failure ("answer too long": raise the limit).
    `refusal` is a failure that gives Anthropic's reason.
 5. **Run the task's checks.** If any fail, ask once more with the problems listed. If they fail again, `Ok` is false.
@@ -205,8 +206,9 @@ version (2026-10-21) rejects `temperature` outright. Consistency comes from the 
 
 ### Where it lives
 
-- **`Kit/Playground.Assist`**: a plain .NET 10 library both apps share, holding the envelope, `AssistTask`, the client and the
-  log. It would be a new project in the Kit; the name is only a suggestion.
+- **`Kit/Playground.AI.Assist`**: a plain .NET 10 library both apps share, holding the envelope, `AssistTask`, the client and
+  the log. Its [README](../Kit/Playground.AI.Assist/README.md) covers writing a task, wiring it into an app, and getting the key
+  onto a device.
 - **Each app's tasks** go in its Core, next to the logic they use (`AdaptiveWorkout.Core/Assist/NextSession.cs`). Their input
   building and checks are then tested with xUnit like the rest of Core, without calling Claude.
 - **The hosts** wire in the key from secure storage. The preview hosts get a stand-in that returns saved answers, so screens can
@@ -429,19 +431,22 @@ going, short technique.
 
 ---
 
-## 6. Decisions for you
+## 6. Decided
 
-1. **Which plan are you on?** Max or Ultra brings the credits; on Pro, you buy them.
-2. **Is it all right to send workout data** (heart rate, body weight) **and practice data** to Anthropic, one question at a time?
-3. **How should the key get to the devices:** pasted in Settings, or read from a file?
-4. **Name and home** for the framework: `Kit/Playground.Assist`?
-5. **What comes first:** PDF to notation (your reason for this), the trainer, or the teacher?
-6. **Models:** Opus 5.5 for everything to start, then Sonnet 5.5 for each task once it measures as well?
+1. **The plan:** Ultra, so $200 of API credits a month. (Ultra is the tier above Max, which brings $100.)
+2. **The data:** sending workout data (heart rate, body weight) and practice data to Anthropic is fine, a question at a time.
+3. **The key:** it reaches each device as a file, copied over USB, that the app moves into secure storage and deletes. The steps
+   are in the framework's README, under Getting the key onto a device.
+4. **The framework:** `Kit/Playground.AI.Assist`, named so it says what it's for. It's built, with its tests.
+5. **First:** PDF to notation, with Prima's screens designed by the Prima session, against the shapes the framework session
+   sent it.
+
+Still open: the models. Opus 5.5 is the default, and each task can try Sonnet 5.5 once it measures as well.
 
 ## 7. A build order
 
-1. **The framework.** Settings → Claude (key and Test), the log, and one small task working end to end on both devices, in a
-   Release build.
+1. **The framework.** Done: `Kit/Playground.AI.Assist`. Still to do: Settings → Claude (key and Test) and the log on the
+   devices, with a task working end to end in a Release build.
 2. **PDF to notation.** The measuring tool first, then the tablet feature.
 3. **The trainer.** Core's flags and inputs first, tested, then the question itself.
 4. **The teacher.**

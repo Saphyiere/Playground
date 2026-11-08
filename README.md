@@ -20,7 +20,8 @@ tools/
   screens/screens.mjs     Takes screenshots of an app's preview host, for checking screens from a cloud session.
 docs/
   claude-research.md      Research on the apps asking Claude: a workout trainer, a practice teacher, PDFs into notation.
-Kit/                      The shared looks and screen pieces, a Razor class library every app's UI references.
+Kit/                      The shared looks and screen pieces, a Razor class library every app's UI references, and
+                          Playground.AI.Assist, how the apps ask Claude.
 Workout/                  The workout app, with its own solution, README and docs.
 Music/                    Prima, the sight-reading and piano practice app, with its own solution, README and docs.
 artifacts/                All build output (git-ignored).
