@@ -110,7 +110,7 @@
        storage, never in the app's data. *@
     <section class="stack" aria-labelledby="claude-heading">
         <h2 id="claude-heading" class="label">Claude</h2>
-        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It also tags your exercises with the muscles they train, for the muscle map. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only what it needs is sent: your exercises' names and sets, the workout's heart rate, your weigh-in and your calorie goal.</p>
+        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It also tags your exercises with the muscles they train, for the muscle map, and answers what you ask it from Today's spark. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only what it needs is sent: your exercises' names and sets, the workout's heart rate, your weigh-in and your calorie goal.</p>
         <div class="spread baseline">
             <span class="label">Key</span>
             @if (maskedKey is { } masked)
@@ -170,9 +170,15 @@
                 <span class="label">This month</span>
                 <span class="name big tabular">@spend.Cost.ToString("$0.00", CultureInfo.InvariantCulture)</span>
             </div>
-            // "3 look backs", "3 look backs and tagging exercises", or "tagging exercises" when that's all it was.
-            var lookBacks = spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs";
-            var spentOn = spend.Taggings == 0 ? lookBacks : spend.LookBacks == 0 ? "tagging exercises" : $"{lookBacks} and tagging exercises";
+            // "3 look backs", "3 look backs, 2 questions and tagging exercises", "tagging exercises": what it was for, and 0 look backs
+            // when it was none of them.
+            var spentFor = new[]
+            {
+                spend.LookBacks == 0 ? "" : spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs",
+                spend.Questions == 0 ? "" : spend.Questions == 1 ? "1 question" : $"{spend.Questions} questions",
+                spend.Taggings == 0 ? "" : "tagging exercises",
+            }.Where(p => p.Length > 0).ToList();
+            var spentOn = spentFor.Count == 0 ? "0 look backs" : spentFor.Count == 1 ? spentFor[0] : $"{string.Join(", ", spentFor[..^1])} and {spentFor[^1]}";
             <p class="note">What Anthropic charged for @spentOn this month, as the app counts it. The workspace's monthly spend limit is set in the Claude Console.</p>
         }
     </section>
@@ -240,7 +246,7 @@
     private bool testing;
     private bool removingKey;
     private bool lookBackOn = true;
-    private ClaudeSpend spend = new(0, 0, 0);
+    private ClaudeSpend spend = new(0, 0, 0, 0);
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 

@@ -42,7 +42,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "ExerciseMuscle", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
+        foreach (var table in new[] { "Question", "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "ExerciseMuscle", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
             new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     if (scenario == "empty") return "empty";

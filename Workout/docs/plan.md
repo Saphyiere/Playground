@@ -12,7 +12,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 | 4 | Maintenance from the scale (**built**) | Calories | M | No |
 | 5 | Odd food days and weigh-ins (**built**) | Calories | M | No |
 | 6 | Muscle map (**built**) | Stats, the exercise list, the look back | L | Tags your exercises once |
-| 7 | Ask Claude | The spark icon on Today | M | About 10–25¢ a question |
+| 7 | Ask Claude (**built**) | The spark icon on Today | M | About 10–25¢ a question |
 | 8 | The week, looked back | Today, on Monday | M | About 25¢ a week |
 
 1 to 3 come first: they're about the gym, cost nothing, and each makes the look back smarter. When they're in, the look back's
@@ -161,7 +161,10 @@ muscles as half predicted growth best (Pelland 2024).
 The answer comes in like the look back. Where it suggests weights, **Use for next time** takes them, the same way.
 
 **How it works.** One question, one answer, sent with the last 8 weeks summed up: workouts, plateaus, muscles by week, calories
-against the scale, and body weight. Your last few questions stay on the screen.
+against the scale, and body weight, with the routine's next workout. Your last few questions stay on the screen, and the newest go
+with a new one, so you can follow up. Its plans are checked like the look back's.
+
+**Data.** `Question`: what you asked, what Claude was sent and said, and when you took its plan.
 
 **Cost.** About 10 to 25 cents a question, from the monthly API credits.
 

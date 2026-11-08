@@ -46,7 +46,7 @@ The home screen answers the three questions at a glance. **(proposed)**
 - **Calories:** eaten today against my goal (1,800) and maintenance, which goes up by what today's finished workouts burned, with a quick add. **Edit** lists today's entries, each deletable. Tapping its heading opens **Calories**.
 - **Body weight:** the latest weigh-in and its trend, with a quick add. **Edit** lists the last 10 weigh-ins, each deletable.
 - The big button: **Start Back day** (today's session in the routine). On a rest day, or once today is done, it reads **Start a workout** and opens the session picker. On a rest day, **Edit routine** sits under it.
-- At the top right: **Stats** (a little line chart), then **Settings**.
+- At the top right: **Ask Claude** (a spark), **Stats** (a little line chart), then **Settings**.
 
 Every delete asks once (Keep or Delete) before anything is gone.
 
@@ -95,8 +95,8 @@ The icon at the top right of Today, after Stats:
 - **Body:** sex, age, height, and how I spend a usual day outside workouts: from sitting most of it to physical work all day. Each workout adds its own.
 - **Claude:** the key on the phone, shown by its start and last four characters, with **Test** and **Remove**; without one, how to
   get it there (a key file copied over USB, taken into secure storage when the app opens, or now with **Look for the key file**).
-  **Look back after each workout**, on or off, and what this month's look backs cost, with Claude's tagging of exercises. See
-  *Claude's look back* and *Muscle map*.
+  **Look back after each workout**, on or off, and what this month's look backs, questions and tagging of exercises cost. See
+  *Claude's look back*, *Ask Claude* and *Muscle map*.
 - **Updates:** the version on the phone (1.0 for a build from the PC), and the newest release from the repo's GitHub releases
   (Workout 1.0.N), with its changes, **Check** and **Install**, through the Kit's shared updater. The app checks at most once a
   day. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on the
@@ -373,6 +373,32 @@ What Claude is sent, and what holds it to its answer:
 - **Cost:** about 10 to 25 cents a workout on Claude Opus 5.5 at medium effort, from the plan's monthly API credits; Settings shows
   this month's.
 
+## Ask Claude
+
+The spark at the top of Today opens **Ask**: a box for a question about my training, with three to start from, **What should I do
+next workout?**, **What muscles am I missing?** and **How's the weight loss going?**
+
+- **While Claude reads,** the question waits above the look back's heartbeat, with how long it's been.
+- **Then its words,** line by line: a sentence that answers, and a few short paragraphs from my numbers. Where it says what to lift
+  next time, **Next time** lists each exercise as the look back does (3 × 10 at 105 lb, Up 5, its rest and why), and **Use for next
+  time** takes them the same way (see *Pre-filled and suggested values*).
+- **Asked before:** my last few questions stay below, each a tap from its answer; the newest ones go with a new question, so a
+  follow-up reads as one.
+- **Trouble** says what it was, as the look back's does, with **Try again** or **Claude in Settings**. Without a key, the page says
+  where to put one.
+
+What Claude is sent with a question (task `workout.ask`, Opus 5.5 at medium effort): the last 8 weeks, week by week, each with its
+workouts against the routine's gym days, each muscle's hard sets and the ones with none (see *Muscle map*), the food days logged
+and forgotten with their average eaten and under maintenance, and my average weigh-in; each exercise done in them, with what it
+trains, its times there, whether it's gone flat, and any plan waiting for its next time; my latest weigh-in and how my weight
+moved over 4 weeks by the line through the weigh-ins, my calorie goal, and maintenance by the formula and by the scale; the routine
+day by day, and its next workout with what each first set starts from. Exercises not tagged yet are tagged first.
+
+My method is the rule there too: up a step after every set hits its reps, the same weight until it does, never a swapped, added or
+dropped exercise, and a muscle the weeks miss is pointed out, never fixed with a new exercise. Its plans are checked like the look
+back's: each exercise once, a weight exercise from what it was sent, 1 to 10 sets, 1 to 50 reps, a rest of 30 seconds to 5 minutes in
+steps of 15, and a weight whole steps from one in its times, by at most a tenth of it or one step. About 10 to 25 cents a question.
+
 ## Consistency
 
 Derived from session dates alone:
@@ -454,6 +480,8 @@ Settings           CalorieGoal 1800, Sex, BirthYear, HeightCm, DailyActivity (Si
 DataCheck          Kind, Item, Answer   (what I said about a slip: a day (its date) to count at maintenance or that's right; a weigh-in (its id) to keep)
 LookBack           SessionId, At, Kind, Summary, Notes, Input, Answer, Cost, AppliedAt   (Claude's look back at a workout, one each, as JSON;
                                                                                       gone with its workout)
+Question           Id, At, Question, Kind, Summary, Notes, Input, Answer, Cost, AppliedAt   (a question asked of Claude, with what it was sent
+                                                                                      and said as JSON, and when its plan was taken)
 ClaudeCall         Id, At, SessionId, Task, Version, Model, Attempt, Kind, Summary, Question, Reply, tokens in and out, Cost, Ms, MessageId, Error
                                                                                      (every call to Claude, kept for the month's cost;
                                                                                       a tagging's has no SessionId)

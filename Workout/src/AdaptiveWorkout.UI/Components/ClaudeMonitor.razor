@@ -1,0 +1,45 @@
+@* While Claude reads: a monitor's trace, drawn across and again, at a resting 72 beats a minute, with how long it's been. In Logbook the
+   pen draws it on a strip of ECG paper; in Telemetry it's the heart channel's trace on the panel. The look back and Ask Claude show it. *@
+<section class="monitor channel-heart" role="status" aria-live="polite">
+    <svg viewBox="0 0 326 96" aria-hidden="true">
+        @for (var x = 0; x <= 326; x += 8)
+        {
+            <line class="@(x % 40 == 0 ? "grid-major" : "grid-minor")" x1="@x" y1="0" x2="@x" y2="96" />
+        }
+        @for (var y = 0; y <= 96; y += 8)
+        {
+            <line class="@(y % 40 == 0 ? "grid-major" : "grid-minor")" x1="0" y1="@y" x2="326" y2="@y" />
+        }
+        <defs>
+            <clipPath id="sweep">
+                <rect class="sweep" x="0" y="0" width="326" height="96" />
+            </clipPath>
+        </defs>
+        <path class="trace past" d="@Trace" />
+        <path class="trace" d="@Trace" clip-path="url(#sweep)" />
+        <rect class="cursor" x="-1" y="0" width="2" height="96" />
+    </svg>
+    <div class="spread baseline">
+        <p class="monitor-word">@(Theme == Theme.Telemetry ? Short : Words)</p>
+        <Clock Since="Since" Class="caption tabular" />
+    </div>
+    <span class="sr-only">@Words.</span>
+</section>
+
+@code {
+    // One heartbeat, 108 wide on a baseline at 60: flat, the P wave's bump, the sharp QRS spike, then the T wave's wider bump. Three fill the
+    // monitor's 326.
+    private const string Beat = "h14 q6 -10 12 0 h8 l3 6 l4 -50 l4 58 l4 -14 h11 q9 -16 18 0 h30";
+    private static readonly string Trace = $"M0 60 {Beat} {Beat} {Beat} h2";
+
+    /// <summary>When Claude was asked.</summary>
+    [Parameter, EditorRequired] public DateTimeOffset Since { get; set; }
+
+    /// <summary>What Claude is doing, in words: "Claude is reading your workout".</summary>
+    [Parameter, EditorRequired] public string Words { get; set; } = "";
+
+    /// <summary>Telemetry's readout of it: "Claude · reading".</summary>
+    [Parameter, EditorRequired] public string Short { get; set; } = "";
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+}

@@ -36,6 +36,8 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
                 (object)Judge(lookBack, workout, plan, Summary(workout, plan), new Usage(7_400, 2_900, 0, 0, 0.09m, took)),
             (AssistTask<ExercisesToTag, ExerciseTags> tagging, ExercisesToTag exercises) =>
                 Judge(tagging, exercises, Tag(exercises), $"Tagged {exercises.Exercises.Count} exercises by what they mainly train.", new Usage(1_900, 600, 0, 0, 0.02m, took)),
+            (AssistTask<AskInput, AskAnswer> ask, AskInput question) when Reply(question) is var (reply, summary) =>
+                Judge(ask, question, reply, summary, new Usage(9_800, 1_400, 0, 0, 0.14m, took)),
             _ => throw new InvalidOperationException($"The preview has no answers for {task.Name}."),
         };
         var typed = (Answer<TAnswer>)answer;
@@ -71,6 +73,55 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
         (["calf"], [Muscle.Calves], []),
         (["plank", "crunch", "leg raise", "sit-up"], [Muscle.Abs], []),
     ];
+
+    // An answer from the question's input: the next workout's lifts by the owner's method, the weeks' missing muscles, or the weight's
+    // line against the logs, by the words in the question; else the weeks' workouts.
+    private static (AskAnswer Answer, string Summary) Reply(AskInput input)
+    {
+        var question = input.Question.ToLowerInvariant();
+        var thisWeek = input.Weeks[^1];
+        var lastWeek = input.Weeks[^2];
+        if (question.Contains("next") && input.Next is { } next)
+        {
+            var lifts = new List<AskLift>();
+            foreach (var planned in next.Exercises)
+            {
+                if (input.Exercises.FirstOrDefault(e => e.Id == planned.ExerciseId) is not { Measure: ExerciseMeasure.Weight, Times: [var latest, ..] }) continue;
+
+                var weight = latest.Weights.Count == 0 ? 0 : latest.Weights.Max() + (latest.HitGoal ? input.HitGoalStep : 0);
+                lifts.Add(new AskLift(planned.ExerciseId, planned.PlannedSets ?? 3, latest.Weights.Count == 0 ? 12 : 10, weight, 120,
+                    $"{latest.Sets} last time: {(latest.HitGoal ? "up a step" : "the same, and tick Hit goal when every set reaches 10")}"));
+            }
+
+            return (new AskAnswer([
+                $"Next is {next.Session} on {next.Date.DayOfWeek}. Start each lift from its last time: up a step where every set reached its reps, the same weight where they fell short.",
+                "Keep the rests as they are unless reps drop from set to set; then give the big lifts a little longer."], lifts),
+                $"{next.Session} on {next.Date.DayOfWeek}: {lifts.Count} {(lifts.Count == 1 ? "lift" : "lifts")}, each from its last time.");
+        }
+
+        if (question.Contains("muscle"))
+        {
+            var missing = thisWeek.Missing.Count == 0 ? "every muscle has had some sets" : $"nothing has trained {Muscles.List(thisWeek.Missing).ToLowerInvariant()} yet";
+            return (new AskAnswer([
+                $"This week {missing}. Last week, {(lastWeek.Missing.Count == 0 ? "every muscle got sets" : $"{Muscles.List(lastWeek.Missing).ToLowerInvariant()} got none")}.",
+                "That's the routine as it stands: the gaps are worth knowing about, and changing it is your call."], []),
+                thisWeek.Missing.Count == 0 ? "Every muscle has had sets this week." : $"{thisWeek.Missing.Count} muscles have had no sets this week.");
+        }
+
+        if (question.Contains("weight"))
+        {
+            var change = input.Body.FourWeekChange is double c ? $"{(c < 0 ? "down" : "up")} {Math.Abs(c):0.0} {(input.Body.Unit == WeightUnit.Kilograms ? "kg" : "lb")}" : "not clear yet";
+            var eaten = input.Weeks.Select(w => w.AverageEaten).OfType<int>().DefaultIfEmpty().Average();
+            return (new AskAnswer([
+                $"Over the last four weeks your weight is {change} by the line through your weigh-ins.",
+                $"You've eaten about {eaten:N0} a day on the days logged, against a goal of {input.Body.CalorieGoal:N0}." +
+                (input.Body.MaintenanceByScale is int byScale ? $" By the scale, your maintenance is about {byScale:N0}." : "")], []),
+                $"Your weight is {change} over four weeks.");
+        }
+
+        var workouts = input.Weeks.Sum(w => w.Workouts);
+        return (new AskAnswer([$"You've done {workouts} workouts in the last eight weeks, {thisWeek.Workouts} of them this week."], []), $"{workouts} workouts in eight weeks.");
+    }
 
     /// <summary>The preview's tags for some exercises, by the words in their names; the muscles seed uses them too.</summary>
     public static ExerciseTags Tag(ExercisesToTag input) => new([.. input.Exercises.Select(e =>

@@ -1,0 +1,181 @@
+@page "/ask"
+@implements IDisposable
+@inject Coach Coach
+@inject WorkoutFlow Flow
+@inject IAssistKeyStore Keys
+
+<PageTitle>Ask Claude</PageTitle>
+
+@* Ask Claude about my training: a question, or one of three to start from, answered from the last 8 weeks summed up (see Coach). The
+   answer comes in like the look back's: a heartbeat while Claude reads, then its words line by line; where it plans the next workout's
+   lifts, Use for next time takes them. The questions asked before stay below, each a tap from its answer. *@
+@if (loaded)
+{
+    <div class="screen ask">
+        <PageHeader Back="" BackText="Today" Label="Claude" Title="Ask" />
+
+        @if (!hasKey)
+        {
+            <p class="note">Asking needs a Claude key on this phone: <a class="link" href="settings">Settings</a> says how to put it there.</p>
+        }
+
+        <form class="stack" @onsubmit="() => AskAsync(question)">
+            <div class="field-group">
+                <label class="field-label" for="question">Your question</label>
+                <textarea id="question" class="field question" rows="3" placeholder="Ask about your training" disabled="@(Coach.Asking is not null)"
+                          @bind="question" @bind:event="oninput"></textarea>
+            </div>
+            <button type="submit" class="btn-primary" disabled="@(!hasKey || Coach.Asking is not null || string.IsNullOrWhiteSpace(question))">Ask</button>
+        </form>
+
+        @if (Coach.Asking is { } asking)
+        {
+            <p class="asked">@asking</p>
+            <ClaudeMonitor Since="Coach.AskedAt" Words="Claude is reading your last 8 weeks" Short="Claude · reading" />
+        }
+        else if (shown is { Answer: { } answer } record)
+        {
+            <section class="stack look-words" aria-label="Claude's answer">
+                <p class="asked arrive" style="--i: 0">@record.Question</p>
+                <p class="look-summary arrive" style="--i: 1">@record.Summary</p>
+                @for (var i = 0; i < answer.Paragraphs.Count; i++)
+                {
+                    <p class="body arrive" style="--i: @(i + 2)">@answer.Paragraphs[i]</p>
+                }
+            </section>
+
+            @if (answer.NextTime.Count > 0 && record.Input is { } input)
+            {
+                <section class="stack arrive" style="--i: @(answer.Paragraphs.Count + 2)" aria-labelledby="next-heading">
+                    <h2 id="next-heading" class="label">Next time</h2>
+                    <div class="ledger">
+                        @foreach (var lift in answer.NextTime)
+                        {
+                            // The exercise's latest sets, that the plan moves from.
+                            var exercise = input.Exercises.FirstOrDefault(e => e.Id == lift.ExerciseId);
+                            var before = exercise is { Times: [var latest, ..] } ? sets.Where(s => s.SessionId == latest.WorkoutId && s.ExerciseId == lift.ExerciseId).ToList() : [];
+                            <NextLiftRow Name="@(exercise?.Name ?? "An exercise")" Change="@Lifts.Change(before, lift.Reps, lift.Weight)"
+                                         Plan="@Lifts.Plan(before, lift.Sets, lift.Reps, lift.Weight, input.Body.Unit)" RestSeconds="lift.RestSeconds" Why="@lift.Why" />
+                        }
+                    </div>
+                    @if (record.AppliedAt is null)
+                    {
+                        <button type="button" class="btn-primary" @onclick="() => Coach.ApplyAsync(record)">Use for next time</button>
+                    }
+                    else
+                    {
+                        <p class="center"><span class="stamp">Set for next time</span></p>
+                        <p class="note center">Each exercise's first set starts from it, and its rest counts down from it.</p>
+                    }
+                </section>
+            }
+        }
+        else if (shown is { } trouble)
+        {
+            <section class="block stack arrive" role="alert">
+                <p class="asked">@trouble.Question</p>
+                <p class="look-summary">@trouble.Summary</p>
+                @foreach (var note in trouble.Notes)
+                {
+                    <p class="note">@note</p>
+                }
+                @if (trouble.Kind is AnswerKind.NoKey or AnswerKind.KeyRejected or AnswerKind.OutOfCredit or AnswerKind.SpendLimit)
+                {
+                    <a class="btn tall" href="settings">Claude in Settings</a>
+                }
+                else if (trouble.Kind is not (AnswerKind.NeedMore or AnswerKind.Cannot))
+                {
+                    <button type="button" class="btn tall" disabled="@(!hasKey)" @onclick="() => AskAsync(trouble.Question)">Try again</button>
+                }
+            </section>
+        }
+
+        @if (Coach.Asking is null)
+        {
+            <section class="stack" aria-labelledby="starters-heading">
+                <h2 id="starters-heading" class="label">To start</h2>
+                <div class="ledger">
+                    @foreach (var starter in Starters)
+                    {
+                        <button type="button" class="row" disabled="@(!hasKey)" @onclick="() => AskAsync(starter)">
+                            <span class="row-text"><span class="name">@starter</span></span>
+                            <Icon Name="forward" Size="16" />
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (earlier.Any(q => q.Id != shown?.Id))
+        {
+            <section class="stack" aria-labelledby="earlier-heading">
+                <h2 id="earlier-heading" class="label">Asked before</h2>
+                <div class="ledger">
+                    @foreach (var q in earlier.Where(q => q.Id != shown?.Id))
+                    {
+                        <button type="button" class="row" @onclick="() => shown = q">
+                            <span class="row-text">
+                                <span class="caption">@q.At.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)</span>
+                                <span class="name">@q.Question</span>
+                            </span>
+                            <Icon Name="forward" Size="16" />
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+
+        <p class="note">Each question goes to Claude with your last 8 weeks summed up: your workouts and lifts, the muscles they trained, what you ate and weighed. About 10 to 25 cents a question.</p>
+    </div>
+}
+
+@code {
+    private static readonly string[] Starters = ["What should I do next workout?", "What muscles am I missing?", "How's the weight loss going?"];
+
+    // The questions kept, newest first, and how many of them stay on the screen.
+    private const int Kept = 6;
+
+    private bool loaded;
+    private bool hasKey;
+    // A question is being asked, so its answer shows when it's in.
+    private bool waiting;
+    private string question = "";
+    private List<QuestionRecord> earlier = [];
+    private List<WorkoutSet> sets = [];
+    private QuestionRecord? shown;
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Coach.Changed += OnCoachChanged;
+        hasKey = !string.IsNullOrWhiteSpace(await Keys.GetAsync());
+        earlier = await Coach.RecentAsync(Kept);
+        sets = (await Flow.LoadFinishedAsync()).Sets;
+        waiting = Coach.Asking is not null;
+        loaded = true;
+    }
+
+    private Task AskAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return Task.CompletedTask;
+
+        question = "";
+        waiting = true;
+        _ = Coach.AskAsync(text);
+        return Task.CompletedTask;
+    }
+
+    // While a question is asked, the heartbeat; when it's answered, its answer; when a plan is taken, its stamp.
+    private void OnCoachChanged() => _ = InvokeAsync(async () =>
+    {
+        earlier = await Coach.RecentAsync(Kept);
+        sets = (await Flow.LoadFinishedAsync()).Sets;
+        if (Coach.Asking is not null) shown = null;
+        else if (waiting) (shown, waiting) = (earlier.FirstOrDefault(), false);
+        else shown = earlier.Find(q => q.Id == shown?.Id) ?? shown;
+        StateHasChanged();
+    });
+
+    public void Dispose() => Coach.Changed -= OnCoachChanged;
+}

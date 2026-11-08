@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Globalization;
 using Playground.AI.Assist;
 
 namespace AdaptiveWorkout.Core.Assist;
@@ -158,23 +157,10 @@ public static class LookBackPlan
                 continue;
             }
 
-            if (lift.Sets is < 1 or > 10) problems.Add($"{exercise.Name}: sets should be 1 to 10, not {lift.Sets}.");
-            if (lift.Reps is < 1 or > 50) problems.Add($"{exercise.Name}: reps should be 1 to 50, not {lift.Reps}.");
-            if (lift.RestSeconds is < 30 or > 300 || lift.RestSeconds % 15 != 0)
-                problems.Add($"{exercise.Name}: rest should be 30 to 300 seconds in steps of 15, not {lift.RestSeconds}.");
-            if (string.IsNullOrWhiteSpace(lift.Why)) problems.Add($"{exercise.Name}: why is empty.");
-
             var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
             var bases = today.Select(s => s.Weight).Concat(exercise.LastTimes.SelectMany(t => t.Weights.Select(w => (double?)w))).OfType<double>().Distinct().ToList();
-            if (bases.Count == 0 || today.All(s => s.Weight is null))
-            {
-                if (lift.Weight != 0 && today.All(s => s.Weight is null)) problems.Add($"{exercise.Name} is done at bodyweight: its weight should be 0, not {Number(lift.Weight)}.");
-            }
-            else if (!bases.Any(b => Near(lift.Weight, b, step)))
-            {
-                problems.Add($"{exercise.Name}: {Number(lift.Weight)} isn't whole steps of {Number(step)} from a weight used today or in its last times " +
-                    $"({string.Join(", ", bases.Order().Select(Number))}), by at most a tenth of it or one step.");
-            }
+            problems.AddRange(Lifts.Problems(exercise.Name, lift.Sets, lift.Reps, lift.Weight, lift.RestSeconds, lift.Why, bases, today.All(s => s.Weight is null), step,
+                "used today or in its last times"));
         }
 
         foreach (var missing in input.Exercises.Where(e => e.Measure == ExerciseMeasure.Weight && answer.NextTime.All(l => l.ExerciseId != e.Id)))
@@ -203,15 +189,5 @@ public static class LookBackPlan
             return (lift.ExerciseId, new TrainerTarget(input.Workout.Id, weight, unit, lift.Reps, lift.Sets, lift.RestSeconds));
         })];
 
-    // Whole steps from the base, and no further than a tenth of it or one step, whichever is more.
-    private static bool Near(double weight, double from, double step)
-    {
-        var change = weight - from;
-        var steps = step > 0 ? change / step : 0;
-        return Math.Abs(change) <= Math.Max(Math.Abs(from) * 0.1, step) + 1e-9 && Math.Abs(steps - Math.Round(steps)) < 1e-6;
-    }
-
     private static string Name(Dictionary<long, LookBackExercise> exercises, long id) => exercises.TryGetValue(id, out var e) ? e.Name : $"Exercise {id}";
-
-    private static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 }

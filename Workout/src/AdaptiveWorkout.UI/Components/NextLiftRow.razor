@@ -1,0 +1,29 @@
+@* One exercise's next time, as the look back or an answer plans it: its name and how it moves (Up 5), the plan (3 × 10 at 105 lb) and
+   its rest, and why. *@
+<div class="row next-lift">
+    <span class="row-text">
+        <span class="spread baseline">
+            <span class="name">@Name</span>
+            <span class="pen-note">@Change</span>
+        </span>
+        <span class="spread baseline">
+            <span class="name big tabular">@Plan</span>
+            <span class="caption tabular">rest @TimeText.Format(TimeSpan.FromSeconds(RestSeconds))</span>
+        </span>
+        <span class="note">@Why</span>
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    /// <summary>How it moves from the time it follows (see <see cref="Lifts.Change"/>).</summary>
+    [Parameter] public string Change { get; set; } = "";
+
+    /// <summary>The sets, reps and weight (see <see cref="Lifts.Plan"/>).</summary>
+    [Parameter, EditorRequired] public string Plan { get; set; } = "";
+
+    [Parameter] public int RestSeconds { get; set; }
+
+    [Parameter] public string Why { get; set; } = "";
+}

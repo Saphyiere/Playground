@@ -13,7 +13,6 @@
 
 @if (session is not null)
 {
-    var telemetry = Theme == Theme.Telemetry;
     var time = TimeText.Format((session.FinishedAt ?? session.StartedAt) - session.StartedAt);
     var volume = WorkoutStats.Volume(sets, Settings.Unit).ToString("N0", CultureInfo.CurrentCulture);
     <div class="screen look-back">
@@ -57,31 +56,7 @@
         @if (record is null)
         {
             @* While Claude reads: a monitor's trace, drawn across and again, at a resting 72 beats a minute. *@
-            <section class="monitor channel-heart" role="status" aria-live="polite">
-                <svg viewBox="0 0 326 96" aria-hidden="true">
-                    @for (var x = 0; x <= 326; x += 8)
-                    {
-                        <line class="@(x % 40 == 0 ? "grid-major" : "grid-minor")" x1="@x" y1="0" x2="@x" y2="96" />
-                    }
-                    @for (var y = 0; y <= 96; y += 8)
-                    {
-                        <line class="@(y % 40 == 0 ? "grid-major" : "grid-minor")" x1="0" y1="@y" x2="326" y2="@y" />
-                    }
-                    <defs>
-                        <clipPath id="sweep">
-                            <rect class="sweep" x="0" y="0" width="326" height="96" />
-                        </clipPath>
-                    </defs>
-                    <path class="trace past" d="@Trace" />
-                    <path class="trace" d="@Trace" clip-path="url(#sweep)" />
-                    <rect class="cursor" x="-1" y="0" width="2" height="96" />
-                </svg>
-                <div class="spread baseline">
-                    <p class="monitor-word">@(telemetry ? "Claude · reading" : "Claude is reading your workout")</p>
-                    <Clock Since="askedAt" Class="caption tabular" />
-                </div>
-                <span class="sr-only">Claude is reading your workout.</span>
-            </section>
+            <ClaudeMonitor Since="askedAt" Words="Claude is reading your workout" Short="Claude · reading" />
         }
         else if (record is { Answer: { } answer, Input: { } input })
         {
@@ -107,19 +82,10 @@
                 <div class="ledger">
                     @foreach (var lift in answer.NextTime)
                     {
-                        <div class="row next-lift">
-                            <span class="row-text">
-                                <span class="spread baseline">
-                                    <span class="name">@(input.Exercises.FirstOrDefault(e => e.Id == lift.ExerciseId)?.Name ?? "An exercise")</span>
-                                    <span class="pen-note">@Change(input, lift)</span>
-                                </span>
-                                <span class="spread baseline">
-                                    <span class="name big tabular">@Plan(input, lift)</span>
-                                    <span class="caption tabular">rest @TimeText.Format(TimeSpan.FromSeconds(lift.RestSeconds))</span>
-                                </span>
-                                <span class="note">@lift.Why</span>
-                            </span>
-                        </div>
+                        // Today's sets of it, in the unit they used, that the plan moves from.
+                        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).Select(s => new WorkoutSet { Weight = s.Weight, WeightUnit = s.Unit, Reps = s.Reps }).ToList();
+                        <NextLiftRow Name="@(input.Exercises.FirstOrDefault(e => e.Id == lift.ExerciseId)?.Name ?? "An exercise")" Change="@Lifts.Change(today, lift.Reps, lift.Weight)"
+                                     Plan="@Lifts.Plan(today, lift.Sets, lift.Reps, lift.Weight, input.Body.Unit)" RestSeconds="lift.RestSeconds" Why="@lift.Why" />
                     }
                 </div>
             </section>
@@ -196,11 +162,6 @@
 }
 
 @code {
-    // One heartbeat, 108 wide on a baseline at 60: flat, the P wave's bump, the sharp QRS spike, then the T wave's wider bump. Three fill the
-    // monitor's 326.
-    private const string Beat = "h14 q6 -10 12 0 h8 l3 6 l4 -50 l4 58 l4 -14 h11 q9 -16 18 0 h30";
-    private static readonly string Trace = $"M0 60 {Beat} {Beat} {Beat} h2";
-
     [Parameter] public long SessionId { get; set; }
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
@@ -252,27 +213,6 @@
         _ = Trainer.AskAsync(SessionId);
         askedAt = Trainer.AskedAt(SessionId) ?? DateTimeOffset.Now;
         return Task.CompletedTask;
-    }
-
-    // "3 × 10 at 105 lb", "3 × 12 at bodyweight", "3 × 8 at -35 lb" (assisted), in the unit its sets used today.
-    private static string Plan(LookBackInput input, NextLift lift)
-    {
-        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
-        var bodyweight = today.All(s => s.Weight is null) && lift.Weight == 0;
-        var unit = (today.Count > 0 ? today[^1].Unit : input.Body.Unit) == WeightUnit.Kilograms ? "kg" : "lb";
-        return $"{lift.Sets} × {lift.Reps} at {(bodyweight ? "bodyweight" : $"{SetSummary.WeightText(lift.Weight)} {unit}")}";
-    }
-
-    // How the plan moves from today's working weight (the one with the most sets; the heavier on a tie), or for bodyweight its reps.
-    private static string Change(LookBackInput input, NextLift lift)
-    {
-        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
-        if (today.Count == 0) return "";
-        if (today.All(s => s.Weight is null)) return lift.Reps > today.Max(s => s.Reps ?? 0) ? "More reps" : "Same again";
-
-        var working = today.GroupBy(s => s.Weight ?? 0).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).First().Key;
-        var change = Math.Round(lift.Weight - working, 2);
-        return change > 0 ? $"Up {SetSummary.WeightText(change)}" : change < 0 ? $"Down {SetSummary.WeightText(-change)}" : "Same weight";
     }
 
     private static string Treated(SetTreatment treatment) => treatment switch
