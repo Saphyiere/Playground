@@ -180,7 +180,6 @@ function draw(element, state) {
     state.cursor = null;
     state.points = null;
     if (state.marks) showMarks(element, state.marks);
-    drawBars(element, state);
     requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
 }
 
@@ -241,43 +240,6 @@ export function pageOf(element, id) {
 // Which of these notes are on the page showing.
 export function onPage(element, ids) {
     return ids.filter(id => element.querySelector(`.sheet-music [data-id="${id}"]`));
-}
-
-// The bar a note is in, as a pale box behind it, as on a part a teacher has marked; none when the note isn't on this page.
-// The bars chosen on a piece, behind the music: the bar a run starts at, or a loop's first to last bar, a band on each line they
-// cover. Kept, so a redraw (turning the tablet, another page) draws them again.
-export function highlightBars(element, first, last) {
-    const state = sheets.get(element);
-    if (!state) return;
-    state.bars = first ? [first, last ?? first] : null;
-    drawBars(element, state);
-}
-
-function drawBars(element, state) {
-    element.querySelectorAll(".sheet-bar").forEach(r => r.remove());
-    if (!state.bars) return;
-    const measures = [...element.querySelectorAll(".sheet-music .measure[data-id]")];
-    const from = measures.findIndex(m => m.dataset.id === state.bars[0]);
-    const to = measures.findIndex(m => m.dataset.id === state.bars[1]);
-    if (from < 0) return;
-    const chosen = measures.slice(from, (to < from ? from : to) + 1);
-    const box = element.getBoundingClientRect();
-    const overlay = element.querySelector(".sheet-overlay");
-    for (const system of new Set(chosen.map(m => m.closest(".system")))) {
-        const line = chosen.filter(m => m.closest(".system") === system);
-        const staves = line.flatMap(m => [...m.querySelectorAll(".staff")].map(s => s.getBoundingClientRect()));
-        const left = line[0].getBoundingClientRect().left - box.left - 2;
-        const right = line[line.length - 1].getBoundingClientRect().right - box.left + 2;
-        const top = Math.min(...staves.map(s => s.top)) - box.top - 10;
-        const bottom = Math.max(...staves.map(s => s.bottom)) - box.top + 10;
-        const rect = document.createElementNS(svgNs, "rect");
-        rect.setAttribute("class", "sheet-bar");
-        rect.setAttribute("x", left);
-        rect.setAttribute("y", top);
-        rect.setAttribute("width", right - left);
-        rect.setAttribute("height", bottom - top);
-        overlay.prepend(rect);
-    }
 }
 
 // The bar whose space a point is in: between its bar lines, and from a little over its top staff to a little under its lowest.

@@ -43,9 +43,6 @@ else
                 @if (!Pdf)
                 {
                     <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(explain)" disabled="@playing" @onclick="ToggleExplain"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
-                    <button type="button" class="mu-btn piece-tool" aria-label="@(loopTo is null ? $"Loop bar {from}, then tap bars to stretch it" : loopTo == from ? $"Loop bar {from}: take it away" : $"Loop bars {from} to {loopTo}: take it away")" aria-pressed="@On(loopTo is not null)" disabled="@playing" @onclick="ToggleLoop">
-                        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M15.5 7A6 6 0 0 0 4.3 8.6M4.5 13A6 6 0 0 0 15.7 11.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16 3.5V7.5H12M4 16.5V12.5H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                    </button>
                 }
                 <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(options)" disabled="@playing" @onclick="ToggleOptions">
                     <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
@@ -96,11 +93,14 @@ else
                     </div>
                 </Readouts>
             </PlayAlong>
+            @* Every bar, a cell each, drawn and dragged by bars.js: tap one to start there, drag along them to loop them. *@
+            <div class="bar-strip" @ref="strip" role="group" aria-label="The bars: tap one to start there, or drag along them to loop them"></div>
         }
 
         @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
-           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
-        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "")">
+           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). Beside music
+           that scrolls, its thumb. *@
+        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "") @(Thumb ? "piece-stage-thumb" : "")">
             <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
                  data-follow="@(view == View.Scroll && !Pdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
                 @if (Pdf)
@@ -112,7 +112,7 @@ else
                 }
                 else if (mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="BarTapped" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@
@@ -122,6 +122,11 @@ else
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
                 }
             </div>
+            @if (Thumb)
+            {
+                @* A finger on the music scrolls it too, so the thumb is for the eye and the hand, not a screen reader. *@
+                <div class="bar-thumb" @ref="thumb" aria-hidden="true"></div>
+            }
             @if (options)
             {
                 <section class="piece-options" aria-label="Options">
@@ -180,21 +185,7 @@ else
                                 <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
                             }
                         </div>
-                        <div class="control-row">
-                            <span class="control-label">Loop</span>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(loopTo is null)" @onclick="() => SetLoop(null)"><span class="mu-led"></span>Off</button>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(loopTo is not null)" @onclick="() => SetLoop(Math.Min(LastBar, from + 3))"><span class="mu-led"></span>On</button>
-                            @if (loopTo is { } to)
-                            {
-                                <span class="control-value">Bars @from to</span>
-                                <span class="tempo-control">
-                                    <button type="button" class="mu-btn" aria-label="A bar fewer" disabled="@(to <= from)" @onclick="() => SetLoop(to - 1)">−</button>
-                                    <span class="tempo-figure">@to</span>
-                                    <button type="button" class="mu-btn" aria-label="A bar more" disabled="@(to >= LastBar)" @onclick="() => SetLoop(to + 1)">+</button>
-                                </span>
-                            }
-                        </div>
-                        <p class="section-note">Tap a bar to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop plays bars again and again until you stop: the loop key on the bar loops the one you start at, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end; the key again ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
+                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop on its tab loops it: then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or drag a handle, or drag along the strip for a loop over those bars; × ends it. Beside music that scrolls, drag the thumb to move through it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
                     @if (piece.IsPdf && mei is null && pdfBytes is not null)
                     {
@@ -220,7 +211,7 @@ else
             }
             else if (loopTo == from && !playing && !options)
             {
-                <p class="explain-hint">Looping bar @from: tap another bar to loop to it.</p>
+                <p class="explain-hint">Looping bar @from: tap another bar to loop to it, or drag a handle.</p>
             }
         </div>
 
@@ -299,6 +290,12 @@ else
     private Sheet? sheet;
     private PdfPages? pdf;
     private ElementReference frame;
+    // The strip of bars under the piece's bar, the thumb beside music that scrolls, bars.js that draws them and the choice on the
+    // music, and the choice it was last shown.
+    private ElementReference strip;
+    private ElementReference thumb;
+    private IJSObjectReference? bars;
+    private string? shownChoice;
     private View view = View.Pages;
     private int page = 1;
     private int pages = 1;
@@ -331,9 +328,8 @@ else
     private bool explain;
     private (GlossaryEntry? Entry, string? Note)? explained;
     private XDocument? meiDocument;
-    // A bar tapped to start at (lit even when it's the first); the bars lit last; the piece's MEI measure ids, in order.
+    // A bar tapped to start at (lit even when it's the first); the piece's MEI measure ids, in order.
     private bool chosen;
-    private (int From, int? To, bool Chosen)? litBars;
     private List<string>? measureIds;
     private bool playing;
     private PlayOutcome? outcome;
@@ -354,6 +350,8 @@ else
     private bool print;
 
     private bool Pdf => piece!.IsPdf && (mei is null || print);
+
+    private bool Thumb => !Pdf && view == View.Scroll && mei is not null;
     private IReadOnlyList<double> ratios = [];
     private double drawnWidth;
     private double y;
@@ -435,22 +433,29 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // The bars chosen, lit on the sheet: the bar to start at (the first only once tapped), or the loop's first to last.
-        if (sheet is not null && !playing && (from, loopTo, chosen) != litBars)
+        if (piece is null) return;
+
+        // Once: a render while the imports below are awaited mustn't listen to the piano a second time.
+        if (!listening)
         {
-            litBars = (from, loopTo, chosen);
-            var lit = loopTo is not null || from > FirstBar || chosen;
-            await sheet.HighlightBars(lit ? MeasureOf(from) : null, loopTo is { } last ? MeasureOf(last) : null);
+            listening = true;
+            turns = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/turns.js");
+            bars = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/bars.js");
+            self = DotNetObjectReference.Create(this);
+            keys = await turns.InvokeAsync<IJSObjectReference>("listenKeys", self);
+            Keyboard.Received += Heard;
         }
 
-        // Once: a render while the import below is awaited mustn't listen to the piano a second time.
-        if (piece is null || listening) return;
+        // The choice, drawn by bars.js on the music, the strip and the thumb: the bar a run starts at (the first only once it's
+        // tapped), or the loop's first to last. bars.js tells Chose, Looped and Loop of a change made there.
+        if (bars is null || score is null || mei is null || Pdf || readingNotes || frame.Id is null) return;
+        var lit = loopTo is not null || from > FirstBar || chosen;
+        var choice = $"{from}|{loopTo}|{lit}|{playing}|{explain}|{Thumb}|{mei.Length}";
+        if (choice == shownChoice) return;
 
-        listening = true;
-        turns = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/turns.js");
-        self = DotNetObjectReference.Create(this);
-        keys = await turns.InvokeAsync<IJSObjectReference>("listenKeys", self);
-        Keyboard.Received += Heard;
+        shownChoice = choice;
+        var ids = MeasureIds().Take(score.Bars.Count).ToArray();
+        await bars.InvokeVoidAsync("show", frame, strip, Thumb ? thumb : (ElementReference?)null, self, new { from, to = loopTo, lit, playing, explain, firstBar = FirstBar, ids });
     }
 
     private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
@@ -651,11 +656,12 @@ else
         await Store.SetSettingAsync(HandsKey, HandName);
     }
 
-    // A bar tapped, anywhere in it: the start goes there, lit. In a loop, the loop's nearer end goes there instead: past either end
-    // it stretches the loop, inside it trims it (the end, when the bar is as near both). While playing, the run starts again from it.
-    private async Task BarTapped(string measureId)
+    // A bar tapped on the music, anywhere in it, or on the strip: the start goes there, lit. In a loop, the loop's nearer end goes
+    // there instead: past either end it stretches the loop, inside it trims it (the end, when the bar is as near both). While
+    // playing, the run starts again from it. As pages, the page with the bar shows (one tapped on the strip may be on another).
+    [JSInvokable]
+    public async Task Chose(int bar)
     {
-        if (BarOf(measureId) is not { } bar) return;
         if (playing)
         {
             await Restart(bar);
@@ -667,21 +673,41 @@ else
             var end = bar > last || bar > from && last - bar <= bar - from;
             if (end) loopTo = bar;
             StartAt(end ? from : bar);
-            return;
+        }
+        else
+        {
+            chosen = true;
+            StartAt(bar);
         }
 
-        chosen = true;
-        StartAt(bar);
+        if (view == View.Pages && sheet is not null && MeasureOf(bar) is { } id && await sheet.PageOf(id) is > 0 and var on && on != page)
+        {
+            page = on;
+            await SavePosition();
+        }
+        StateHasChanged();
     }
 
-    // The loop key: loops the bar the run starts at, which taps then stretch or trim; again, it takes the loop away.
-    private void ToggleLoop()
+    // A loop dragged out on the strip, or one of its ends dragged there or on the music: its first bar to its last.
+    [JSInvokable]
+    public void Looped(int first, int last)
     {
-        (explain, explained, options) = (false, null, false);
-        SetLoop(loopTo is null ? from : null);
+        if (playing) return;
+
+        loopTo = last;
+        StartAt(first);
+        StateHasChanged();
     }
 
-    // The piece's bars by their MEI ids, in order (the bars are numbered in order too), for taps on the sheet and its lit bars.
+    // The key on the chosen bar's tab: Loop loops that bar, which taps or a handle then stretch or trim; × takes the loop away.
+    [JSInvokable]
+    public void Loop(bool on)
+    {
+        SetLoop(on ? from : null);
+        StateHasChanged();
+    }
+
+    // The piece's bars by their MEI ids, in order (the bars are numbered in order too), for taps on the sheet and for bars.js.
     private List<string> MeasureIds()
     {
         meiDocument ??= mei is null ? null : XDocument.Parse(mei);
@@ -704,8 +730,6 @@ else
     private async Task Starting()
     {
         (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
-        litBars = null;
-        if (sheet is not null) await sheet.HighlightBars(null);
         if (view == View.Scroll) return;
 
         repainted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -961,6 +985,11 @@ else
             if (fullScreen && turns is not null) await turns.InvokeVoidAsync("fullScreen", false);
             if (keys is not null) await keys.InvokeVoidAsync("dispose");
             if (turns is not null) await turns.DisposeAsync();
+            if (bars is not null)
+            {
+                await bars.InvokeVoidAsync("forget", frame);
+                await bars.DisposeAsync();
+            }
         }
         catch (Exception e) when (e is JSDisconnectedException or JSException)
         {

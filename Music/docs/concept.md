@@ -146,7 +146,7 @@ a PDF plays out; this is what came of it.
   Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes until
   they're read (below), so it shows about where its collection sits.
 - **A piece** opens on its bar and its music. The bar ends with two keys: **Options**, which shows the piece's options in
-  place of the music (the view, the hands, play along, where to start, a loop; a PDF's tempo and bars) until it's pressed again,
+  place of the music (the view, the hands, play along, where to start; a PDF's tempo and bars) until it's pressed again,
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
   same key, or leaving the piece, brings everything back. Between runs a piece fits the screen, only its music scrolling, with
   About this piece under it; while a run plays About goes and the music has that space too. A notation piece shows whole in
@@ -155,16 +155,21 @@ a PDF plays out; this is what came of it.
   (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. A tap
   on the music never turns: it's for the bars.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
-  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it (it's lit, the first bar
-  too; a scroll is never a tap). On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
+  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it: it's lit and outlined
+  (the first bar too; a scroll is never a tap), with a tab over it saying where the run starts, and **Loop**. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
   keys over the run's controls, Play at the end. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
-  with it; a note played twice keeps the mark of the latest time. **Loop** plays bars again and again until you stop: the loop
-  key on the bar loops the bar you start at, then a tap past either end stretches the loop to that bar and a tap inside trims
-  its nearer end, the loop's bars lit; the key again ends it (it's in Options too). While a run plays, tapping a bar starts it again from there, and **‹ Bar** goes back a bar (in
-  a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  with it; a note played twice keeps the mark of the latest time. Loop plays bars again and again until you stop: on the tab
+  it loops that bar, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or
+  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. **The
+  strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
+  for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
+  then drag its slim handles. Beside music that scrolls, **the thumb** drags through it: its rail marks each line's first bar,
+  the start and the loop, and while it's held the bar at the top of the view is named and outlined, the start staying where
+  it was. Full screen hides the strip and the thumb. While a run plays, tapping a bar, on the music or the strip, starts it
+  again from there, and **‹ Bar** goes back a bar (in a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
