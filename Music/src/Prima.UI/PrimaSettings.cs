@@ -58,4 +58,12 @@ public sealed class PrimaSettings
 
     /// <summary>Whether the first run's welcome is done.</summary>
     public bool Welcomed { get; set; }
+
+    /// <summary>How hard you strike a key soft and loud (velocity), measured in Keyboard check; dynamics are judged across it.</summary>
+    public int? SoftVelocity { get; set; }
+
+    public int? LoudVelocity { get; set; }
+
+    /// <summary>Whether a run's summary opens its bars, as it was left last time.</summary>
+    public bool BarMapOpen { get; set; }
 }

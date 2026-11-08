@@ -1884,6 +1884,572 @@ a.mu-btn {
     line-height: 23px;
 }
 
+/* A run's summary (In time): three panels (the notes, the timing, how long notes were held), a line on expression where the
+   music marks it, and the bars, folded into a strip that opens into a map, bar by bar. Its charts use two colours a look,
+   what went right and what fell short, told apart in colour blindness and in lightness too, with a fill (solid, hatched,
+   hollow) and a label for each kind. */
+:root, [data-theme="studio"] {
+    --chart-good: #ffb547;
+    --chart-bad: #ff5a36;
+    --chart-off: #3a3229;
+    --chart-band: rgba(255, 181, 71, 0.13);
+    --chart-r: 2px;
+    --sum-big: 700 50px/54px var(--font-mono);
+    --sum-words: 400 13px/19px var(--font-mono);
+    --sum-small: 400 12px/16px var(--font-mono);
+    --sum-tiny: 700 10.5px/14px var(--font-mono);
+}
+
+[data-theme="vinyl"] {
+    --chart-good: #f1e4c8;
+    --chart-bad: #f08458;
+    --chart-off: #2f6162;
+    --chart-band: rgba(241, 228, 200, 0.09);
+    --chart-r: 0;
+    --sum-big: 400 76px/68px var(--font-bebas);
+    --sum-words: 500 14px/20px var(--font-sans);
+    --sum-small: 500 13px/18px var(--font-sans);
+    --sum-tiny: 600 11px/14px var(--font-sans);
+}
+
+.sum {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sum-panels {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.sum-panel.mu-screen {
+    padding: 20px 22px;
+}
+
+.sum-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.sum-figure {
+    font: var(--sum-big);
+    font-variant-numeric: tabular-nums;
+}
+
+.sum .good {
+    background: var(--chart-good);
+}
+
+.sum .bad {
+    background: var(--chart-bad);
+}
+
+.sum .slip {
+    background: repeating-linear-gradient(135deg, var(--chart-bad) 0 2px, transparent 2px 6px);
+    box-shadow: inset 0 0 0 1.5px var(--chart-bad);
+}
+
+.sum .hollow {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--chart-bad);
+}
+
+.sum-bar {
+    height: 14px;
+    display: flex;
+    gap: 2px;
+}
+
+.sum-bar.tall {
+    height: 28px;
+    gap: 3px;
+}
+
+.sum-bar > span {
+    min-width: 3px;
+    border-radius: var(--chart-r);
+}
+
+.sum-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font: var(--sum-small);
+}
+
+.sum-legend > span,
+.sum-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sum-key {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: var(--chart-r);
+}
+
+.sum .sum-key.band {
+    background: var(--chart-band);
+    box-shadow: inset 0 0 0 1px var(--on-screen-muted);
+}
+
+.sum-muted {
+    font: var(--sum-small);
+    color: var(--on-screen-muted);
+}
+
+.sum-histogram {
+    height: 104px;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+}
+
+.sum-histogram > div {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.sum-histogram > div > span {
+    border-radius: var(--chart-r) var(--chart-r) 0 0;
+}
+
+.sum .sum-histogram > .band {
+    background: var(--chart-band);
+}
+
+.sum-line {
+    width: 0;
+    margin: 0 3px;
+    border-left: 2px dashed var(--on-screen-muted);
+}
+
+.sum-axis {
+    display: flex;
+    justify-content: space-between;
+    font: var(--sum-small);
+    color: var(--on-screen-muted);
+}
+
+.sum-axis.held {
+    gap: 2px;
+}
+
+.sum-axis.held > span {
+    flex: 1 1 0;
+    text-align: center;
+}
+
+.sum-axis.held > i {
+    width: 8px;
+}
+
+.sum-said {
+    margin: auto 0 0;
+    font: var(--sum-words);
+    color: var(--on-screen);
+}
+
+.sum-expression.mu-screen {
+    padding: 12px 22px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 28px;
+}
+
+.sum-item {
+    gap: 8px;
+    font: var(--sum-words);
+}
+
+.sum-map.mu-screen {
+    padding: 16px 22px;
+    gap: 0;
+}
+
+.sum-toggle {
+    width: 100%;
+    margin: 0;
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sum-show {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: var(--sum-small);
+    color: var(--on-screen);
+}
+
+.sum-chevron {
+    transition: transform 260ms ease;
+}
+
+.sum-toggle[aria-expanded="true"] .sum-chevron {
+    transform: rotate(180deg);
+}
+
+.sum-tiny {
+    font: var(--sum-tiny);
+    color: var(--on-screen-muted);
+}
+
+.sum-strip {
+    display: grid;
+    grid-template-columns: 84px repeat(var(--bars), minmax(0, 1fr));
+    column-gap: 3px;
+    align-items: center;
+}
+
+.sum-cell-strip {
+    height: 12px;
+    border-radius: var(--chart-r);
+}
+
+.sum-cell-strip.picked {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Opening: the map slides open, and each bar's marks grow in a moment after the bar before. */
+.sum-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 380ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sum-body.open {
+    grid-template-rows: 1fr;
+}
+
+.sum-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 240ms ease;
+}
+
+.sum-body.open .sum-inner {
+    opacity: 1;
+    transition-delay: 80ms;
+}
+
+.sum-body .grow {
+    transform: scale(0);
+    transition: transform 260ms ease;
+}
+
+.sum-body .grow.up {
+    transform: scaleY(0);
+    transform-origin: bottom;
+}
+
+.sum-body .grow.down {
+    transform: scaleY(0);
+    transform-origin: top;
+}
+
+.sum-body .grow.across {
+    transform: scaleX(0);
+}
+
+.sum-body.open .grow {
+    transform: none;
+    transition-delay: var(--d, 0ms);
+}
+
+/* The map's lanes line up with the strip, bar for bar; a long piece scrolls sideways, its lanes' names staying put. */
+.sum-lanes {
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.sum-lane {
+    display: grid;
+    grid-template-columns: 84px repeat(var(--bars), minmax(26px, 1fr));
+    column-gap: 3px;
+}
+
+.sum-lane.rule {
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 12px;
+    margin-top: 6px;
+}
+
+.sum-rule {
+    align-self: center;
+    border-top: 1px dashed var(--staff-line);
+}
+
+.sum-label {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    background: var(--screen);
+}
+
+.sum-lane.loudness .sum-label {
+    justify-content: space-between;
+}
+
+/* The timing lane's name at its top; late and early either side of its middle line. */
+.sum-lane.timing .sum-label {
+    display: grid;
+    grid-template-rows: 1fr auto auto 1fr;
+    align-items: end;
+    justify-content: start;
+}
+
+.sum-lane.timing .sum-label > :first-child {
+    align-self: start;
+}
+
+.sum-lane.timing .sum-label > .late {
+    grid-row: 2;
+    margin-bottom: 4px;
+}
+
+.sum-cell {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+}
+
+.sum-cell.picked,
+.sum-number.picked {
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.sum-lane.notes .sum-cell {
+    height: 64px;
+    padding-bottom: 4px;
+    flex-direction: column-reverse;
+    gap: 3px;
+}
+
+.sum .dot {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 50%;
+}
+
+.sum-lane.timing .sum-cell {
+    height: 96px;
+    flex-direction: column;
+    align-items: stretch;
+    background-image: linear-gradient(to bottom, transparent calc(50% - 0.5px), var(--on-screen-muted) calc(50% - 0.5px), var(--on-screen-muted) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+        linear-gradient(to bottom, transparent calc(50% - 16px), var(--chart-band) calc(50% - 16px), var(--chart-band) calc(50% + 16px), transparent calc(50% + 16px));
+}
+
+.sum-lane.timing .half {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sum-lane.timing .half.up {
+    justify-content: flex-end;
+}
+
+.sum-lane.timing .half > span {
+    width: 60%;
+}
+
+.sum-lane.timing .half.up > span {
+    border-radius: var(--chart-r) var(--chart-r) 0 0;
+}
+
+.sum-lane.timing .half.down > span {
+    border-radius: 0 0 var(--chart-r) var(--chart-r);
+}
+
+.sum-lane.held .sum-cell {
+    height: 36px;
+    padding: 4px 0;
+    flex-direction: column-reverse;
+    gap: 3px;
+}
+
+.sum .dash {
+    width: 70%;
+    height: 4px;
+    flex: none;
+    border-radius: var(--chart-r);
+}
+
+.sum-lane.loudness .sum-cell {
+    height: 48px;
+    flex-direction: column-reverse;
+}
+
+.sum-lane.loudness .spacer {
+    flex: none;
+}
+
+.sum-lane.loudness .dot {
+    width: 8px;
+    height: 8px;
+    margin-bottom: -4px;
+}
+
+.sum-dynamic {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    font: italic 700 14px/14px Georgia, "Times New Roman", serif;
+    color: var(--on-screen);
+}
+
+/* Touch: a staccato as a dot, stretched when held long; tenuto a dash; an accent a wedge; a gap under a slur a broken dash. */
+.sum-lane.touch .sum-cell {
+    height: 26px;
+    justify-content: center;
+    gap: 3px;
+}
+
+.sum .mark {
+    height: 7px;
+    flex: none;
+    border-radius: 4px;
+}
+
+.sum .mark.staccato {
+    width: 6px;
+}
+
+.sum .mark.staccato.bad {
+    width: 11px;
+}
+
+.sum .mark.tenuto {
+    width: 12px;
+    height: 3px;
+}
+
+.sum .mark.tenuto.bad {
+    width: 7px;
+}
+
+.sum .mark.accent {
+    width: 9px;
+    height: 9px;
+    border-radius: 0;
+    clip-path: polygon(0 0, 100% 50%, 0 100%, 0 70%, 55% 50%, 0 30%);
+}
+
+.sum .mark.gap {
+    width: 13px;
+    height: 3px;
+    border-radius: 0;
+    background: linear-gradient(to right, var(--chart-bad) 0 38%, transparent 38% 62%, var(--chart-bad) 62%);
+}
+
+.sum-lane.pedal .sum-cell {
+    height: 20px;
+}
+
+.sum .span {
+    width: 100%;
+    height: 8px;
+    border-radius: var(--chart-r);
+}
+
+.sum-number {
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--chart-r);
+    background-color: transparent;
+    font: var(--sum-tiny);
+    color: var(--on-screen-muted);
+    cursor: pointer;
+}
+
+.sum-number.picked {
+    color: var(--accent);
+}
+
+.sum-detail {
+    margin-top: 6px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--staff-line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.sum-detail .sum-said {
+    margin: 0;
+}
+
+.sum-detail .mu-btn {
+    flex: none;
+    white-space: nowrap;
+}
+
+.sum-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+@media (max-width: 900px) {
+    :root, [data-theme="studio"] {
+        --sum-big: 700 38px/42px var(--font-mono);
+    }
+
+    [data-theme="vinyl"] {
+        --sum-big: 400 58px/54px var(--font-bebas);
+    }
+
+    .sum-panels {
+        gap: 12px;
+    }
+
+    .sum-panel.mu-screen {
+        padding: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sum-body,
+    .sum-inner,
+    .sum-body .grow,
+    .sum-chevron {
+        transition: none;
+    }
+}
+
 .timeline {
     margin: 0;
 }

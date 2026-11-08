@@ -36,11 +36,12 @@ public enum WrongKind
 }
 
 /// <summary>
-/// What happened to one written note: right (with its timing, and how long it was held as a share of its length when that's
-/// judged), wrong (and what was played: the wrong key, though the right one followed it at once), or missed.
+/// What happened to one written note: right (with its timing, how long it was held as a share of its length when that's judged,
+/// how hard it was struck, and its articulation as asked and as played), wrong (and what was played: the wrong key, though the
+/// right one followed it at once), or missed.
 /// </summary>
 public sealed record NoteResult(string Id, int Midi, int Bar, Outcome Outcome, double? ErrorMs = null, double? ErrorPercent = null, Band? Band = null, int? Played = null, WrongKind? Wrong = null,
-    double? HeldPercent = null, bool LetGoEarly = false, bool Corrected = false, int? Velocity = null, Touch? Touch = null);
+    double? HeldPercent = null, bool LetGoEarly = false, bool Corrected = false, int? Velocity = null, Touch? Touch = null, Articulation Asked = Articulation.None);
 
 /// <summary>
 /// A passage's result (plan, Scoring a passage). In-time accuracy is the headline: right notes not graded off, out of the notes in
@@ -274,7 +275,7 @@ public static class PassageScorer
                     : e.Articulation == Articulation.Tenuto && whole && writtenNs - held > Math.Max(0.1 * writtenNs, beatNs / 8) ? Touch.TenutoShort
                     : null;
                 return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Right, errors[i], percent, Grading.BandOf(percent),
-                    HeldPercent: judged ? held / writtenNs * 100 : null, LetGoEarly: judged && Grading.LetGoEarly(held, writtenNs, beatNs), Velocity: key.Velocity, Touch: touch);
+                    HeldPercent: judged ? held / writtenNs * 100 : null, LetGoEarly: judged && Grading.LetGoEarly(held, writtenNs, beatNs), Velocity: key.Velocity, Touch: touch, Asked: e.Articulation);
             }
             if (wrong.TryGetValue(i, out var pi))
             {

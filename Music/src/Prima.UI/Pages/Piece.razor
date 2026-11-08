@@ -208,7 +208,7 @@ else
         @if (outcome is not null)
         {
             <section class="summary" aria-label="How it went">
-                <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" />
+                <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" OnBar="StartAt" OnLoop="@(bars => { StartAt(bars.From); SetLoop(bars.To); })" />
             </section>
         }
 

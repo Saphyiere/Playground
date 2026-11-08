@@ -140,27 +140,15 @@
                 </div>
             </section>
         }
-        else if (stage == Stage.Summary && result is not null)
+        else if (stage == Stage.Summary && timed is not null && result is not null)
         {
             <section class="summary" aria-label="How it went">
-                <div class="mu-screen summary-figures">
-                    <div class="mu-readouts">
-                        <div class="mu-readout @(result.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
-                        <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@result.CorrectPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
-                        <div class="mu-readout"><span class="mu-readout-label">Kept going</span><span class="mu-readout-value">@(result.KeptGoing ? "Yes" : "No")</span></div>
-                        <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@Lean()</span></div>
-                        @if (result.HoldsJudged > 0)
-                        {
-                            <div class="mu-readout @(result.LetGoEarly > result.HoldsJudged * 0.1 ? "miss" : "")"><span class="mu-readout-label">Held</span><span class="mu-readout-value">@($"{(result.HoldsJudged - result.LetGoEarly) * 100.0 / result.HoldsJudged:0}%")</span></div>
-                        }
-                    </div>
-                </div>
-                <ul class="summary-words">
+                <PlaySummary Outcome="timed">
                     @foreach (var line in Words())
                     {
                         <li>@line</li>
                     }
-                </ul>
+                </PlaySummary>
                 @if (tapped is not null)
                 {
                     <p class="control-note">@tapped</p>
@@ -225,7 +213,10 @@
     // Hear first's listening run; the runs that are played go through the play bar.
     private PlaySession? session;
     private PlayAlong? play;
-    private PassageResult? result;
+    // The last In time run, and its result.
+    private PlayOutcome? timed;
+
+    private PassageResult? result => timed?.InTime;
     // A Wait for me run's outcome: practice for the notes, which doesn't move the level.
     private PlayOutcome? waited;
     private Sheet? sheet;
@@ -271,7 +262,7 @@
         ready = next;
         passage = next.Passage;
         (mei, measures, onsets) = (next.Mei, next.Measures, next.Onsets);
-        (result, waited, tapped, showTimeline) = (null, null, null, false);
+        (timed, waited, tapped, showTimeline) = (null, null, null, false);
     }
 
     // Today's passage with the most errors in one bar (the latest, on a tie), made again from its seed, level and step, or from the
@@ -327,7 +318,7 @@
         {
             passage = spotPassage with { Score = score.Excerpt(from, to), Description = description };
             (mei, measures, onsets, ready) = (MeiWriter.Write(passage.Score, tempo), null, null, null);
-            (result, waited, tapped, showTimeline) = (null, null, null, false);
+            (timed, waited, tapped, showTimeline) = (null, null, null, false);
         }
         BeginLook();
     }
@@ -427,7 +418,7 @@
 
     private Task Starting()
     {
-        (result, waited, tapped, showTimeline) = (null, null, null, false);
+        (timed, waited, tapped, showTimeline) = (null, null, null, false);
         return Task.CompletedTask;
     }
 
@@ -443,7 +434,7 @@
             return;
         }
 
-        result = how.InTime;
+        timed = how;
         if (result is not null) await Save(how);
     }
 
@@ -556,7 +547,7 @@
     {
         StopRun();
         repeat = true;
-        (result, tapped, showTimeline) = (null, null, false);
+        (timed, tapped, showTimeline) = (null, null, false);
         BeginLook();
     }
 
@@ -590,23 +581,14 @@
         };
     }
 
-    private string Lean() => result is null ? "–" : Math.Abs(result.LeanMs) < 5 ? "Even" : $"{Math.Abs(result.LeanMs):0} ms {(result.LeanMs < 0 ? "early" : "late")}";
 
+    // Sight-read's own lines under the summary: where an excerpt is from, keeping going, and the bar with the most to fix.
     private IEnumerable<string> Words()
     {
         if (result is null || passage is null) yield break;
 
-        var key = passage.Score.Key;
         if (ready?.Piece is { } from) yield return $"From {from.Title}{(from.Composer is { Length: > 0 } c ? $" by {c}" : "")}{(from.Tier == "B" && from.Credit is { } credit ? $". {credit}" : "")}.";
-        if (result.Clean && result.Off == 0) yield return "Every note right, and you kept going.";
-        foreach (var wrong in result.Notes.Where(n => n.Outcome == Outcome.Wrong).Take(4)) yield return $"Bar {wrong.Bar}: played {key.Spell(wrong.Played ?? 0)} for {key.Spell(wrong.Midi)}{(wrong.Wrong == WrongKind.LostOnKeyboard ? ", a key or two away: lost on the keyboard" : wrong.Wrong == WrongKind.Octave ? ", an octave away" : "")}{(wrong.Corrected ? ", then put right (a slip still counts)" : "")}.";
-        if (result.Missed > 0) yield return $"{result.Missed} {(result.Missed == 1 ? "note" : "notes")} not played.";
-        if (result.Extra > 0) yield return $"{result.Extra} extra {(result.Extra == 1 ? "note" : "notes")}.";
-        if (result.Audible + result.Off > 0) yield return $"{result.Off} off the beat and {result.Audible} just audibly early or late, after your lean.";
-        var early = result.Notes.Where(n => n.LetGoEarly).Select(n => n.Bar).Distinct().Order().ToList();
-        if (early.Count > 0) yield return $"{result.LetGoEarly} {(result.LetGoEarly == 1 ? "note was" : "notes were")} let go early, held under four-fifths of {(result.LetGoEarly == 1 ? "its" : "their")} length: bar{(early.Count == 1 ? "" : "s")} {string.Join(", ", early)}.";
         if (!result.KeptGoing) yield return "You stopped for more than a bar. Next time keep the beat going, even past a wrong note.";
-        if (Math.Abs(result.LeanPercent) >= 5) yield return $"You leaned {Math.Abs(result.LeanMs):0} ms {(result.LeanMs < 0 ? "early" : "late")}, measured from your timing calibration.";
         if (result.WorstBar is { } bar && !result.Clean && passage.Score.Bars.Count(b => b.Number > 0) > 1) yield return $"Bar {bar} had the most to fix.";
     }
 

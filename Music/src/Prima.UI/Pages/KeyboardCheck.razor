@@ -3,6 +3,7 @@
 @inject IKeyboard Keyboard
 @inject IClock Clock
 @inject PrimaSettings Settings
+@inject PrimaStore Store
 
 <PageTitle>Keyboard check · Prima</PageTitle>
 
@@ -49,6 +50,11 @@
             <h2 id="touch" class="section-title">Touch</h2>
             <p class="section-note">@TouchText()</p>
         </section>
+        <section class="check-block" aria-labelledby="range">
+            <h2 id="range" class="section-title">Your soft and loud</h2>
+            <p class="section-note">@RangeText()</p>
+            <button type="button" class="mu-btn" @onclick="Measure">@(measuring is not null ? "Stop" : Settings.SoftVelocity is null ? "Measure" : "Measure again")</button>
+        </section>
         <section class="check-block" aria-labelledby="jitter">
             <h2 id="jitter" class="section-title">The MIDI path's jitter</h2>
             <p class="section-note">@JitterText()</p>
@@ -72,6 +78,11 @@
     private readonly Dictionary<int, int> pedals = [];
     private bool lowest;
     private bool highest;
+    // Measuring your soft and loud: "soft", then "loud", four notes each; and what a try that couldn't be used said.
+    private string? measuring;
+    private readonly List<int> softs = [];
+    private readonly List<int> louds = [];
+    private string? tried;
     private long lastNoteNs;
     private Timer? refresh;
 
@@ -84,9 +95,30 @@
     }
 
     // The piano's messages come on their own thread: the lists change on the screen's, between drawings, never during one.
-    private void OnReceived(MidiEvent e) => _ = InvokeAsync(() =>
+    private void OnReceived(MidiEvent e) => _ = InvokeAsync(async () =>
     {
         if (e.Kind == MidiKind.Control) pedals[e.Data1] = e.Data2;
+        if (e.Kind == MidiKind.NoteOn && measuring == "soft")
+        {
+            softs.Add(e.Velocity);
+            if (softs.Count == 4) measuring = "loud";
+        }
+        else if (e.Kind == MidiKind.NoteOn && measuring == "loud")
+        {
+            louds.Add(e.Velocity);
+            if (louds.Count == 4)
+            {
+                // Each the middle of its four; too close together, they can't tell p from f.
+                var (soft, loud) = ((int)Stats.Median([.. softs.Select(v => (double)v)]), (int)Stats.Median([.. louds.Select(v => (double)v)]));
+                measuring = null;
+                tried = loud - soft < 20 ? $"Soft came in at {soft} and loud at {loud}: too close together to tell p from f. Try again, softer and louder." : null;
+                if (tried is null)
+                {
+                    (Settings.SoftVelocity, Settings.LoudVelocity) = (soft, loud);
+                    await Store.SaveAsync(Settings);
+                }
+            }
+        }
         if (e.Kind == MidiKind.NoteOn)
         {
             notes.Insert(0, (e, lastNoteNs == 0 ? null : (e.TimeNs - lastNoteNs) / 1e6));
@@ -109,6 +141,22 @@
 
         var spread = Stats.StandardDeviation(velocities.Select(v => (double)v).ToArray());
         return $"Your last {velocities.Count}: {string.Join(" ", velocities)}. Spread ±{spread:0.0}.";
+    }
+
+    private string RangeText() => measuring switch
+    {
+        "soft" => $"Play four notes as softly as you can and still hear them: {softs.Count} of 4.",
+        "loud" => $"Now four as loudly as you'd play ff: {louds.Count} of 4.",
+        _ when tried is not null => tried,
+        _ when Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } => $"Soft {soft}, loud {loud}. Each dynamic is judged as a share of that: p in the soft part of your range, f in the loud part.",
+        _ => "Play a few notes as softly and then as loudly as you would, and p and f are judged against your own touch. Until then a usual range is used, 25 to 105.",
+    };
+
+    private void Measure()
+    {
+        (measuring, tried) = (measuring is null ? "soft" : null, null);
+        softs.Clear();
+        louds.Clear();
     }
 
     private string JitterText()

@@ -37,6 +37,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string LookKey = "Practice.LookSeconds";
     private const string LetterNamesKey = "Practice.LetterNames";
     private const string WelcomedKey = "Profile.Welcomed";
+    private const string SoftKey = "Touch.Soft";
+    private const string LoudKey = "Touch.Loud";
+    private const string BarMapKey = "Summary.BarMapOpen";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -75,6 +78,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.LookSeconds = (int?)Number(LookKey) ?? defaults.LookSeconds;
         settings.LetterNames = saved.GetValueOrDefault(LetterNamesKey) != "false";
         settings.Welcomed = saved.GetValueOrDefault(WelcomedKey) == "true";
+        settings.SoftVelocity = (int?)Number(SoftKey);
+        settings.LoudVelocity = (int?)Number(LoudKey);
+        settings.BarMapOpen = saved.GetValueOrDefault(BarMapKey) == "true";
     }
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
@@ -100,6 +106,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (LookKey, settings.LookSeconds.ToString(CultureInfo.InvariantCulture)),
             (LetterNamesKey, settings.LetterNames ? "true" : "false"),
             (WelcomedKey, settings.Welcomed ? "true" : "false"),
+            (SoftKey, settings.SoftVelocity?.ToString(CultureInfo.InvariantCulture)),
+            (LoudKey, settings.LoudVelocity?.ToString(CultureInfo.InvariantCulture)),
+            (BarMapKey, settings.BarMapOpen ? "true" : "false"),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)

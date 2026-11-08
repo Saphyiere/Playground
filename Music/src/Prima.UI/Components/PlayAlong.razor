@@ -291,7 +291,10 @@
         // Stopped early, only the notes due by then count.
         var due = stoppedNs is { } at ? music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= at).ToList() : music.Notes;
         var beatNs = 60e9 / Tempo;
-        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper);
+        // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
+        (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
+        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
+            Markings.Of(music.Score, due), range);
         if (result is not null && sheet is not null)
         {
             await sheet.ShowMarks(result.Notes.Select(n => n.Outcome switch

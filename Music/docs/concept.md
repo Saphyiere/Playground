@@ -102,8 +102,8 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 (the piano's C♯4). Sight-read, a Library piece, Scales, Arpeggios and Finger independence all play this way.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
-  marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, the lean, and how well
-  notes were held (see [How a passage is scored](#how-a-passage-is-scored)).
+  marked as it's played, and a summary after (see [The summary](#the-summary) and
+  [How a passage is scored](#how-a-passage-is-scored)).
 - **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played, in any order. A
   wrong key turns the note grey, named in grey, with a red head where the key is, named in red, and the cursor waits on; the
   note stays so once it's put right, so the slip shows where it was. A trill's, a mordent's or a turn's keys, and grace notes
@@ -204,7 +204,9 @@ to other patterns; for now they're built-in five-finger figures.
   the glossary, a note with its name and where it sits, with the way to its full entry.
 - **Metronome**, with a count-in and a click that can fade to silence.
 - **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
-  C8). No picture of a keyboard.
+  C8). **Your soft and loud**: four notes as softly as you can and still hear them, then four as loudly as you'd play *ff*; the
+  middle of each is your range, which loudness is judged across (a usual 25 to 105 until then; too close together to tell *p*
+  from *f*, it asks again). No picture of a keyboard.
 - **Timing**: play any key with the click for 16 beats. The delay is taken off every note from then on. It includes your own
   habit of playing a touch early, so the lean shown afterwards is measured from that day. The spread shown is mostly your own
   tapping, not the keyboard's noise.
@@ -241,11 +243,10 @@ asking. Nothing leaves the tablet unless you back it up.
    passed with nothing played. A slip stays: another key played before the right one marks the note wrong, and the right key a
    moment later leaves it so (it isn't held against the next note either). A chord's own key struck twice makes no mark, and a
    trill's, a mordent's or a turn's keys and grace notes aren't slips. These are judged note by note, before your lean is known.
-4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, the lean, how many notes
-   were held for their length, and the passage again with each note marked the same way, now from the whole take lined up and
-   your lean taken out, so a note can change from the mark it had while playing. A wrong note names what you played instead
-   (G4→A4) and shows it on the staff, and says when it was a slip put right. Notes let go early are listed by bar, not marked on
-   the staff, which is busy enough.
+4. **Summary.** After the last bar, [the summary](#the-summary), and the passage again with each note marked the same way, now
+   from the whole take lined up and your lean taken out, so a note can change from the mark it had while playing. A wrong note
+   names what you played instead (G4→A4) and shows it on the staff. Notes let go early and expression aren't marked on the
+   staff, which is busy enough: the summary has them, bar by bar.
 5. **Next.** The level and tempo adjust and the next passage comes up.
 
 ### How a passage is scored
@@ -270,6 +271,39 @@ asking. Nothing leaves the tablet unless you back it up.
   (and staccatissimo, spiccato and portato), the last note under a slur when it's a quarter or shorter (lifted to end the slur),
   ornamented notes, and a note still down when a run is stopped before its end. The summary's **Held** is the share of judged
   notes held; holds don't change in-time accuracy, clean, or the level. Wait for me doesn't judge them.
+- Expression, judged only where the music marks it, and apart from the notes and timing: it doesn't change in-time accuracy,
+  clean, or the level (our choice). The marks are the score's own: a generated passage's, or a piece's own file's (its slurs,
+  dynamics, crescendos, pedal and ornaments, read for this, apart from what the Library's grading and excerpt cuts read).
+  - **Staccato** held long: its key down more than about half the note (at least 0.12 s, at most 0.45 s). **Tenuto** let go
+    short: under nine tenths of it. Under a **slur**, a note let go more than about a tenth of a beat (60 ms at least) before
+    the next note breaks the line (staccato under a slur, portato, is detached by design). An **accent**, or a sforzando, struck
+    no harder than the notes within a beat of it, by 8 or more (velocity).
+  - **Loudness**: each dynamic's stretch at the middle of how hard its keys were struck, as a share of your soft-to-loud range,
+    against the share it's played in (*pp* to 25%, *p* 10 to 40%, *mp* 30 to 55%, *mf* 45 to 70%, *f* 60 to 90%, *ff* from 75%,
+    ours), and against the one before: marked louder or softer, it's played so by 5 or more. A crescendo or diminuendo: the line
+    through its notes rises or falls by 6 or more. A piano set to Fixed touch sends one velocity, so loudness isn't judged.
+  - **Pedal**, where it's marked: pressed by half a beat after its mark, down for most of the stretch, and up (or changed) by a
+    quarter of a beat after its release; down for over half a beat where none is marked is noted by bar.
+
+### The summary
+
+The same after every run to a tempo (Sight-read, a Library piece). Three panels, side by side:
+
+- **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
+  (solid) and missed (hollow), with extra keys.
+- **In time**: in-time accuracy and the lean, and every right note's timing after the lean in a strip from 20% of a beat early
+  to 20% late, the in-time band shaded.
+- **Held**: the share of judged notes held their length, and how long each was held, with the 80% line.
+
+Each says in a line what stands out (slips or misreadings; where you rushed; which bars you let go early in). Under them, where
+the music marks expression, a line says what wasn't as asked: a dynamic played nearer another, no change at the dynamics, a
+crescendo that didn't grow, staccato held long, gaps under slurs, accents no stronger, the pedal. Then **Bar by bar**: the bars
+as one strip, brighter where there was more to fix, which opens (and stays open next time if you leave it so) into a map of
+the bars, both times through a repeat together: wrong and missed notes, how early or late each bar ran, notes let go early,
+then loudness against each bar's dynamic, touch (staccato, tenuto, accents, slurs) and the pedal, each only where it's marked.
+Tap a bar's number to read it in words. On a piece, **Play from bar** starts the next run there, and **Loop bars** loops the
+four bars of the phrase with the most to fix. Each look draws it in its own two colours, what went right and what fell short,
+told apart by colour blindness and by lightness too, and with a fill and a word for each kind.
 
 ### Levels
 
@@ -290,6 +324,10 @@ difficulty, and what's added stays.
 | 10 | ABRSM 7 | Five | + 7/8, 7/4 | | 8va, wider range |
 | 11 | ABRSM 8 | All to five | + 12/8, 2/2 | Duplets | Three-note chords a hand, ornaments |
 | 12 | Beyond | All | Mixed | Free | Full textures |
+
+A passage prints what each level's exam table expects: *f* and *p* and staccato from level 3; *mf*, *mp*, slurs, hairpins and
+accents from 4; *pp* from 5; tenuto and pauses from 7; *ff* from 8; pedal from 9; ornaments from 11. Each is judged as
+expression where it's printed (above), apart from the level.
 
 Within a level the app aims for about 85% in time, judged over the last three passages, since one short passage is noisy.
 Over 90% raises the tempo, under 80% lowers it, and a passage you stopped in lowers it at once; if it still falls apart at
