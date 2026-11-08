@@ -15,6 +15,8 @@
     <ProjectReference Include="..\Prima.Core\Prima.Core.csproj" />
     <!-- For the way back and the settings store only: Prima has its own looks, so it doesn't load kit.css. -->
     <ProjectReference Include="..\..\..\Kit\Playground.Kit\Playground.Kit.csproj" />
+    <!-- Updates from the repo's GitHub releases: Settings › Updates shows the updater. -->
+    <ProjectReference Include="..\..\..\Kit\Playground.Updates\Playground.Updates.csproj" />
   </ItemGroup>
 
 </Project>

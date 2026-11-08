@@ -4150,6 +4150,54 @@ html[data-full] .piece .summary {
     letter-spacing: 0.04em;
 }
 
+/* Settings › Updates: the newest release, its name as a figure like this month's cost in Claude's section, and its changes as a
+   short list (Kit/Playground.Updates). */
+.update-release {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.update-head {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 12px;
+}
+
+.update-title {
+    font-family: var(--mu-figure);
+    font-size: 26px;
+    line-height: 30px;
+    font-weight: 700;
+}
+
+[data-theme="vinyl"] .update-title {
+    font-size: 38px;
+    line-height: 38px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.update-release > .mu-btn {
+    align-self: flex-start;
+    margin-top: 6px;
+}
+
+.update-changes {
+    max-width: 720px;
+    margin: 0;
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 15px;
+    line-height: 22px;
+}
+
 /* Reading a PDF's notes with Claude, in the music's place (Transcription/ReadNotes): what it will cost, each system's steps while
    it reads, then each system's print over the reading engraved, its doubtful bars tinted on both. A system's step is a lamp:
    waiting, working, done, in doubt or failed. */

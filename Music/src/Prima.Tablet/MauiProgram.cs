@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Playground.AI.Assist;
+using Playground.Updates;
 using Prima.UI;
 using Prima.UI.Host;
 using Prima.UI.Looks;
@@ -25,13 +26,19 @@ public static class MauiProgram
         // (/sdcard/Android/data/com.saphyiere.prima/files).
         builder.Services.AddSingleton<IAssistKeyStore, SecureKeyStore>();
         builder.Services.AddSingleton(new ClaudeKeyFile(Path.Combine(Android.App.Application.Context.GetExternalFilesDir(null)!.AbsolutePath, AssistKey.FileName)));
-        builder.Services.AddPrima(Path.Combine(FileSystem.AppDataDirectory, "prima.db"));
+        var database = Path.Combine(FileSystem.AppDataDirectory, "prima.db");
+        builder.Services.AddPrima(database);
+        // Updates from the repo's GitHub releases (prima-1.0.N, with prima.apk); a copy of the data goes to Download/Prima backups first.
+        builder.Services.AddAndroidUpdates(new UpdateOptions("prima", "prima.apk") { DataFiles = [database], BackupFolder = "Prima backups" });
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
         builder.Logging.AddDebug();
 #endif
 
-        return builder.Build();
+        var app = builder.Build();
+        // At most once in 20 hours; Settings › Updates shows what it found.
+        _ = app.Services.GetRequiredService<Updater>().CheckAsync();
+        return app;
     }
 }

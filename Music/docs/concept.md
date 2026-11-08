@@ -263,6 +263,12 @@ deletes the file. The key lives in the tablet's secure storage, never in Prima's
 Android's backups leave it out, so a restored tablet needs it pushed again. **This month** says what Claude has cost since the
 1st, piece by piece.
 
+**Updates:** new versions come from the repo's GitHub releases (Prima 1.0.N), through the Kit's shared updater. Prima checks at
+most once a day; Settings shows the version on the tablet (1.0 for a build from the PC), the newest release with its changes, and
+**Install**. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on
+the tablet (so Android keeps the data), copies the data file to Download/Prima backups, and hands it to Android, which asks to
+confirm. The first time, Android asks to let Prima install apps.
+
 Your data: **Back up** shares the data file through the tablet's share sheet (to Drive, or to the PC); **Restore** takes a backup
 back, after checking it's one of Prima's; **Start over** clears levels, notes, history and the streak but keeps the settings, after
 asking. Nothing leaves the tablet unless you back it up.

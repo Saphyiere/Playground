@@ -8,7 +8,10 @@
 @inject IClaude Claude
 @inject IAssistKeyStore Keys
 @inject ClaudeKeyFile KeyFile
+@inject Updater Updates
 @using Playground.AI.Assist
+@using Playground.Updates
+@implements IDisposable
 
 <PageTitle>Settings · Prima</PageTitle>
 
@@ -214,6 +217,42 @@
     }
 </section>
 
+<section class="settings-section" aria-labelledby="updates-heading">
+    <h2 id="updates-heading" class="section-title">Updates</h2>
+    <p class="section-note">New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a copy of it in Downloads first, in case.</p>
+    <div class="control-row">
+        <span class="control-label">This tablet</span>
+        <span class="key-figure">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
+        <button type="button" class="mu-btn" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@(Updates.Status.Step == UpdateStep.Checking ? "Checking…" : "Check")</button>
+    </div>
+    @if (Updates.Status is { Latest: { } newest, Step: UpdateStep.Available or UpdateStep.Downloading or UpdateStep.Installing or UpdateStep.Failed })
+    {
+        <div class="control-row control-row-top">
+            <span class="control-label">Newest</span>
+            <div class="update-release">
+                <p class="update-head"><span class="update-title">@newest.Title</span><span class="control-note">@newest.Published.ToLocalTime().ToString("d MMM", CultureInfo.InvariantCulture) · @Megabytes(newest.Size)</span></p>
+                @if (Changes(newest) is { Count: > 0 } changes)
+                {
+                    <ul class="update-changes">
+                        @foreach (var change in changes)
+                        {
+                            <li>@change</li>
+                        }
+                    </ul>
+                }
+                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@UpdateBusy" @onclick="InstallUpdate">@(Updates.Status.Step == UpdateStep.Downloading ? $"Downloading… {(int)(Updates.Status.Progress * 100)}%" : "Install")</button>
+            </div>
+        </div>
+    }
+    @if (Updates.Status.Message is { Length: > 0 } updateNote)
+    {
+        <div class="control-row">
+            <span class="control-label" aria-hidden="true"></span>
+            <p class="mu-status" data-state="@(Updates.Status.Step is UpdateStep.UpToDate or UpdateStep.Installing ? "live" : null)" role="status"><span class="mu-led"></span>@updateNote</p>
+        </div>
+    }
+</section>
+
 <section class="settings-section" aria-labelledby="data-heading">
     <h2 id="data-heading" class="section-title">Your data</h2>
     <p class="section-note">Everything is in one file on this tablet: settings, levels, notes and every attempt. Nothing leaves it unless you send it.</p>
@@ -251,6 +290,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // The updater's status is read straight from it, and the page redraws when it changes; it asks GitHub at most once in 20 hours.
+        Updates.Changed += Redraw;
+        _ = Updates.CheckAsync();
         (name, cue) = (Options.Name, Options.Cue);
         maskedKey = await Keys.GetAsync() is { } key ? AssistKey.Mask(key) : null;
         (keyNote, keyWorks) = KeyFile.Found switch
@@ -297,6 +339,30 @@
     }
 
     private static string Money(decimal value) => "$" + value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private bool UpdateBusy => Updates.Status.Step is UpdateStep.Checking or UpdateStep.Downloading or UpdateStep.Installing;
+
+    private void Redraw(UpdateStatus status) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Updates.Changed -= Redraw;
+
+    private async Task InstallUpdate()
+    {
+        // What's still to be written goes into the file first, so the copy kept in Downloads has all of it.
+        await Store.FlushAsync();
+        await Updates.InstallAsync();
+    }
+
+    /// <summary>A release's changes, from the list in its notes, without the app's name each starts with: five, and how many more.</summary>
+    private static List<string> Changes(Release release)
+    {
+        var lines = release.Notes.Split('\n').Select(l => l.Trim()).Where(l => l.StartsWith("- ", StringComparison.Ordinal))
+            .Select(l => l[2..].StartsWith("Prima: ", StringComparison.Ordinal) ? l["- Prima: ".Length..] : l[2..])
+            .Select(l => l.Length > 0 ? char.ToUpperInvariant(l[0]) + l[1..] : l).ToList();
+        return lines.Count <= 6 ? lines : [.. lines.Take(5), $"And {lines.Count - 5} more"];
+    }
+
+    private static string Megabytes(long bytes) => (bytes / 1_000_000.0).ToString("0", CultureInfo.InvariantCulture) + " MB";
 
     private Task SaveProfile() => Save(() => (Options.Name, Options.Cue) = (string.IsNullOrWhiteSpace(name) ? null : name.Trim(), string.IsNullOrWhiteSpace(cue) ? null : cue.Trim()));
 

@@ -36,6 +36,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Prima.UI\Prima.UI.csproj" />
+        <!-- Updates installed through Android's package installer; it brings its permission and receiver into the manifest. -->
+        <ProjectReference Include="..\..\..\Kit\Playground.Updates.Android\Playground.Updates.Android.csproj" />
     </ItemGroup>
 
     <!-- The Library's music (Music/library, kept in the repo), packed into the app: the prepared MEI, the PDFs and their MIDI. The

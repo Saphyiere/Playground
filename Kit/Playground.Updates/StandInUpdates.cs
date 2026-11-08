@@ -15,7 +15,16 @@ namespace Playground.Updates;
 /// </summary>
 public sealed class StandInUpdates(UpdateOptions options, string name) : HttpMessageHandler, IInstaller
 {
-    private static readonly byte[] App = Encoding.UTF8.GetBytes("Not an app: a preview's stand-in for one.");
+    // As big as a real release (Prima's is 53 MB), all zeros, sent in about three seconds so the download's progress shows.
+    private const long Size = 53_000_000;
+    private static readonly Lazy<string> Digest = new(() =>
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var block = new byte[1_000_000];
+        for (var i = 0; i < Size / block.Length; i++) hash.AppendData(block);
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    });
+
     private int newest;
     private string notes = "";
 
@@ -44,7 +53,7 @@ public sealed class StandInUpdates(UpdateOptions options, string name) : HttpMes
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (request.RequestUri!.Host != "api.github.com") return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(App) });
+        if (request.RequestUri!.Host != "api.github.com") return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new Zeros()) });
 
         var tag = $"{options.Tag}-1.0.{newest.ToString(CultureInfo.InvariantCulture)}";
         object[] releases = newest <= 0 ? [] :
@@ -62,14 +71,56 @@ public sealed class StandInUpdates(UpdateOptions options, string name) : HttpMes
                     new
                     {
                         name = options.Asset,
-                        size = App.Length,
+                        size = Size,
                         browser_download_url = $"https://github.com/{options.Repository}/releases/download/{tag}/{options.Asset}",
-                        digest = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(App)),
+                        digest = "sha256:" + Digest.Value,
                     },
                 },
             },
         ];
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(releases), Encoding.UTF8, "application/json") });
+    }
+
+    /// <summary>The release's file: <see cref="Size"/> zeros, a pause at each megabyte.</summary>
+    private sealed class Zeros : Stream
+    {
+        private long position;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => Size;
+
+        public override long Position { get => position; set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => Fill(buffer.AsSpan(offset, count));
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (position / 1_000_000 != (position + buffer.Length) / 1_000_000) await Task.Delay(50, cancellationToken);
+            return Fill(buffer.Span);
+        }
+
+        private int Fill(Span<byte> buffer)
+        {
+            var count = (int)Math.Min(buffer.Length, Size - position);
+            buffer[..count].Clear();
+            position += count;
+            return count;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }
 

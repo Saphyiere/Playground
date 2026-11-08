@@ -3,6 +3,7 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Playground.AI.Assist;
+using Playground.Updates;
 using System.Text.Json;
 using Prima.Core.Generation;
 using Prima.Core.Keyboard;
@@ -33,6 +34,8 @@ builder.Services.AddSingleton<ISystemBars, NoSystemBars>();
 builder.Services.AddSingleton<PreviewClaude>();
 builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
 builder.Services.AddPrima(dbPath);
+// Updates: GitHub and the tablet stood in for (Kit/Playground.Updates); /updates/{scenario} sets what's installed and what's out.
+builder.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk") { DataFiles = [dbPath], BackupFolder = "Prima backups" }, "Prima");
 
 var app = builder.Build();
 // An address no page has shows the app's own not-found page, as the tablet's router does.
@@ -163,6 +166,34 @@ app.MapGet("/claude/spend", async (PrimaStore store) =>
     return Results.Text("spent");
 });
 
+// What Settings › Updates shows: "ready" (1.0.7 installed, 1.0.9 out), "pc" (a build from the PC), "current" (1.0.9, the newest),
+// or "none" (no release yet). It checks again at once, as the Check button does.
+app.MapGet("/updates/{scenario}", async (string scenario, StandInUpdates standIn, Updater updates) =>
+{
+    const string notes = """
+        Changes since prima-1.0.7:
+
+        - Prima: choose where to play on the music itself, with a strip of every bar and a thumb to drag
+        - Prima: Read again takes what you see, trouble says what stopped it, and readings keep their marks
+        - Prima: notes under an 8va line are expected where they sound, so playing them right marks them right
+        - PDF to notation: reads fingering, slurs, dynamics, hairpins and pedal, and Read again takes a hint
+        - Prima: Settings › Claude, and the key kept in the tablet's secure storage
+        - Prima: a tap on a bar always takes, loops stretch by tapping, and About shows under the music
+        - Prima: read a PDF's notes with Claude, check them against the print, and keep them as notation
+
+        Built from e70ce42. Signed by the key with SHA-256 968f7e9ccea0277bb04bd467b9a2e87b7217a5a2e10bff76d5a0bff119cc7169.
+        """;
+    switch (scenario)
+    {
+        case "ready": standIn.Show("1.0.7", 9, notes); break;
+        case "pc": standIn.Show("1.0", 9, notes); break;
+        case "current": standIn.Show("1.0.9", 9, notes); break;
+        case "none": standIn.Show("1.0", 0); break;
+        default: return Results.Text("ready, pc, current or none");
+    }
+    await updates.CheckAsync(evenIfRecent: true);
+    return Results.Text($"{updates.Status.Step}: {updates.Status.Message}");
+});
 app.MapGet("/files/next", (string[] path, PreviewFiles files) =>
 {
     files.Next = [.. path.Where(File.Exists).Select(p => (Path.GetFileName(p), File.ReadAllBytes(p)))];
