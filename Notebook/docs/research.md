@@ -5,6 +5,10 @@ Excalidraw-style shapes while writing, full Excalidraw diagrams, and sync betwee
 covers what's out there, what can be reused and under what license, what has to be built, and in what order. Researched on
 8 November 2026, against Excalidraw's `master` at commit `701b901` (5 November 2026). Nothing is built yet.
 
+> **Since then:** the owner has narrowed the first build to the canvas alone: a blank, pen-first canvas like excalidraw.com's,
+> with no sync, recognition, notebooks or templates yet. That research is in [canvas.md](canvas.md). This document stays as
+> the wider picture, for later.
+
 > **Personal project.** Notebook is built for the owner's own devices. It isn't published to an app store or offered to anyone
 > else, and it isn't affiliated with or endorsed by Excalidraw, Noteshelf, GoodNotes, StarNote, Lenovo or Google. Excalidraw is
 > a trademark of Excalidraw s.r.o.; the diagram editor inside the app is the open-source Excalidraw package, used under its MIT
