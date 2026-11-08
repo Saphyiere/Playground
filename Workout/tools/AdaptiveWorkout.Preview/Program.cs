@@ -262,6 +262,13 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         return "lookback";
     }
 
+    // Rows stuck below Oct 9's 10, 10, 10 at 95 for four back days since, and a back day open with two sets of rows done.
+    if (scenario == "plateau")
+    {
+        foreach (var (month, day, reps) in new[] { (10, 16, 9), (10, 23, 8), (10, 30, 9), (11, 6, 9) })
+            await Session(back.Id, At(month, day, 18), true, (rows, 95, 10, null, false), (rows, 95, 10, null, false), (rows, 95, reps, null, false));
+    }
+
     if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
@@ -278,6 +285,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         case "auto-last": await Done(curls, 30, 12, 300); await Done(skulls, 40, 12, 40); break;     // last exercise, no count: offer "finish"
         case "done": await Done(squat, 135, 8, 600); await Done(squat, 135, 8, 300); await Done(squat, 140, 8, 40); break; // plan complete
         case "long": await Done(rows, 100, 10, 1500); await Done(rows, 100, 10, 725); break; // a 12-minute rest
+        case "plateau": await Done(rows, 95, 10, 300); await Done(rows, 95, 10, 48); break;
         case "track": await Done(walk, null, 0, 300); await Done(walk, null, 0, 40); break;
         default: await Done(rows, 100, 10, 600); await Done(rows, 100, 10, 400); await Done(rows, 100, 10, 48); break;
     }

@@ -6,6 +6,7 @@ namespace AdaptiveWorkout.UI.Workouts;
 public sealed class WorkoutState
 {
     private readonly Dictionary<long, IReadOnlyList<PastSession>> historyCache = [];
+    private readonly Dictionary<long, Plateau?> plateauCache = [];
     private Dictionary<long, int> setsLastTime = [];
 
     public required WorkoutSession Session { get; init; }
@@ -24,6 +25,9 @@ public sealed class WorkoutState
 
     public required IReadOnlyList<WorkoutSet> PastSets { get; init; }
     public required double HitGoalStep { get; init; }
+
+    /// <summary>The latest weigh-in, in pounds, for comparing bodyweight exercises over time; null without one.</summary>
+    public double? BodyPounds { get; init; }
 
     /// <summary>The trainer's applied plans for exercises' next times, by exercise; each counts only for the time after the workout it looked back at.</summary>
     public Dictionary<long, TrainerTarget> TrainerTargets { get; init; } = [];
@@ -115,6 +119,14 @@ public sealed class WorkoutState
     /// <summary>The trainer's plan for this time of an exercise: applied from the look back at the last time I did it; null otherwise.</summary>
     public TrainerTarget? TrainerFor(long exerciseId) =>
         TrainerTargets.TryGetValue(exerciseId, out var target) && History(exerciseId).FirstOrDefault()?.Session.Id == target.SessionId ? target : null;
+
+    /// <summary>Whether an exercise had gone flat before today: no new best in its last 4 workouts or more (see <see cref="Plateaus"/>).</summary>
+    public Plateau? PlateauOf(long exerciseId)
+    {
+        if (!plateauCache.TryGetValue(exerciseId, out var plateau))
+            plateauCache[exerciseId] = plateau = Plateaus.Of(Exercises[exerciseId], ExerciseHistory.Recent(exerciseId, PastSessions, PastSets, Session.Id, int.MaxValue), BodyPounds);
+        return plateau;
+    }
 
     /// <summary>The last 3 sessions that had this exercise, newest first.</summary>
     public IReadOnlyList<PastSession> History(long exerciseId)

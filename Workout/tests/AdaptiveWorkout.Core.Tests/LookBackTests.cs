@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AdaptiveWorkout.Core;
 using AdaptiveWorkout.Core.Assist;
 using Playground.AI.Assist;
@@ -160,6 +161,46 @@ public class LookBackTests
 
         Assert.Equal(new LookBackBody(212.4, WeightUnit.Pounds, 1800, 2450), input.Body);
         Assert.Equal(("Back day", new DateOnly(2026, 11, 8), 5.0), (input.Workout.Name, input.Workout.Date, input.HitGoalStep));
+    }
+
+    [Fact]
+    public void For_CarriesRepsLeft_AndHowFarHeartRateFellInTheMinuteAfter()
+    {
+        var today = Workout(9, Today, new Done(Rows, 100, 10, 40, 120), new Done(Rows, 100, 10, 40, 0));
+        today.Sets[0].RepsLeft = 2;
+        var samples = Ramp(Today.AddSeconds(30), Today.AddSeconds(50), 140, 150).Append(new HeartRateSample { At = Today.AddSeconds(100), Bpm = 118 });
+
+        var sets = Input(today, samples: samples).Workout.Sets;
+
+        Assert.Equal([2, null], sets.Select(s => s.RepsLeft));
+        Assert.Equal([32, null], sets.Select(s => s.BpmDropFirstMinute));
+    }
+
+    [Fact]
+    public void For_SaysWhenAnExerciseHasGoneFlat_CountingToday()
+    {
+        var before = new[] { 105.0, 100, 100, 100 }.Select((w, i) => Workout(i + 1, Today.AddDays(-7 * (4 - i)), new Done(Rows, w, 10), new Done(Rows, w, 10), new Done(Rows, w, 10))).ToList();
+
+        var flat = Input(Workout(9, Today, new Done(Rows, 100, 10), new Done(Rows, 100, 10), new Done(Rows, 100, 10)), before).Exercises.Single();
+        var moving = Input(Workout(9, Today, new Done(Rows, 110, 10), new Done(Rows, 110, 10), new Done(Rows, 110, 10)), before).Exercises.Single();
+
+        Assert.Equal((4, "3 × 10 at 105 on 2026-10-11"), (flat.FlatWorkouts, flat.Best));
+        Assert.Equal((0, ""), (moving.FlatWorkouts, moving.Best));
+    }
+
+    [Fact]
+    public void Input_KeptBeforeVersion2_StillReads()
+    {
+        var input = Input(Workout(9, Today, new Done(Rows, 100, 10)));
+        var kept = JsonSerializer.SerializeToNode(input, AssistSchema.Json)!;
+        foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("repsLeft");
+        foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("bpmDropFirstMinute");
+        foreach (var exercise in kept["exercises"]!.AsArray()) { exercise!.AsObject().Remove("flatWorkouts"); exercise.AsObject().Remove("best"); }
+
+        var read = kept.Deserialize<LookBackInput>(AssistSchema.Json)!;
+
+        Assert.Equal(input.Workout.Sets[0] with { Flags = read.Workout.Sets[0].Flags }, read.Workout.Sets[0]);
+        Assert.Equal((0, ""), (read.Exercises[0].FlatWorkouts, read.Exercises[0].Best));
     }
 
     [Fact]

@@ -19,16 +19,22 @@ public sealed record LookBackWorkout(long Id, string Name, DateOnly Date, TimeOn
 /// One set as the app saw it. <paramref name="Number"/> counts the exercise's sets today; <paramref name="WithPrevious"/> marks a superset
 /// round's later exercises, started with the one before. Times and heart rate are null when the set was logged afterward or the watch had no
 /// readings: <paramref name="Seconds"/> is how long it ran, <paramref name="RestBeforeSeconds"/> the gap since the round before stopped.
+/// <paramref name="RepsLeft"/> is how many more reps it had in it, when the owner said (0 to 3, 3 meaning three or more), and
+/// <paramref name="BpmDropFirstMinute"/> how far heart rate fell in the minute after it stopped. Those two came with version 2, so a look
+/// back kept before reads without them.
 /// </summary>
 public sealed record LookBackSet(long Id, long ExerciseId, string Exercise, int Number, bool WithPrevious, double? Weight, WeightUnit Unit, int? Reps,
-    bool HitGoal, int? Seconds, int? RestBeforeSeconds, int? BpmAtStart, int? BpmAverage, int? BpmPeak, int? RestLowBpm, IReadOnlyList<SetFlag> Flags);
+    bool HitGoal, int? Seconds, int? RestBeforeSeconds, int? BpmAtStart, int? BpmAverage, int? BpmPeak, int? RestLowBpm, IReadOnlyList<SetFlag> Flags,
+    int? RepsLeft = null, int? BpmDropFirstMinute = null);
 
 /// <summary>
 /// An exercise done today: its planned sets (null: as many as last time), the rest countdown it had, what the last look back said for today
-/// (empty when none was used), and its last three times before today, newest first.
+/// (empty when none was used), and its last three times before today, newest first. When it's gone flat, counting today (see
+/// <see cref="Plateaus"/>), <paramref name="FlatWorkouts"/> is how many workouts since its best, and <paramref name="Best"/> that workout; 0
+/// and empty otherwise, and in a look back kept before version 2.
 /// </summary>
 public sealed record LookBackExercise(long Id, string Name, ExerciseMeasure Measure, int? PlannedSets, int RestCountdownSeconds, string TrainerSaid,
-    IReadOnlyList<LookBackLastTime> LastTimes);
+    IReadOnlyList<LookBackLastTime> LastTimes, int FlatWorkouts = 0, string Best = "");
 
 /// <summary>One earlier workout's sets of an exercise: compactly ("3 × 10 at 100"), whether a goal was hit, the weights used, and the usual rest.</summary>
 public sealed record LookBackLastTime(DateOnly Date, string Sets, bool HitGoal, IReadOnlyList<double> Weights, int? TypicalRestSeconds);
@@ -99,6 +105,7 @@ public static class LookBackFacts
         for (var r = 0; r < rounds.Count; r++)
         {
             var before = r > 0 ? rounds[r - 1] : null;
+            var nextStart = r + 1 < rounds.Count ? rounds[r + 1][0].StartedAt : null;
             DateTimeOffset? restFrom = before is not null && before.All(s => s.StoppedAt is not null) ? before.Max(s => s.StoppedAt) : null;
             var restTo = rounds[r][0].StartedAt;
             int? rest = restFrom is { } from && restTo is { } to && to >= from ? (int)Math.Round((to - from).TotalSeconds) : null;
@@ -124,13 +131,17 @@ public static class LookBackFacts
 
                 facts.Add(new LookBackSet(set.Id, set.ExerciseId, exercises[set.ExerciseId].Name, today.IndexOf(set) + 1, m > 0, set.Weight, set.WeightUnit,
                     set.Reps, set.HitGoal, seconds, rest, Bpm(readings, set.StartedAt), during?.Average, during?.Max,
-                    restFrom is { } low && restTo is { } high ? Lowest(readings, low, high) : null, flags));
+                    restFrom is { } low && restTo is { } high ? Lowest(readings, low, high) : null, flags,
+                    set.RepsLeft, set.StoppedAt is { } stopped ? HeartRateRecovery.FirstMinute(readings, stopped, nextStart) : null));
             }
         }
 
+        double? bodyPounds = context.WeighIn is { } weighIn ? WorkoutStats.Pounds(weighIn.Weight, weighIn.WeightUnit) : null;
         var lookBackExercises = exerciseIds.Select(id =>
         {
             var exercise = exercises[id];
+            var withToday = ExerciseHistory.Recent(id, [.. earlier, session], [.. earlierSets, .. ordered], 0, int.MaxValue);
+            var flat = Plateaus.Of(exercise, withToday, bodyPounds);
             var lastTime = history[id].FirstOrDefault();
             var said = context.Trainer.TryGetValue(id, out var target) && lastTime is not null && target.SessionId == lastTime.Session.Id
                 ? $"{target.Sets} × {target.Reps} at {Weight(target.Weight, target.Unit)}, rest {TimeText.Format(TimeSpan.FromSeconds(target.RestSeconds))}"
@@ -139,7 +150,8 @@ public static class LookBackFacts
                 SetSummary.Format(p.Sets, exercise.Measure), p.Sets.Any(s => s.HitGoal), [.. p.Sets.Where(s => s.Weight is not null).Select(s => s.Weight!.Value).Distinct()],
                 Rest.Typical([.. setsBySession[p.Session.Id]], id) is { } typical ? (int)typical.TotalSeconds : null)).ToList();
             return new LookBackExercise(id, exercise.Name, exercise.Measure, PlannedSets(plan, id), context.RestTargets.GetValueOrDefault(id, (int)Rest.Default.TotalSeconds),
-                said, lastTimes);
+                said, lastTimes, flat?.Workouts ?? 0,
+                flat is null ? "" : $"{SetSummary.Format(flat.Best.Sets, exercise.Measure)} on {DateOnly.FromDateTime(flat.Best.Session.StartedAt.DateTime):yyyy-MM-dd}");
         }).ToList();
 
         var (workoutFrom, workoutTo) = Calories.WorkoutTime(session, ordered);

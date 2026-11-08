@@ -106,7 +106,7 @@ else
     private string FinishText => State.CoolDownNext ? "Start cool-down" : "Finish workout";
 
     // What an exercise's next set starts with, to have the weights ready: "120 lb × 10", marked when it went up for a hit goal or came
-    // from the plan of the last look back.
+    // from the plan of the last look back, and when the exercise has gone flat.
     // Nothing for a time exercise, or with nothing to go on.
     private RenderFragment Ready(long exerciseId)
     {
@@ -122,6 +122,10 @@ else
             else if (values.FromTrainer)
             {
                 <span class="pen-note">From Claude's look back</span>
+            }
+            @if (State.PlateauOf(exerciseId) is { } flat)
+            {
+                <span class="pen-note">Flat for @flat.Workouts workouts</span>
             }
         </p>;
     }

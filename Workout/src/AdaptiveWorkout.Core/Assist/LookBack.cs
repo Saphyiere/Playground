@@ -53,7 +53,8 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
 {
     public override string Name => "workout.look-back";
 
-    public override int Version => 1;
+    // 2: reps left, the first minute's heart rate fall, and plateaus.
+    public override int Version => 2;
 
     // The owner waits on the screen for it, and judging a workout's sets doesn't need the deepest thinking.
     public override EffortLevel Effort => EffortLevel.Medium;
@@ -69,11 +70,14 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
           negative for assistance: -40 is 40 of help), unit, reps and hitGoal (the owner ticked Hit goal on it). Times come from the
           app: seconds, how long the set ran; restBeforeSeconds, from the round before stopping to this one starting; withPrevious
           marks a superset's later exercises, started together with the one before. Heart rate comes from the watch on their wrist:
-          bpmAtStart, bpmAverage and bpmPeak for the set, restLowBpm for the rest before it. Any of these is null when the set was
-          logged afterward or the watch had no readings.
+          bpmAtStart, bpmAverage and bpmPeak for the set, restLowBpm for the rest before it, and bpmDropFirstMinute, how far it fell
+          in the minute after the set stopped. Any of these is null when the set was logged afterward or the watch had no readings.
+          repsLeft, when the owner said it, is how many more reps the set had in it: 0 to 3, where 3 means three or more.
         - flags: what the app found odd about a set, with what it saw: longSet, shortRest, effortDuringRest, oddNumber, goalBox.
         - exercises: each exercise done today, with plannedSets (null: as many as last time), the rest countdown it had, what the
-          last look back said for today (trainerSaid; empty when it wasn't used), and its last three times before today.
+          last look back said for today (trainerSaid; empty when it wasn't used), and its last three times before today. When it has
+          gone flat, counting today, flatWorkouts is how many workouts since its best without beating it, and best is that workout;
+          0 and empty otherwise.
         - hitGoalStep: how much a weight moves, in the set's unit. body: the latest weigh-in, and the daily calorie goal against
           maintenance; a goal under maintenance means they're eating less to lose weight.
 
@@ -87,11 +91,21 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
         - While they eat below maintenance, progress can be slow; a flat day isn't a failure, and it isn't a reason to go down.
         - Where today followed trainerSaid, judge today against it.
 
+        Reps left: people tend to guess about one rep low, and guess better close to failure, so read it across an exercise's sets,
+        never from one. Every set at its reps with 3 or more left means the weight is light for them: two steps if that stays within
+        a tenth of the weight, else one step, or more reps. Reps hit with 0 left on the last set: one step is right. Reps missed with
+        2 or more left was effort, not strength: the same weight, and say to push closer to the last rep.
+
+        A flat exercise (flatWorkouts 4 or more): say so, and try in this order: chasing reps at the same weight; a step back for a
+        week, then building again; or a different rep range for a few weeks, 8s or 12s. Never a week off, and never a swap. While
+        they eat below maintenance, say a flat stretch is expected then.
+
         Rest, for each exercise's next time: start from the countdown it had. Make it longer, up to 3 or 4 minutes for big lifts
         like squats, presses and rows, when reps dropped from set to set at the same weight; shorter, down to about 90 seconds,
         when reps held easily. Heart rate is a side note: a wrist watch reads it poorly while lifting, so weigh it with the reps,
         never on its own. A set started at a much higher heart rate than the others, whose reps then dropped, is a reason for more
-        rest. A low heart rate isn't a reason to go heavier.
+        rest. A low heart rate isn't a reason to go heavier. How far it falls in a minute after a set says how they recover; it's
+        no rule either.
 
         Flags: decide what each flagged set probably was, and say so in setNotes. A long set, or effort during the rest, usually
         means a late or missed tap: its weight and reps still count, only its times don't (timeIgnored). An odd number is usually a

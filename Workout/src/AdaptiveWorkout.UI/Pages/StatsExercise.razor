@@ -19,6 +19,12 @@
 
         <TrendChart Points="trend" @bind-Picked="picked" NameOf="NameOf" Note="@note" Empty="Its trend starts the second time you do it." />
 
+        @* Gone flat: its best came 4 or more workouts ago, and none since beat it. *@
+        @if (plateau is { } flat)
+        {
+            <p class="pen-note">Flat since @flat.Best.Session.StartedAt.ToString(Theme.DayFormat, CultureInfo.CurrentCulture): @flat.Workouts workouts without a new best</p>
+        }
+
         @if (best is not null)
         {
             // Bodyweight sets all weigh the same, so the best of them has the most reps.
@@ -82,6 +88,7 @@
     private List<PastSession> done = [];
     private WorkoutSet? best;
     private DateTimeOffset bestOn;
+    private Plateau? plateau;
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 
@@ -100,8 +107,10 @@
         var (sessions, sets) = await Flow.LoadFinishedAsync();
         var exerciseSets = sets.Where(s => s.ExerciseId == Id).ToList();
         templateNames = (await Store.GetTemplatesAsync()).ToDictionary(t => t.Id, t => t.Name);
-        trend = Progress.Trend(sessions, exerciseSets, exercises, await Store.GetBodyWeightsAsync());
+        var bodyWeights = await Store.GetBodyWeightsAsync();
+        trend = Progress.Trend(sessions, exerciseSets, exercises, bodyWeights);
         done = [.. ExerciseHistory.Recent(Id, sessions, exerciseSets, 0, sessions.Count)];
+        plateau = Plateaus.Of(exercise, done, bodyWeights.MaxBy(w => w.At) is { } weighIn ? WorkoutStats.Pounds(weighIn.Weight, weighIn.WeightUnit) : null);
 
         // The heaviest set, in pounds whatever each set's unit, with the most reps at that weight; or the longest.
         best = exercise.Measure == ExerciseMeasure.Time ? exerciseSets.MaxBy(s => s.DurationSeconds ?? 0)

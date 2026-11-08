@@ -78,23 +78,28 @@ public static class Progress
             if (bodyweightExercise && bodyWeight is null && both.Any(s => s.Weight is not null)) continue;
 
             var body = bodyweightExercise ? bodyWeight ?? 1 : 0;
-            double? Score(IEnumerable<WorkoutSet> exerciseSets)
-            {
-                var scores = new List<double>();
-                foreach (var set in exerciseSets)
-                {
-                    var load = body + WorkoutStats.Pounds(set.Weight ?? 0, set.WeightUnit);
-                    if (exercise.Measure == ExerciseMeasure.Time && set.DurationSeconds is int seconds and > 0) scores.Add(seconds);
-                    else if (exercise.Measure == ExerciseMeasure.Weight && set.Reps is int reps and > 0 && load > 0) scores.Add(load * (1 + reps / 30.0));
-                }
-
-                return scores.Count == 0 ? null : scores.Average();
-            }
-
-            if (Score(now) is { } scoreNow && Score(last) is { } scoreThen) ratios.Add(scoreNow / scoreThen);
+            if (Score(now, exercise.Measure, body) is { } scoreNow && Score(last, exercise.Measure, body) is { } scoreThen) ratios.Add(scoreNow / scoreThen);
         }
 
         return (ratios.Count == 0 ? null : Math.Exp(ratios.Average(Math.Log)) - 1, ratios.Count);
+    }
+
+    /// <summary>
+    /// One workout's sets of an exercise as one number: for a weight exercise, its sets' average estimated one-rep max, weight × (1 +
+    /// reps / 30), where the weight counts <paramref name="body"/> too (the body's weight in pounds for a bodyweight or assisted
+    /// exercise, 0 otherwise); for a time exercise, its average set length. Null when no set counts.
+    /// </summary>
+    public static double? Score(IEnumerable<WorkoutSet> sets, ExerciseMeasure measure, double body)
+    {
+        var scores = new List<double>();
+        foreach (var set in sets)
+        {
+            var load = body + WorkoutStats.Pounds(set.Weight ?? 0, set.WeightUnit);
+            if (measure == ExerciseMeasure.Time && set.DurationSeconds is int seconds and > 0) scores.Add(seconds);
+            else if (measure == ExerciseMeasure.Weight && set.Reps is int reps and > 0 && load > 0) scores.Add(load * (1 + reps / 30.0));
+        }
+
+        return scores.Count == 0 ? null : scores.Average();
     }
 
     // What the body weighed for a workout, in pounds (see BodyWeight.Nearest). Empty without any weigh-in.

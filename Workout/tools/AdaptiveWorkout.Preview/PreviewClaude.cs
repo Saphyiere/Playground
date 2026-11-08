@@ -63,13 +63,15 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
             var rest = Math.Clamp((int)Math.Round((exercise.RestCountdownSeconds + (dropped ? 30 : 0)) / 15.0) * 15, 30, 300);
             var said = $"{string.Join(", ", reps)} at {Weight(weight)}";
             var (to, why) = weight is not double w ? (0d, reached ? $"{said}: two more reps" : $"{said}: the same again")
+                : exercise.FlatWorkouts >= Plateaus.After ? (w, $"Flat for {exercise.FlatWorkouts} workouts: chase reps at {Weight(w)}")
                 : reached ? (w + step, $"{said}: up a step")
                 : (w, dropped ? $"{said}: stay, and rest longer" : $"{said}: stay until it's 10s");
             var aim = weight is null && reached ? reps.Max() + 2 : 10;
             next.Add(new NextLift(exercise.Id, exercise.PlannedSets ?? sets.Count, aim, to, rest, why));
 
             var last = exercise.LastTimes.FirstOrDefault();
-            if (weight is double up && last?.Weights is [_, ..] before && up > before.Max()) highlights.Add($"{exercise.Name} went up to {Weight(up)} and held {string.Join(", ", reps)}.");
+            if (exercise.FlatWorkouts >= Plateaus.After) highlights.Add($"{exercise.Name} hasn't beaten {exercise.Best} in {exercise.FlatWorkouts} workouts: next time chases reps.");
+            else if (weight is double up && last?.Weights is [_, ..] before && up > before.Max()) highlights.Add($"{exercise.Name} went up to {Weight(up)} and held {string.Join(", ", reps)}.");
             else if (reached && weight is not null) highlights.Add($"{exercise.Name}: every set at 10, so it goes up a step next time.");
             else if (dropped) highlights.Add($"{exercise.Name} slipped from {reps[0]} to {reps[^1]} reps across its sets.");
         }

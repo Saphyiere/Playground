@@ -545,6 +545,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     private async Task<WorkoutState> CreateStateAsync(WorkoutSession session, List<WorkoutSet> sets, List<TemplateExercise> plan)
     {
         var template = session.TemplateId is long templateId ? await store.GetTemplateAsync(templateId) : null;
+        var weighIn = (await store.GetBodyWeightsSinceAsync(DateTimeOffset.Now.AddYears(-1), 1)).MaxBy(w => w.At);
         var state = new WorkoutState
         {
             Session = session,
@@ -555,6 +556,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
             PastSessions = pastSessions,
             PastSets = pastSets,
             HitGoalStep = settings.HitGoalStep,
+            BodyPounds = weighIn is null ? null : WorkoutStats.Pounds(weighIn.Weight, weighIn.WeightUnit),
             LoggedThrough = sets.Count == 0 ? 0 : sets[^1].Order,
             TrainerTargets = preferences.Where(p => p.Key.StartsWith("Trainer:", StringComparison.Ordinal))
                 .Select(p => (Id: long.TryParse(p.Key["Trainer:".Length..], CultureInfo.InvariantCulture, out var id) ? id : 0, Target: ReadTrainerTarget(p.Value)))

@@ -164,7 +164,7 @@ I can leave simple mode at any moment, like leaving full screen. **Advanced mode
 
    A superset's round runs both exercises at once, split side by side: each one's name with its own **Change**, one timer, and each one's last three times under it.
 2. **Stop** ends the set, and rest starts counting.
-3. **Break.** The rest timer, live heart rate with how far it's fallen since the set stopped (**Down 34 from 152**: from its peak around the stop; in Telemetry the stop is marked on the last minute's line), and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, and if I like, how many more reps I could have done (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear), each with its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`), with **Edit** to see today's sets one by one: tapping a set changes its numbers or Hit goal, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal), so the weights can be ready before the rest is up.
+3. **Break.** The rest timer, live heart rate with how far it's fallen since the set stopped (**Down 34 from 152**: from its peak around the stop; in Telemetry the stop is marked on the last minute's line), and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, and if I like, how many more reps I could have done (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear), each with its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`), with **Edit** to see today's sets one by one: tapping a set changes its numbers or Hit goal, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up.
 4. **Finish workout** is always reachable, in every state.
 
 The break screen reads **Rest 0:48**: the word big beside the timer, counting up. **Tapping the time** turns it into a countdown (and back); the choice sticks for later rests.
@@ -276,6 +276,18 @@ Until I choose a lead signal, one number stands for "better", so the Gym trend h
 - **The trend** is each exercise's change since its first time, averaged over every exercise compared so far. More workouts in a week don't inflate it: bench +10% and curls +10% is +10%.
 - **A trend of some workouts** (a routine's, a session's or an exercise's, on Stats) compares each of them only with the last of them that had each exercise, the other workouts left out. It's worked out from their sets when Stats opens, not stored.
 
+## Plateaus
+
+An exercise has gone flat when its best workout came 4 or more of its workouts ago and none since beat it. A workout's score is the
+same one the improvement uses (its sets' average estimated one-rep max, so heavier or more reps both count), and matching the best
+doesn't beat it. Bodyweight and assisted exercises count one body weight for every workout, the latest weigh-in's, so losing
+weight doesn't read as getting weaker.
+
+- On the rest screen, Next says **Flat for 4 workouts** in the pen.
+- An exercise's Stats page says **Flat since Fri, Oct 9: 4 workouts without a new best**.
+- Claude's look back is told, and tries in this order: chasing reps at the same weight; a step back for a week, then building
+  again; or a different rep range for a few weeks. Never a week off, and never a swap.
+
 ## Claude's look back
 
 After **Finish**, with a key on the phone and the look back on in Settings, the screen fades into a look back at the workout, by
@@ -297,10 +309,14 @@ Claude through the apps' shared [framework](../../Kit/Playground.AI.Assist/READM
 
 What Claude is sent, and what holds it to its answer:
 
-- **The workout as the app reads it,** and nothing else: each set's weight, reps and Hit goal, how long it ran, the rest before it,
-  and the heart rate at its start, through it and at its lowest in the rest before; each exercise's planned sets, rest countdown,
-  what the last look back said for today, and its last three times before this workout; the hit-goal step, my weigh-in before it,
-  and my calorie goal against maintenance. Never the raw heart-rate stream.
+- **The workout as the app reads it,** and nothing else: each set's weight, reps, Hit goal and what was left in the tank, how long
+  it ran, the rest before it, and the heart rate at its start, through it, at its lowest in the rest before, and how far it fell in
+  the minute after; each exercise's planned sets, rest countdown, what the last look back said for today, its last three times
+  before this workout, and whether it's gone flat (see *Plateaus*); the hit-goal step, my weigh-in before it, and my calorie goal
+  against maintenance. Never the raw heart-rate stream.
+- **What was left in the tank** is read across an exercise's sets, never from one, since people guess about a rep low: every set at
+  its reps with 3+ left means two steps up where that's within a tenth of the weight; 0 left on the last set, one step; reps
+  missed with 2+ left, the same weight and a push closer.
 - **What looks off, found by the app,** so Claude only judges it: a set over 3 minutes or 3 times its usual length (a late tap on
   Stop, or the walk to the next machine); a rest under 30 seconds or half its countdown; heart rate climbing by 15 through a rest
   and falling by 10 through the set after it (the set done before Start was tapped); a weight 2.5 times (or under 0.4 times) the
