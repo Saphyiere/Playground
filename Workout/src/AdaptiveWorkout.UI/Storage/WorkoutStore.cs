@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using AdaptiveWorkout.Core;
 using Dapper;
@@ -98,6 +99,17 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     private Task lane = Task.CompletedTask;
     private bool schemaReady;
 
+    // Dapper makes a row that's a value tuple with the tuple's constructors, found by reflection. A Release build trims away the
+    // ones no code calls directly (the 1-, 7- and 8-item ones, which a row of 8 or more columns is built from), and the query
+    // fails on the phone only: Today's week card stopped the whole app that way. These keep every one.
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,,,>))]
     static WorkoutStore()
     {
         // SQLite keeps dates as text; Dapper has to be told how to read them back.
