@@ -383,8 +383,24 @@ public class TranscriptionTests
 
         Assert.True(result.Ok);
         Assert.Equal("Read 2 bars from 2 systems. 1 bar to check.", result.Summary);
-        Assert.Equal(new Doubt(1, 2, 2, 1, "The top note is smudged."), Assert.Single(result.Doubts));
+        Assert.Equal(new Doubt(1, 2, 2, 1, "The top note is smudged.") { BarInSystem = 1 }, Assert.Single(result.Doubts));
         Assert.Equal(SystemStep.Doubtful, result.Systems[1].Step);
+    }
+
+    [Fact]
+    public async Task ReadAsync_ADoubtKeepsItsBarInItsSystem_WhileAnEarlierSystemIsMissing()
+    {
+        var claude = new ScriptedClaude
+        {
+            Read = r => r.Index == 2 ? Not<SystemReading>(AnswerKind.CheckFailed, "Claude's answer didn't pass the task's checks.") : Ok(Sys(r.First ? CBar : DBar)),
+            Compare = c => Ok(new SystemComparison([], c.Index == 3 ? [new ReadDoubt(1, 1, "The top note is smudged.")] : [])),
+        };
+        SystemImage[] images = [new(1, 1, Png(2400)), new(1, 2, Png(2400)), new(1, 3, Png(2400))];
+
+        var result = await new PdfToNotation(claude).ReadAsync(images, new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        // System 2's bar is missing, so system 3's first bar is bar 2 of what was read; it's still the first of its system.
+        Assert.Equal(new Doubt(1, 3, 2, 1, "The top note is smudged.") { BarInSystem = 1 }, Assert.Single(result.Doubts));
     }
 
     [Fact]
@@ -426,12 +442,13 @@ public class TranscriptionTests
         var first = await reader.ReadAsync(images, new FakeEngraver(), ct: TestContext.Current.CancellationToken);
 
         claude.Read = _ => Ok(Sys(Bar(1, [N(NoteValue.Whole, P(Step.F, 5))])));
-        var again = await reader.RereadAsync(first, images[1], new FakeEngraver(), hint: "Bar 1: the long note is F5, in the top space",
-            ct: TestContext.Current.CancellationToken);
+        var again = await reader.RereadAsync(first with { Took = TimeSpan.FromMinutes(4) }, images[1], new FakeEngraver(),
+            hint: "Bar 1: the long note is F5, in the top space", ct: TestContext.Current.CancellationToken);
 
         Assert.True(again.Ok);
         Assert.Equal(77, NotesOf(again.Score!, 2).Single().Tones[0].Pitch.Midi);
         Assert.Equal(first.Cost + 0.2m, again.Cost);
+        Assert.InRange(again.Took, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(5));
         Assert.Equal(new SystemToRead(1, 2, false, 4, 4, "Bar 1: the long note is F5, in the top space"), claude.Asked.Select(a => a.Input).OfType<SystemToRead>().Last());
         Assert.Equal("Bar 1: the long note is F5, in the top space", claude.Asked.Select(a => a.Input).OfType<SystemToCompare>().Last().Hint);
     }

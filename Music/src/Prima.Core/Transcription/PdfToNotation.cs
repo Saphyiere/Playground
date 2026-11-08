@@ -33,13 +33,21 @@ public sealed record SystemStatus(int Page, int Index, SystemStep Step, string N
 public sealed record ReadingProgress(IReadOnlyList<SystemStatus> Systems, decimal CostSoFar, TimeSpan Elapsed);
 
 /// <summary>A bar Claude still isn't sure of after comparing: where it is on the page and in the piece, its staff, and what's unclear.</summary>
-public sealed record Doubt(int Page, int System, int Bar, int Staff, string Note);
+public sealed record Doubt(int Page, int System, int Bar, int Staff, string Note)
+{
+    /// <summary>
+    /// The bar's place in its system, from 1. <see cref="Bar"/> numbers it in the piece as read so far, so it shifts while an
+    /// earlier system is missing; this doesn't.
+    /// </summary>
+    public int BarInSystem { get; init; }
+}
 
 /// <summary>
 /// A PDF read into notation. <see cref="Ok"/> when every system was read, some bars perhaps still in doubt. A system that
 /// couldn't be read is left out of the score and listed as failed, to read again. <see cref="Mei"/> is the notation to keep,
 /// for the Library's MEI import, with the marks read (fingering, slurs, dynamics, hairpins and pedal); the score has them as its
-/// file marks, as the kept piece will.
+/// file marks, as the kept piece will. <see cref="Cost"/> and <see cref="Took"/> add up over the first reading and every system
+/// read again since.
 /// </summary>
 public sealed record ReadingResult(bool Ok, string Summary, Score? Score, string Mei, IReadOnlyList<Doubt> Doubts, IReadOnlyList<SystemStatus> Systems,
     decimal Cost, TimeSpan Took)
@@ -84,7 +92,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
     {
         var images = systems.OrderBy(s => s.Page).ThenBy(s => s.Index).ToList();
         if (images.Count == 0) throw new ArgumentException("There are no systems to read.", nameof(systems));
-        var run = new Run([.. images.Select(s => new SystemStatus(s.Page, s.Index, SystemStep.Waiting, ""))], new SystemReading?[images.Count], 0, progress, time);
+        var run = new Run([.. images.Select(s => new SystemStatus(s.Page, s.Index, SystemStep.Waiting, ""))], new SystemReading?[images.Count], 0, TimeSpan.Zero, progress, time);
         run.Report();
         await ReadOneAsync(run, images[0], 0, 0, 0, "", engraver, ct);
         var meter = run.Readings[0]?.Bars[^1] is { } last ? (last.MeterCount, last.MeterUnit) : (0, 0);
@@ -105,7 +113,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         var at = previous.Systems.ToList().FindIndex(s => s.Page == system.Page && s.Index == system.Index);
         if (at < 0) throw new ArgumentException($"The result has no system {system.Index} on page {system.Page}.", nameof(system));
         var readings = previous.Readings.Count == previous.Systems.Count ? previous.Readings.ToArray() : new SystemReading?[previous.Systems.Count];
-        var run = new Run([.. previous.Systems], readings, previous.Cost, progress, time);
+        var run = new Run([.. previous.Systems], readings, previous.Cost, previous.Took, progress, time);
         var before = readings.Take(at).LastOrDefault(r => r is not null)?.Bars[^1];
         await ReadOneAsync(run, system, at, before?.MeterCount ?? 0, before?.MeterUnit ?? 0, hint, engraver, ct);
         return run.Finish(title);
@@ -164,10 +172,13 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
     }
 
     /// <summary>A reading's systems, where each has got to, and what it has cost, shared by the systems read at once.</summary>
-    private sealed class Run(SystemStatus[] statuses, SystemReading?[] readings, decimal cost, IProgress<ReadingProgress>? progress, TimeProvider time)
+    private sealed class Run(SystemStatus[] statuses, SystemReading?[] readings, decimal cost, TimeSpan took, IProgress<ReadingProgress>? progress, TimeProvider time)
     {
         private readonly Lock gate = new();
         private readonly long started = time.GetTimestamp();
+
+        /// <summary>The time taken so far: this run's, and that of the runs before it when it reads a system again.</summary>
+        private TimeSpan Took => took + time.GetElapsedTime(started);
 
         public SystemReading?[] Readings => readings;
 
@@ -177,7 +188,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
 
         public void Report()
         {
-            lock (gate) progress?.Report(new ReadingProgress([.. statuses], cost, time.GetElapsedTime(started)));
+            lock (gate) progress?.Report(new ReadingProgress([.. statuses], cost, Took));
         }
 
         public void Set(int at, SystemStep step, string note)
@@ -221,7 +232,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
                     for (var k = 0; k < read.Count; k++)
                     {
                         var status = statuses[read[k]];
-                        doubts.AddRange(readings[read[k]]!.Doubts.Select(d => new Doubt(status.Page, status.Index, firstBars[k] + d.Bar - 1, d.Staff, d.Note)));
+                        foreach (var d in readings[read[k]]!.Doubts) doubts.Add(new Doubt(status.Page, status.Index, firstBars[k] + d.Bar - 1, d.Staff, d.Note) { BarInSystem = d.Bar });
                     }
                 }
 
@@ -232,7 +243,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
                     ? $"{failed.Count} of {statuses.Length} systems couldn't be read. Page {failed[0].Page}, system {failed[0].Index}: {failed[0].Note}"
                     : $"Read {bars} bars from {statuses.Length} systems.{(doubtful switch { 0 => "", 1 => " 1 bar to check.", _ => $" {doubtful} bars to check." })}");
                 var ok = failed.Count == 0 && Stopped is null;
-                var result = new ReadingResult(ok, summary, score, mei, doubts, [.. statuses], cost, time.GetElapsedTime(started));
+                var result = new ReadingResult(ok, summary, score, mei, doubts, [.. statuses], cost, Took);
                 return result with { Readings = [.. readings], StoppedBy = StoppedBy };
             }
         }
