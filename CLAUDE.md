@@ -20,6 +20,8 @@ Java 21, Node 22, Python 3 with Pillow, and headless Chromium under `/opt/pw-bro
   `dotnet test --project Workout/tests/AdaptiveWorkout.Core.Tests`. The Kit's AI framework has its own:
   `dotnet test --project Kit/Playground.AI.Assist.Tests`.
 - All output goes to `artifacts/` at the root.
+- Prima's releases for the tablet come from `.github/workflows/prima-release.yml`, run from the repo's Actions tab: built, tested and
+  signed with the owner's PC key, so they install over the tablet's copy as updates (Music/README.md, Updates from GitHub).
 
 ## Asking Claude
 

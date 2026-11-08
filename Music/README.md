@@ -92,9 +92,46 @@ MusicXML on the PC first.
 3. Visual Studio: set **Prima.Tablet** as the startup project, pick the tablet in the device dropdown, and press F5.
    CLI: `dotnet build src/Prima.Tablet -t:Run`
 
-For the copy you use day to day, install **Release** (Ctrl+F5 with Release picked, or `dotnet build src/Prima.Tablet -t:Run -c
-Release`). It compiles the whole app ahead of time, so it opens quickly, and it installs over a Debug build without losing your
-data. Don't uninstall the app to fix a build problem: that deletes your practice history.
+**Back up before installing from Visual Studio** (Settings › Your data › Back up). A Release install from Visual Studio has
+wiped Prima's data before, and .NET's Android tooling has a known bug that can do it in Debug too
+([dotnet/android#9627](https://github.com/dotnet/android/issues/9627)). For the copy you use day to day, take a release from
+GitHub (below), or build Release and install it with `adb install -r`. That replaces the app and keeps its data, or stops with
+an error and changes nothing:
+
+```bash
+dotnet build src/Prima.Tablet -c Release
+```
+
+```bash
+adb install -r ../artifacts/bin/Prima.Tablet/release/com.saphyiere.prima-Signed.apk
+```
+
+Don't uninstall the app to fix a build problem: that deletes your practice history.
+
+## Updates from GitHub
+
+GitHub builds Prima, tests its logic, signs it with your PC's key and publishes it as a release, **Prima 1.0.N**, with the app
+as `prima.apk` ([the workflow](../.github/workflows/prima-release.yml)). Signed with the key Visual Studio signs with, a release
+installs over the copy on the tablet as an update and keeps its data, wherever that copy came from. The repo is public, so its
+releases are too; the app holds nothing secret (Claude's key is only ever on the tablet).
+
+**Once:** give GitHub that key. It's `%LOCALAPPDATA%\Xamarin\Mono for Android\debug.keystore` on the PC.
+
+1. Copy it as text, in PowerShell:
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:LOCALAPPDATA\Xamarin\Mono for Android\debug.keystore")) | Set-Clipboard
+   ```
+
+2. On GitHub, in the repo's **Settings › Secrets and variables › Actions**, add a **New repository secret** named
+   `PRIMA_KEYSTORE_BASE64` and paste it in. GitHub never shows it again, and only this repo's workflows can use it.
+
+**A release:** in the repo's **Actions** tab, **Prima release › Run workflow**, with a line on what's new if you like. It takes
+about 15 minutes, then it's on the repo's **Releases** page with the changes since the last one.
+
+**On the tablet:** open the release in the tablet's browser, download `prima.apk` and open it. Android asks once to let the
+browser install apps, then offers **Update**. An app signed with any other key can't install over Prima: Android refuses and
+changes nothing.
 
 ## Claude's key
 
