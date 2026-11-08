@@ -184,8 +184,9 @@ a PDF plays out; this is what came of it.
   engraving beside the print and corrects the bars that differ, leaving those it still can't be sure of in doubt. The bar shows
   the systems read, what's been spent, the time and about how long is left; **Cancel** stops at once, and what's been spent stays
   spent. Then each system's print over its reading, engraved at the same width: a bar in doubt is tinted on both, with Claude's
-  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60),
-  taking what you tell Claude you see there, in your own words, as something to check against the print.
+  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60,
+  about 2½ minutes, its cost and time added to the reading's), taking what you tell Claude you see there, in your own words, as
+  something to check against the print.
   The reading waits on the piece, to come back to, until it's kept or thrown away. A key that's turned down, used-up credit, the
   workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read, and says what to do (Settings for
   the key, the Claude Console for credit or the limit, or a few minutes' wait); the systems not read can be read again, and **Keep**
@@ -480,7 +481,8 @@ Everything lives in one SQLite file on the tablet.
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. Imported
   files, and a local collection's PDFs and MIDI, sit beside the data file.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
-  gave it, the doubts by bar, the MEI, the pages it covered, what it cost and how long it took, and when it was kept.
+  gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
+  (Read again's included), and when it was kept.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Streak**: the days practised and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no

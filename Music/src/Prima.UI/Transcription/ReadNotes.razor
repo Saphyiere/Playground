@@ -99,7 +99,10 @@ else
         <div class="mu-readout"><span class="mu-readout-label">Systems read</span><span class="mu-readout-value">@read of @statuses.Count</span></div>
         @if (stage == Stage.Reading)
         {
-            var left = Reader.Estimate(to - from + 1, statuses.Count).About - (progress?.Elapsed ?? TimeSpan.Zero);
+            // Reading again goes a system at a time, a round each; its time carries on from the reading's, so what's left counts from
+            // when it began.
+            var expected = rereading > 0 ? Reader.Estimate(1, 1).About * rereading : Reader.Estimate(to - from + 1, statuses.Count).About;
+            var left = expected - ((progress?.Elapsed ?? TimeSpan.Zero) - (result?.Took ?? TimeSpan.Zero));
             <div class="mu-readout"><span class="mu-readout-label">Spent</span><span class="mu-readout-value">@Money(progress?.CostSoFar ?? 0)</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Time</span><span class="mu-readout-value">@Minutes(progress?.Elapsed ?? TimeSpan.Zero)</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Left</span><span class="mu-readout-value">@(left.TotalMinutes >= 1 ? $"~{Math.Round(left.TotalMinutes)} min" : "<1 min")</span></div>
@@ -203,8 +206,10 @@ else
             {
                 var key = (status.Page, status.Index);
                 var reading = at < result.Readings.Count ? result.Readings[at] : null;
-                var doubts = result.Doubts.Where(d => d.Page == status.Page && d.System == status.Index).ToList();
                 var first = firstBars.GetValueOrDefault(key);
+                var here = result.Doubts.Where(d => d.Page == status.Page && d.System == status.Index);
+                // A draft saved before doubts knew their bar in their system has 0 there: its bar in the piece gives it.
+                var doubts = here.Select(d => d.BarInSystem > 0 ? d : d with { BarInSystem = d.Bar - first + 1 }).ToList();
                 <article class="pdfread-card" aria-label="@($"System {status.Index} of page {status.Page}: {Words(status).Title}")">
                     <div class="pdfread-pair">
                         <p class="pdfread-label"><span>Print · page @status.Page, system @status.Index</span><span>@(reading is null ? "" : !numbered ? $"{reading.Bars.Count} bars" : reading.Bars.Count == 1 ? $"Bar {first}" : $"Bars {first}–{first + reading.Bars.Count - 1}")</span></p>
@@ -214,9 +219,9 @@ else
                                 <img src="@cut.Url" alt="@($"System {status.Index} as printed")" />
                                 @foreach (var doubt in doubts)
                                 {
-                                    if (PrintBar(cut, reading, doubt.Bar - first + 1) is { } span)
+                                    if (PrintBar(cut, reading, doubt.BarInSystem) is { } span)
                                     {
-                                        <div class="pdfread-tint" style="@Tint(span, doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : doubt.Bar - first + 1)</span></div>
+                                        <div class="pdfread-tint" style="@Tint(span, doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : doubt.BarInSystem)</span></div>
                                     }
                                 }
                             </div>
@@ -228,10 +233,10 @@ else
                                 <img src="@engraved.Url" alt="@($"System {status.Index} as read, engraved")" />
                                 @foreach (var doubt in doubts)
                                 {
-                                    var local = doubt.Bar - first;
+                                    var local = doubt.BarInSystem - 1;
                                     if (local >= 0 && local < engraved.Bars.Length)
                                     {
-                                        <div class="pdfread-tint" style="@Tint((engraved.Bars[local][0], engraved.Bars[local][1]), doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : local + 1)</span></div>
+                                        <div class="pdfread-tint" style="@Tint((engraved.Bars[local][0], engraved.Bars[local][1]), doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : doubt.BarInSystem)</span></div>
                                     }
                                 }
                             </div>
@@ -241,7 +246,7 @@ else
                         <p class="pdfread-status"><span class="pdfread-lamp @(status.Step switch { SystemStep.Done => "done", SystemStep.Doubtful => "doubt", SystemStep.Failed => "fail", _ => "now" })"></span>@Words(status).Title</p>
                         @foreach (var doubt in doubts)
                         {
-                            <blockquote class="pdfread-quote"><b>Claude · @(numbered ? $"bar {doubt.Bar}" : $"bar {doubt.Bar - first + 1} of this system")</b>@doubt.Note</blockquote>
+                            <blockquote class="pdfread-quote"><b>Claude · @(numbered ? $"bar {doubt.Bar}" : $"bar {doubt.BarInSystem} of this system")</b>@doubt.Note</blockquote>
                         }
                         @if (doubts.Count == 0 && Words(status).Detail is { Length: > 0 } detail)
                         {
@@ -307,6 +312,8 @@ else
     // What the owner says they see in a system, for its next reading.
     private readonly Dictionary<(int Page, int Index), string> hints = [];
     private CancellationTokenSource? cancel;
+    // The systems a Read again under way reads, one after another; 0 while the piece is read the first time.
+    private int rereading;
     private ReadingProgress? progress;
     private ReadingResult? result;
     // The reading as one piece, for Listen.
@@ -386,7 +393,7 @@ else
             return;
         }
 
-        (stage, stopNote, progress, result, whole) = (Stage.Reading, null, null, null, null);
+        (stage, stopNote, progress, result, whole, rereading) = (Stage.Reading, null, null, null, null, 0);
         await OnBar.InvokeAsync(true);
         StateHasChanged();
         await CutPages();
@@ -399,7 +406,7 @@ else
     {
         if (result is null) return;
 
-        (stage, progress) = (Stage.Reading, new ReadingProgress(result.Systems, result.Cost, TimeSpan.Zero));
+        (stage, progress, rereading) = (Stage.Reading, new ReadingProgress(result.Systems, result.Cost, result.Took), systems.Count);
         await Run(async reader =>
         {
             var next = result;
