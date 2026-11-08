@@ -413,6 +413,8 @@ is turned off. The Claude key is never in the data file: it's in the phone's sec
 
 ## Later
 
+What's next, in order, with the research behind each part: [plan.md](plan.md). Further off:
+
 - Goals and suggestions: a target per exercise (sets × reps), "try 105 today".
 - Choosing which "better" signal leads.
 - More exercise measures (distance, reps only).

@@ -153,4 +153,4 @@ Heart rate permissions: Wear OS 6 (Android 16) replaces `BODY_SENSORS` with `and
 
 ## Next steps
 
-See **Build order** in [docs/concept.md](docs/concept.md).
+[docs/plan.md](docs/plan.md) has what's next, in order. **Build order** in [docs/concept.md](docs/concept.md) has what's built.
