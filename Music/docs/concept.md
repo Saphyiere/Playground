@@ -184,15 +184,19 @@ a PDF plays out; this is what came of it.
   engraving beside the print and corrects the bars that differ, leaving those it still can't be sure of in doubt. The bar shows
   the systems read, what's been spent, the time and about how long is left; **Cancel** stops at once, and what's been spent stays
   spent. Then each system's print over its reading, engraved at the same width: a bar in doubt is tinted on both, with Claude's
-  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60).
+  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60),
+  taking what you tell Claude you see there, in your own words, as something to check against the print.
   The reading waits on the piece, to come back to, until it's kept or thrown away. A key that's turned down, used-up credit, the
-  workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read; the systems not read can be read
-  again, and **Keep** waits until every system has been. Kept, the reading is the piece's notation, graded and cut into
+  workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read, and says what to do (Settings for
+  the key, the Claude Console for credit or the limit, or a few minutes' wait); the systems not read can be read again, and **Keep**
+  waits until every system has been. Until then a bar is named by its place in its system, since a missing system would shift
+  the numbers. Kept, the reading is the piece's notation, graded and cut into
   excerpts like an import: it plays like any notation piece, with a **Print** key on its bar that shows the PDF again, as before,
   and lights while it does. About this piece says when its notes were read, what it cost and any bars left in doubt, with **Read
-  the notes again…**. Claude reads the notes, chords, rests, ties, grace notes, tuplets, clef changes, 8va, repeats, endings and
-  staccato, accents and tenuto; notes under an 8va line are kept at the pitch they sound, without the line. Clean engraved PDFs
-  read well; scans less so.
+  the notes again…**. Claude reads the notes, chords, rests, ties, grace notes, tuplets, clef changes, 8va, repeats and endings;
+  staccato, accents and tenuto; slurs, dynamics, hairpins and the pedal, which the expression judges then use; and the fingering,
+  shown on the notation. Notes under an 8va line are kept at the pitch they sound, without the line. Clean engraved PDFs read
+  well; scans less so.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.

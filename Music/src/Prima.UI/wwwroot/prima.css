@@ -4236,6 +4236,19 @@ html[data-full] .piece .summary {
     letter-spacing: 0.02em;
 }
 
+.pdfread-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pdfread-field .text-field {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    font-size: 15px;
+}
+
 /* When it goes wrong: what happened, what's kept, and what to do. */
 .pdfread-error {
     display: flex;

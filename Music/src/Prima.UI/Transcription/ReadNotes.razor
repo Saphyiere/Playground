@@ -169,14 +169,33 @@ else
         <section class="pdfread-review" aria-label="Each system's print and reading">
             @if (failed.Count > 0)
             {
+                // What stopped it says what to do: the key in Settings, credit or the limit in the Console, or waiting a little.
+                var rest = failed.Count == 1 ? "Read it again" : $"Read the other {failed.Count}";
+                var (title, lamp, help, again) = result.StoppedBy switch
+                {
+                    AnswerKind.NoKey => ("No Claude key on this tablet", "fail", "Settings › Claude says how to add one.", rest),
+                    AnswerKind.KeyRejected => ("The key wasn't accepted", "fail", "It may have been disabled in the Claude Console: push a new one (Settings › Claude).", rest),
+                    AnswerKind.OutOfCredit => ("Out of credit", "fail", "Add credit in the Claude Console, under Billing, then read the rest.", rest),
+                    AnswerKind.SpendLimit => ("This month's limit is reached", "fail", "Raise the workspace's spend limit in the Claude Console, or read the rest next month.", rest),
+                    AnswerKind.Busy => ("Claude is busy", "doubt", "Try again in a few minutes.", "Try again"),
+                    AnswerKind.Offline => ("Offline", "doubt", "Check the connection, then try again.", "Try again"),
+                    _ => (failed.Count == 1 ? "A system wasn't read" : $"{failed.Count} systems weren't read", "fail", "", rest),
+                };
                 <div class="pdfread-error pdfread-banner" role="alert">
                     <div>
-                        <h3><span class="pdfread-lamp fail"></span>@(failed.Count == 1 ? "A system wasn't read" : $"{failed.Count} systems weren't read")</h3>
-                        <p>@result.Summary @(read > 0 ? "What's read is kept. " : "")Keep waits until every system has been read.</p>
+                        <h3><span class="pdfread-lamp @lamp"></span>@title</h3>
+                        <p>@result.Summary @help @(read > 0 ? "What's read is kept. " : "")Keep waits until every system has been read.</p>
                     </div>
                     <div class="pdfread-actions">
-                        <button type="button" class="mu-btn mu-primary" @onclick="() => Reread(failed)">@(failed.Count == 1 ? "Read it again" : $"Read the other {failed.Count}")</button>
-                        <a class="mu-btn" href="settings">Settings</a>
+                        @if (result.StoppedBy is AnswerKind.NoKey or AnswerKind.KeyRejected)
+                        {
+                            <a class="mu-btn mu-primary" href="settings">Open Settings</a>
+                            <button type="button" class="mu-btn" @onclick="() => Reread(failed)">@again</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="mu-btn mu-primary" @onclick="() => Reread(failed)">@again</button>
+                        }
                     </div>
                 </div>
             }
@@ -228,6 +247,13 @@ else
                         {
                             <p class="pdfread-words muted">@detail</p>
                         }
+                        @if (doubts.Count > 0 || status.Step == SystemStep.Failed)
+                        {
+                            <div class="pdfread-field">
+                                <label class="pdfread-label" for="@($"hint-{status.Page}-{status.Index}")">Tell Claude what you see (optional)</label>
+                                <input id="@($"hint-{status.Page}-{status.Index}")" class="text-field" type="text" placeholder="The long high note is F, above the third line" value="@hints.GetValueOrDefault(key)" @onchange="@(e => hints[key] = e.Value?.ToString() ?? "")" />
+                            </div>
+                        }
                         <div class="pdfread-actions">
                             @if (reading is not null)
                             {
@@ -278,6 +304,8 @@ else
     private readonly Dictionary<(int Page, int Index), PdfPages.SystemCut> cuts = [];
     private readonly Dictionary<(int Page, int Index), Engraving> engravings = [];
     private readonly Dictionary<(int Page, int Index), int> firstBars = [];
+    // What the owner says they see in a system, for its next reading.
+    private readonly Dictionary<(int Page, int Index), string> hints = [];
     private CancellationTokenSource? cancel;
     private ReadingProgress? progress;
     private ReadingResult? result;
@@ -377,7 +405,10 @@ else
             var next = result;
             foreach (var system in systems)
             {
-                if (cuts.TryGetValue((system.Page, system.Index), out var cut)) next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, ct: cancel!.Token);
+                var key = (system.Page, system.Index);
+                if (!cuts.TryGetValue(key, out var cut)) continue;
+                next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, hints.GetValueOrDefault(key, ""), cancel!.Token);
+                hints.Remove(key);
             }
             return next;
         });
@@ -440,7 +471,7 @@ else
             var width = cuts.TryGetValue(key, out var cut) ? PngWidth(cut.Png) : 2400;
             try
             {
-                engravings[key] = await engraver.EngraveAsync(MeiWriter.Write(ReadingScore.Build([result.Readings[i]!]).Score), width);
+                engravings[key] = await engraver.EngraveAsync(ReadingScore.Mei(ReadingScore.Build([result.Readings[i]!]).Score), width);
             }
             catch (JSException)
             {
