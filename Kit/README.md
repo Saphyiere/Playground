@@ -18,6 +18,10 @@ Design links:
 The Kit also holds **Playground.AI.Assist**, a plain .NET library with no UI: how the apps ask Claude, each question a task
 with a typed answer. Its [README](Playground.AI.Assist/README.md) covers it.
 
+And **Playground.Updates** (with **Playground.Updates.Android**): how every app updates itself from the repo's GitHub releases,
+checking each download and keeping a copy of the app's data before it installs. Its [README](Playground.Updates/README.md)
+covers it, and [tools/release](../tools/release/README.md) how releases are made.
+
 ## What's in it
 
 ```

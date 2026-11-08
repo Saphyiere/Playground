@@ -1,0 +1,113 @@
+name: Release
+
+# Releases each app that changed since its last release, as a GitHub release of its own (prima-1.0.N, workout-1.0.N), from one
+# click in the Actions tab: Release, Run workflow. Each app describes its release in release.json in its folder, and
+# tools/release/release-app.sh does the work. Every app is signed with the owner's PC key, so a release installs over the copy on
+# a device as an update and keeps its data, whether that copy came from here or from Visual Studio. The one-time setup is in
+# tools/release/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "What's new, in a sentence or two (optional: each release lists its own changes too)"
+        required: false
+        default: ""
+      all:
+        description: "Release every app, even one with no changes since its last release"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  apps:
+    name: Which apps changed
+    runs-on: ubuntu-24.04
+    outputs:
+      folders: ${{ steps.find.outputs.folders }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The whole history and its tags, to compare each app with its last release.
+          fetch-depth: 0
+
+      - id: find
+        env:
+          FORCE: ${{ inputs.all }}
+        run: |
+          folders=()
+          for config in */release.json; do
+            folder=$(dirname "$config")
+            if bash tools/release/release-app.sh changed "$folder"; then folders+=("$folder"); fi
+          done
+          echo "folders=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -sc 'map(select(. != ""))')" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: ${{ matrix.folder }}
+    needs: apps
+    if: needs.apps.outputs.folders != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        folder: ${{ fromJson(needs.apps.outputs.folders) }}
+    env:
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: The signing key
+        env:
+          KEYSTORE: ${{ secrets.PLAYGROUND_KEYSTORE_BASE64 || secrets.PRIMA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::error::The PLAYGROUND_KEYSTORE_BASE64 secret isn't set: tools/release/README.md says how to add it."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-dotnet@v5
+        env:
+          # A folder of the runner's own, so the Android workload installs without sudo.
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: The Android workload and SDK
+        run: |
+          dotnet workload install maui-android
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Test, build, sign and publish
+        env:
+          FOLDER: ${{ matrix.folder }}
+          VERSION: 1.0.${{ github.run_number }}
+          KEYSTORE: ${{ runner.temp }}/release.keystore
+          # The debug key's own passwords and name, unless the secrets and variable say otherwise.
+          STORE_PASS: ${{ secrets.PLAYGROUND_KEYSTORE_PASSWORD || 'android' }}
+          KEY_PASS: ${{ secrets.PLAYGROUND_KEY_PASSWORD || 'android' }}
+          KEY_ALIAS: ${{ vars.PLAYGROUND_KEY_ALIAS || 'androiddebugkey' }}
+          # Optional: the key's SHA-256, so a file signed with any other key is never published.
+          EXPECTED_SHA256: ${{ vars.PLAYGROUND_SIGNING_SHA256 }}
+          OUT: ${{ runner.temp }}/release
+          NOTES: ${{ inputs.notes }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/release/release-app.sh release "$FOLDER"

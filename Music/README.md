@@ -110,24 +110,11 @@ Don't uninstall the app to fix a build problem: that deletes your practice histo
 
 ## Updates from GitHub
 
-GitHub builds Prima, tests its logic, signs it with your PC's key and publishes it as a release, **Prima 1.0.N**, with the app
-as `prima.apk` ([the workflow](../.github/workflows/prima-release.yml)). Signed with the key Visual Studio signs with, a release
-installs over the copy on the tablet as an update and keeps its data, wherever that copy came from. The repo is public, so its
-releases are too; the app holds nothing secret (Claude's key is only ever on the tablet).
-
-**Once:** give GitHub that key. It's `%LOCALAPPDATA%\Xamarin\Mono for Android\debug.keystore` on the PC.
-
-1. Copy it as text, in PowerShell:
-
-   ```powershell
-   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:LOCALAPPDATA\Xamarin\Mono for Android\debug.keystore")) | Set-Clipboard
-   ```
-
-2. On GitHub, in the repo's **Settings › Secrets and variables › Actions**, add a **New repository secret** named
-   `PRIMA_KEYSTORE_BASE64` and paste it in. GitHub never shows it again, and only this repo's workflows can use it.
-
-**A release:** in the repo's **Actions** tab, **Prima release › Run workflow**, with a line on what's new if you like. It takes
-about 15 minutes, then it's on the repo's **Releases** page with the changes since the last one.
+Prima is released with the other apps, from the repo's **Actions › Release › Run workflow**: a release, **Prima 1.0.N**, with the
+app as `prima.apk`, whenever Prima changed since its last one. [tools/release/README.md](../tools/release/README.md) has the
+one-time setup (the PC's key, as a GitHub secret) and how a release is made. Signed with the key Visual Studio signs with, a
+release installs over the copy on the tablet as an update and keeps its data, wherever that copy came from. The repo is public,
+so its releases are too; the app holds nothing secret (Claude's key is only ever on the tablet).
 
 **On the tablet:** open the release in the tablet's browser, download `prima.apk` and open it. Android asks once to let the
 browser install apps, then offers **Update**. An app signed with any other key can't install over Prima: Android refuses and

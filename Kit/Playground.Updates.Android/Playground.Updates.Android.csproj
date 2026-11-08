@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Android's side of the apps' updates (Playground.Updates): the installed version, the signature check, copies of the app's data
+    in Downloads, and handing the file to Android's package installer. An app's host references it and calls AddAndroidUpdates.
+    It puts the permission to install apps, and the receiver that hears back from the installer, into the app's manifest itself.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Playground.Updates\Playground.Updates.csproj" />
+  </ItemGroup>
+
+</Project>

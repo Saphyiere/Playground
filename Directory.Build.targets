@@ -13,4 +13,14 @@
     </PropertyGroup>
   </Target>
 
+  <!--
+    The chips a release is built for, from tools/release/release-app.sh (an app's release.json), joined with + since MSBuild's
+    command line splits on semicolons and commas: set on the app alone. Passed as RuntimeIdentifiers on the command line, they'd
+    reach every library the app uses too, and the libraries would look for their builds in a folder per chip that isn't there.
+    (By this point the Android SDK has turned an app's OutputType into Library, so AndroidApplication is what says it's an app.)
+  -->
+  <PropertyGroup Condition="'$(ReleaseRuntimeIdentifiers)' != '' and '$(AndroidApplication)' == 'true'">
+    <RuntimeIdentifiers>$([MSBuild]::Unescape($(ReleaseRuntimeIdentifiers.Replace('+', '%3B'))))</RuntimeIdentifiers>
+  </PropertyGroup>
+
 </Project>

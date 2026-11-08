@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    How every app updates itself from the repo's GitHub releases: finding its newest release, downloading and checking it,
+    keeping copies of the app's data, and handing it to the device's installer (IInstaller; Android's is
+    Playground.Updates.Android). Plain .NET, no UI: each app shows Updater.Status in its own look.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
+  </ItemGroup>
+
+</Project>

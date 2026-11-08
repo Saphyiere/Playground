@@ -1,0 +1,10 @@
+{
+  "name": "Workout",
+  "tag": "workout",
+  "tests": ["Workout/tests/AdaptiveWorkout.Core.Tests"],
+  "builds": [
+    { "project": "Workout/src/AdaptiveWorkout.Phone/AdaptiveWorkout.Phone.csproj", "asset": "workout.apk", "runtimes": ["android-arm64"] },
+    { "project": "Workout/src/AdaptiveWorkout.Watch/AdaptiveWorkout.Watch.csproj", "asset": "workout-watch.apk", "runtimes": ["android-arm", "android-arm64"] }
+  ],
+  "paths": ["Workout", "Kit", "Directory.Build.props", "Directory.Build.targets", "global.json"]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Prima",
+  "tag": "prima",
+  "tests": ["Music/tests/Prima.Core.Tests"],
+  "builds": [
+    { "project": "Music/src/Prima.Tablet/Prima.Tablet.csproj", "asset": "prima.apk", "runtimes": ["android-arm64"] }
+  ],
+  "paths": ["Music", "Kit", "Directory.Build.props", "Directory.Build.targets", "global.json"]
+}
