@@ -11,7 +11,7 @@ namespace AdaptiveWorkout.UI.Assist;
 /// answer, and where the answer plans the next workout's lifts, taken for the next time with a tap, as a look back's plan is. A question
 /// still being asked keeps going when its screen closes; the screen hears when it's done.
 /// </summary>
-public sealed class Coach(WorkoutStore store, WorkoutFlow flow, IClaude claude, AppSettings settings, MuscleTagger tagger)
+public sealed class Coach(WorkoutStore store, WorkoutFlow flow, IClaude claude, TrainingFacts facts)
 {
     // How many earlier questions go with a new one, for a follow-up.
     private const int Earlier = 3;
@@ -79,48 +79,15 @@ public sealed class Coach(WorkoutStore store, WorkoutFlow flow, IClaude claude, 
         }
     }
 
-    // The last 8 weeks as Claude reads them: the workouts and their sets, food by day, the weigh-ins, maintenance by the formula and
-    // by the scale, what each exercise trains, the plans waiting for exercises' next times, the routine, and the last few questions.
+    // The last 8 weeks as Claude reads them (see TrainingFacts), with the last few questions.
     private async Task<AskInput> InputAsync(string question)
     {
-        // Exercises not tagged yet are tagged first, so the weeks' muscles count them; and workouts' heart rates are worked out, for what
-        // they burned.
-        await tagger.TagAsync();
-        await flow.MeasureHeartRatesAsync();
         var now = DateTimeOffset.Now;
-        var today = DateOnly.FromDateTime(now.DateTime);
-        var (sessions, sets) = await flow.LoadFinishedAsync();
-        var exercises = (await store.GetExercisesAsync()).ToDictionary(e => e.Id);
-        var weighIns = await store.GetBodyWeightsAsync();
-        var first = Consistency.WeekStart(today).AddDays(-7 * (AskFacts.Weeks - 1));
-        var days = Calories.Days(await store.GetFoodAsync(), weighIns, settings, first, today, Calories.BurnedByDay(sessions, sets, exercises, weighIns, settings),
-            (await store.GetCheckAnswersAsync()).AtMaintenance);
-
-        // Maintenance by the scale over the last four weeks, as Calories works it out.
-        DateTimeOffset Start(DateOnly day) => new(day.ToDateTime(TimeOnly.MinValue));
-        var byScale = Calories.FromScale([.. days.Where(d => d.Day >= today.AddDays(-28) && d.Day < today)], weighIns, Start(today.AddDays(-28)), Start(today));
-
-        var saved = await store.GetSettingsAsync();
-        var trainer = new Dictionary<long, TrainerTarget>();
-        foreach (var id in exercises.Keys)
-            if (WorkoutFlow.ReadTrainerTarget(saved.GetValueOrDefault(WorkoutFlow.TrainerKey(id))) is { } target) trainer[id] = target;
-
-        AskRoutinePlan? routine = null;
-        if (await store.GetActiveRoutineAsync() is { } active)
-        {
-            var week = await store.GetRoutineWeekAsync(active.Id);
-            var templates = (await store.GetTemplatesAsync()).ToDictionary(t => t.Id);
-            var planned = new Dictionary<long, AskSession>();
-            foreach (var templateId in week.OfType<long>().Distinct().Where(templates.ContainsKey))
-                planned[templateId] = new AskSession(templates[templateId].Name, await store.GetTemplateExercisesAsync(templateId));
-            routine = new AskRoutinePlan(active.Name, [.. week.Select(d => d is long t && planned.TryGetValue(t, out var session) ? session : null)]);
-        }
+        var data = await facts.LoadAsync(Consistency.WeekStart(DateOnly.FromDateTime(now.DateTime)).AddDays(-7 * (AskFacts.Weeks - 1)), now);
 
         // The last few questions answered, oldest first, as a conversation reads.
         var earlier = (await store.GetQuestionsAsync(Earlier)).Where(q => q.Answer is not null).Reverse()
             .Select(q => new AskEarlier(DateOnly.FromDateTime(q.At.DateTime), q.Question, string.Join(" ", q.Answer!.Paragraphs))).ToList();
-        var maintenance = Calories.Maintenance(settings, BodyWeight.Nearest(BodyWeight.InOrder(weighIns), now), today);
-        var context = new AskContext(settings.HitGoalStep, settings.Unit, settings.CalorieGoal, maintenance, byScale?.ByScale, await store.GetMuscleTagsAsync(), trainer, routine);
-        return AskFacts.For(question, now, sessions, sets, exercises, days, weighIns, context, earlier);
+        return AskFacts.For(question, now, data.Sessions, data.Sets, data.Exercises, data.Days, data.WeighIns, data.Context, earlier);
     }
 }

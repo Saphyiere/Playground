@@ -17,7 +17,8 @@ src/
   AdaptiveWorkout.Core/     Business logic (plain .NET 10): next step, plan changes, suggestions, history, schedule, consistency, improvement, calories, maintenance and what workouts burn.
                             Muscles: the muscle map's sets per muscle.
                             Assist/ has what Claude is asked: the look back (what it's sent about a workout, what it answers, and
-                            the checks on it), questions from Ask Claude, and the tagging of exercises with their muscles.
+                            the checks on it), questions from Ask Claude, the week looked back, and the tagging of exercises
+                            with their muscles.
   AdaptiveWorkout.UI/       The app's screens (Razor) and storage (SQLite via Dapper). Any host can show them.
   AdaptiveWorkout.Phone/    Phone app: .NET MAUI Blazor Hybrid host for the UI, Android only.
   AdaptiveWorkout.Watch/    Watch app: .NET for Android targeting Wear OS. Shows heart rate and sends it to the phone.
@@ -144,11 +145,13 @@ Tests are only for business logic in `Core`: no UI, wording, or plumbing tests. 
 what the app works out and sends, and the checks on an answer.
 
 The preview host (`tools/AdaptiveWorkout.Preview`, see the repo's CLAUDE.md) has a stand-in Claude that answers a look back from
-the workout itself after a moment, answers a question from the weeks it's sent, and tags exercises by the words in their names: `/claude/key` puts a key on the "phone"
+the workout itself after a moment, answers a question or looks back at a week from what it's sent, and tags exercises by the words
+in their names: `/claude/key` puts a key on the "phone"
 (`?clear=true` takes it off), `/claude/file` leaves a key file to be found, and `/claude/script?delay=8000&fail=offline` slows it
 down or makes it fail. `/seed/lookback` sets up a back day ready for **Finish**; `/seed/plateau` has rows gone flat, with a back day
 open; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
-split, with the exercises tagged (Pull-ups by me) and one, Hanging leg raises, not yet.
+split, with the exercises tagged (Pull-ups by me) and one, Hanging leg raises, not yet; `/seed/week` is the same with this week's
+lifts a step up, food on most days and weigh-ins, so with a key Today asks for this week's look back as it opens.
 
 ## Why these choices
 

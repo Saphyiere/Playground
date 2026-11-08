@@ -42,6 +42,8 @@ Build the foundation first, then add on.
 
 The home screen answers the three questions at a glance. **(proposed)**
 
+- **Last week** (or **This week**, once its last planned workout is done): Claude's sentence on the week, opening its look back in
+  full (see *The week, looked back*). While it's being asked, a dot beats beside "Claude is looking back at your week…".
 - **Gym today:** done, not yet, or **rest day**, plus this week's gym days (e.g. Mon, Wed, Thu) with the routine's rest days marked, and the streak. Tapping it opens **Gym**.
 - **Calories:** eaten today against my goal (1,800) and maintenance, which goes up by what today's finished workouts burned, with a quick add. **Edit** lists today's entries, each deletable. Tapping its heading opens **Calories**.
 - **Body weight:** the latest weigh-in and its trend, with a quick add. **Edit** lists the last 10 weigh-ins, each deletable.
@@ -95,8 +97,8 @@ The icon at the top right of Today, after Stats:
 - **Body:** sex, age, height, and how I spend a usual day outside workouts: from sitting most of it to physical work all day. Each workout adds its own.
 - **Claude:** the key on the phone, shown by its start and last four characters, with **Test** and **Remove**; without one, how to
   get it there (a key file copied over USB, taken into secure storage when the app opens, or now with **Look for the key file**).
-  **Look back after each workout**, on or off, and what this month's look backs, questions and tagging of exercises cost. See
-  *Claude's look back*, *Ask Claude* and *Muscle map*.
+  **Look back after each workout** and **Look back at each week**, each on or off, and what this month's look backs, questions,
+  weeks and tagging of exercises cost. See *Claude's look back*, *Ask Claude*, *The week, looked back* and *Muscle map*.
 - **Updates:** the version on the phone (1.0 for a build from the PC), and the newest release from the repo's GitHub releases
   (Workout 1.0.N), with its changes, **Check** and **Install**, through the Kit's shared updater. The app checks at most once a
   day. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on the
@@ -399,6 +401,25 @@ dropped exercise, and a muscle the weeks miss is pointed out, never fixed with a
 back's: each exercise once, a weight exercise from what it was sent, 1 to 10 sets, 1 to 50 reps, a rest of 30 seconds to 5 minutes in
 steps of 15, and a weight whole steps from one in its times, by at most a tenth of it or one step. About 10 to 25 cents a question.
 
+## The week, looked back
+
+On the Monday after a week, or once the week's last planned workout is done (no planned day left after today, and today's done if
+it's one), the app asks Claude to look back at it as Today opens: never in the background, and never with a notification. Without a
+routine, only on Monday. A week with no workouts isn't looked back at, and each week is asked once.
+
+- **Today** shows its card while it's the latest: **Last week** (or **This week**), with Claude's sentence on it.
+- **Its page,** a tap away: the week's **Gym days** against the plan, naming a planned day missed; **What went up**, each lift with its
+  numbers; **Muscles**, the ones that got no sets (pointing out only, with **Sets by muscle**); **Calories**, the week's food against
+  maintenance and what the scale's line did, with **Day by day**; and one or two things for the week after, in the pen. The weeks
+  before are listed under it.
+- **Trouble** shows on the page as the look back's does, with **Try again** or **Claude in Settings**.
+
+What Claude is sent (task `workout.week`, Opus 5.5 at medium effort): the week as Ask Claude sums weeks up (see *Ask Claude*), each of
+its days with the session planned and the workouts done, the 4 weeks before it, its exercises with their times over the 8 weeks to its
+end, my body at its end, the routine and its next workout. The same method holds: never a swapped, added or dropped exercise. Its
+answer is checked to have the gym days and calories, one or two things for the week, at most six lines of what went up, and no
+missed muscles when none were. About 10 to 25 cents a week; Settings › Claude turns it off.
+
 ## Consistency
 
 Derived from session dates alone:
@@ -482,14 +503,15 @@ LookBack           SessionId, At, Kind, Summary, Notes, Input, Answer, Cost, App
                                                                                       gone with its workout)
 Question           Id, At, Question, Kind, Summary, Notes, Input, Answer, Cost, AppliedAt   (a question asked of Claude, with what it was sent
                                                                                       and said as JSON, and when its plan was taken)
+WeekLook           Monday, At, Kind, Summary, Notes, Input, Answer, Cost   (Claude's look back at a week, one each by its Monday, as JSON)
 ClaudeCall         Id, At, SessionId, Task, Version, Model, Attempt, Kind, Summary, Question, Reply, tokens in and out, Cost, Ms, MessageId, Error
                                                                                      (every call to Claude, kept for the month's cost;
                                                                                       a tagging's has no SessionId)
 ```
 
 Settings also keep, by key, what the scale added to maintenance (`MaintenanceAdjust`, with when, and what it was before, for Undo), each exercise's rest countdown (`RestTarget:<exercise>`), Claude's plan for its next time once taken
-(`Trainer:<exercise>`: the workout it looked back at, weight, unit, reps, sets and rest), and `LookBack` = `off` when the look back
-is turned off. The Claude key is never in the data file: it's in the phone's secure storage.
+(`Trainer:<exercise>`: the workout it looked back at, weight, unit, reps, sets and rest), `LookBack` = `off` when the look back
+is turned off, and `WeekLookBack` = `off` when the week's is. The Claude key is never in the data file: it's in the phone's secure storage.
 
 **(proposed)** Stored locally on the phone (SQLite). Backup or Google sync later.
 

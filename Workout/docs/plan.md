@@ -13,7 +13,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 | 5 | Odd food days and weigh-ins (**built**) | Calories | M | No |
 | 6 | Muscle map (**built**) | Stats, the exercise list, the look back | L | Tags your exercises once |
 | 7 | Ask Claude (**built**) | The spark icon on Today | M | About 10–25¢ a question |
-| 8 | The week, looked back | Today, on Monday | M | About 25¢ a week |
+| 8 | The week, looked back (**built**) | Today, on Monday | M | About 25¢ a week |
 
 1 to 3 come first: they're about the gym, cost nothing, and each makes the look back smarter. When they're in, the look back's
 task goes to version 2 and reads reps left, plateaus and how fast your heart rate falls. 4 and 5 are about food and the scale.
@@ -183,7 +183,10 @@ from Claude:
 
 It opens in full, and each week's is kept.
 
-**How it works.** It's asked when the app opens, not by a background service, so nothing runs behind your back.
+**How it works.** It's asked when the app opens, not by a background service, so nothing runs behind your back. It's sent the
+week as Ask Claude sums weeks up, each day against the plan, and the 4 weeks before, and Settings › Claude can turn it off.
+
+**Data.** `WeekLook`: each week's look back, by its Monday.
 
 **Cost.** About 25 cents a week.
 

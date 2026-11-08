@@ -110,7 +110,7 @@
        storage, never in the app's data. *@
     <section class="stack" aria-labelledby="claude-heading">
         <h2 id="claude-heading" class="label">Claude</h2>
-        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It also tags your exercises with the muscles they train, for the muscle map, and answers what you ask it from Today's spark. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only what it needs is sent: your exercises' names and sets, the workout's heart rate, your weigh-in and your calorie goal.</p>
+        <p class="note">After each workout, Claude looks back at it: what went up, any set that looks wrong, and the weight, reps and rest for each exercise next time, yours with a tap. It also looks back at each week on Today, tags your exercises with the muscles they train, for the muscle map, and answers what you ask it from Today's spark. It uses your Anthropic API key, kept in the phone's secure storage apart from your workouts. Only what it needs is sent: your exercises' names and sets, the workout's heart rate, your weigh-in and your calorie goal.</p>
         <div class="spread baseline">
             <span class="label">Key</span>
             @if (maskedKey is { } masked)
@@ -164,18 +164,26 @@
                 <button type="button" aria-pressed="@(lookBackOn ? "false" : "true")" @onclick="() => SetLookBackAsync(false)">Off</button>
             </div>
         </div>
+        <div class="field-group">
+            <span class="field-label" id="week-look-label">Look back at each week</span>
+            <div class="segmented" role="group" aria-labelledby="week-look-label">
+                <button type="button" aria-pressed="@(weekLookOn ? "true" : "false")" @onclick="() => SetWeekLookAsync(true)">On</button>
+                <button type="button" aria-pressed="@(weekLookOn ? "false" : "true")" @onclick="() => SetWeekLookAsync(false)">Off</button>
+            </div>
+        </div>
         @if (maskedKey is not null || spend.Cost > 0)
         {
             <div class="spread baseline">
                 <span class="label">This month</span>
                 <span class="name big tabular">@spend.Cost.ToString("$0.00", CultureInfo.InvariantCulture)</span>
             </div>
-            // "3 look backs", "3 look backs, 2 questions and tagging exercises", "tagging exercises": what it was for, and 0 look backs
-            // when it was none of them.
+            // "3 look backs", "3 look backs, 2 questions, 1 week looked back at and tagging exercises", "tagging exercises": what it was
+            // for, and 0 look backs when it was none of them.
             var spentFor = new[]
             {
                 spend.LookBacks == 0 ? "" : spend.LookBacks == 1 ? "1 look back" : $"{spend.LookBacks} look backs",
                 spend.Questions == 0 ? "" : spend.Questions == 1 ? "1 question" : $"{spend.Questions} questions",
+                spend.Weeks == 0 ? "" : spend.Weeks == 1 ? "1 week looked back at" : $"{spend.Weeks} weeks looked back at",
                 spend.Taggings == 0 ? "" : "tagging exercises",
             }.Where(p => p.Length > 0).ToList();
             var spentOn = spentFor.Count == 0 ? "0 look backs" : spentFor.Count == 1 ? spentFor[0] : $"{string.Join(", ", spentFor[..^1])} and {spentFor[^1]}";
@@ -246,7 +254,8 @@
     private bool testing;
     private bool removingKey;
     private bool lookBackOn = true;
-    private ClaudeSpend spend = new(0, 0, 0, 0);
+    private bool weekLookOn = true;
+    private ClaudeSpend spend = new(0, 0, 0, 0, 0);
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 
@@ -274,7 +283,9 @@
             { Result: KeyImportResult.NotAKey } wrong when maskedKey is null => wrong.Detail,
             _ => maskedKey is null ? $"No {AssistKey.FileName} in the app's folder yet" : null,
         };
-        lookBackOn = (await Store.GetSettingsAsync()).GetValueOrDefault(Trainer.SettingKey) != "off";
+        var saved = await Store.GetSettingsAsync();
+        lookBackOn = saved.GetValueOrDefault(Trainer.SettingKey) != "off";
+        weekLookOn = saved.GetValueOrDefault(WeekReview.SettingKey) != "off";
         var now = DateTimeOffset.Now;
         spend = await Store.GetClaudeSpendAsync(new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset));
     }
@@ -310,6 +321,12 @@
     {
         lookBackOn = on;
         return Store.SetSettingAsync(Trainer.SettingKey, on ? null : "off");
+    }
+
+    private Task SetWeekLookAsync(bool on)
+    {
+        weekLookOn = on;
+        return Store.SetSettingAsync(WeekReview.SettingKey, on ? null : "off");
     }
 
     // Changes a setting, then saves them all.

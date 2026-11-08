@@ -3,7 +3,7 @@
    key. Nothing when every exercise is tagged. The screen passes the tagger's state in, as it hears it change, so this redraws with it. *@
 @if (Tagging > 0)
 {
-    <p class="tagging" role="status"><span class="tagging-dot" aria-hidden="true"></span>Claude is tagging @Exercises(Tagging)…</p>
+    <p class="claude-busy" role="status"><span class="claude-busy-dot" aria-hidden="true"></span>Claude is tagging @Exercises(Tagging)…</p>
 }
 else if (Untagged > 0 && !HasKey)
 {

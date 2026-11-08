@@ -42,7 +42,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "Question", "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "ExerciseMuscle", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
+        foreach (var table in new[] { "WeekLook", "Question", "DataCheck", "LookBack", "ClaudeCall", "SessionExercise", "WorkoutSet", "WorkoutSession", "TemplateExercise", "RoutineDay", "SessionTemplate", "ExerciseMuscle", "Exercise", "Routine", "Setting", "FoodEntry", "BodyWeightEntry", "HeartRateSample" })
             new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
     }
     if (scenario == "empty") return "empty";
@@ -287,8 +287,8 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     }
 
     // Last week and this week of the six-day split, to today, with last week's leg day missed. Claude tagged the exercises (Pull-ups
-    // are mine), and Hanging leg raises, made since, aren't tagged yet.
-    if (scenario == "muscles")
+    // are mine), and Hanging leg raises, made since, aren't tagged yet. The week scenario adds food on most days and weigh-ins.
+    if (scenario is "muscles" or "week")
     {
         var raises = await store.GetOrCreateExerciseAsync("Hanging leg raises", ExerciseMeasure.Weight);
         var made = (await store.GetExercisesAsync()).Where(e => e.Id != raises.Id).Select(e => new ExerciseToTag(e.Id, e.Name, e.Measure, ""));
@@ -311,11 +311,27 @@ async Task<string> Seed(string scenario, WorkoutStore store)
             var index = Schedule.DayIndex(day);
             var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(18, 0)), now.Offset);
             if (index == 6 || (day < thisWeek && index == 2) || start > now) continue;
-            await Session(days[index].TemplateId, start, true, days[index].Sets);
+            // The week scenario's lifts went up a step this week.
+            await Session(days[index].TemplateId, start, true, [.. days[index].Sets.Select(set => scenario == "week" && day >= thisWeek && set.Item2 is double w ? set with { Item2 = w + 5 } : set)]);
         }
     }
 
-    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks" or "muscles") return $"seeded {scenario}";
+    if (scenario == "week")
+    {
+        for (var d = 1; d <= 28; d++)
+        {
+            var day = now.Date.AddDays(-d);
+            if (d % 7 == 3) continue;
+            await store.AddFoodAsync(1850 + d % 4 * 60, new DateTimeOffset(day.AddHours(12), now.Offset));
+        }
+        for (var d = 26; d >= 4; d -= 2)
+            await store.AddBodyWeightAsync(Math.Round(184.0 - (28 - d) * 0.06, 1), WeightUnit.Pounds, new DateTimeOffset(now.Date.AddDays(-d).AddHours(7), now.Offset));
+        await store.SetSettingAsync("Sex", "Male");
+        await store.SetSettingAsync("BirthYear", "1992");
+        await store.SetSettingAsync("HeightCm", "178");
+    }
+
+    if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks" or "muscles" or "week") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
     var open = scenario switch { "track" => null, "auto" or "auto-last" => (long?)arms.Id, "done" => legs.Id, _ => back.Id };

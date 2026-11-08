@@ -38,6 +38,8 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
                 Judge(tagging, exercises, Tag(exercises), $"Tagged {exercises.Exercises.Count} exercises by what they mainly train.", new Usage(1_900, 600, 0, 0, 0.02m, took)),
             (AssistTask<AskInput, AskAnswer> ask, AskInput question) when Reply(question) is var (reply, summary) =>
                 Judge(ask, question, reply, summary, new Usage(9_800, 1_400, 0, 0, 0.14m, took)),
+            (AssistTask<WeekInput, WeekLook> weekTask, WeekInput week) when Look(week) is var (look, summary) =>
+                Judge(weekTask, week, look, summary, new Usage(8_600, 1_100, 0, 0, 0.12m, took)),
             _ => throw new InvalidOperationException($"The preview has no answers for {task.Name}."),
         };
         var typed = (Answer<TAnswer>)answer;
@@ -121,6 +123,32 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
 
         var workouts = input.Weeks.Sum(w => w.Workouts);
         return (new AskAnswer([$"You've done {workouts} workouts in the last eight weeks, {thisWeek.Workouts} of them this week."], []), $"{workouts} workouts in eight weeks.");
+    }
+
+    // A week's look back from its input: the planned days missed, each lift heavier than before the week, the muscles with no sets, the
+    // food against maintenance and the scale's line, and the next workout.
+    private static (WeekLook Look, string Summary) Look(WeekInput input)
+    {
+        var week = input.Week;
+        var missedDays = input.Days.Where(d => d.Planned is not ("" or "Rest") && d.Workouts == 0 && d.Date < input.Today).Select(d => $"{d.Date.DayOfWeek}'s {d.Planned.ToLowerInvariant()}").ToList();
+        var gymDays = week.PlannedDays is int planned
+            ? $"{week.Workouts} of {planned} planned days{(missedDays.Count == 0 ? ", none missed." : $"; {string.Join(" and ", missedDays)} missed.")}"
+            : $"{week.Workouts} gym days.";
+        var wentUp = input.Exercises.Select(e =>
+        {
+            var heaviest = e.Times.Where(t => t.Date >= input.Monday).SelectMany(t => t.Weights).DefaultIfEmpty().Max();
+            var before = e.Times.Where(t => t.Date < input.Monday).SelectMany(t => t.Weights).DefaultIfEmpty().Max();
+            return heaviest > before && before > 0 ? $"{e.Name}: up to {heaviest:0.#} from {before:0.#}." : "";
+        }).Where(l => l.Length > 0).Take(6).ToList();
+        var missed = week.Missing.Count == 0 ? "" : $"Nothing trained {Muscles.List(week.Missing).ToLowerInvariant()}.";
+        var calories = week.DaysLogged == 0 ? "No food was logged this week, so there's nothing to set against the scale."
+            : $"{week.AverageEaten:N0} a day on {week.DaysLogged} days logged, {week.AverageUnderMaintenance:N0} under maintenance on average." +
+              (input.Body.FourWeekChange is double c ? $" The scale's line is {(c < 0 ? "down" : "up")} {Math.Abs(c):0.0} over four weeks." : "");
+        var next = input.Next is { } n ? $"{n.Session} on {n.Date.DayOfWeek} starts it: up a step wherever every set reached 10." : "Keep to the planned days.";
+        var thisWeek = week.DaysLogged is > 0 and < 6 ? new[] { next, "Log every day's food, so the scale has something to answer." } : [next];
+        return (new WeekLook(gymDays, wentUp, missed, calories, thisWeek),
+            $"{week.Workouts} workouts{(missedDays.Count == 0 ? " and no planned day missed" : "")}, " +
+            (wentUp.Count == 0 ? "with every lift holding its weight." : $"with {wentUp.Count} {(wentUp.Count == 1 ? "lift" : "lifts")} going up."));
     }
 
     /// <summary>The preview's tags for some exercises, by the words in their names; the muscles seed uses them too.</summary>

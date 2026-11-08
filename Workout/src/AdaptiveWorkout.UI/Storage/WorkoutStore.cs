@@ -38,6 +38,8 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         -- A question asked of Claude from Ask Claude: when, what, how the asking went, what it was told and said (JSON), and when its
         -- plan was taken for the next time.
         CREATE TABLE IF NOT EXISTS Question (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Question TEXT NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Notes TEXT NOT NULL, Input TEXT, Answer TEXT, Cost REAL NOT NULL, AppliedAt TEXT);
+        -- Claude's look back at a week, one each by its Monday: how the asking went, what it was told and said (JSON), what it cost.
+        CREATE TABLE IF NOT EXISTS WeekLook (Monday TEXT PRIMARY KEY, At TEXT NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Notes TEXT NOT NULL, Input TEXT, Answer TEXT, Cost REAL NOT NULL);
         -- The muscles an exercise trains: Main for the ones it's done for, else it helps. Who tagged it is the exercise's TaggedBy.
         CREATE TABLE IF NOT EXISTS ExerciseMuscle (ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id) ON DELETE CASCADE, Muscle TEXT NOT NULL, Main INTEGER NOT NULL, PRIMARY KEY (ExerciseId, Muscle));
         -- One workout's sets, and the heart rate during it, found without reading every row ever logged.

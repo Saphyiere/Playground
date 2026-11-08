@@ -1364,8 +1364,8 @@ button.set-line:active {
     background: repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 4px);
 }
 
-/* Claude tagging the exercises: a dot that beats while it asks. */
-.tagging {
+/* Claude at work (tagging the exercises, looking back at a week): a dot that beats while it's asked. */
+.claude-busy {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1376,16 +1376,16 @@ button.set-line:active {
     color: var(--ink-muted);
 }
 
-.tagging-dot {
+.claude-busy-dot {
     width: 8px;
     height: 8px;
     flex: none;
     border-radius: 50%;
     background: var(--mark);
-    animation: tagging-beat 0.83s ease-out infinite;
+    animation: claude-busy-beat 0.83s ease-out infinite;
 }
 
-@keyframes tagging-beat {
+@keyframes claude-busy-beat {
     0%, 100% {
         opacity: 0.35;
         transform: scale(0.8);
@@ -1416,7 +1416,7 @@ button.set-line:active {
 }
 
 /* Telemetry: the muscles light up in the training channel's lime, brighter with more sets, on dark figures; the band is a lime
-   outline on the ruler. Its tiles never move, so the tagging dot only fades. */
+   outline on the ruler. Its tiles never move, so the busy dot only fades. */
 [data-theme="telemetry"] .muscle-map .body {
     fill: var(--surface-1);
     stroke: var(--rule);
@@ -1486,7 +1486,7 @@ button.set-line:active {
     background: repeating-linear-gradient(135deg, var(--train) 0 1px, transparent 1px 4px);
 }
 
-[data-theme="telemetry"] .tagging {
+[data-theme="telemetry"] .claude-busy {
     font-family: var(--font-label);
     font-style: normal;
     font-size: 12px;
@@ -1497,12 +1497,12 @@ button.set-line:active {
     color: var(--train);
 }
 
-[data-theme="telemetry"] .tagging-dot {
+[data-theme="telemetry"] .claude-busy-dot {
     background: var(--train);
-    animation-name: tagging-glow;
+    animation-name: claude-busy-glow;
 }
 
-@keyframes tagging-glow {
+@keyframes claude-busy-glow {
     0%, 100% {
         opacity: 0.3;
     }
@@ -1517,7 +1517,7 @@ button.set-line:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .tagging-dot {
+    .claude-busy-dot {
         animation: none;
     }
 }

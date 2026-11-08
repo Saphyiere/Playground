@@ -15,10 +15,10 @@ public sealed record LookBackRecord(long SessionId, DateTimeOffset At, AnswerKin
 
 /// <summary>What asking Claude has cost since a day: the dollars, and how many workouts got a look back.</summary>
 /// <summary>
-/// What Claude cost since a day, and what it was for: how many workouts it looked back at, how many questions it answered, and how many
-/// times it tagged exercises.
+/// What Claude cost since a day, and what it was for: how many workouts it looked back at, how many questions it answered, how many weeks
+/// it looked back at, and how many times it tagged exercises.
 /// </summary>
-public sealed record ClaudeSpend(decimal Cost, int LookBacks, int Questions, int Taggings);
+public sealed record ClaudeSpend(decimal Cost, int LookBacks, int Questions, int Weeks, int Taggings);
 
 public sealed partial class WorkoutStore
 {
@@ -41,8 +41,9 @@ public sealed partial class WorkoutStore
         var answered = calls.Where(r => r.Kind == nameof(AnswerKind.Answered)).ToList();
         var lookBacks = answered.Where(r => r.SessionId is not null).Select(r => r.SessionId).Distinct().Count();
         var questions = answered.Count(r => r.Task == new AskTask().Name);
+        var weeks = answered.Count(r => r.Task == new WeekTask().Name);
         var taggings = answered.Count(r => r.Task == new TagExercises().Name);
-        return new ClaudeSpend((decimal)calls.Sum(r => r.Cost), lookBacks, questions, taggings);
+        return new ClaudeSpend((decimal)calls.Sum(r => r.Cost), lookBacks, questions, weeks, taggings);
     });
 
     /// <summary>Keeps a workout's look back, in place of any before it.</summary>

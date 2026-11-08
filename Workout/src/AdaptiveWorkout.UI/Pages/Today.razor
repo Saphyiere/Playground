@@ -1,9 +1,11 @@
 @page "/"
+@implements IDisposable
 @inject WorkoutStore Store
 @inject WorkoutFlow Flow
 @inject AppSettings Settings
 @inject AppLaunch Launch
 @inject AppNavigation Navigation
+@inject WeekReview Weeks
 
 <PageTitle>Today</PageTitle>
 
@@ -20,6 +22,25 @@
                 </div>
             </Tools>
         </PageHeader>
+
+        @* Claude's look back at last week (or this week, once its last planned workout is done): its sentence, opening it in full. *@
+        @if (weekAsking is { } asking)
+        {
+            <section class="block stack tight" aria-labelledby="week-heading">
+                <h2 id="week-heading" class="label tag">@(asking == monday ? "This week" : "Last week")</h2>
+                <p class="claude-busy" role="status"><span class="claude-busy-dot" aria-hidden="true"></span>Claude is looking back at your week…</p>
+            </section>
+        }
+        else if (weekLook is { } look)
+        {
+            <a class="block stack tight week-card" href="week/@look.Monday.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" aria-labelledby="week-heading">
+                <div class="spread">
+                    <h2 id="week-heading" class="label tag">@(look.Monday == monday ? "This week" : "Last week")</h2>
+                    <Icon Name="forward" Size="16" />
+                </div>
+                <p class="body">@look.Summary</p>
+            </a>
+        }
 
         @* Opens Gym: the improvement trend, the routine, and every finished workout. *@
         <a class="block" href="gym" aria-labelledby="gym-heading">
@@ -365,6 +386,10 @@
 @code {
     private bool loaded;
     private bool shown;
+
+    // The week Claude is looking back at now, or the last look back kept for this week or last; null when there's neither.
+    private DateOnly? weekAsking;
+    private WeekLookRecord? weekLook;
     private DateOnly today;
     private DateOnly monday;
     private bool[] week = new bool[7];
@@ -497,7 +522,7 @@
         loaded = true;
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!loaded || shown) return;
 
@@ -506,7 +531,24 @@
         shown = true;
         Launch.Drawn();
         _ = Flow.MeasureHeartRatesAsync();
+
+        // A week due a look back is asked now, as the app opens, never in the background; the card shows it as it comes.
+        Weeks.Changed += OnWeekChanged;
+        if (await Weeks.DueAsync() is { } due) _ = Weeks.AskAsync(due);
+        await ShowWeekAsync();
     }
+
+    private void OnWeekChanged(DateOnly week) => _ = InvokeAsync(ShowWeekAsync);
+
+    private async Task ShowWeekAsync()
+    {
+        var lastMonday = monday.AddDays(-7);
+        weekAsking = Weeks.IsAsking(monday) ? monday : Weeks.IsAsking(lastMonday) ? lastMonday : null;
+        weekLook = (await Weeks.KeptAsync()).FirstOrDefault(w => w.Monday >= lastMonday);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Weeks.Changed -= OnWeekChanged;
 
     private async Task AddFoodAsync()
     {

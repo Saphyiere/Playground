@@ -1,0 +1,161 @@
+@page "/week/{Monday}"
+@implements IDisposable
+@inject WeekReview Weeks
+@inject AppNavigation Navigation
+
+<PageTitle>Week</PageTitle>
+
+@* Claude's look back at a week, in full, opened from Today's card: its gym days against the plan, what went up, the muscles it missed,
+   calories against the scale, and one or two things for the week after. The weeks before it are a tap each below. *@
+@if (loaded)
+{
+    var thisMonday = Consistency.WeekStart(DateOnly.FromDateTime(DateTime.Now));
+    var title = week == thisMonday ? "This week" : week == thisMonday.AddDays(-7) ? "Last week" : "The week";
+    var after = week == thisMonday ? "Next week" : week == thisMonday.AddDays(-7) ? "This week" : "The week after";
+    <div class="screen look-back">
+        <PageHeader Back="" BackText="Today" Label="@($"Week of {week.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)}")" Title="@title" />
+
+        @if (Weeks.IsAsking(week))
+        {
+            <ClaudeMonitor Since="@(Weeks.AskedAt(week) ?? DateTimeOffset.Now)" Words="Claude is looking back at your week" Short="Claude · reading" />
+        }
+        else if (record is { Answer: { } answer })
+        {
+            <p class="look-summary arrive" style="--i: 0">@record.Summary</p>
+
+            <section class="stack arrive" style="--i: 1" aria-labelledby="gym-days-heading">
+                <h2 id="gym-days-heading" class="label">Gym days</h2>
+                <p class="body">@answer.GymDays</p>
+            </section>
+
+            @if (answer.WentUp.Count > 0)
+            {
+                <section class="stack arrive" style="--i: 2" aria-labelledby="went-up-heading">
+                    <h2 id="went-up-heading" class="label">What went up</h2>
+                    <ul class="highlights">
+                        @foreach (var line in answer.WentUp)
+                        {
+                            <li>@line</li>
+                        }
+                    </ul>
+                </section>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(answer.Missed))
+            {
+                <section class="stack arrive" style="--i: 3" aria-labelledby="missed-heading">
+                    <div class="spread baseline">
+                        <h2 id="missed-heading" class="label">Muscles</h2>
+                        <a class="btn-ghost" href="stats/muscles">Sets by muscle</a>
+                    </div>
+                    <p class="body">@answer.Missed</p>
+                </section>
+            }
+
+            <section class="stack arrive" style="--i: 4" aria-labelledby="calories-heading">
+                <div class="spread baseline">
+                    <h2 id="calories-heading" class="label">Calories</h2>
+                    <a class="btn-ghost" href="calories">Day by day</a>
+                </div>
+                <p class="body">@answer.Calories</p>
+            </section>
+
+            <section class="stack arrive" style="--i: 5" aria-labelledby="after-heading">
+                <h2 id="after-heading" class="label">@after</h2>
+                @foreach (var thing in answer.ThisWeek)
+                {
+                    <p class="pen-note">@thing</p>
+                }
+            </section>
+        }
+        else if (record is { } trouble)
+        {
+            <section class="block stack arrive" role="alert">
+                <p class="look-summary">@trouble.Summary</p>
+                @foreach (var note in trouble.Notes)
+                {
+                    <p class="note">@note</p>
+                }
+                @if (trouble.Kind is AnswerKind.NoKey or AnswerKind.KeyRejected or AnswerKind.OutOfCredit or AnswerKind.SpendLimit)
+                {
+                    <a class="btn tall" href="settings">Claude in Settings</a>
+                }
+                else if (trouble.Kind is not (AnswerKind.NeedMore or AnswerKind.Cannot))
+                {
+                    <button type="button" class="btn tall" @onclick="() => Weeks.AskAsync(week)">Try again</button>
+                }
+            </section>
+        }
+
+        @if (before.Count > 0)
+        {
+            <section class="stack" aria-labelledby="before-heading">
+                <h2 id="before-heading" class="label">Weeks before</h2>
+                <div class="ledger">
+                    @foreach (var other in before)
+                    {
+                        <a class="row" href="week/@other.Monday.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)">
+                            <span class="row-text">
+                                <span class="caption">Week of @other.Monday.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)</span>
+                                <span class="body">@other.Summary</span>
+                            </span>
+                            <Icon Name="forward" Size="16" />
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    // How many weeks before this one are listed.
+    private const int Listed = 8;
+
+    private bool loaded;
+    private DateOnly week;
+    private WeekLookRecord? record;
+    private List<WeekLookRecord> before = [];
+
+    /// <summary>The week's Monday: 2026-11-02.</summary>
+    [Parameter] public string Monday { get; set; } = "";
+
+    [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
+
+    protected override void OnInitialized() => Weeks.Changed += OnWeekChanged;
+
+    // Another week's link opens this page again with its Monday.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!DateOnly.TryParseExact(Monday, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out week))
+        {
+            await Navigation.HomeAsync();
+            return;
+        }
+
+        var kept = await Weeks.KeptAsync();
+        record = kept.Find(w => w.Monday == week);
+        before = [.. kept.Where(w => w.Monday < week).Take(Listed)];
+        if (record is null && !Weeks.IsAsking(week))
+        {
+            await Navigation.HomeAsync();
+            return;
+        }
+
+        loaded = true;
+    }
+
+    private void OnWeekChanged(DateOnly changed)
+    {
+        if (changed != week) return;
+
+        _ = InvokeAsync(async () =>
+        {
+            var kept = await Weeks.KeptAsync();
+            record = Weeks.IsAsking(week) ? null : kept.Find(w => w.Monday == week);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Weeks.Changed -= OnWeekChanged;
+}

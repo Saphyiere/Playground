@@ -215,74 +215,99 @@ public static class AskFacts
     {
         var today = DateOnly.FromDateTime(now.DateTime);
         var first = Consistency.WeekStart(today).AddDays(-7 * (Weeks - 1));
-        DateOnly Day(WorkoutSession s) => DateOnly.FromDateTime(s.StartedAt.DateTime);
-        var inWeeks = sessions.Where(s => Day(s) >= first && Day(s) <= today).ToList();
-        var plannedDays = context.Routine?.Week.Count(d => d is not null);
+        var weeks = Enumerable.Range(0, Weeks).Select(i => Week(first.AddDays(7 * i), today, sessions, sets, days, weighIns, context)).ToList();
+        return new AskInput(question, today, context.HitGoalStep, Body(now, weighIns, context), weeks, Exercises(first, today, sessions, sets, exercises, weighIns, context),
+            Routine(context.Routine, exercises), Next(today, sessions, sets, exercises, context), earlier);
+    }
 
-        var weeks = Enumerable.Range(0, Weeks).Select(i =>
-        {
-            var monday = first.AddDays(7 * i);
-            var counts = Muscles.Count(Muscles.InWeek(inWeeks, sets, monday), context.Tags);
-            // The week's days that are over: today's food is still being eaten.
-            var food = Calories.Span([.. days.Where(d => d.Day >= monday && d.Day < monday.AddDays(7) && d.Day < today)]);
-            var weighed = weighIns.Where(w => DateOnly.FromDateTime(w.At.DateTime) is var day && day >= monday && day < monday.AddDays(7))
-                .Select(w => context.Unit == WeightUnit.Kilograms ? WorkoutStats.Kilograms(w.Weight, w.WeightUnit) : WorkoutStats.Pounds(w.Weight, w.WeightUnit)).ToList();
-            return new AskWeek(monday, inWeeks.Count(s => Day(s) >= monday && Day(s) < monday.AddDays(7)), plannedDays, [.. counts.Where(c => c.Sets > 0)],
-                Muscles.Missing(counts), food.Logged, food.AtMaintenance, Round(food.AverageEaten), Round(food.AverageDeficit),
-                weighed.Count == 0 ? null : Math.Round(weighed.Average(), 1));
-        }).ToList();
+    /// <summary>
+    /// One week from <paramref name="monday"/>: its workouts against the routine's gym days, each muscle's hard sets and the muscles
+    /// with none, its food on the days over by <paramref name="today"/> (today's is still being eaten), and its average weigh-in.
+    /// </summary>
+    public static AskWeek Week(DateOnly monday, DateOnly today, IReadOnlyList<WorkoutSession> sessions, IReadOnlyList<WorkoutSet> sets, IReadOnlyList<CalorieDay> days,
+        IReadOnlyList<BodyWeightEntry> weighIns, AskContext context)
+    {
+        var next = monday.AddDays(7);
+        var counts = Muscles.Count(Muscles.InWeek(sessions, sets, monday), context.Tags);
+        var food = Calories.Span([.. days.Where(d => d.Day >= monday && d.Day < next && d.Day < today)]);
+        var weighed = weighIns.Where(w => DateOnly.FromDateTime(w.At.DateTime) is var day && day >= monday && day < next)
+            .Select(w => context.Unit == WeightUnit.Kilograms ? WorkoutStats.Kilograms(w.Weight, w.WeightUnit) : WorkoutStats.Pounds(w.Weight, w.WeightUnit)).ToList();
+        return new AskWeek(monday, sessions.Count(s => Day(s) >= monday && Day(s) < next), context.Routine?.Week.Count(d => d is not null),
+            [.. counts.Where(c => c.Sets > 0)], Muscles.Missing(counts), food.Logged, food.AtMaintenance, Round(food.AverageEaten), Round(food.AverageDeficit),
+            weighed.Count == 0 ? null : Math.Round(weighed.Average(), 1));
+    }
 
-        // The exercises done in the weeks, the latest done first, each with its times there and whether it's flat counting all of them.
+    /// <summary>
+    /// The exercises done from <paramref name="from"/> through <paramref name="to"/>, the latest done first, each with its times there (at
+    /// most 8), whether it's gone flat counting every time, and the plan waiting for its next time.
+    /// </summary>
+    public static IReadOnlyList<AskExercise> Exercises(DateOnly from, DateOnly to, IReadOnlyList<WorkoutSession> sessions, IReadOnlyList<WorkoutSet> sets,
+        IReadOnlyDictionary<long, Exercise> exercises, IReadOnlyList<BodyWeightEntry> weighIns, AskContext context)
+    {
+        var inRange = sessions.Where(s => Day(s) >= from && Day(s) <= to).ToList();
+        var startedAt = inRange.ToDictionary(s => s.Id, s => s.StartedAt);
         var latest = weighIns.MaxBy(w => w.At);
         double? bodyPounds = latest is null ? null : WorkoutStats.Pounds(latest.Weight, latest.WeightUnit);
-        var startedAt = inWeeks.ToDictionary(s => s.Id, s => s.StartedAt);
-        var askExercises = new List<AskExercise>();
+        var list = new List<AskExercise>();
         foreach (var id in sets.Where(s => startedAt.ContainsKey(s.SessionId)).GroupBy(s => s.ExerciseId).OrderByDescending(g => g.Max(s => startedAt[s.SessionId])).Select(g => g.Key))
         {
             if (!exercises.TryGetValue(id, out var exercise)) continue;
 
-            var times = ExerciseHistory.Recent(id, inWeeks, sets, 0, 8);
-            var flat = Plateaus.Of(exercise, ExerciseHistory.Recent(id, sessions, sets, 0, int.MaxValue), bodyPounds);
+            var times = ExerciseHistory.Recent(id, inRange, sets, 0, 8);
+            var flat = Plateaus.Of(exercise, ExerciseHistory.Recent(id, sessions.Where(s => Day(s) <= to), sets, 0, int.MaxValue), bodyPounds);
             var said = context.Trainer.TryGetValue(id, out var target) && target.SessionId == times[0].Session.Id
                 ? $"{target.Sets} × {target.Reps} at {(target.Weight is double w ? $"{SetSummary.WeightText(w)} {Unit(target.Unit)}" : "bodyweight")}, rest {TimeText.Format(TimeSpan.FromSeconds(target.RestSeconds))}"
                 : "";
-            askExercises.Add(new AskExercise(id, exercise.Name, exercise.Measure, context.Tags.TryGetValue(id, out var tags) ? Muscles.Text(tags) : "Not tagged yet",
+            list.Add(new AskExercise(id, exercise.Name, exercise.Measure, context.Tags.TryGetValue(id, out var tags) ? Muscles.Text(tags) : "Not tagged yet",
                 [.. times.Select(t => new AskTime(t.Session.Id, Day(t.Session), SetSummary.Format(t.Sets, exercise.Measure), t.Sets.Any(s => s.HitGoal),
                     [.. t.Sets.Where(s => s.Weight is not null).Select(s => s.Weight!.Value).Distinct()], t.Sets[^1].WeightUnit))],
                 flat?.Workouts ?? 0, flat is null ? "" : $"{SetSummary.Format(flat.Best.Sets, exercise.Measure)} on {Day(flat.Best.Session):yyyy-MM-dd}", said));
         }
 
-        // The routine day by day, Monday first, with its sessions' exercises by name; and its next workout: today's session while
-        // there's no finished workout today, else the next day with one. Each exercise there says what its first set starts from: the
-        // plan waiting for it, a step up after a hit goal, or the first set last time.
-        AskRoutine? routine = null;
-        AskNext? next = null;
-        if (context.Routine is { } plan)
-        {
-            routine = new AskRoutine(plan.Name, [.. plan.Week.Select((session, i) => new AskDay(((DayOfWeek)((i + 1) % 7)).ToString(), session?.Name ?? "Rest",
-                session is null ? [] : [.. session.Exercises.Select(e => exercises.TryGetValue(e.ExerciseId, out var x) ? x.Name : "")]))]);
-            var doneToday = sessions.Any(s => Day(s) == today);
-            var nextDay = Enumerable.Range(doneToday ? 1 : 0, 7).Select(today.AddDays).FirstOrDefault(d => plan.Week[Schedule.DayIndex(d)] is not null);
-            if (nextDay != default && plan.Week[Schedule.DayIndex(nextDay)] is { } session)
-            {
-                next = new AskNext(nextDay, session.Name, [.. session.Exercises.Where(e => exercises.ContainsKey(e.ExerciseId)).Select(e =>
-                {
-                    var last = ExerciseHistory.Recent(e.ExerciseId, sessions, sets, 0, 1).FirstOrDefault();
-                    var waiting = context.Trainer.TryGetValue(e.ExerciseId, out var t) && last is not null && t.SessionId == last.Session.Id ? t : null;
-                    var firstSet = SetSuggestion.For([], last?.Sets ?? [], context.HitGoalStep, waiting);
-                    var text = firstSet is null ? "nothing yet: not done before"
-                        : $"{firstSet.Reps ?? 0} at {(firstSet.Weight is double w ? $"{SetSummary.WeightText(w)} {Unit(firstSet.Unit)}" : "bodyweight")}, " +
-                          (firstSet.FromTrainer ? "from the plan waiting" : firstSet.RaisedForGoal ? "a step up after a hit goal" : "as the first set last time");
-                    return new AskNextExercise(e.ExerciseId, exercises[e.ExerciseId].Name, e.PlannedSets, text);
-                })]);
-            }
-        }
-
-        var change = BodyWeight.Trend(weighIns, now.AddDays(-28), now, context.Unit);
-        var body = new AskBody(latest?.Weight, latest?.WeightUnit ?? context.Unit, change is double c ? Math.Round(c, 1) : null, context.CalorieGoal, context.Maintenance,
-            context.MaintenanceByScale);
-        return new AskInput(question, today, context.HitGoalStep, body, weeks, askExercises, routine, next, earlier);
+        return list;
     }
+
+    /// <summary>My body as of <paramref name="at"/>: the latest weigh-in by then, how my weight moved over the 4 weeks to then, and the goal and maintenance.</summary>
+    public static AskBody Body(DateTimeOffset at, IReadOnlyList<BodyWeightEntry> weighIns, AskContext context)
+    {
+        var latest = weighIns.Where(w => w.At <= at).MaxBy(w => w.At);
+        var change = BodyWeight.Trend(weighIns, at.AddDays(-28), at, context.Unit);
+        return new AskBody(latest?.Weight, latest?.WeightUnit ?? context.Unit, change is double c ? Math.Round(c, 1) : null, context.CalorieGoal, context.Maintenance,
+            context.MaintenanceByScale);
+    }
+
+    /// <summary>The routine day by day, Monday first, with its sessions' exercises by name; null without one.</summary>
+    public static AskRoutine? Routine(AskRoutinePlan? plan, IReadOnlyDictionary<long, Exercise> exercises) => plan is null ? null
+        : new AskRoutine(plan.Name, [.. plan.Week.Select((session, i) => new AskDay(((DayOfWeek)((i + 1) % 7)).ToString(), session?.Name ?? "Rest",
+            session is null ? [] : [.. session.Exercises.Select(e => exercises.TryGetValue(e.ExerciseId, out var x) ? x.Name : "")]))]);
+
+    /// <summary>
+    /// The routine's next workout: <paramref name="today"/>'s session while there's no finished workout that day, else the next day
+    /// with one. Each exercise says what its first set starts from: the plan waiting for it, a step up after a hit goal, or the first
+    /// set last time. Null without a routine.
+    /// </summary>
+    public static AskNext? Next(DateOnly today, IReadOnlyList<WorkoutSession> sessions, IReadOnlyList<WorkoutSet> sets, IReadOnlyDictionary<long, Exercise> exercises,
+        AskContext context)
+    {
+        if (context.Routine is not { } plan) return null;
+
+        var doneToday = sessions.Any(s => Day(s) == today);
+        var day = Enumerable.Range(doneToday ? 1 : 0, 7).Select(today.AddDays).FirstOrDefault(d => plan.Week[Schedule.DayIndex(d)] is not null);
+        if (day == default || plan.Week[Schedule.DayIndex(day)] is not { } session) return null;
+
+        return new AskNext(day, session.Name, [.. session.Exercises.Where(e => exercises.ContainsKey(e.ExerciseId)).Select(e =>
+        {
+            var last = ExerciseHistory.Recent(e.ExerciseId, sessions, sets, 0, 1).FirstOrDefault();
+            var waiting = context.Trainer.TryGetValue(e.ExerciseId, out var t) && last is not null && t.SessionId == last.Session.Id ? t : null;
+            var first = SetSuggestion.For([], last?.Sets ?? [], context.HitGoalStep, waiting);
+            var text = first is null ? "nothing yet: not done before"
+                : $"{first.Reps ?? 0} at {(first.Weight is double w ? $"{SetSummary.WeightText(w)} {Unit(first.Unit)}" : "bodyweight")}, " +
+                  (first.FromTrainer ? "from the plan waiting" : first.RaisedForGoal ? "a step up after a hit goal" : "as the first set last time");
+            return new AskNextExercise(e.ExerciseId, exercises[e.ExerciseId].Name, e.PlannedSets, text);
+        })]);
+    }
+
+    private static DateOnly Day(WorkoutSession session) => DateOnly.FromDateTime(session.StartedAt.DateTime);
 
     private static int? Round(double? value) => value is double v ? (int)Math.Round(v) : null;
 
