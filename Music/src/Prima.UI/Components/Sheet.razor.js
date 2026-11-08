@@ -39,6 +39,68 @@ export async function toMei(bytes, kind) {
     return loaded ? converter.getMEI({ removeIds: false }) : null;
 }
 
+// A reading of a PDF's system (Transcription's MEI), engraved as one system across `width` px: for Claude to set beside the
+// print, and for the review to show under it. A toolkit of its own, so a sheet on screen isn't disturbed. Returns the PNG, a URL to
+// show it by, and each bar's left and right edge as a share of the width, to mark a bar on it.
+let engraver;
+export async function engrave(mei, width) {
+    await toolkit();
+    engraver ??= new verovio.toolkit();
+    engraver.setOptions({
+        font: "Leipzig",
+        scale: 100,
+        pageWidth: 2000,
+        pageHeight: 60000,
+        adjustPageHeight: true,
+        breaks: "encoded",
+        minLastJustification: 0,
+        header: "none",
+        footer: "none",
+        pageMarginLeft: 24,
+        pageMarginRight: 24,
+        pageMarginTop: 24,
+        pageMarginBottom: 24,
+        svgViewBox: true,
+        svgHtml5: true,
+    });
+    if (!engraver.loadData(withoutVerses(mei))) throw new Error("Verovio couldn't read the reading.");
+    const svg = engraver.renderToSVG(1);
+
+    // Laid out off screen at the width asked, to find the bars, then drawn on white into a PNG of that width.
+    const host = document.createElement("div");
+    host.style.cssText = `position: absolute; left: -100000px; top: 0; width: ${width}px; visibility: hidden`;
+    host.innerHTML = svg;
+    document.body.appendChild(host);
+    const drawn = host.querySelector("svg");
+    drawn.style.width = `${width}px`;
+    drawn.style.height = "auto";
+    const box = drawn.getBoundingClientRect();
+    const bars = [...host.querySelectorAll(".measure")].map(m => {
+        const r = m.getBoundingClientRect();
+        return [(r.left - box.left) / box.width, (r.right - box.left) / box.width];
+    });
+    const height = Math.max(1, Math.round(box.height));
+    host.remove();
+
+    const image = new Image();
+    const source = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    try {
+        image.src = source;
+        await image.decode();
+    } finally {
+        URL.revokeObjectURL(source);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    return { png: new Uint8Array(await blob.arrayBuffer()), url: URL.createObjectURL(blob), bars };
+}
+
 export function pixelsPerMm() {
     return Math.max(screen.width, screen.height) / 280;
 }

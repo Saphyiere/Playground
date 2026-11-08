@@ -143,8 +143,8 @@ a PDF plays out; this is what came of it.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
-  Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes, so it
-  shows about where its collection sits.
+  Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes until
+  they're read (below), so it shows about where its collection sits.
 - **A piece** opens on its bar and its music. The bar ends with two keys: **Options**, which shows the piece's options in
   place of the music (the view, the hands, play along, where to start, a loop; a PDF's tempo and bars) until it's pressed again,
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
@@ -175,6 +175,24 @@ a PDF plays out; this is what came of it.
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
   × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can
   also play (**Hear it on the piano**).
+- **Reading a PDF's notes**, with Claude (Options › Notes › **Read the notes…**, with your key in Settings › Claude). First
+  what it will cost: the page with the systems Prima found boxed (each is sent to Anthropic as a picture), the pages (all, or from
+  one to another), the systems, the cost range ($0.15–0.60 a system) and the time (about 2½ minutes a round: the first system
+  alone, since its time signature is printed only there, then four at a time). **Start reading** cuts each system from the page,
+  drawn 2,576 px wide and cut at the widest white between systems, and each goes through three steps, shown as lamps on its
+  row: Claude reads what's printed; Prima checks that every bar's beats add up and engraves the reading; Claude sets the
+  engraving beside the print and corrects the bars that differ, leaving those it still can't be sure of in doubt. The bar shows
+  the systems read, what's been spent, the time and about how long is left; **Cancel** stops at once, and what's been spent stays
+  spent. Then each system's print over its reading, engraved at the same width: a bar in doubt is tinted on both, with Claude's
+  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60).
+  The reading waits on the piece, to come back to, until it's kept or thrown away. A key that's turned down, used-up credit, the
+  workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read; the systems not read can be read
+  again, and **Keep** waits until every system has been. Kept, the reading is the piece's notation, graded and cut into
+  excerpts like an import: it plays like any notation piece, with a **Print** key on its bar that shows the PDF again, as before,
+  and lights while it does. About this piece says when its notes were read, what it cost and any bars left in doubt, with **Read
+  the notes again…**. Claude reads the notes, chords, rests, ties, grace notes, tuplets, clef changes, 8va, repeats, endings and
+  staccato, accents and tenuto; notes under an 8va line are kept at the pitch they sound, without the line. Clean engraved PDFs
+  read well; scans less so.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
@@ -451,7 +469,10 @@ Everything lives in one SQLite file on the tablet.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
   others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
-  bars, its metre and tempo, and where you were. Imported files, and a local collection's PDFs and MIDI, sit beside the data file.
+  bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. Imported
+  files, and a local collection's PDFs and MIDI, sit beside the data file.
+- **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
+  gave it, the doubts by bar, the MEI, the pages it covered, what it cost and how long it took, and when it was kept.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Streak**: the days practised and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no

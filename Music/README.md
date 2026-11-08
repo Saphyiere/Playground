@@ -144,6 +144,8 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
   scroll the next line into view in time?
 - In portrait, a PDF's half-page turns, and **Scroll at the tempo**: is a line at a time the right pace?
 - Whether 7 mm staves read comfortably from the music stand (Settings → Notation changes the size).
+- With Claude's key on, a PDF's **Options › Read the notes…**: are the systems boxed right on the page, does the reading finish
+  in about the time it says, and does each system's reading match its print? Keep it, play it, and press **Print** for the PDF.
 
 ## The looks
 

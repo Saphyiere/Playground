@@ -48,6 +48,134 @@ export async function profile(element, n) {
     return rows;
 }
 
+// A page drawn small, for showing which of its systems will be read: a URL to show it by.
+export async function thumbnail(element, n, width) {
+    const view = views.get(element);
+    if (!view) return null;
+    const canvas = await drawn(view, n, width);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    return URL.createObjectURL(blob);
+}
+
+// A page's systems cut out as pictures for Claude to read: the page drawn up to 2,576 px wide (the largest image Claude takes
+// without shrinking it), each system cropped to the ink across it. `systems` are the systems found (their tops and bottoms in px at
+// 900 wide, halfway between staves); each cut moves to the widest band of white between two systems, so the notes high above or
+// low below a staff stay with their own system, and a page's first and last move out to white paper. With each, a URL to show it
+// by, and its barlines as shares of its width: columns dark all the way from its top staff line to its bottom one.
+export async function cut(element, n, systems) {
+    const view = views.get(element);
+    if (!view || systems.length === 0) return [];
+    const canvas = await drawn(view, n, 2576);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const width = canvas.width, height = canvas.height;
+    const data = context.getImageData(0, 0, width, height).data;
+    const dark = (x, y) => {
+        const i = (y * width + x) * 4;
+        return data[i] + data[i + 1] + data[i + 2] < 384;
+    };
+    const ink = new Int32Array(height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) if (dark(x, y)) ink[y]++;
+    }
+    const scale = width / 900;
+    // Each system's staff lines: the rows more than half dark within it.
+    const lines = systems.map(s => {
+        const rows = [];
+        for (let y = Math.max(0, Math.floor(s.top * scale)); y < Math.min(height, Math.ceil(s.bottom * scale)); y++) if (ink[y] > width / 2) rows.push(y);
+        return rows;
+    });
+    // Between two systems, the middle of the longest run of white rows (or the least inky row, when they touch).
+    const between = (from, to) => {
+        let best = null, run = null;
+        for (let y = from; y <= to; y++) {
+            if (ink[y] <= 2) run = run ? [run[0], y] : [y, y];
+            else run = null;
+            if (run && (!best || run[1] - run[0] > best[1] - best[0])) best = [...run];
+        }
+        if (best) return Math.round((best[0] + best[1]) / 2);
+        let least = from;
+        for (let y = from; y <= to; y++) if (ink[y] < ink[least]) least = y;
+        return least;
+    };
+    // From a rough edge outward to the first white row, so no note or word is cut through.
+    const outward = (y, step) => {
+        while (y > 0 && y < height - 1 && ink[y] > 2) y += step;
+        return y;
+    };
+    const tops = [], bottoms = [];
+    for (let i = 0; i < systems.length; i++) {
+        const own = lines[i];
+        if (i === 0) tops.push(outward(Math.max(0, Math.floor(systems[0].top * scale)), -1));
+        if (i === systems.length - 1) bottoms.push(outward(Math.min(height - 1, Math.ceil(systems[i].bottom * scale)), 1));
+        else {
+            const next = lines[i + 1];
+            const edge = own.length && next.length ? between(own[own.length - 1] + 1, next[0] - 1) : Math.round(systems[i].bottom * scale);
+            bottoms.push(edge);
+            tops.push(edge);
+        }
+    }
+
+    const cuts = [];
+    for (let i = 0; i < systems.length; i++) {
+        const top = tops[i], bottom = Math.max(top + 1, bottoms[i]);
+        let left = width, right = 0;
+        for (let y = top; y < bottom; y++) {
+            if (ink[y] === 0) continue;
+            for (let x = 0; x < width; x++) {
+                if (!dark(x, y)) continue;
+                if (x < left) left = x;
+                if (x > right) right = x;
+            }
+        }
+        const pad = Math.round(width * 0.01);
+        left = Math.max(0, Math.min(left, width - 1) - pad);
+        right = Math.min(width, Math.max(right, left) + pad + 1);
+        const bars = [];
+        const own = lines[i];
+        if (own.length >= 2) {
+            const first = own[0], last = own[own.length - 1];
+            let run = null;
+            for (let x = left; x < right; x++) {
+                let through = true;
+                for (let y = first; y <= last && through; y++) through = dark(x, y) || dark(x, Math.min(height - 1, y + 1));
+                if (through) run = run ? [run[0], x] : [x, x];
+                else if (run) {
+                    bars.push(((run[0] + run[1]) / 2 - left) / (right - left));
+                    run = null;
+                }
+            }
+            if (run) bars.push(((run[0] + run[1]) / 2 - left) / (right - left));
+        }
+        const out = document.createElement("canvas");
+        out.width = Math.max(1, right - left);
+        out.height = bottom - top;
+        out.getContext("2d").drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height);
+        const blob = await new Promise(resolve => out.toBlob(resolve, "image/png"));
+        cuts.push({ png: new Uint8Array(await blob.arrayBuffer()), url: URL.createObjectURL(blob), bars });
+    }
+    return cuts;
+}
+
+// Lets go of pictures made for showing (thumbnail, cut, the sheet's engrave).
+export function release(urls) {
+    for (const url of urls ?? []) URL.revokeObjectURL(url);
+}
+
+// A page drawn on white, `width` px wide, on a canvas of its own.
+async function drawn(view, n, width) {
+    const page = await view.doc.getPage(n);
+    const base = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: width / base.width });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: context, viewport }).promise;
+    return canvas;
+}
+
 // The width pages are drawn at: the view's, or with `fit` (portrait, a page at a time) small enough for a whole page to show.
 export function pageWidth(element, fit) {
     const view = views.get(element);

@@ -38,7 +38,16 @@ public sealed record PieceRecord(
     public bool IsPdf => Format == "pdf";
 
     public bool Imported => Origin == "import";
+
+    /// <summary>A PDF whose notes Claude has read, kept as MEI beside it: it plays and is graded as notation, its print a key away.</summary>
+    public bool HasNotes { get; init; }
 }
+
+/// <summary>
+/// A PDF's reading into notation, as JSON (Transcription's <c>ReadingDraft</c>): waiting on its piece to be reviewed, or kept as its
+/// notation, and when.
+/// </summary>
+public sealed record PieceReading(string Piece, string Result, DateTimeOffset Saved, DateTimeOffset? Kept);
 
 /// <summary>An excerpt of a piece for the sight-reading track: its bars, level, and when it was last read.</summary>
 public sealed record ExcerptRecord(long Id, string Piece, int FirstBar, int LastBar, int Level, double Within, int Used, DateOnly? LastUsed);
@@ -83,19 +92,28 @@ public sealed partial class PrimaStore
             LastUsed TEXT
         );
         CREATE INDEX IF NOT EXISTS ExcerptByLevel ON Excerpt (Level, LastUsed);
+        CREATE TABLE IF NOT EXISTS PieceReading (
+            Piece TEXT PRIMARY KEY REFERENCES Piece (Id) ON DELETE CASCADE,
+            Result TEXT NOT NULL,
+            Saved TEXT NOT NULL,
+            Kept TEXT
+        );
         """;
 
     private const string PieceColumns = "Id, Origin, Title, Composer, Work, Format, File, Midi, Level, TypicalLevel, Reasons, Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position, Added, Opened";
+
+    // Read back with whether a PDF has notes read from it.
+    private const string PieceSelect = PieceColumns + ", Format = 'pdf' AND Mei IS NOT NULL AS HasNotes";
 
     /// <summary>The folder imported files are kept in, beside the data file.</summary>
     public string FilesPath => Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", "library");
 
     /// <summary>Every piece, without its music: for the Library's list.</summary>
-    public Task<List<PieceRecord>> GetPiecesAsync() => RunAsync(async c => (await c.QueryAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece")).Select(r => r.ToRecord()).ToList());
+    public Task<List<PieceRecord>> GetPiecesAsync() => RunAsync(async c => (await c.QueryAsync<PieceRow>($"SELECT {PieceSelect} FROM Piece")).Select(r => r.ToRecord()).ToList());
 
-    public Task<PieceRecord?> GetPieceAsync(string id) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece WHERE Id = @id", new { id }))?.ToRecord());
+    public Task<PieceRecord?> GetPieceAsync(string id) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<PieceRow>($"SELECT {PieceSelect} FROM Piece WHERE Id = @id", new { id }))?.ToRecord());
 
-    /// <summary>A notation piece's MEI.</summary>
+    /// <summary>A notation piece's MEI, or a PDF's read from it; null for a PDF not read.</summary>
     public Task<string?> GetMeiAsync(string id) => RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
 
     /// <summary>The pieces already in the Library, by id: so a bundled piece is prepared once.</summary>
@@ -122,7 +140,7 @@ public sealed partial class PrimaStore
 
     /// <summary>
     /// The bundle's pieces, by the id and title each is kept under, against those already here, as one piece of work: their
-    /// details from the bundle (a PDF's level comes with them; a notation piece's is its own), and the bundled pieces it no
+    /// details from the bundle (a PDF's level comes with them, until its notes are read; a notation piece's is its own), and the bundled pieces it no
     /// longer has taken out with their excerpts.
     /// </summary>
     public Task RefreshBundleAsync(IReadOnlyList<(string Id, string Title, BundledPiece Piece)> pieces) => RunAsync(async c =>
@@ -135,14 +153,31 @@ public sealed partial class PrimaStore
         {
             await c.ExecuteAsync("""
                 UPDATE Piece SET Title = @title, Composer = @Composer, Work = @Work, Credit = @Credit, Licence = @Licence, LicenceUrl = @LicenceUrl, SourceUrl = @SourceUrl,
-                    Level = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' THEN @pdfLevel ELSE TypicalLevel END
+                    Level = CASE WHEN Format = 'pdf' AND Mei IS NULL THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' AND Mei IS NULL THEN @pdfLevel ELSE TypicalLevel END
                 WHERE Id = @id AND Origin = 'bundle'
                 """, new { id, title, p.Composer, p.Work, p.Credit, p.Licence, p.LicenceUrl, p.SourceUrl, pdfLevel = p.Format == "pdf" ? p.Anchor : null }, transaction);
         }
         await transaction.CommitAsync();
     });
 
-    public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
+    public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
+
+    /// <summary>A PDF's reading: waiting to be reviewed, or kept; null when it has none.</summary>
+    public Task<PieceReading?> GetReadingAsync(string piece) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<(string Piece, string Result, string Saved, string? Kept)?>(
+        "SELECT Piece, Result, Saved, Kept FROM PieceReading WHERE Piece = @piece", new { piece })) is { } r
+        ? new PieceReading(r.Piece, r.Result, DateTimeOffset.Parse(r.Saved, CultureInfo.InvariantCulture), r.Kept is null ? null : DateTimeOffset.Parse(r.Kept, CultureInfo.InvariantCulture))
+        : null);
+
+    /// <summary>Keeps a reading on its piece to be reviewed, in place of any it had.</summary>
+    public Task SaveReadingAsync(string piece, string result) => RunAsync(c => c.ExecuteAsync(
+        "INSERT INTO PieceReading (Piece, Result, Saved, Kept) VALUES (@piece, @result, @saved, NULL) ON CONFLICT (Piece) DO UPDATE SET Result = excluded.Result, Saved = excluded.Saved, Kept = NULL",
+        new { piece, result, saved = Iso(DateTimeOffset.Now) }));
+
+    /// <summary>Marks the piece's reading kept, now that its MEI is the piece's notation.</summary>
+    public Task MarkReadingKeptAsync(string piece) => RunAsync(c => c.ExecuteAsync("UPDATE PieceReading SET Kept = @kept WHERE Piece = @piece", new { piece, kept = Iso(DateTimeOffset.Now) }));
+
+    /// <summary>Throws a reading away. A kept one's notation stays with its piece.</summary>
+    public Task DeleteReadingAsync(string piece) => RunAsync(c => c.ExecuteAsync("DELETE FROM PieceReading WHERE Piece = @piece", new { piece }));
 
     /// <summary>What you set for a piece: its tempo, its PDF layout, where you were. Null leaves a value as it is.</summary>
     public Task SetPieceAsync(string id, double? tempo = null, string? layout = null, string? position = null) => RunAsync(c => c.ExecuteAsync(
@@ -167,10 +202,10 @@ public sealed partial class PrimaStore
 
     // Dapper's view of a row: dates as text.
     private sealed record PieceRow(string Id, string Origin, string Title, string Composer, string? Work, string Format, string? File, string? Midi, long? Level, long? TypicalLevel, string? Reasons, long? Bars,
-        string? Source, string? SourceUrl, string? Licence, string? LicenceUrl, string? Credit, string? Tier, double? Tempo, string? Layout, string? Position, string Added, string? Opened)
+        string? Source, string? SourceUrl, string? Licence, string? LicenceUrl, string? Credit, string? Tier, double? Tempo, string? Layout, string? Position, string Added, string? Opened, long HasNotes)
     {
         public PieceRecord ToRecord() => new(Id, Origin, Title, Composer, Work, Format, File, Midi, (int?)Level, (int?)TypicalLevel, Reasons, (int?)Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position,
-            DateTimeOffset.Parse(Added, CultureInfo.InvariantCulture), Opened is null ? null : DateTimeOffset.Parse(Opened, CultureInfo.InvariantCulture));
+            DateTimeOffset.Parse(Added, CultureInfo.InvariantCulture), Opened is null ? null : DateTimeOffset.Parse(Opened, CultureInfo.InvariantCulture)) { HasNotes = HasNotes != 0 };
 
         public static object From(PieceRecord p, string? mei) => new
         {

@@ -3628,6 +3628,11 @@ html[data-full] .piece .summary {
     padding-top: 8px;
 }
 
+.control-row-top > .mu-btn {
+    flex: none;
+    white-space: nowrap;
+}
+
 .key-howto {
     flex: 1;
     min-width: 0;
@@ -3727,4 +3732,596 @@ html[data-full] .piece .summary {
     font-size: 20px;
     font-weight: 400;
     letter-spacing: 0.04em;
+}
+
+/* Reading a PDF's notes with Claude, in the music's place (Transcription/ReadNotes): what it will cost, each system's steps while
+   it reads, then each system's print over the reading engraved, its doubtful bars tinted on both. A system's step is a lamp:
+   waiting, working, done, in doubt or failed. */
+:root,
+[data-theme="studio"] {
+    --pdfread-wait: #bdb8ae;
+    --pdfread-now: #ffb547;
+    --pdfread-done: #46c35b;
+    --pdfread-doubt: #ff6a1a;
+    --pdfread-fail: #c8361b;
+    --pdfread-glow: 0 0 6px;
+    --pdfread-tint: rgba(255, 106, 26, 0.13);
+    --pdfread-tint-edge: #e85a0c;
+    --pdfread-tag: #ff6a1a;
+    --on-pdfread-tag: #1d1b19;
+    --pdfread-panel-shadow: 0 3px 0 #b5afa4;
+    --pdfread-label: 700 10.5px/14px var(--font-mono);
+    --pdfread-label-spacing: 0.12em;
+}
+
+[data-theme="vinyl"] {
+    --pdfread-wait: #2f6162;
+    --pdfread-now: #f1e4c8;
+    --pdfread-done: #f1e4c8;
+    --pdfread-doubt: #e5a823;
+    --pdfread-fail: #f08458;
+    --pdfread-glow: 0 0 0;
+    --pdfread-tint: rgba(229, 168, 35, 0.2);
+    --pdfread-tint-edge: #b07d0c;
+    --pdfread-tag: #e5a823;
+    --on-pdfread-tag: #173b3d;
+    --pdfread-panel-shadow: none;
+    --pdfread-label: 600 12px/16px var(--font-sans);
+    --pdfread-label-spacing: 0.14em;
+}
+
+/* The music's stage steps aside while the reading has the piece. */
+.piece-stage-gone {
+    display: none;
+}
+
+/* A key with a word on it among the piece's tools: Print. */
+.piece-tool.piece-tool-word {
+    width: auto;
+    padding: 0 14px;
+}
+
+.options-rule {
+    border-top: 1px dashed var(--seam);
+}
+
+[data-theme="vinyl"] .options-rule {
+    border-top-style: solid;
+}
+
+/* The PDF, open out of sight, that systems are cut from. */
+.pdfread-cutter {
+    position: absolute;
+    width: 900px;
+    height: 10px;
+    left: -10000px;
+    overflow: hidden;
+    visibility: hidden;
+}
+
+.pdfread-label {
+    margin: 0;
+    font: var(--pdfread-label);
+    letter-spacing: var(--pdfread-label-spacing);
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.pdfread-words {
+    margin: 0;
+    max-width: 640px;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--on-surface);
+}
+
+.pdfread-words.muted {
+    color: var(--ink-muted);
+}
+
+.pdfread-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* A key that can't be pressed yet (Keep until every system is read; Listen without the piano) looks it. */
+.pdfread-bar .mu-btn:disabled,
+.pdfread-review .mu-btn:disabled,
+.pdfread-plan .mu-btn:disabled {
+    opacity: 0.45;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* The estimate: the page with its systems boxed, then what it costs and takes. As tall as the music it stands for. */
+.pdfread-estimate {
+    height: calc(100dvh - 250px);
+    min-height: 420px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    gap: 32px;
+    padding: 24px 28px;
+    overflow-y: auto;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+}
+
+.pdfread-figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pdfread-page {
+    position: relative;
+    aspect-ratio: 210 / 297;
+    border-radius: 2px;
+    background: var(--sheet);
+    box-shadow: 0 0 0 1px var(--sheet-edge), 0 3px 10px var(--sheet-edge);
+    overflow: hidden;
+}
+
+[data-theme="vinyl"] .pdfread-page {
+    box-shadow: 6px 6px 0 #0f2a2b;
+}
+
+.pdfread-page img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.pdfread-box {
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    box-sizing: border-box;
+    border: 2px solid var(--pdfread-tint-edge);
+    border-radius: 3px;
+    background: var(--pdfread-tint);
+}
+
+.pdfread-box > span {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    min-width: 18px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    background: var(--pdfread-tag);
+    color: var(--on-pdfread-tag);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.pdfread-caption {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink-muted);
+}
+
+.pdfread-plan {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.pdfread-screen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 36px;
+    padding: 16px 20px;
+    border-radius: var(--radius-display);
+    background: var(--screen);
+    color: var(--on-screen);
+    box-shadow: var(--shadow-bezel);
+}
+
+[data-theme="vinyl"] .pdfread-screen {
+    border-radius: 0;
+    background: var(--ground);
+    box-shadow: inset 0 0 0 1.5px var(--seam);
+}
+
+/* While it reads: a row for each system, its picture, its three steps as lamps, and what it's doing in words. */
+.pdfread-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pdfread-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+
+.pdfread-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pdfread-row {
+    display: grid;
+    grid-template-columns: 300px 120px minmax(0, 1fr);
+    align-items: center;
+    gap: 22px;
+    padding: 10px 16px 10px 10px;
+    border-radius: var(--radius-cap);
+    background: var(--button);
+    box-shadow: var(--shadow-cap);
+}
+
+[data-theme="vinyl"] .pdfread-row {
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    border-top: 3px solid var(--seam);
+    padding: 12px 0 4px;
+}
+
+[data-theme="vinyl"] .pdfread-row[data-step="now"] {
+    border-top-color: var(--ink);
+}
+
+[data-theme="vinyl"] .pdfread-row[data-step="done"] {
+    border-top-color: var(--ink-faint);
+}
+
+[data-theme="vinyl"] .pdfread-row[data-step="doubt"] {
+    border-top-color: var(--pdfread-doubt);
+}
+
+[data-theme="vinyl"] .pdfread-row[data-step="fail"] {
+    border-top-color: var(--pdfread-fail);
+}
+
+.pdfread-thumb {
+    display: block;
+    width: 100%;
+    height: 62px;
+    object-fit: cover;
+    object-position: center 40%;
+    border-radius: 2px;
+    background: var(--sheet);
+    box-shadow: 0 0 0 1px var(--sheet-edge);
+}
+
+.pdfread-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pdfread-name strong {
+    font-size: 16px;
+    line-height: 22px;
+}
+
+[data-theme="vinyl"] .pdfread-name strong {
+    font-family: var(--font-bebas);
+    font-size: 24px;
+    line-height: 26px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+}
+
+.pdfread-name span,
+.pdfread-says span {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink-muted);
+}
+
+.pdfread-state {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+.pdfread-stages {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}
+
+.pdfread-stage {
+    width: 74px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-radius: var(--radius-key);
+    background: var(--ground);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    line-height: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+[data-theme="vinyl"] .pdfread-stage {
+    width: 72px;
+    padding: 4px 0;
+    border-radius: 0;
+    background: none;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 600;
+}
+
+.pdfread-lamp {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--pdfread-wait);
+}
+
+[data-theme="vinyl"] .pdfread-stage .pdfread-lamp {
+    width: 100%;
+    height: 4px;
+    border-radius: 0;
+}
+
+.pdfread-lamp.now {
+    background: var(--pdfread-now);
+    box-shadow: var(--pdfread-glow) var(--pdfread-now);
+}
+
+.pdfread-lamp.done {
+    background: var(--pdfread-done);
+    box-shadow: var(--pdfread-glow) var(--pdfread-done);
+}
+
+.pdfread-lamp.doubt {
+    background: var(--pdfread-doubt);
+    box-shadow: var(--pdfread-glow) var(--pdfread-doubt);
+}
+
+.pdfread-lamp.fail {
+    background: var(--pdfread-fail);
+    box-shadow: var(--pdfread-glow) var(--pdfread-fail);
+}
+
+[data-theme="vinyl"] .pdfread-stage .pdfread-lamp.now {
+    background: repeating-linear-gradient(90deg, var(--pdfread-now) 0 6px, transparent 6px 10px);
+}
+
+.pdfread-says {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.pdfread-says strong {
+    font-size: 15px;
+    line-height: 20px;
+}
+
+/* The review: for each system the print, the reading engraved under it, and beside them what Claude said and what to do. */
+.pdfread-review {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pdfread-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 286px;
+    gap: 22px;
+    padding: 16px 18px 18px;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--pdfread-panel-shadow);
+}
+
+.pdfread-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pdfread-pair .pdfread-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pdfread-paper {
+    position: relative;
+    border-radius: 2px;
+    background: var(--sheet);
+    box-shadow: 0 0 0 1px var(--sheet-edge);
+    overflow: hidden;
+}
+
+.pdfread-paper img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.pdfread-tint {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px solid var(--pdfread-tint-edge);
+    border-radius: 3px;
+    background: var(--pdfread-tint);
+}
+
+.pdfread-tint > span {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    padding: 1px 6px;
+    background: var(--pdfread-tag);
+    color: var(--on-pdfread-tag);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.pdfread-side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.pdfread-status {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font: var(--pdfread-label);
+    font-size: 12px;
+    letter-spacing: var(--pdfread-label-spacing);
+    text-transform: uppercase;
+    color: var(--on-surface);
+}
+
+[data-theme="vinyl"] .pdfread-status {
+    font-size: 13px;
+}
+
+.pdfread-quote {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: var(--radius-display);
+    background: var(--ground);
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--ink);
+}
+
+[data-theme="vinyl"] .pdfread-quote {
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 3px 0 0 var(--pdfread-doubt);
+    padding: 2px 0 2px 14px;
+}
+
+.pdfread-quote b {
+    display: block;
+    margin-bottom: 4px;
+    font: var(--pdfread-label);
+    letter-spacing: var(--pdfread-label-spacing);
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.pdfread-cost {
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+/* When it goes wrong: what happened, what's kept, and what to do. */
+.pdfread-error {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 20px;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--pdfread-panel-shadow);
+}
+
+.pdfread-plan .pdfread-error {
+    padding: 0;
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .pdfread-error {
+    box-shadow: inset 0 3px 0 var(--pdfread-fail);
+    padding-top: 21px;
+}
+
+.pdfread-error h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    line-height: 24px;
+}
+
+[data-theme="vinyl"] .pdfread-error h3 {
+    font-family: var(--font-bebas);
+    font-size: 30px;
+    line-height: 30px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.pdfread-error p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 22px;
+}
+
+.pdfread-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.pdfread-banner > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Portrait: the estimate's page over its figures, a system's row its picture over its steps, a card's print and reading over what
+   Claude said. */
+@media (orientation: portrait) {
+    .pdfread-estimate {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+    }
+
+    .pdfread-figure {
+        max-width: 300px;
+    }
+
+    .pdfread-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .pdfread-row .pdfread-thumb {
+        grid-column: 1 / -1;
+        height: auto;
+    }
+
+    .pdfread-card {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pdfread-banner {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }

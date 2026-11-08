@@ -35,7 +35,11 @@ else
         @{
             // The piece's own tools at the end of the bar: its options in place of the music, and full screen.
             RenderFragment tools = @<text>
-                @if (!piece.IsPdf)
+                @if (piece.IsPdf && mei is not null)
+                {
+                    <button type="button" class="mu-btn piece-tool piece-tool-word" aria-pressed="@On(print)" aria-label="@(print ? "Show the notation" : "Show the print")" disabled="@playing" @onclick="TogglePrint">Print</button>
+                }
+                @if (!Pdf)
                 {
                     <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(explain)" disabled="@playing" @onclick="ToggleExplain"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
                     <button type="button" class="mu-btn piece-tool" aria-label="@(loopTo is { } last ? $"Loop bars {from} to {last}: take it away" : "Loop: then tap the bar to loop back from")" aria-pressed="@On(loopTo is not null || choosingLoop)" disabled="@playing" @onclick="ToggleLoop">
@@ -50,7 +54,10 @@ else
                 </button>
             </text>;
         }
-        @if (piece.IsPdf)
+        @if (readingNotes && readingBar)
+        {
+        }
+        else if (Pdf)
         {
             <section class="reading-bar piece-bar" aria-label="The piece">
                 <p class="piece-bar-title">@piece.Title</p>
@@ -92,10 +99,10 @@ else
 
         @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
            piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
-        <div class="piece-stage">
-            <div class="piece-frame @(piece.IsPdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !piece.IsPdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
-                 data-follow="@(view == View.Scroll && !piece.IsPdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
-                @if (piece.IsPdf)
+        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "")">
+            <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
+                 data-follow="@(view == View.Scroll && !Pdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
+                @if (Pdf)
                 {
                     @if (pdfBytes is not null)
                     {
@@ -118,13 +125,13 @@ else
                     <div class="control-row">
                         <span class="control-label">View</span>
                         <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(piece.IsPdf ? "Scroll at the tempo" : "Scroll")</button>
-                        @if (piece.IsPdf && view == View.Pages)
+                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(Pdf ? "Scroll at the tempo" : "Scroll")</button>
+                        @if (Pdf && view == View.Pages)
                         {
                             <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
                         }
                     </div>
-                    @if (piece.IsPdf)
+                    @if (Pdf)
                     {
                         <div class="control-row">
                             <span class="control-label">Tempo</span>
@@ -186,6 +193,15 @@ else
                         </div>
                         <p class="section-note">Tap a note to start from its bar, and while you play to go back to it (‹ Bar goes back a bar). Loop plays from the start bar to the one you choose, again and again until you stop. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
+                    @if (piece.IsPdf && mei is null && pdfBytes is not null)
+                    {
+                        <div class="options-rule"></div>
+                        <div class="control-row control-row-top">
+                            <span class="control-label">Notes</span>
+                            <button type="button" class="mu-btn mu-primary" @onclick="ReadTheNotes">Read the notes…</button>
+                            <p class="control-note">Claude reads the printed notes into notation. Then this piece works like the rest of the Library: Wait for me, marks on the music, Listen, loops and a real level.</p>
+                        </div>
+                    }
                     <div class="control-row">
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
                     </div>
@@ -205,6 +221,11 @@ else
             }
         </div>
 
+        @if (readingNotes && pdfBytes is not null)
+        {
+            <ReadNotes Piece="piece" Pdf="pdfBytes" Layout="pdfLayout.Pages" Tempo="tempo" OnBar="b => readingBar = b" OnClose="CloseReading" OnKept="Kept" />
+        }
+
         @if (outcome is not null)
         {
             <section class="summary" aria-label="How it went">
@@ -219,9 +240,13 @@ else
                 {
                     <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
                 }
-                else if (piece.IsPdf && piece.Level is { } anchor)
+                else if (piece.IsPdf && mei is null && piece.Level is { } anchor)
                 {
-                    <li>About level @anchor, where its collection sits; a PDF's notes can't be read to grade it.</li>
+                    <li>About level @anchor, where its collection sits. Its notes aren't read yet: Options › Notes.</li>
+                }
+                @if (mei is not null && reading is { Kept: { } kept } && JsonSerializer.Deserialize<ReadingDraft>(reading.Result, Playground.AI.Assist.AssistSchema.Json) is { } read)
+                {
+                    <li>Its notes were read from the PDF by Claude on @kept.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture), for @("$" + read.Cost.ToString("0.00", CultureInfo.InvariantCulture))@(read.Doubts.Count == 0 ? "" : $"; bar{(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "" : "s")} {string.Join(", ", read.Doubts.Select(d => d.Bar).Distinct().Order())} {(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "was" : "were")} still in doubt when kept").</li>
                 }
                 @if (piece.Credit is { Length: > 0 } credit)
                 {
@@ -232,10 +257,17 @@ else
                     <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture) from @piece.File.</li>
                 }
             </ul>
-            @if (piece.Origin != "bundle")
+            @if (piece.Origin != "bundle" || piece.IsPdf && mei is not null && pdfBytes is not null)
             {
                 <div class="control-row">
-                    @if (removing)
+                    @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
+                    {
+                        <button type="button" class="mu-btn" @onclick="ReadTheNotes">Read the notes again…</button>
+                    }
+                    @if (piece.Origin == "bundle")
+                    {
+                    }
+                    else if (removing)
                     {
                         <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
                         <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
@@ -310,6 +342,15 @@ else
     private sealed record PdfLayoutState(List<List<PageSystem>> Pages, int BeatsPerBar, double Bpm);
 
     private PdfLayoutState pdfLayout = new([], 4, 72);
+
+    // Reading the notes with Claude, in the music's place: whether it has the bar (while it reads and is reviewed), and the piece's
+    // reading, waiting to be reviewed or kept. A PDF whose notes are read shows them as notation, and Print shows the PDF again.
+    private bool readingNotes;
+    private bool readingBar;
+    private PieceReading? reading;
+    private bool print;
+
+    private bool Pdf => piece!.IsPdf && (mei is null || print);
     private IReadOnlyList<double> ratios = [];
     private double drawnWidth;
     private double y;
@@ -344,8 +385,11 @@ else
             if (piece.Layout is { } json) pdfLayout = JsonSerializer.Deserialize<PdfLayoutState>(json, PrimaStore.Json) ?? pdfLayout;
             else if (midi is not null) pdfLayout = pdfLayout with { BeatsPerBar = midi.BeatsPerBar, Bpm = Math.Round(midi.Bpm) };
             tempo = piece.Tempo ?? pdfLayout.Bpm;
+            // A reading waiting to be reviewed opens at once.
+            reading = await Store.GetReadingAsync(Id);
+            readingNotes = reading is { Kept: null };
         }
-        else
+
         {
             mei = await Store.GetMeiAsync(Id);
             if (mei is { } text)
@@ -408,9 +452,25 @@ else
 
     private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
 
-    private string LevelText() => piece!.Level is { } level ? (piece.IsPdf ? $"~{level}" : $"{level}") : "–";
+    private string LevelText() => piece!.Level is { } level ? (piece.IsPdf && mei is null ? $"~{level}" : $"{level}") : "–";
 
-    private string PlaceText() => piece!.IsPdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
+    private string PlaceText() => Pdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
+
+    private void ReadTheNotes() => (readingNotes, options, explain, choosingLoop) = (true, false, false, false);
+
+    private void CloseReading() => (readingNotes, readingBar, options) = (false, false, piece!.IsPdf && mei is null);
+
+    // Kept: the piece now has its notation, so it opens again as one.
+    private void Kept() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+
+    // A PDF read into notes: the print, as pages to turn, or the notation in the view it had.
+    private async Task TogglePrint()
+    {
+        print = !print;
+        StopScroll();
+        view = print ? View.Pages : (await Store.GetSettingsAsync()).GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
+        page = 1;
+    }
 
     private static string On(bool on) => on ? "true" : "false";
 
@@ -420,7 +480,7 @@ else
     public async Task Turn(int by)
     {
         if (piece is null) return;
-        if (piece.IsPdf) await TurnPdf(by);
+        if (Pdf) await TurnPdf(by);
         else if (view == View.Pages) page = Math.Clamp(page + by, 1, pages);
         await SavePosition();
         StateHasChanged();
@@ -474,7 +534,7 @@ else
     {
         StopScroll();
         view = to;
-        if (piece!.IsPdf) await ShowPdf();
+        if (Pdf) await ShowPdf();
         else await Store.SetSettingAsync(ViewKey, to == View.Pages ? "pages" : null);
     }
 

@@ -51,10 +51,10 @@
                     <a class="piece-row" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
                         <span class="piece-title">@piece.Title</span>
                         <span class="piece-meta">@Meta(piece)</span>
-                        <span class="piece-level">@(piece.Level is { } l ? (piece.IsPdf ? $"~{l}" : $"{l}") : "–")</span>
+                        <span class="piece-level">@(piece.Level is { } l ? (piece.IsPdf && !piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
                         @if (piece.IsPdf || piece.Imported)
                         {
-                            <span class="piece-tags">@if (piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (piece.Imported) { <span class="piece-tag">Yours</span> }</span>
+                            <span class="piece-tags">@if (piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (piece.Imported) { <span class="piece-tag">Yours</span> }</span>
                         }
                     </a>
                 </li>
@@ -129,7 +129,7 @@ else if (pieces.Count == 0 && !Prep.Running)
     private IEnumerable<PieceRecord> Shown() => pieces.Where(p => filter switch
     {
         "near" => reading is not null && (p.TypicalLevel ?? p.Level) is { } l && l >= reading.Level - 2 && l <= reading.Level + 1,
-        "notation" => !p.IsPdf,
+        "notation" => !p.IsPdf || p.HasNotes,
         "pdf" => p.IsPdf,
         "mine" => p.Imported,
         _ => true,

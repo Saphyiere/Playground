@@ -36,8 +36,27 @@
 
     private sealed record OpenResult(int Pages, double[] Ratios);
 
+    /// <summary>A system cut from a page: its picture, a URL to show it by, and its barlines as shares of its width, left to right.</summary>
+    public sealed record SystemCut(byte[] Png, string Url, double[] Bars);
+
     /// <summary>A page's rows, each one's share of dark pixels, drawn 900 px wide: for finding its systems.</summary>
     public async Task<double[]> Profile(int page) => module is null ? [] : await module.InvokeAsync<double[]>("profile", element, page);
+
+    /// <summary>Page <paramref name="page"/> drawn <paramref name="width"/> px wide: a URL to show it by, to <see cref="Release"/> when done.</summary>
+    public async Task<string?> Thumbnail(int page, int width) => module is null ? null : await module.InvokeAsync<string?>("thumbnail", element, page, width);
+
+    /// <summary>
+    /// The systems of page <paramref name="page"/> cut out as pictures for Claude, each cropped to its music, drawn up to 2,576 px
+    /// wide: with URLs to show them by (to <see cref="Release"/>), and where their barlines are.
+    /// </summary>
+    public async Task<SystemCut[]> Cut(int page, IReadOnlyList<Prima.Core.Library.PageSystem> systems) =>
+        module is null ? [] : await module.InvokeAsync<SystemCut[]>("cut", element, page, systems.Select(s => new { top = s.Top, bottom = s.Bottom }).ToArray());
+
+    /// <summary>Lets go of the pictures behind URLs made for showing.</summary>
+    public async Task Release(IEnumerable<string> urls)
+    {
+        if (module is not null) await module.InvokeVoidAsync("release", urls.ToArray());
+    }
 
     /// <summary>The width pages are drawn at: the view's, or with <paramref name="fit"/> small enough for a whole page to show.</summary>
     public async Task<double> PageWidth(bool fit) => module is null ? 0 : await module.InvokeAsync<double>("pageWidth", element, fit);

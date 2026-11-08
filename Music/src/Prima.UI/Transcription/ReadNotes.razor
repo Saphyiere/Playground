@@ -1,0 +1,576 @@
+@implements IAsyncDisposable
+@inject PrimaStore Store
+@inject IClaude Claude
+@inject IAssistKeyStore Keys
+@inject IJSRuntime JS
+@inject Prima.UI.Library.LibraryPrep Prep
+@inject IKeyboard Keyboard
+@inject IClock Clock
+@inject Click Click
+@inject PrimaSettings Settings
+@inject SessionRegistry Registry
+@using System.Text.Json
+@using Playground.AI.Assist
+@using Prima.Core.Library
+@using Prima.Core.Transcription
+
+@* Reading a PDF's notes with Claude, in the piece's place: what it will cost, each system's steps while it reads, then each system's
+   print over the reading engraved, its doubtful bars marked, to read again, listen to, keep or throw away. The PDF is drawn out of
+   sight to cut its systems from. *@
+<div class="pdfread-cutter" aria-hidden="true">
+    <PdfPages @ref="cutter" Data="Pdf" OnOpened="Opened" />
+</div>
+
+@if (stage == Stage.Estimate)
+{
+    var estimate = Reader.Estimate(to - from + 1, SystemsIn(from, to));
+    <section class="pdfread-estimate" aria-labelledby="pdfread-heading">
+        <figure class="pdfread-figure">
+            <div class="pdfread-page">
+                @if (thumbnail is not null)
+                {
+                    <img src="@thumbnail" alt="@($"Page {from}, its systems boxed and numbered")" />
+                }
+                @foreach (var (system, i) in Regions(from).Select((s, i) => (s, i)))
+                {
+                    <div class="pdfread-box" style="@($"top: {Share(system.Top / PageHeight(from))}; height: {Share((system.Bottom - system.Top) / PageHeight(from))}")"><span>@(i + 1)</span></div>
+                }
+            </div>
+            <figcaption class="pdfread-caption">What's sent: each system boxed here, as a picture.@(to > from ? $" Page {from} of {from}–{to}." : "")</figcaption>
+        </figure>
+        <div class="pdfread-plan">
+            <h2 id="pdfread-heading" class="section-title">Read the notes</h2>
+            @if (pages > 1)
+            {
+                <div class="control-row">
+                    <span class="control-label">Pages</span>
+                    <span class="tempo-control">
+                        <button type="button" class="mu-btn" aria-label="Start a page earlier" disabled="@(from <= 1)" @onclick="() => SetPages(from - 1, to)">−</button>
+                        <span class="tempo-figure">@from</span>
+                        <button type="button" class="mu-btn" aria-label="Start a page later" disabled="@(from >= to)" @onclick="() => SetPages(from + 1, to)">+</button>
+                    </span>
+                    <span class="control-value">to</span>
+                    <span class="tempo-control">
+                        <button type="button" class="mu-btn" aria-label="End a page earlier" disabled="@(to <= from)" @onclick="() => SetPages(from, to - 1)">−</button>
+                        <span class="tempo-figure">@to</span>
+                        <button type="button" class="mu-btn" aria-label="End a page later" disabled="@(to >= pages)" @onclick="() => SetPages(from, to + 1)">+</button>
+                    </span>
+                </div>
+            }
+            <div class="pdfread-screen">
+                <div class="mu-readout"><span class="mu-readout-label">Pages</span><span class="mu-readout-value">@estimate.Pages</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Systems</span><span class="mu-readout-value">@estimate.Systems</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Costs about</span><span class="mu-readout-value">@($"{Money(estimate.LowUsd)}–{Cents(estimate.HighUsd)}")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Takes about</span><span class="mu-readout-value">@($"{Math.Max(1, Math.Round(estimate.About.TotalMinutes))} min")</span></div>
+            </div>
+            @if (noKey)
+            {
+                <div class="pdfread-error" role="alert">
+                    <h3><span class="pdfread-lamp fail"></span>No Claude key on this tablet</h3>
+                    <p>Reading needs your Anthropic API key. Settings › Claude says how to add it, with the tablet plugged into the PC.</p>
+                    <div class="pdfread-actions">
+                        <a class="mu-btn mu-primary" href="settings">Open Settings</a>
+                        <button type="button" class="mu-btn" @onclick="OnClose">Back to the options</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p class="pdfread-words">Claude reads each system. Prima checks that every bar's beats add up and engraves the reading; Claude sets the engraving beside the print and reads again wherever they differ. Bars still in doubt are marked for you to check before you keep it.</p>
+                <p class="pdfread-words muted">The pictures go to Anthropic when you press Start. Keep Prima open while it reads: the tablet stays awake.</p>
+                @if (stopNote is not null)
+                {
+                    <p class="mu-status" role="status"><span class="mu-led"></span>@stopNote</p>
+                }
+                <div class="pdfread-actions">
+                    <button type="button" class="mu-btn mu-primary" disabled="@(cutter is null || layout.Count == 0)" @onclick="ReadAll">Start reading</button>
+                    <button type="button" class="mu-btn" @onclick="OnClose">Back to the options</button>
+                </div>
+            }
+        </div>
+    </section>
+}
+else
+{
+    var statuses = progress?.Systems ?? result?.Systems ?? [];
+    var read = statuses.Count(s => s.Step is SystemStep.Done or SystemStep.Doubtful);
+    <section class="reading-bar piece-bar pdfread-bar" aria-label="@(stage == Stage.Reading ? "Reading the notes" : "The reading")">
+        <p class="piece-bar-title">@Piece.Title</p>
+        <div class="mu-readout"><span class="mu-readout-label">Systems read</span><span class="mu-readout-value">@read of @statuses.Count</span></div>
+        @if (stage == Stage.Reading)
+        {
+            var left = Reader.Estimate(to - from + 1, statuses.Count).About - (progress?.Elapsed ?? TimeSpan.Zero);
+            <div class="mu-readout"><span class="mu-readout-label">Spent</span><span class="mu-readout-value">@Money(progress?.CostSoFar ?? 0)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Time</span><span class="mu-readout-value">@Minutes(progress?.Elapsed ?? TimeSpan.Zero)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Left</span><span class="mu-readout-value">@(left.TotalMinutes >= 1 ? $"~{Math.Round(left.TotalMinutes)} min" : "<1 min")</span></div>
+            <div class="piece-actions">
+                <button type="button" class="mu-btn" @onclick="Cancel">Cancel</button>
+            </div>
+        }
+        else if (result is not null)
+        {
+            // Bars are numbered once every system is read; until then a missing system would shift them, so they're only counted.
+            var doubtful = result.Doubts.Select(d => (d.System, d.Page, d.Bar)).Distinct().OrderBy(d => d.Bar).ToList();
+            var complete = result.Systems.All(s => s.Step != SystemStep.Failed);
+            <div class="mu-readout @(doubtful.Count > 0 ? "miss" : "")"><span class="mu-readout-label">In doubt</span><span class="mu-readout-value">@(doubtful.Count switch { 0 => "None", 1 when complete => $"Bar {doubtful[0].Bar}", _ when complete => $"Bars {string.Join(", ", doubtful.Select(d => d.Bar))}", 1 => "1 bar", _ => $"{doubtful.Count} bars" })</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Cost</span><span class="mu-readout-value">@Money(result.Cost)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Took</span><span class="mu-readout-value">@Minutes(result.Took)</span></div>
+            <div class="piece-actions">
+                <button type="button" class="mu-btn" disabled="@(!CanListen || whole is null)" aria-label="@(CanListen ? "Listen: the piano plays the reading" : "Listen needs the piano, playing notes from the tablet (Settings)")" @onclick="() => Listen(null)">@(listeningFrom == 0 ? "Stop" : "Listen")</button>
+                @if (throwing)
+                {
+                    <button type="button" class="mu-btn" @onclick="ThrowAway">Throw it away</button>
+                    <button type="button" class="mu-btn" @onclick="() => throwing = false">Keep reviewing</button>
+                }
+                else
+                {
+                    <button type="button" class="mu-btn" @onclick="() => throwing = true">Throw away…</button>
+                    <button type="button" class="mu-btn mu-primary" disabled="@(!result.Ok || keeping)" @onclick="Keep">@(keeping ? "Keeping…" : "Keep")</button>
+                }
+            </div>
+        }
+    </section>
+
+    @if (stage == Stage.Reading)
+    {
+        <section class="pdfread-progress" aria-labelledby="pdfread-reading">
+            <div class="pdfread-head">
+                <h2 id="pdfread-reading" class="section-title">Reading the notes</h2>
+                <p class="pdfread-label">@(cuts.Count == 0 ? "Cutting the systems from the pages" : "The first system alone, then four at a time")</p>
+            </div>
+            <div class="pdfread-list">
+                @foreach (var status in statuses)
+                {
+                    <div class="pdfread-row" data-step="@Look(status.Step)">
+                        @if (cuts.TryGetValue((status.Page, status.Index), out var cut))
+                        {
+                            <img class="pdfread-thumb" src="@cut.Url" alt="@($"System {status.Index} of page {status.Page}, as printed")" />
+                        }
+                        <div class="pdfread-name"><strong>System @status.Index</strong><span>Page @status.Page</span></div>
+                        <div class="pdfread-state">
+                            <div class="pdfread-stages" role="img" aria-label="@Words(status).Title">
+                                @foreach (var (name, lamp) in Lamps(status.Step))
+                                {
+                                    <span class="pdfread-stage"><span class="pdfread-lamp @lamp"></span>@name</span>
+                                }
+                            </div>
+                            <div class="pdfread-says"><strong>@Words(status).Title</strong><span>@Words(status).Detail</span></div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <p class="section-note">Keep Prima open on this screen: the tablet stays awake until it's done. Cancel stops at once; what's been spent stays spent.</p>
+        </section>
+    }
+    else if (result is not null)
+    {
+        var failed = result.Systems.Where(s => s.Step == SystemStep.Failed).ToList();
+        var numbered = failed.Count == 0;
+        <section class="pdfread-review" aria-label="Each system's print and reading">
+            @if (failed.Count > 0)
+            {
+                <div class="pdfread-error pdfread-banner" role="alert">
+                    <div>
+                        <h3><span class="pdfread-lamp fail"></span>@(failed.Count == 1 ? "A system wasn't read" : $"{failed.Count} systems weren't read")</h3>
+                        <p>@result.Summary @(read > 0 ? "What's read is kept. " : "")Keep waits until every system has been read.</p>
+                    </div>
+                    <div class="pdfread-actions">
+                        <button type="button" class="mu-btn mu-primary" @onclick="() => Reread(failed)">@(failed.Count == 1 ? "Read it again" : $"Read the other {failed.Count}")</button>
+                        <a class="mu-btn" href="settings">Settings</a>
+                    </div>
+                </div>
+            }
+            @foreach (var (status, at) in result.Systems.Select((s, i) => (s, i)))
+            {
+                var key = (status.Page, status.Index);
+                var reading = at < result.Readings.Count ? result.Readings[at] : null;
+                var doubts = result.Doubts.Where(d => d.Page == status.Page && d.System == status.Index).ToList();
+                var first = firstBars.GetValueOrDefault(key);
+                <article class="pdfread-card" aria-label="@($"System {status.Index} of page {status.Page}: {Words(status).Title}")">
+                    <div class="pdfread-pair">
+                        <p class="pdfread-label"><span>Print · page @status.Page, system @status.Index</span><span>@(reading is null ? "" : !numbered ? $"{reading.Bars.Count} bars" : reading.Bars.Count == 1 ? $"Bar {first}" : $"Bars {first}–{first + reading.Bars.Count - 1}")</span></p>
+                        @if (cuts.TryGetValue(key, out var cut))
+                        {
+                            <div class="pdfread-paper">
+                                <img src="@cut.Url" alt="@($"System {status.Index} as printed")" />
+                                @foreach (var doubt in doubts)
+                                {
+                                    if (PrintBar(cut, reading, doubt.Bar - first + 1) is { } span)
+                                    {
+                                        <div class="pdfread-tint" style="@Tint(span, doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : doubt.Bar - first + 1)</span></div>
+                                    }
+                                }
+                            </div>
+                        }
+                        @if (engravings.TryGetValue(key, out var engraved))
+                        {
+                            <p class="pdfread-label"><span>Reading · engraved by Prima</span></p>
+                            <div class="pdfread-paper">
+                                <img src="@engraved.Url" alt="@($"System {status.Index} as read, engraved")" />
+                                @foreach (var doubt in doubts)
+                                {
+                                    var local = doubt.Bar - first;
+                                    if (local >= 0 && local < engraved.Bars.Length)
+                                    {
+                                        <div class="pdfread-tint" style="@Tint((engraved.Bars[local][0], engraved.Bars[local][1]), doubt.Staff)"><span>Bar @(numbered ? doubt.Bar : local + 1)</span></div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="pdfread-side">
+                        <p class="pdfread-status"><span class="pdfread-lamp @(status.Step switch { SystemStep.Done => "done", SystemStep.Doubtful => "doubt", SystemStep.Failed => "fail", _ => "now" })"></span>@Words(status).Title</p>
+                        @foreach (var doubt in doubts)
+                        {
+                            <blockquote class="pdfread-quote"><b>Claude · @(numbered ? $"bar {doubt.Bar}" : $"bar {doubt.Bar - first + 1} of this system")</b>@doubt.Note</blockquote>
+                        }
+                        @if (doubts.Count == 0 && Words(status).Detail is { Length: > 0 } detail)
+                        {
+                            <p class="pdfread-words muted">@detail</p>
+                        }
+                        <div class="pdfread-actions">
+                            @if (reading is not null)
+                            {
+                                <button type="button" class="mu-btn" disabled="@(!CanListen || whole is null)" @onclick="() => Listen(first)">@(listeningFrom == first ? "Stop" : numbered ? $"Listen from bar {first}" : "Listen from here")</button>
+                            }
+                            <button type="button" class="mu-btn @(status.Step == SystemStep.Failed ? "mu-primary" : "")" @onclick="() => Reread([status])">Read again</button>
+                        </div>
+                        <p class="pdfread-label pdfread-cost">Reading this system again costs @Money(Reader.Estimate(1, 1).LowUsd)–@Cents(Reader.Estimate(1, 1).HighUsd).</p>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+}
+
+@code {
+    private enum Stage { Estimate, Reading, Review }
+
+    [Parameter, EditorRequired] public PieceRecord Piece { get; set; } = default!;
+
+    [Parameter, EditorRequired] public byte[] Pdf { get; set; } = [];
+
+    /// <summary>The systems found on each page already (in px at 900 wide), if the piece has been shown as a PDF.</summary>
+    [Parameter] public IReadOnlyList<List<PageSystem>> Layout { get; set; } = [];
+
+    /// <summary>The tempo Listen plays the reading at.</summary>
+    [Parameter] public double Tempo { get; set; } = 72;
+
+    /// <summary>Whether the reading has the piece's bar: true while it reads and while it's reviewed, false for the estimate.</summary>
+    [Parameter] public EventCallback<bool> OnBar { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>After the reading is kept as the piece's notation.</summary>
+    [Parameter] public EventCallback OnKept { get; set; }
+
+    private Stage stage;
+    private PdfPages? cutter;
+    private IReadOnlyList<double> ratios = [];
+    private List<List<PageSystem>> layout = [];
+    private int pages = 1;
+    private int from = 1;
+    private int to = 1;
+    private string? thumbnail;
+    private bool noKey;
+    private string? stopNote;
+    // The systems cut from the pages, and the reading's engravings, by page and system.
+    private readonly Dictionary<(int Page, int Index), PdfPages.SystemCut> cuts = [];
+    private readonly Dictionary<(int Page, int Index), Engraving> engravings = [];
+    private readonly Dictionary<(int Page, int Index), int> firstBars = [];
+    private CancellationTokenSource? cancel;
+    private ReadingProgress? progress;
+    private ReadingResult? result;
+    // The reading as one piece, for Listen.
+    private Score? whole;
+    private VerovioEngraver? engraver;
+    private bool throwing;
+    private bool keeping;
+    private PlaySession? listening;
+    private int? listeningFrom;
+
+    private PdfToNotation Reader => new(Claude);
+
+    private bool CanListen => Keyboard.CanSend && Settings.SendToPiano;
+
+    protected override async Task OnInitializedAsync()
+    {
+        noKey = await Keys.GetAsync() is null;
+        if (await Store.GetReadingAsync(Piece.Id) is { Kept: null } saved && JsonSerializer.Deserialize<ReadingDraft>(saved.Result, AssistSchema.Json) is { } draft)
+        {
+            (result, from, to, stage) = (draft.ToResult(), draft.FromPage, draft.ToPage, Stage.Review);
+            await OnBar.InvokeAsync(true);
+        }
+    }
+
+    // The PDF is open out of sight: its pages, their systems (found now if the piece hasn't been shown as a PDF), the first page's
+    // picture, and for a reading waiting to be reviewed, its systems cut again and its readings engraved.
+    private async Task Opened(IReadOnlyList<double> shapes)
+    {
+        ratios = shapes;
+        pages = shapes.Count;
+        layout = Layout.Count == pages ? [.. Layout] : [];
+        if (layout.Count != pages)
+        {
+            for (var n = 1; n <= pages; n++) layout.Add([.. PdfLayout.FindSystems(await cutter!.Profile(n))]);
+        }
+        if (stage == Stage.Estimate) to = pages;
+        thumbnail = await cutter!.Thumbnail(from, 472);
+        if (stage == Stage.Review)
+        {
+            await CutPages();
+            await Engrave();
+        }
+        StateHasChanged();
+    }
+
+    private async Task SetPages(int first, int last)
+    {
+        (from, to) = (Math.Clamp(first, 1, pages), Math.Clamp(last, first, pages));
+        if (thumbnail is not null) await cutter!.Release([thumbnail]);
+        thumbnail = await cutter!.Thumbnail(from, 472);
+    }
+
+    private int SystemsIn(int first, int last) => layout.Count == 0 ? 0 : Enumerable.Range(first, last - first + 1).Sum(p => layout[p - 1].Count);
+
+    private double PageHeight(int page) => page - 1 < ratios.Count ? 900 / ratios[page - 1] : 1273;
+
+    // A page's systems as found: the cutter moves each cut to the white between them.
+    private List<PageSystem> Regions(int page) => page - 1 < layout.Count ? layout[page - 1] : [];
+
+    private async Task CutPages()
+    {
+        // A run before this one's pictures go first.
+        await cutter!.Release([.. cuts.Values.Select(c => c.Url)]);
+        cuts.Clear();
+        foreach (var page in Enumerable.Range(from, to - from + 1))
+        {
+            var made = await cutter!.Cut(page, Regions(page));
+            for (var i = 0; i < made.Length; i++) cuts[(page, i + 1)] = made[i];
+        }
+    }
+
+    private async Task ReadAll()
+    {
+        if (await Keys.GetAsync() is null)
+        {
+            noKey = true;
+            return;
+        }
+
+        (stage, stopNote, progress, result, whole) = (Stage.Reading, null, null, null, null);
+        await OnBar.InvokeAsync(true);
+        StateHasChanged();
+        await CutPages();
+        var images = cuts.OrderBy(c => c.Key.Page).ThenBy(c => c.Key.Index).Select(c => new SystemImage(c.Key.Page, c.Key.Index, c.Value.Png)).ToList();
+        await Run(reader => reader.ReadAsync(images, engraver!, Reporter(), Piece.Title, cancel!.Token));
+    }
+
+    // Reads the systems given again, one after another (a stopped reading's rest, or one in doubt), and builds the notation anew.
+    private async Task Reread(IReadOnlyList<SystemStatus> systems)
+    {
+        if (result is null) return;
+
+        (stage, progress) = (Stage.Reading, new ReadingProgress(result.Systems, result.Cost, TimeSpan.Zero));
+        await Run(async reader =>
+        {
+            var next = result;
+            foreach (var system in systems)
+            {
+                if (cuts.TryGetValue((system.Page, system.Index), out var cut)) next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, cancel!.Token);
+            }
+            return next;
+        });
+    }
+
+    // Runs a reading with the calls to Claude logged against this piece; keeps the result on the piece for review, or after Cancel
+    // goes back to the estimate saying what was spent.
+    private async Task Run(Func<PdfToNotation, Task<ReadingResult>> reading)
+    {
+        cancel = new CancellationTokenSource();
+        engraver ??= new VerovioEngraver(JS);
+        ClaudeLog.Piece.Value = Piece.Id;
+        try
+        {
+            result = await reading(Reader);
+        }
+        catch (OperationCanceledException)
+        {
+            stopNote = $"Stopped, with {Money(progress?.CostSoFar ?? 0)} spent.";
+            (stage, progress) = (result is null ? Stage.Estimate : Stage.Review, null);
+            await OnBar.InvokeAsync(stage != Stage.Estimate);
+            return;
+        }
+        finally
+        {
+            ClaudeLog.Piece.Value = null;
+        }
+
+        await Store.SaveReadingAsync(Piece.Id, JsonSerializer.Serialize(ReadingDraft.Of(result, from, to), AssistSchema.Json));
+        (stage, progress) = (Stage.Review, null);
+        StateHasChanged();
+        await Engrave();
+    }
+
+    private IProgress<ReadingProgress> Reporter() => new Progress<ReadingProgress>(p => _ = InvokeAsync(() =>
+    {
+        progress = p;
+        StateHasChanged();
+    }));
+
+    // Each system read engraved on its own, at its print's width, and the whole reading built for Listen and for bar numbers.
+    private async Task Engrave()
+    {
+        if (result is null) return;
+
+        engraver ??= new VerovioEngraver(JS);
+        var read = Enumerable.Range(0, result.Systems.Count).Where(i => i < result.Readings.Count && result.Readings[i] is not null).ToList();
+        firstBars.Clear();
+        engravings.Clear();
+        whole = null;
+        if (read.Count == 0) return;
+
+        var (score, starts) = ReadingScore.Build([.. read.Select(i => result.Readings[i]!)], Piece.Title);
+        whole = score;
+        for (var k = 0; k < read.Count; k++) firstBars[(result.Systems[read[k]].Page, result.Systems[read[k]].Index)] = starts[k];
+        StateHasChanged();
+        foreach (var i in read)
+        {
+            var key = (result.Systems[i].Page, result.Systems[i].Index);
+            var width = cuts.TryGetValue(key, out var cut) ? PngWidth(cut.Png) : 2400;
+            try
+            {
+                engravings[key] = await engraver.EngraveAsync(MeiWriter.Write(ReadingScore.Build([result.Readings[i]!]).Score), width);
+            }
+            catch (JSException)
+            {
+                // Shown without its engraving: the print and Claude's notes are still there to check.
+            }
+            StateHasChanged();
+        }
+    }
+
+    private static int PngWidth(byte[] png) => png.Length > 24 ? System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16, 4)) : 2400;
+
+    private void Cancel() => cancel?.Cancel();
+
+    private async Task Keep()
+    {
+        if (result is not { Ok: true }) return;
+
+        keeping = true;
+        listening?.Dispose();
+        await Prep.KeepReadingAsync(Piece, result.Mei);
+        await Store.MarkReadingKeptAsync(Piece.Id);
+        await OnKept.InvokeAsync();
+    }
+
+    private async Task ThrowAway()
+    {
+        listening?.Dispose();
+        await Store.DeleteReadingAsync(Piece.Id);
+        await OnClose.InvokeAsync();
+    }
+
+    // The piano plays the reading from a bar (or the start) at the tempo, after a bar of count-in, the click only counting in; again
+    // to stop.
+    private void Listen(int? bar)
+    {
+        var first = bar ?? 0;
+        if (listening is { Phase: not Phase.Done } && listeningFrom == first)
+        {
+            listening.Dispose();
+            (listening, listeningFrom) = (null, null);
+            return;
+        }
+
+        listening?.Dispose();
+        if (whole is null) return;
+        var notes = whole.Expected().Where(n => n.Bar >= first).ToList();
+        if (notes.Count == 0) return;
+
+        var start = notes.Min(n => n.Tick);
+        var beat = (double)whole.Meter.BeatTicks;
+        var timed = notes.Select(n => (n.Midi, (n.Tick - start) / beat, n.Length / beat)).ToList();
+        var run = listening = new PlaySession(Click, Keyboard, Clock, Registry);
+        listeningFrom = first;
+        run.Changed += () => _ = InvokeAsync(() =>
+        {
+            if (run.Phase == Phase.Done && listening == run) (listening, listeningFrom) = (null, null);
+            StateHasChanged();
+        });
+        run.Start(new ClickPlan(Tempo, whole.Meter.Beats, 1, ClickStage.CountInOnly), timed.Max(e => e.Item2 + e.Item3), [], timed, Settings.TimingOffsetMs);
+    }
+
+    // A bar's left and right on the print, as shares of its width: between the system's barlines, when one was found for each bar.
+    private static (double Left, double Right)? PrintBar(PdfPages.SystemCut cut, SystemReading? reading, int bar)
+    {
+        if (reading is null || bar < 1 || bar > reading.Bars.Count) return null;
+        var lines = new List<double>();
+        foreach (var x in cut.Bars)
+        {
+            // A double or final barline's two strokes are one line.
+            if (lines.Count > 0 && x - lines[^1] < 0.015) lines[^1] = x;
+            else lines.Add(x);
+        }
+        return lines.Count == reading.Bars.Count + 1 ? (lines[bar - 1], lines[bar]) : null;
+    }
+
+    // A doubtful bar's tint: across the bar, over its staff's half of the system.
+    private static string Tint((double Left, double Right) span, int staff) =>
+        $"left: {Share(span.Left)}; width: {Share(span.Right - span.Left)}; top: {(staff == 2 ? "46%" : "0")}; height: {(staff == 2 ? "54%" : "56%")}";
+
+    private static string Share(double share) => (share * 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+
+    private static string Look(SystemStep step) => step switch
+    {
+        SystemStep.Done => "done",
+        SystemStep.Doubtful => "doubt",
+        SystemStep.Failed => "fail",
+        SystemStep.Waiting => "wait",
+        _ => "now",
+    };
+
+    // The three steps' lamps for where a system has got to: done, working now, in doubt, failed, or not yet.
+    private static (string Name, string Lamp)[] Lamps(SystemStep step) => step switch
+    {
+        SystemStep.Reading => [("Read", "now"), ("Check", ""), ("Compare", "")],
+        SystemStep.Checking => [("Read", "done"), ("Check", "now"), ("Compare", "")],
+        SystemStep.Comparing => [("Read", "done"), ("Check", "done"), ("Compare", "now")],
+        SystemStep.Done => [("Read", "done"), ("Check", "done"), ("Compare", "done")],
+        SystemStep.Doubtful => [("Read", "done"), ("Check", "done"), ("Compare", "doubt")],
+        SystemStep.Failed => [("Read", "fail"), ("Check", ""), ("Compare", "")],
+        _ => [("Read", ""), ("Check", ""), ("Compare", "")],
+    };
+
+    private static (string Title, string Detail) Words(SystemStatus status) => status.Step switch
+    {
+        SystemStep.Waiting => ("Waiting", "Next, once a system before it is done"),
+        SystemStep.Reading => ("Reading", "Claude is reading the picture"),
+        SystemStep.Checking => ("Checking", "Every bar's beats adding up"),
+        SystemStep.Comparing => ("Comparing", "Prima's engraving beside the print"),
+        SystemStep.Done => ("Matches the print", status.Note is { Length: > 0 } note ? $"Read and compared. {note}" : "Read and compared: no differences."),
+        SystemStep.Doubtful => ("In doubt", status.Note),
+        _ => ("Not read", status.Note),
+    };
+
+    private static string Money(decimal value) => "$" + value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    // The top of a range, without its dollar sign: $0.60–2.40.
+    private static string Cents(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static string Minutes(TimeSpan time) => $"{(int)time.TotalMinutes}:{time.Seconds:00}";
+
+    public async ValueTask DisposeAsync()
+    {
+        cancel?.Cancel();
+        listening?.Dispose();
+        try
+        {
+            if (cutter is not null) await cutter.Release([.. cuts.Values.Select(c => c.Url), .. engraver?.Urls ?? [], .. thumbnail is null ? Array.Empty<string>() : [thumbnail]]);
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException or ObjectDisposedException)
+        {
+        }
+    }
+}

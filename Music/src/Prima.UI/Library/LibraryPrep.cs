@@ -252,6 +252,16 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         }
     }
 
+    /// <summary>
+    /// Keeps a PDF's notes as Claude read them (Transcription's MEI) as the piece's notation: graded and cut into excerpts like an
+    /// import, its PDF and layout kept beside it for its print.
+    /// </summary>
+    public async Task KeepReadingAsync(PieceRecord piece, string mei)
+    {
+        var (prepared, graded, excerpts) = await ReadMusic(System.Text.Encoding.UTF8.GetBytes(mei), "mei", piece);
+        await store.SavePieceAsync(graded, prepared, excerpts);
+    }
+
     // Verovio makes the MEI; the Core reads it back, numbers its bars, cuts its excerpts and grades them, off the screen's thread.
     private async Task<(string Mei, PieceRecord Graded, IReadOnlyList<BundledExcerpt> Excerpts)> ReadMusic(byte[] bytes, string kind, PieceRecord record)
     {

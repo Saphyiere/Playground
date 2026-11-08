@@ -29,7 +29,15 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
 
     public int FailAfter { get; set; }
 
-    public void Reset() => (DelayMs, Fail, FailAfter) = (1500, null, 0);
+    /// <summary>Back to answering at once, and as if nothing had been read: no system read before, none to fail.</summary>
+    public void Reset()
+    {
+        lock (gate)
+        {
+            (DelayMs, Fail, FailAfter, read) = (1500, null, 0, 0);
+            timesRead.Clear();
+        }
+    }
 
     public async Task<Answer<TAnswer>> AskAsync<TInput, TAnswer>(AssistTask<TInput, TAnswer> task, TInput input, CancellationToken ct = default)
     {
