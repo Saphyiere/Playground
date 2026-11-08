@@ -316,6 +316,37 @@ becomes three checks:
 
 Start on demand: a **Convert** in a PDF piece's Options, one piece at a time.
 
+### What's built
+
+The endpoint is in `Music/src/Prima.Core/Transcription`. The Prima session designs the screens around it.
+
+- **`ReadSystem`** asks Claude to read one system's image. Claude writes pitches as printed: the line or space, and the
+  accidental printed before the note. `ReadingScore` turns them into the pitches that sound: the key signature, the bar's
+  earlier accidentals on the same line or space, ties across barlines and systems, and 8va lines. It does this in code, not by
+  asking Claude.
+- **`ReadingChecks`** check every reading before it's taken:
+  - each voice fills its bar (only a pickup, or a bar cut short by a repeat or the end, is short);
+  - every pitch is on the piano;
+  - every tie lands on its pitch;
+  - both staves are there.
+
+  A reading that fails is asked for once more, with the problems listed.
+- **`CompareSystem`** gets the print and Verovio's engraving of the reading, side by side, and reads again the bars that differ.
+  It's told to report only what's printed, never what the harmony suggests.
+- **`PdfToNotation`** runs it all:
+  - the first system alone, since only it prints the time signature, then the rest four at a time;
+  - progress for each system;
+  - doubts by bar number;
+  - failed systems named, and read again one at a time;
+  - a stop when the key, the credit or the connection fails.
+- **Two simplifications for now.** Notes under an 8va line keep the pitch they sound, and are engraved an octave above the print
+  without the line. Slurs, dynamics, pedalling and fingering aren't read.
+- **Tests:** 20, against a scripted stand-in for Claude. One more asks the real API to read the first system of Czerny's Op. 821
+  No. 13 and checks its notes against the piece's MIDI, for about 20 cents. It's skipped unless `PLAYGROUND_CLAUDE_KEY` holds a
+  key: set it as the [framework's README](../Kit/Playground.AI.Assist/README.md#build-and-test) says, then run
+  `dotnet test --project Music/tests/Prima.Core.Tests`. What Claude reads across many pieces is measured with the tool below,
+  which needs a key too.
+
 ### Measuring it properly
 
 `Music/library` holds 104 Mutopia pieces as a PDF and its MIDI. A small tool on the PC (or a test) can run the converter on a set
@@ -325,9 +356,11 @@ For the harder case, add a few scans of your own PDFs whose notation you've chec
 
 ### Cost and time (estimate)
 
-A page of 6 systems with Opus 5.5 at high effort costs roughly $0.50–1.50 to read and $0.30–0.60 to compare, and takes a few
-minutes. Max's $100 a month covers about 50 to 150 pages. Convert pieces as you want them, or send a big pile through Message
-Batches at half price. Sonnet 5.5 is half the price; whether it reads as well is the first thing to measure.
+A system costs roughly $0.15–0.60 to read and compare with Opus 5.5 at high effort, most of it for the reading Claude writes and
+thinks through. A page of 6 systems is about $1–3.60 and takes about 7.5 minutes: the first system alone, then the rest four at
+a time. `PdfToNotation.Estimate` gives this range for a PDF before it's read, for the screen to show. Ultra's $200 a month
+covers about 55 to 220 pages. Convert pieces as you want them, or send a big pile through Message Batches at half price.
+Sonnet 5.5 is half the price; whether it reads as well is the first thing to measure.
 
 ### Your PDFs and the repo
 
@@ -447,7 +480,8 @@ Still open: the models. Opus 5.5 is the default, and each task can try Sonnet 5.
 
 1. **The framework.** Done: `Kit/Playground.AI.Assist`. Still to do: Settings → Claude (key and Test) and the log on the
    devices, with a task working end to end in a Release build.
-2. **PDF to notation.** The measuring tool first, then the tablet feature.
+2. **PDF to notation.** The endpoint is built (above). Next: the measuring tool on the PC, then the tablet's screens (the Prima
+   session) and wiring.
 3. **The trainer.** Core's flags and inputs first, tested, then the question itself.
 4. **The teacher.**
 

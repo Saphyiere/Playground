@@ -14,12 +14,13 @@ technique, and progress as honest numbers over weeks. Local data only: no accoun
 Prima.slnx                The solution. Open it in Visual Studio.
 build/Prima.Build/        Solution items: this folder's and the repo's top-level files and docs.
 src/
-  Prima.Core/             The music, the generator, scoring and practice logic. No UI; tested.
+  Prima.Core/             The music, the generator, scoring and practice logic, and reading a PDF into notation with Claude
+                          (Transcription/). No UI; tested.
   Prima.UI/               The screens, the look (wwwroot/prima.css and its fonts) and the store (SQLite).
   Prima.Tablet/           The Android app: hosts the screens in a web view, and talks to the piano.
 tools/Prima.Library/      Builds the Library's bundle of public-domain music into artifacts/library (below).
 tools/Prima.Preview/      The screens in a browser against sample data, for checking them from the cloud.
-tests/Prima.Core.Tests/   Tests for the Core.
+tests/Prima.Core.Tests/   Tests for the Core. One reads a printed system with Claude, when PLAYGROUND_CLAUDE_KEY holds a key.
 docs/                     How it works, the plan and the research.
 library/                  The Library's music (MusicXML, PDF and MIDI) and its manifest, packed into the app.
 ```
