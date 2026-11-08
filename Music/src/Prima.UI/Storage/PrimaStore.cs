@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -120,6 +121,20 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     });
 
     /// <summary>Queues work behind everything started before it and runs it on a background thread with its own connection.</summary>
+    /// <remarks>
+    /// Dapper makes a row that's a value tuple with the tuple's constructors, found by reflection, and a Release build trims away
+    /// the ones no code calls directly. A row of 8 or more columns, like an attempt's or an excerpt's, needs the 1-, 7- and 8-item
+    /// ones; today other code happens to keep them, but without that the query would fail on the tablet only (Workout's Today
+    /// stopped that way). The attributes keep every one, whatever the rest of Prima does.
+    /// </remarks>
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,,>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueTuple<,,,,,,,>))]
     private Task<T> RunAsync<T>(Func<SqliteConnection, Task<T>> work)
     {
         lock (laneGate)
