@@ -18,6 +18,8 @@ CLAUDE.md                 How Claude works in this repo: build, test, check scre
 tools/
   cloud-setup.sh          The cloud environment's setup script.
   screens/screens.mjs     Takes screenshots of an app's preview host, for checking screens from a cloud session.
+docs/
+  claude-research.md      Research on the apps asking Claude: a workout trainer, a practice teacher, PDFs into notation.
 Kit/                      The shared looks and screen pieces, a Razor class library every app's UI references.
 Workout/                  The workout app, with its own solution, README and docs.
 Music/                    Prima, the sight-reading and piano practice app, with its own solution, README and docs.
