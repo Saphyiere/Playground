@@ -116,7 +116,7 @@ else
             var meter = passage!.Score.Meter;
             var beatNs = 60e9 / Tempo;
             var s = session;
-            result = PassageScorer.Score(passage.Score.Expected(), b => s.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs);
+            result = PassageScorer.Score(passage.Score.Expected(), b => s.TimeAt(b), meter.BeatTicks, beatNs, beatNs * meter.Beats, session.Played, Settings.TimingOffsetMs, damper: session.Damper);
             stage = Stage.Shown;
             StateHasChanged();
             await Task.Delay(300);

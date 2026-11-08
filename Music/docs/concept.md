@@ -102,10 +102,12 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 (the piano's C♯4). Sight-read, a Library piece, Scales, Arpeggios and Finger independence all play this way.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
-  marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, and the lean.
+  marked as it's played, and the timing summed up after: in time, correct notes a minute, kept going, the lean, and how well
+  notes were held (see [How a passage is scored](#how-a-passage-is-scored)).
 - **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played, in any order. A
   wrong key turns the note grey, named in grey, with a red head where the key is, named in red, and the cursor waits on; the
-  note stays so once it's put right, so the slip shows where it was. A trill's or a mordent's extra notes aren't slips. Afterwards: the notes
+  note stays so once it's put right, so the slip shows where it was. A trill's, a mordent's or a turn's keys, and grace notes
+  leading into a note, aren't slips. Afterwards: the notes
   right first time, the wrong keys, and notes a minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
   marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
@@ -236,11 +238,14 @@ asking. Nothing leaves the tablet unless you back it up.
    closing barline, and each note is marked as it's played: green when it's right; grey when it's another key, with a red head
    on the staff where the key you played is, each named above (red is only ever a key you played); amber when it's more than 10%
    of a beat early or late (a ring on its line shows when you played it, an arrow which way); and outlined grey once its time has
-   passed with nothing played. A slip put
-   right at once takes the right key's mark. These are judged note by note, before your lean is known.
-4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, and the passage again
-   with each note marked the same way, now from the whole take lined up and your lean taken out, so a note can change from
-   the mark it had while playing. A wrong note names what you played instead (G4→A4) and shows it on the staff.
+   passed with nothing played. A slip stays: another key played before the right one marks the note wrong, and the right key a
+   moment later leaves it so (it isn't held against the next note either). A chord's own key struck twice makes no mark, and a
+   trill's, a mordent's or a turn's keys and grace notes aren't slips. These are judged note by note, before your lean is known.
+4. **Summary.** After the last bar: in-time accuracy, correct notes a minute, whether you kept going, the lean, how many notes
+   were held for their length, and the passage again with each note marked the same way, now from the whole take lined up and
+   your lean taken out, so a note can change from the mark it had while playing. A wrong note names what you played instead
+   (G4→A4) and shows it on the staff, and says when it was a slip put right. Notes let go early are listed by bar, not marked on
+   the staff, which is busy enough.
 5. **Next.** The level and tempo adjust and the next passage comes up.
 
 ### How a passage is scored
@@ -254,6 +259,17 @@ asking. Nothing leaves the tablet unless you back it up.
 - Measured per passage: in-time accuracy, correct notes a minute, kept going (no gap longer than a bar), whether it was clean
   (every note right), tempo drift, extra notes, missing notes, and the timing error of correct notes. A wrong note one or two keys away from the right one counts as
   "lost on the keyboard", apart from reading errors.
+- Strict about slips: another key in a note's window, played before its right key, makes the note wrong, even when the right
+  key follows at once; that key isn't counted extra, and its timing isn't graded. A key of a note written at that moment (a
+  chord's, struck twice) is only extra, and a key within a tone of an ornamented note (a trill, mordent or turn, or grace notes
+  before it) is part of the ornament.
+- Held notes: a note is let go early when it sounds (its key down, or the damper pedal holding it until the pedal comes up or
+  the key is struck again) short of its written length by more than a fifth of it and more than a quarter of a beat. So a half
+  note held a beat and a half is let go early, a quarter needs three quarters of a beat, and notes a quarter of a beat or
+  shorter aren't judged: strict, with room for the lift a pianist makes between notes (our choice). Not judged: staccato notes
+  (and staccatissimo, spiccato and portato), the last note under a slur when it's a quarter or shorter (lifted to end the slur),
+  ornamented notes, and a note still down when a run is stopped before its end. The summary's **Held** is the share of judged
+  notes held; holds don't change in-time accuracy, clean, or the level. Wait for me doesn't judge them.
 
 ### Levels
 

@@ -27,12 +27,23 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// <summary>The opening pickup's length: Verovio's times count from the very start, a pickup's notes included.</summary>
     public long PickupTicks => Score.Bars.Count > 0 && Score.Bars[0].Number == 0 ? Score.Bars[0].Length ?? 0 : 0;
 
-    /// <summary>Notes with a trill or mordent, whose extra notes aren't slips: each time they're played.</summary>
+    /// <summary>
+    /// Notes with a trill, mordent or turn (a mark in a score made here, on the note in a piece's), or grace notes before them,
+    /// whose keys around them aren't slips: each time they're played. Grace notes aren't scored, so the keys a tone or two from the
+    /// note they lead into are taken as theirs.
+    /// </summary>
     public IReadOnlySet<string> Ornamented
     {
         get
         {
             var marked = Score.Marks.Where(m => m.Kind is MarkKind.Trill or MarkKind.Mordent).Select(m => m.StartId).ToHashSet();
+            foreach (var events in Score.Bars.SelectMany(b => b.Voices).Select(v => v.Events.OfType<Notes>().ToList()))
+            {
+                for (var i = 0; i < events.Count; i++)
+                {
+                    if (events[i].Ornamented || i > 0 && events[i - 1].Grace && !events[i].Grace) marked.UnionWith(events[i].Tones.Select(t => t.Id));
+                }
+            }
             return Notes.Where(n => marked.Contains(SheetId(n.Id))).Select(n => n.Id).ToHashSet();
         }
     }

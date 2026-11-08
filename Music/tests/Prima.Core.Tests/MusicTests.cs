@@ -165,6 +165,39 @@ public class MusicTests
     }
 
     [Fact]
+    public void StaccatoNotesAndAShortNoteEndingASlurAreLifted()
+    {
+        Notes N(string id, int start, int length, Step step) => new(id, start, length, [new Tone($"{id}1", P(step, 4))]);
+        var bar1 = new Bar(1, [new Voice(1, [N("a", 0, Ticks.Quarter, Step.C), N("b", Ticks.Quarter, Ticks.Quarter, Step.D), N("c", Ticks.Half, Ticks.Half, Step.E)])]);
+        var bar2 = new Bar(2, [new Voice(1, [N("d", 0, Ticks.Quarter, Step.F) with { Articulation = Articulation.Staccato }, N("e", Ticks.Quarter, Ticks.Quarter, Step.G), N("f", Ticks.Half, Ticks.Half, Step.A)])]);
+        var score = new Score(new Key(0), new Meter(4, 4), [bar1, bar2]) { Marks = [new Mark(MarkKind.Slur, "a1", "b1"), new Mark(MarkKind.Slur, "e1", "f1")] };
+
+        // b ends a slur as a quarter, d is staccato; f ends one as a half note, held to its end.
+        Assert.Equal([false, true, false, true, false, false], score.Expected().Select(n => n.Lifted));
+    }
+
+    [Fact]
+    public void APiecesArticulationsSlurEndsAndOrnamentsAreReadOntoItsNotes()
+    {
+        var mei = """
+            <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score><scoreDef><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2" meter.count="4" meter.unit="4"/></staffGrp></scoreDef>
+            <section><measure n="1"><staff n="1"><layer n="1">
+            <note xml:id="a" pname="c" oct="4" dur="4"><artic artic="stacciss"/></note><note xml:id="b" pname="d" oct="4" dur="4" artic="acc stacc"/>
+            <note xml:id="c" pname="e" oct="4" dur="4" artic="ten"/><note xml:id="d" pname="f" oct="4" dur="4"/>
+            </layer></staff><slur startid="#c" endid="#d"/><trill startid="#c"/></measure></section></score></mdiv></body></music></mei>
+            """;
+
+        var read = MeiReader.Read(mei);
+        var notes = read.Bars[0].Voices[0].Events.OfType<Notes>().ToList();
+
+        Assert.Equal([Articulation.Staccato, Articulation.Staccato, Articulation.Tenuto, Articulation.None], notes.Select(n => n.Articulation));
+        Assert.Equal([false, false, true, false], notes.Select(n => n.Ornamented));
+        Assert.Equal([true, true, false, true], read.Expected().Select(n => n.Lifted));
+        // They're kept on the notes for judging a run, not as the score's marks.
+        Assert.Empty(read.Marks);
+    }
+
+    [Fact]
     public void MeiReadsBackWhatItWrote()
     {
         var score = Sample();

@@ -13,10 +13,13 @@ public class ScoringTests
     // Eight quarters, C D E F G A B C, one a beat, in bars of four.
     private static List<ExpectedNote> Scale() => [.. new[] { 60, 62, 64, 65, 67, 69, 71, 72 }.Select((m, i) => new ExpectedNote($"n{i}", m, i / 4 + 1, 1, i * 480L, 480, null))];
 
-    private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null) =>
-        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented);
+    private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long, long)>? damper = null) =>
+        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented, damper);
 
     private static PlayedNote P(int midi, double beats, double offsetMs = 0) => new(midi, At(beats) + (long)(offsetMs * Ms), At(beats) + (long)(offsetMs * Ms) + 400 * Ms, 70);
+
+    // A key down and up, in beats.
+    private static PlayedNote Held(int midi, double down, double up) => new(midi, At(down), At(up), 70);
 
     [Fact]
     public void APerfectPassageIsAllInTimeAndClean()
@@ -161,6 +164,83 @@ public class ScoringTests
 
         Assert.Equal(0, result.Extra);
         Assert.Equal(2, result.Right);
+    }
+
+    [Fact]
+    public void AWrongKeyJustBeforeTheRightOneMakesTheNoteWrong()
+    {
+        // E♭ then E, 60 ms apart, for the E: a slip put right still counts, and the E that put it right isn't extra.
+        var played = Scale().Select((e, i) => P(e.Midi, i)).Where((_, i) => i != 2).Append(P(63, 2, -30)).Append(P(64, 2, 30)).ToList();
+        var result = Score(Scale(), played);
+
+        Assert.Equal((Outcome.Wrong, 63, true), (result.Notes[2].Outcome, result.Notes[2].Played!.Value, result.Notes[2].Corrected));
+        Assert.Null(result.Notes[2].ErrorMs);
+        Assert.Equal((7, 1, 0, 1), (result.Right, result.Wrong, result.Extra, result.Corrected));
+        Assert.False(result.Clean);
+    }
+
+    [Fact]
+    public void AWrongKeyAfterTheRightOneIsOnlyExtra()
+    {
+        var result = Score(Scale(), Scale().Select((e, i) => P(e.Midi, i)).Append(P(63, 2, 60)));
+
+        Assert.Equal((8, 0, 1), (result.Right, result.Wrong, result.Extra));
+    }
+
+    [Fact]
+    public void AChordsKeyStruckTwiceIsExtraNotASlip()
+    {
+        var expected = new List<ExpectedNote> { new("c0", 60, 1, 1, 0, 960, "c"), new("c1", 64, 1, 1, 0, 960, "c"), new("c2", 67, 1, 1, 0, 960, "c") };
+        var result = Score(expected, [P(60, 0, -20), P(60, 0), P(64, 0, 10), P(67, 0, 20)]);
+
+        Assert.Equal((3, 0, 1), (result.Right, result.Wrong, result.Extra));
+    }
+
+    [Fact]
+    public void ATrillStartingOnTheNoteAboveIsNotASlip()
+    {
+        var expected = new List<ExpectedNote> { new("t", 67, 1, 1, 0, 1920, null), new("u", 65, 2, 1, 1920, 480, null) };
+        var trill = Enumerable.Range(0, 10).Select(i => P(i % 2 == 0 ? 69 : 67, i * 0.3)).Append(P(65, 4));
+        var result = Score(expected, trill, ornamented: new HashSet<string> { "t" });
+
+        Assert.Equal((2, 0, 0), (result.Right, result.Wrong, result.Extra));
+    }
+
+    [Fact]
+    public void ANoteLetGoBeforeFourFifthsOfItsLengthIsLetGoEarly()
+    {
+        // At 120 bpm: a half note held a beat and a half is let go early, one held 1.7 beats isn't; a quarter needs three quarters of a beat.
+        var expected = new List<ExpectedNote> { new("h1", 60, 1, 1, 0, 960, null), new("h2", 62, 1, 1, 960, 960, null), new("q1", 64, 2, 1, 1920, 480, null), new("q2", 65, 2, 1, 2400, 480, null) };
+        var result = Score(expected, [Held(60, 0, 1.5), Held(62, 2, 3.7), Held(64, 4, 4.7), Held(65, 5, 5.8)]);
+
+        Assert.Equal([true, false, true, false], result.Notes.Select(n => n.LetGoEarly));
+        Assert.Equal(75, result.Notes[0].HeldPercent!.Value, 6);
+        Assert.Equal((4, 2, 4), (result.HoldsJudged, result.LetGoEarly, result.Right));
+        Assert.True(result.Clean);
+    }
+
+    [Fact]
+    public void ThePedalHoldsAKeyLetGoUntilItComesUpOrTheKeyIsStruckAgain()
+    {
+        var expected = new List<ExpectedNote> { new("a", 60, 1, 1, 0, 1920, null), new("b", 64, 2, 1, 1920, 960, null), new("c", 64, 2, 1, 2880, 960, null), new("d", 67, 3, 1, 3840, 960, null) };
+        // a let go after a beat with the pedal down to 3.9; b and c let go with it down from 4.2 to 8.2, b sounding until c strikes
+        // its key again; d let go after the pedal came up.
+        var result = Score(expected, [Held(60, 0, 1), Held(64, 4, 4.5), Held(64, 6, 6.5), Held(67, 8, 8.6)], damper: [(At(0.5), At(3.9)), (At(4.2), At(8.2))]);
+
+        Assert.Equal([false, false, false, true], result.Notes.Select(n => n.LetGoEarly));
+        Assert.Equal([97.5, 100, 110, 30], result.Notes.Select(n => Math.Round(n.HeldPercent!.Value, 6)));
+    }
+
+    [Fact]
+    public void StaccatoOrnamentedAndCutOffNotesAreNotJudgedOnTheirHold()
+    {
+        // s is staccato, t trilled, and h still down when the run was stopped a beat into it; k was still down at the end, held to its end.
+        var expected = new List<ExpectedNote> { new("s", 60, 1, 1, 0, 960, null) { Lifted = true }, new("t", 62, 1, 1, 960, 960, null), new("h", 64, 2, 1, 1920, 1920, null), new("k", 48, 2, 1, 1920, 960, null) };
+        var result = Score(expected, [Held(60, 0, 0.25), Held(62, 2, 2.2), new PlayedNote(64, At(4), At(5), 70) { HeldToEnd = true }, new PlayedNote(48, At(4), At(6), 70) { HeldToEnd = true }],
+            ornamented: new HashSet<string> { "t" });
+
+        Assert.Equal([null, null, null, 100], result.Notes.Select(n => n.HeldPercent));
+        Assert.Equal((1, 0), (result.HoldsJudged, result.LetGoEarly));
     }
 
     [Fact]
@@ -441,16 +521,32 @@ public class LiveJudgeTests
     }
 
     [Fact]
-    public void AWrongKeyIsMarkedAndPutRightByTheRightKeyAMomentLater()
+    public void AWrongKeyStaysWrongWhenTheRightKeyFollows()
     {
         var judge = new LiveJudge([N("a", 60, 0), N("b", 62, 1)], At, Ticks.Quarter, BeatNs, 0);
 
         var slip = judge.Play(61, At(0))!;
         Assert.Equal((LiveKind.Wrong, "a", 61), (slip.Kind, slip.Id, slip.Played));
-        Assert.Equal(LiveKind.Right, judge.Play(60, At(0.08))!.Kind);
-        // The next note is untouched by the slip, and a wrong note isn't also counted missed.
+        // The right key a moment later leaves the mark as it is; the next note is untouched by the slip, and a wrong note isn't
+        // also counted missed.
+        Assert.Null(judge.Play(60, At(0.08)));
         Assert.Equal(LiveKind.Right, judge.Play(62, At(1))!.Kind);
         Assert.Empty(judge.Due(At(3)));
+    }
+
+    [Fact]
+    public void AChordsKeyStruckAgainAndAnOrnamentsKeysMakeNoMark()
+    {
+        var notes = new[] { N("low", 48, 0) with { ChordId = "c" }, N("high", 55, 0) with { ChordId = "c" }, N("t", 67, 1), N("u", 64, 3) };
+        var judge = new LiveJudge(notes, At, Ticks.Quarter, BeatNs, 0, new HashSet<string> { "t" });
+
+        Assert.Equal(LiveKind.Right, judge.Play(48, At(0))!.Kind);
+        Assert.Null(judge.Play(48, At(0.02)));
+        Assert.Equal(LiveKind.Right, judge.Play(55, At(0.04))!.Kind);
+        // The trill on t starts on the note above.
+        Assert.Null(judge.Play(69, At(1)));
+        Assert.Equal(LiveKind.Right, judge.Play(67, At(1.05))!.Kind);
+        Assert.Empty(judge.Due(At(2)));
     }
 
     [Fact]

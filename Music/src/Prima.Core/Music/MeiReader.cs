@@ -9,8 +9,9 @@ namespace Prima.Core.Music;
 /// Humdrum or ABC file, keeping every id. It reads bars in written order with their repeat signs and endings (which
 /// <see cref="Score.PlayOrder"/> follows), staves and layers, notes, chords and rests through beams, tuplets and grace groups,
 /// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
-/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. Printed marks other than ties aren't read:
-/// Verovio engraves them from the MEI itself.
+/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. Printed marks other than ties aren't read as
+/// the score's marks, since Verovio engraves them from the MEI itself; a slur's end and a note's ornament are kept on the note,
+/// for judging a run.
 /// </summary>
 public static class MeiReader
 {
@@ -31,6 +32,9 @@ public static class MeiReader
 
         // Tie elements sit in the bar where the tie starts, so they're gathered from the whole score first.
         var tied = score.Descendants(Mei + "tie").Select(t => (Start: Id((string?)t.Attribute("startid")), End: Id((string?)t.Attribute("endid")))).ToList();
+        // So do slurs and ornaments, kept on their notes.
+        var slurEnds = score.Descendants(Mei + "slur").Select(s => Id((string?)s.Attribute("endid"))).ToHashSet();
+        var ornaments = score.Descendants().Where(e => e.Name.LocalName is "trill" or "mordent" or "turn").Select(o => Id((string?)o.Attribute("startid"))).ToHashSet();
         var bars = new List<Bar>();
         Key? newKey = null;
         Meter? newMeter = null;
@@ -54,7 +58,7 @@ public static class MeiReader
                 var accidentals = new Dictionary<(Step, int), int>();
                 foreach (var layer in staff.Elements(Mei + "layer"))
                 {
-                    var reader = new LayerReader(key, ppq, accidentals, tied);
+                    var reader = new LayerReader(key, ppq, accidentals, tied, ornaments, slurEnds);
                     reader.ReadChildren(layer, 1, 1);
                     voices.Add(new Voice(staffNumber, reader.Events, (int?)layer.Attribute("n") ?? 1));
                     length = Math.Max(length, reader.Tick);
@@ -119,7 +123,7 @@ public static class MeiReader
     }
 
     // Walks a layer's children in order, keeping the tick, through beams, tuplets and grace groups.
-    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied)
+    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied, HashSet<string> ornaments, HashSet<string> slurEnds)
     {
         public List<Event> Events { get; } = [];
 
@@ -163,17 +167,17 @@ public static class MeiReader
             var length = isGrace ? 0 : Length(element, actual, normal);
             List<XElement> notes = element.Name.LocalName == "chord" ? [.. element.Elements(Mei + "note")] : [element];
             var tones = notes.Select(note => ReadTone(note, element)).ToList();
+            // Its articulations, on it or its notes, as attributes or elements, each a list ("stacc acc"): a staccatissimo, spiccato or
+            // portato is played short as a staccato is.
+            var artics = element.DescendantsAndSelf().Where(e => e.Name.LocalName is "note" or "chord" or "artic").Select(e => (string?)e.Attribute("artic")).OfType<string>()
+                .SelectMany(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToHashSet();
             Events.Add(new Notes(IdOf(element), Tick, length, tones)
             {
                 Tuplet = tuplet,
                 Grace = isGrace,
-                Articulation = ((string?)element.Attribute("artic") ?? (string?)element.Element(Mei + "artic")?.Attribute("artic")) switch
-                {
-                    "stacc" => Articulation.Staccato,
-                    "acc" => Articulation.Accent,
-                    "ten" => Articulation.Tenuto,
-                    _ => Articulation.None,
-                },
+                Articulation = artics.Overlaps(["stacc", "stacciss", "spicc", "ten-stacc"]) ? Articulation.Staccato : artics.Contains("acc") ? Articulation.Accent : artics.Contains("ten") ? Articulation.Tenuto : Articulation.None,
+                Ornamented = element.DescendantsAndSelf().Any(e => e.Attribute("ornam") is not null) || notes.Append(element).Any(e => ornaments.Contains(IdOf(e))),
+                EndsSlur = notes.Append(element).Any(e => slurEnds.Contains(IdOf(e))),
             });
             Tick += length;
         }

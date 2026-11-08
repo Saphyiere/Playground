@@ -44,6 +44,12 @@ public sealed record Notes(string Id, int Start, int Length, IReadOnlyList<Tone>
     public bool Grace { get; init; }
 
     public Articulation Articulation { get; init; }
+
+    /// <summary>A trill, mordent or turn printed on it, as read from a piece's MEI (a score made here has its ornaments as marks).</summary>
+    public bool Ornamented { get; init; }
+
+    /// <summary>The last note under a slur, as read from a piece's MEI (a score made here has its slurs as marks).</summary>
+    public bool EndsSlur { get; init; }
 }
 
 public sealed record Rest(string Id, int Start, int Length) : Event(Start, Length)
@@ -147,6 +153,9 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     public IReadOnlyList<ExpectedNote> Expected()
     {
         var notes = new List<ExpectedNote>();
+        // The last note under a slur, a quarter or shorter, is lifted to end it: a note's id or its chord's (a piece read from MEI
+        // has it on the note).
+        var slurEnds = Marks.Where(m => m.Kind == MarkKind.Slur && m.EndId is not null).Select(m => m.EndId!).ToHashSet();
         foreach (var (bar, barStart) in BarStarts())
         {
             foreach (var voice in bar.Voices)
@@ -157,7 +166,10 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
                     {
                         // A tied note sounds for all its tied notes together.
                         var sounding = notesEvent.Length + (tone.TieToNext ? TiedLength(bar, voice, notesEvent, tone) : 0);
-                        notes.Add(new ExpectedNote(tone.Id, tone.Pitch.Midi, bar.Number, voice.Staff, barStart + notesEvent.Start, sounding, notesEvent.Tones.Count > 1 ? notesEvent.Id : null));
+                        notes.Add(new ExpectedNote(tone.Id, tone.Pitch.Midi, bar.Number, voice.Staff, barStart + notesEvent.Start, sounding, notesEvent.Tones.Count > 1 ? notesEvent.Id : null)
+                        {
+                            Lifted = notesEvent.Articulation == Articulation.Staccato || notesEvent.Length <= Ticks.Quarter && (notesEvent.EndsSlur || slurEnds.Contains(tone.Id) || slurEnds.Contains(notesEvent.Id)),
+                        });
                     }
                 }
             }
@@ -312,4 +324,11 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
 /// A note to be played: the sheet's id for it, the key, its bar and staff, when it starts in ticks from the first full bar's
 /// downbeat, how long it sounds, and the chord it's part of.
 /// </summary>
-public sealed record ExpectedNote(string Id, int Midi, int Bar, int Staff, long Tick, int Length, string? ChordId);
+public sealed record ExpectedNote(string Id, int Midi, int Bar, int Staff, long Tick, int Length, string? ChordId)
+{
+    /// <summary>
+    /// Let go early by design, so how long it's held isn't judged: a staccato note, or the last under a slur when it's a quarter or
+    /// shorter, which is lifted to end the slur. A longer note ending a phrase is held to its end.
+    /// </summary>
+    public bool Lifted { get; init; }
+}

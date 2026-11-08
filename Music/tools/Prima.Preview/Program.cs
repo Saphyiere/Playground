@@ -73,9 +73,10 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
     return Results.Text($"tapped {count} beats");
 });
 // Plays the run in progress: a share of notes right (the rest a key away), a lean and a spread in ms, and optionally nothing from
-// a bar on (a stop). In one go, ending the run, so a summary can be screenshotted without waiting; or with "live", each note
-// when it's due, as from the piano, so the sheet marks them during the run.
-app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, SessionRegistry registry, SimulatedKeyboard keys, IClock clock) =>
+// a bar on (a stop), a share of notes with a slip (the key above, just before the right one), and a share let go at 60% of their
+// length. In one go, ending the run, so a summary can be screenshotted without waiting; or with "live", each note when it's due,
+// as from the piano, so the sheet marks them during the run.
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, SessionRegistry registry, SimulatedKeyboard keys, IClock clock) =>
 {
     var session = registry.Current;
     if (session?.Plan is null) return Results.Text("no run in progress");
@@ -84,11 +85,14 @@ app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? s
     var beatsPerBar = session.Plan.BeatsPerBar;
     var notes = session.Expected
         .Where(e => stop is null || e.Beat < (stop.Value - 1) * beatsPerBar)
-        .Select(e =>
+        .SelectMany(e =>
         {
             var midi = random.NextDouble() < (right ?? 0.95) ? e.Midi : e.Midi + (random.NextDouble() < 0.5 ? 1 : 2);
             var on = session.TimeAt(e.Beat) + (long)(((lean ?? -15) + (random.NextDouble() - 0.5) * 2 * (spread ?? 12)) * 1e6);
-            return new Prima.Core.Scoring.PlayedNote(midi, on, session.TimeAt(e.Beat + e.Beats) - 30_000_000, 60 + random.Next(20));
+            var (start, end) = (session.TimeAt(e.Beat), session.TimeAt(e.Beat + e.Beats));
+            var off = early is { } share && random.NextDouble() < share ? on + (long)((end - start) * 0.6) : end - 30_000_000;
+            var note = new Prima.Core.Scoring.PlayedNote(midi, on, off, 60 + random.Next(20));
+            return slips is { } slip && midi == e.Midi && random.NextDouble() < slip ? [new(midi + 1, on - 60_000_000, on - 20_000_000, 60), note] : new[] { note };
         }).ToList();
     if (live != true)
     {

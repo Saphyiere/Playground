@@ -10,6 +10,10 @@
             <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@timed.CorrectPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Kept going</span><span class="mu-readout-value">@(timed.KeptGoing ? "Yes" : "No")</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@(Math.Abs(timed.LeanMs) < 5 ? "Even" : $"{Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
+            @if (timed.HoldsJudged > 0)
+            {
+                <div class="mu-readout @(timed.LetGoEarly > timed.HoldsJudged * 0.1 ? "miss" : "")"><span class="mu-readout-label">Held</span><span class="mu-readout-value">@($"{(timed.HoldsJudged - timed.LetGoEarly) * 100.0 / timed.HoldsJudged:0}%")</span></div>
+            }
         </div>
     </section>
 }
@@ -49,7 +53,14 @@ else if (Outcome?.Wait is { } waited)
         if (Outcome.InTime is { } timed)
         {
             yield return $"{timed.Right} of {timed.Expected} notes right{upTo}: {timed.Wrong} wrong, {timed.Missed} missed, {timed.Extra} extra. Each is marked on the music.";
+            if (timed.Corrected > 0) yield return $"{timed.Corrected} of the wrong notes {(timed.Corrected == 1 ? "was" : "were")} put right straight after the wrong key: a slip still counts.";
             if (timed.Off > 0) yield return $"{timed.Off} right {(timed.Off == 1 ? "note was" : "notes were")} more than a tenth of a beat early or late, marked with an arrow.";
+            if (timed.LetGoEarly > 0)
+            {
+                var bars = timed.Notes.Where(n => n.LetGoEarly).Select(n => n.Bar).Distinct().Order().ToList();
+                var where = bars.Count == 1 ? $"bar {bars[0]}" : bars.Count <= 5 ? $"bars {string.Join(", ", bars[..^1])} and {bars[^1]}" : $"bars {string.Join(", ", bars.Take(4))} and {bars.Count - 4} more";
+                yield return $"{timed.LetGoEarly} {(timed.LetGoEarly == 1 ? "note was" : "notes were")} let go early, held under four-fifths of {(timed.LetGoEarly == 1 ? "its" : "their")} length: {where}.";
+            }
         }
         else if (Outcome.Wait is { } waited)
         {

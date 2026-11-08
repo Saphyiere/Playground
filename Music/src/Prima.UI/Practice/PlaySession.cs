@@ -26,6 +26,8 @@ public sealed class PlaySession : IDisposable
     private readonly SessionRegistry registry;
     private readonly Dictionary<int, (long On, int Velocity)> held = [];
     private readonly List<PlayedNote> played = [];
+    private readonly List<(long DownNs, long UpNs)> damper = [];
+    private long? damperDown;
     private readonly List<(double Beat, int Midi, bool On)> pianoToCome = [];
     private Timer? watch;
     private double endBeat;
@@ -60,6 +62,12 @@ public sealed class PlaySession : IDisposable
         get { lock (played) return [.. played]; }
     }
 
+    /// <summary>When the damper pedal was down during the run, from and to: a key let go while it's down sounds on.</summary>
+    public IReadOnlyList<(long DownNs, long UpNs)> Damper
+    {
+        get { lock (played) return [.. damper]; }
+    }
+
     /// <summary>
     /// Starts the click and the run: <paramref name="beats"/> of music after the count-in. <paramref name="pianoPart"/> is played
     /// on the piano at its beats, each a key and how many beats it's held, <paramref name="lateMs"/> after the beat: the timing
@@ -69,7 +77,12 @@ public sealed class PlaySession : IDisposable
         IReadOnlyList<(int Midi, double Beat, double Beats)>? pianoPart = null, double lateMs = 0)
     {
         Stop();
-        lock (played) played.Clear();
+        lock (played)
+        {
+            played.Clear();
+            damper.Clear();
+            damperDown = null;
+        }
         held.Clear();
         beatTimes = null;
         (Plan, Expected, endBeat, lateNs) = (plan, expected, beats, (long)(lateMs * 1e6));
@@ -130,8 +143,10 @@ public sealed class PlaySession : IDisposable
         var now = clock.NowNs;
         lock (played)
         {
-            foreach (var (midi, (on, velocity)) in held) played.Add(new PlayedNote(midi, on, now, velocity));
+            foreach (var (midi, (on, velocity)) in held) played.Add(new PlayedNote(midi, on, now, velocity) { HeldToEnd = true });
             held.Clear();
+            if (damperDown is { } down) damper.Add((down, now));
+            damperDown = null;
         }
         SetPhase(Phase.Done);
     }
@@ -183,6 +198,13 @@ public sealed class PlaySession : IDisposable
         {
             if (e.Kind == MidiKind.NoteOn) held[e.Note] = (e.TimeNs, e.Velocity);
             else if (e.Kind == MidiKind.NoteOff && held.Remove(e.Note, out var down)) played.Add(new PlayedNote(e.Note, down.On, e.TimeNs, down.Velocity));
+            // The damper pedal is down from half way (64), as pianos take it.
+            else if (e.Kind == MidiKind.Control && e.Data1 == MidiEvent.Damper && e.Data2 >= 64) damperDown ??= e.TimeNs;
+            else if (e.Kind == MidiKind.Control && e.Data1 == MidiEvent.Damper && damperDown is { } pressed)
+            {
+                damper.Add((pressed, e.TimeNs));
+                damperDown = null;
+            }
         }
         if (e.Kind == MidiKind.NoteOn) KeyDown?.Invoke(e.Note, e.TimeNs);
     }

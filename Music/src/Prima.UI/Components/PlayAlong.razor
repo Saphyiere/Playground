@@ -236,7 +236,7 @@
         var plan = new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars), listen ? ClickStage.CountInOnly : ClickStage.Throughout);
         run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano, Settings.TimingOffsetMs);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
-        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs);
+        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented);
         if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
@@ -291,7 +291,7 @@
         // Stopped early, only the notes due by then count.
         var due = stoppedNs is { } at ? music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= at).ToList() : music.Notes;
         var beatNs = 60e9 / Tempo;
-        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented);
+        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper);
         if (result is not null && sheet is not null)
         {
             await sheet.ShowMarks(result.Notes.Select(n => n.Outcome switch

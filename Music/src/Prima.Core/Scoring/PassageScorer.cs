@@ -3,7 +3,11 @@ using Prima.Core.Music;
 namespace Prima.Core.Scoring;
 
 /// <summary>A note the piano sent: its key, when it went down and came up (ns on the system clock), and how hard.</summary>
-public readonly record struct PlayedNote(int Midi, long OnNs, long OffNs, int Velocity);
+public readonly record struct PlayedNote(int Midi, long OnNs, long OffNs, int Velocity)
+{
+    /// <summary>Still down when the run ended, so <see cref="OffNs"/> is the end, not when it was let go.</summary>
+    public bool HeldToEnd { get; init; }
+}
 
 /// <summary>How far a right note was from its place, after the lean: the research's design inference from the perception studies.</summary>
 public enum Band
@@ -31,8 +35,12 @@ public enum WrongKind
     Reading,
 }
 
-/// <summary>What happened to one written note: right (with its timing), wrong (and what was played), or missed.</summary>
-public sealed record NoteResult(string Id, int Midi, int Bar, Outcome Outcome, double? ErrorMs = null, double? ErrorPercent = null, Band? Band = null, int? Played = null, WrongKind? Wrong = null);
+/// <summary>
+/// What happened to one written note: right (with its timing, and how long it was held as a share of its length when that's
+/// judged), wrong (and what was played: the wrong key, though the right one followed it at once), or missed.
+/// </summary>
+public sealed record NoteResult(string Id, int Midi, int Bar, Outcome Outcome, double? ErrorMs = null, double? ErrorPercent = null, Band? Band = null, int? Played = null, WrongKind? Wrong = null,
+    double? HeldPercent = null, bool LetGoEarly = false, bool Corrected = false);
 
 /// <summary>
 /// A passage's result (plan, Scoring a passage). In-time accuracy is the headline: right notes not graded off, out of the notes in
@@ -67,6 +75,15 @@ public sealed record PassageResult(
 
     public int LostOnKeyboard => Notes.Count(n => n.Wrong == WrongKind.LostOnKeyboard);
 
+    /// <summary>Wrong notes whose right key came straight after the wrong one: a slip put right, which still counts.</summary>
+    public int Corrected => Notes.Count(n => n.Corrected);
+
+    /// <summary>Right notes whose hold was judged: not staccato, the lifted end of a slur, ornamented, or cut off by a stop.</summary>
+    public int HoldsJudged => Notes.Count(n => n.HeldPercent is not null);
+
+    /// <summary>Right notes let go before their time: see <see cref="Grading.LetGoEarly"/>.</summary>
+    public int LetGoEarly => Notes.Count(n => n.LetGoEarly);
+
     /// <summary>Right notes not graded off, out of the notes in the passage: the headline the levels and the 85% aim use.</summary>
     public double InTimeAccuracy => Expected == 0 ? 0 : (InTime + Audible) / (double)Expected;
 
@@ -92,6 +109,13 @@ public static class Grading
     public static double WindowNs(double beatNs) => Math.Clamp(0.4 * beatNs, 0.12e9, 0.30e9);
 
     public static Band BandOf(double percentOfBeat) => Math.Abs(percentOfBeat) < InTimePercent ? Band.InTime : Math.Abs(percentOfBeat) <= AudiblePercent ? Band.Audible : Band.Off;
+
+    /// <summary>
+    /// A note let go early: sounding (its key down, or the damper pedal holding it) short of its written length by more than a fifth
+    /// of it and more than a quarter of a beat, so a half note held a beat and a half is, and a quarter needs three quarters of a
+    /// beat. Strict, with room for a pianist's lift between notes; notes a quarter of a beat or shorter aren't judged (ours).
+    /// </summary>
+    public static bool LetGoEarly(double heldNs, double writtenNs, double beatNs) => writtenNs - heldNs > Math.Max(0.2 * writtenNs, 0.25 * beatNs);
 
     /// <summary>
     /// Pairs two sorted lists of times, keeping their order, within ±<paramref name="window"/>: the dynamic-programming alignment
@@ -140,8 +164,10 @@ public static class PassageScorer
     /// <param name="barNs">A bar's length, for "kept going".</param>
     /// <param name="played">The notes played.</param>
     /// <param name="offsetMs">The timing calibration's offset, taken off every note.</param>
-    /// <param name="ornamented">Ids of notes with a trill or mordent: the extra notes around them aren't counted.</param>
-    public static PassageResult Score(IReadOnlyList<ExpectedNote> expected, Func<double, long> timeAt, int beatTicks, double beatNs, double barNs, IReadOnlyList<PlayedNote> played, double offsetMs, IReadOnlySet<string>? ornamented = null)
+    /// <param name="ornamented">Ids of notes with a trill or mordent, or grace notes before them: the keys around them aren't counted.</param>
+    /// <param name="damper">When the damper pedal was down, from and to: a key let go while it's down sounds on until it comes up.</param>
+    public static PassageResult Score(IReadOnlyList<ExpectedNote> expected, Func<double, long> timeAt, int beatTicks, double beatNs, double barNs, IReadOnlyList<PlayedNote> played, double offsetMs,
+        IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long DownNs, long UpNs)>? damper = null)
     {
         var window = Grading.WindowNs(beatNs);
         var times = expected.Select(e => (double)timeAt(e.Tick / (double)beatTicks)).ToArray();
@@ -175,25 +201,56 @@ public static class PassageScorer
             usedPlayed.Add(pi);
         }
 
-        // Extra notes, apart from those around an ornament (a trill's notes, a mordent's).
+        // Keys around an ornament (a trill's, a mordent's, grace notes before a note) are part of it: neither slips nor extra.
         var ornaments = expected.Select((e, i) => (e, i)).Where(x => ornamented?.Contains(x.e.Id) == true).ToList();
-        var extra = Enumerable.Range(0, notes.Count).Count(i => !usedPlayed.Contains(i) && !ornaments.Any(o => Math.Abs(notes[i].Note.Midi - o.e.Midi) <= 2 && notes[i].At >= times[o.i] - window && notes[i].At <= times[o.i] + o.e.Length / (double)beatTicks * beatNs));
+        bool Ornament(int pi) => ornaments.Any(o => Math.Abs(notes[pi].Note.Midi - o.e.Midi) <= 2 && notes[pi].At >= times[o.i] - window && notes[pi].At <= times[o.i] + o.e.Length / (double)beatTicks * beatNs);
+
+        // A key in a right note's window before its right key is a slip: the note is wrong, though put right at once. Nearest in
+        // time first, then in pitch. A key of a note written at that moment, struck twice, is only extra.
+        var slips = from ei in matched.Keys
+                    from pi in Enumerable.Range(0, notes.Count).Where(i => !usedPlayed.Contains(i) && !Ornament(i))
+                    let distance = Math.Abs(times[ei] - notes[pi].At)
+                    where distance <= window && notes[pi].At < notes[matched[ei]].At && !expected.Any(x => x.Tick == expected[ei].Tick && x.Midi == notes[pi].Note.Midi)
+                    orderby distance, Math.Abs(expected[ei].Midi - notes[pi].Note.Midi)
+                    select (ei, pi);
+        var corrected = new HashSet<int>();
+        foreach (var (ei, pi) in slips.ToList())
+        {
+            if (corrected.Contains(ei) || usedPlayed.Contains(pi)) continue;
+
+            wrong[ei] = pi;
+            corrected.Add(ei);
+            usedPlayed.Add(pi);
+        }
+        // The key that put it right was played for it, so it isn't extra; its timing isn't graded.
+        foreach (var ei in corrected) matched.Remove(ei);
+
+        var extra = Enumerable.Range(0, notes.Count).Count(i => !usedPlayed.Contains(i) && !Ornament(i));
 
         var errors = matched.ToDictionary(m => m.Key, m => (notes[m.Value].At - times[m.Key]) / 1e6);
         var lean = errors.Count == 0 ? 0 : errors.Values.Average();
         var beatMs = beatNs / 1e6;
         var results = expected.Select((e, i) =>
         {
-            if (matched.TryGetValue(i, out _))
+            if (matched.TryGetValue(i, out var right))
             {
                 var percent = (errors[i] - lean) / beatMs * 100;
-                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Right, errors[i], percent, Grading.BandOf(percent));
+                // How long it sounded: until its key came up, or the damper pedal did if it was down then (unless the key was struck again).
+                // Not judged for staccato, a slur's lifted end, an ornament, or a note a stop cut off.
+                var key = notes[right].Note;
+                var pedal = damper?.Where(d => d.DownNs <= key.OffNs && d.UpNs > key.OffNs).Select(d => d.UpNs).DefaultIfEmpty(key.OffNs).Max() ?? key.OffNs;
+                var again = notes.Where(n => n.Note.Midi == key.Midi && n.Note.OnNs > key.OnNs).Select(n => n.Note.OnNs).DefaultIfEmpty(long.MaxValue).Min();
+                var held = (double)Math.Min(pedal, Math.Max(key.OffNs, again)) - key.OnNs;
+                var writtenNs = e.Length / (double)beatTicks * beatNs;
+                var judged = writtenNs > 0 && !e.Lifted && ornamented?.Contains(e.Id) != true && (!key.HeldToEnd || held >= writtenNs);
+                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Right, errors[i], percent, Grading.BandOf(percent),
+                    HeldPercent: judged ? held / writtenNs * 100 : null, LetGoEarly: judged && Grading.LetGoEarly(held, writtenNs, beatNs));
             }
             if (wrong.TryGetValue(i, out var pi))
             {
                 var played = notes[pi].Note.Midi;
                 var apart = Math.Abs(played - e.Midi);
-                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Wrong, Played: played, Wrong: apart <= 2 ? WrongKind.LostOnKeyboard : apart % 12 == 0 ? WrongKind.Octave : WrongKind.Reading);
+                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Wrong, Played: played, Wrong: apart <= 2 ? WrongKind.LostOnKeyboard : apart % 12 == 0 ? WrongKind.Octave : WrongKind.Reading, Corrected: corrected.Contains(i));
             }
             return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Missed);
         }).ToList();
