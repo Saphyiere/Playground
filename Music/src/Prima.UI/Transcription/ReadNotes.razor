@@ -377,7 +377,7 @@ else
             var next = result;
             foreach (var system in systems)
             {
-                if (cuts.TryGetValue((system.Page, system.Index), out var cut)) next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, cancel!.Token);
+                if (cuts.TryGetValue((system.Page, system.Index), out var cut)) next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, ct: cancel!.Token);
             }
             return next;
         });
