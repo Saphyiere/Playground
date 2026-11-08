@@ -38,7 +38,8 @@ public sealed record Doubt(int Page, int System, int Bar, int Staff, string Note
 /// <summary>
 /// A PDF read into notation. <see cref="Ok"/> when every system was read, some bars perhaps still in doubt. A system that
 /// couldn't be read is left out of the score and listed as failed, to read again. <see cref="Mei"/> is the notation to keep,
-/// for the Library's MEI import.
+/// for the Library's MEI import, with the marks read (fingering, slurs, dynamics, hairpins and pedal); the score has them as its
+/// file marks, as the kept piece will.
 /// </summary>
 public sealed record ReadingResult(bool Ok, string Summary, Score? Score, string Mei, IReadOnlyList<Doubt> Doubts, IReadOnlyList<SystemStatus> Systems,
     decimal Cost, TimeSpan Took)
@@ -79,28 +80,33 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         if (images.Count == 0) throw new ArgumentException("There are no systems to read.", nameof(systems));
         var run = new Run([.. images.Select(s => new SystemStatus(s.Page, s.Index, SystemStep.Waiting, ""))], new SystemReading?[images.Count], 0, progress, time);
         run.Report();
-        await ReadOneAsync(run, images[0], 0, 0, 0, engraver, ct);
+        await ReadOneAsync(run, images[0], 0, 0, 0, "", engraver, ct);
         var meter = run.Readings[0]?.Bars[^1] is { } last ? (last.MeterCount, last.MeterUnit) : (0, 0);
         await Parallel.ForEachAsync(Enumerable.Range(1, images.Count - 1), new ParallelOptions { MaxDegreeOfParallelism = AtOnce, CancellationToken = ct },
-            async (i, token) => await ReadOneAsync(run, images[i], i, meter.Item1, meter.Item2, engraver, token));
+            async (i, token) => await ReadOneAsync(run, images[i], i, meter.Item1, meter.Item2, "", engraver, token));
         return run.Finish(title);
     }
 
     /// <summary>Reads one system of an earlier result again, from its image, and builds the notation anew.</summary>
+    /// <param name="hint">
+    /// What the owner sees in the print, in their own words, like "Bar 5: the long high note is F6". It goes with the system's
+    /// picture to the reading and the comparison as an observation to check against the print, not an order: the reading still
+    /// gives only what's printed. Empty for none.
+    /// </param>
     public async Task<ReadingResult> RereadAsync(ReadingResult previous, SystemImage system, IEngraver engraver, IProgress<ReadingProgress>? progress = null,
-        string title = "", CancellationToken ct = default)
+        string title = "", string hint = "", CancellationToken ct = default)
     {
         var at = previous.Systems.ToList().FindIndex(s => s.Page == system.Page && s.Index == system.Index);
         if (at < 0) throw new ArgumentException($"The result has no system {system.Index} on page {system.Page}.", nameof(system));
         var readings = previous.Readings.Count == previous.Systems.Count ? previous.Readings.ToArray() : new SystemReading?[previous.Systems.Count];
         var run = new Run([.. previous.Systems], readings, previous.Cost, progress, time);
         var before = readings.Take(at).LastOrDefault(r => r is not null)?.Bars[^1];
-        await ReadOneAsync(run, system, at, before?.MeterCount ?? 0, before?.MeterUnit ?? 0, engraver, ct);
+        await ReadOneAsync(run, system, at, before?.MeterCount ?? 0, before?.MeterUnit ?? 0, hint, engraver, ct);
         return run.Finish(title);
     }
 
     /// <summary>Reads a system, engraves its reading, has Claude compare the two, and keeps the reading with its corrections.</summary>
-    private async Task ReadOneAsync(Run run, SystemImage image, int at, int meterCount, int meterUnit, IEngraver engraver, CancellationToken ct)
+    private async Task ReadOneAsync(Run run, SystemImage image, int at, int meterCount, int meterUnit, string hint, IEngraver engraver, CancellationToken ct)
     {
         if (run.Stopped is { } why)
         {
@@ -110,7 +116,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
 
         run.Set(at, SystemStep.Reading, "");
         var first = at == 0;
-        var read = await claude.AskAsync(new ReadSystem(image.Png), new SystemToRead(image.Page, image.Index, first, meterCount, meterUnit), ct);
+        var read = await claude.AskAsync(new ReadSystem(image.Png), new SystemToRead(image.Page, image.Index, first, meterCount, meterUnit, hint), ct);
         run.Spend(read.Usage.Cost);
         if (!read.Ok)
         {
@@ -124,7 +130,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         byte[] engraving;
         try
         {
-            var mei = MeiWriter.Write(ReadingScore.Build([reading]).Score);
+            var mei = ReadingScore.Mei(ReadingScore.Build([reading]).Score);
             run.Set(at, SystemStep.Comparing, "");
             // The print's width, from its PNG header, so the engraving comes out at about the same size.
             var width = image.Png.Length > 24 ? BinaryPrimitives.ReadInt32BigEndian(image.Png.AsSpan(16, 4)) : 2400;
@@ -136,7 +142,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
             return;
         }
 
-        var compare = await claude.AskAsync(new CompareSystem(image.Png, engraving), new SystemToCompare(image.Page, image.Index, first, reading), ct);
+        var compare = await claude.AskAsync(new CompareSystem(image.Png, engraving), new SystemToCompare(image.Page, image.Index, first, reading, hint), ct);
         run.Spend(compare.Usage.Cost);
         if (!compare.Ok)
         {
@@ -200,7 +206,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
                 if (read.Count > 0)
                 {
                     (score, var firstBars) = ReadingScore.Build([.. read.Select(i => readings[i]!)], title);
-                    mei = MeiWriter.Write(score);
+                    mei = ReadingScore.Mei(score);
                     for (var k = 0; k < read.Count; k++)
                     {
                         var status = statuses[read[k]];

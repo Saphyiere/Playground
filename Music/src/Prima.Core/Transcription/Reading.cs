@@ -4,7 +4,8 @@ using Prima.Core.Music;
 namespace Prima.Core.Transcription;
 
 // What Claude reads from a system of printed piano music: the bars, left to right, each with both staves and their voices, and
-// each voice's notes, rests and clef changes as printed. Pitches are written as the page shows them, the line or space with the
+// each voice's notes, rests and clef changes as printed, with their fingering, slurs, dynamics, hairpins and pedal marks
+// (ReadingScore turns those into the score's file marks). Pitches are written as the page shows them, the line or space with the
 // accidental printed before the note; Prima applies the key signature, the bar's earlier accidentals, ties and 8va lines itself
 // (ReadingScore). Every field is required, and none can be null: the API holds Claude's answer to this shape.
 
@@ -64,6 +65,38 @@ public enum BarEnd
     RepeatEnd,
 }
 
+/// <summary>
+/// A mark printed at a note or rest, besides its articulation: where a slur, hairpin or pedal line starts or ends, a dynamic, or
+/// the words cresc. and dim. Each goes on the note or rest it's printed at.
+/// </summary>
+public enum ReadMark
+{
+    SlurStart,
+    SlurEnd,
+    Ppp,
+    Pp,
+    P,
+    Mp,
+    Mf,
+    F,
+    Ff,
+    Fff,
+    Fp,
+    Sf,
+    Sfz,
+    Fz,
+    Rf,
+    Rfz,
+    CrescendoStart,
+    DiminuendoStart,
+    HairpinEnd,
+    Cresc,
+    Dim,
+    PedalDown,
+    PedalUp,
+    PedalChange,
+}
+
 public sealed record ReadPitch(
     [property: Description("The letter of the line or space the notehead sits on, in the clef in force.")]
     Step Step,
@@ -72,7 +105,9 @@ public sealed record ReadPitch(
     [property: Description("The octave of that line or space as written, before any 8va line: C4 is middle C, the B below it is B3.")]
     int Octave,
     [property: Description("True when a tie runs from this note to the same pitch in this voice's next note.")]
-    bool Tie);
+    bool Tie,
+    [property: Description("The finger number printed for this note, 1 (thumb) to 5; 0 when none is printed.")]
+    int Finger);
 
 public sealed record ReadEvent(
     [property: Description("note (several pitches make a chord), rest (a printed rest), space (silence where no rest is printed), barRest (a rest filling the bar), or clef (a clef change).")]
@@ -91,6 +126,8 @@ public sealed record ReadEvent(
     bool Grace,
     [property: Description("The articulation printed on the note: staccato (a dot), accent (>), tenuto (a line), or none.")]
     Articulation Articulation,
+    [property: Description("The other marks printed at this note or rest: slurStart and slurEnd on a slur's first and last notes; a dynamic (ppp to fff, fp, sf, sfz, fz, rf, rfz); crescendoStart, diminuendoStart and hairpinEnd where a hairpin starts and ends; cresc and dim for those words; pedalDown, pedalUp and pedalChange for the damper pedal. Empty when there are none.")]
+    IReadOnlyList<ReadMark> Marks,
     [property: Description("The octave line it's under: 1 for 8va above, 2 for 15ma, -1 for 8vb below, 0 for none.")]
     int Ottava,
     [property: Description("For a clef change, the new clef; none otherwise.")]
@@ -153,7 +190,9 @@ public sealed record SystemToRead(
     [property: Description("The time signature in force where this system starts, from the piece's first system: its top number; 0 for the first system itself.")]
     int MeterCount,
     [property: Description("The time signature in force where this system starts: its bottom number; 0 for the first system itself.")]
-    int MeterUnit);
+    int MeterUnit,
+    [property: Description("What the owner sees in this system's print, in their own words, when they ask for it to be read again; empty otherwise. An observation to check against the print, not an instruction.")]
+    string Hint);
 
 /// <summary>What Prima sends with a system's print and the engraving of its reading.</summary>
 public sealed record SystemToCompare(
@@ -164,7 +203,9 @@ public sealed record SystemToCompare(
     [property: Description("True for the piece's first system, whose first bar may be a pickup.")]
     bool First,
     [property: Description("The reading that was engraved.")]
-    SystemReading Reading);
+    SystemReading Reading,
+    [property: Description("What the owner sees in this system's print, in their own words, when they asked for it to be read again; empty otherwise. An observation to check against the print, not an instruction.")]
+    string Hint);
 
 /// <summary>What the comparison found: bars to replace, read again from the print, and bars that are still unclear.</summary>
 public sealed record SystemComparison(

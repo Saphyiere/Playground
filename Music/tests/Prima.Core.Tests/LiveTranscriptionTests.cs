@@ -31,7 +31,7 @@ public class LiveTranscriptionTests
         var png = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "czerny-821-13-system-1.png"), ct);
         var claude = new Claude(new KeyFromEnvironment(), NoAssistLog.Instance, TimeProvider.System);
 
-        var answer = await claude.AskAsync(new ReadSystem(png), new SystemToRead(1, 1, true, 0, 0), ct);
+        var answer = await claude.AskAsync(new ReadSystem(png), new SystemToRead(1, 1, true, 0, 0, ""), ct);
 
         Assert.True(answer.Ok, $"{answer.Kind}: {answer.Summary} {string.Join(" ", answer.Notes)}");
         TestContext.Current.TestOutputHelper?.WriteLine($"Read in {answer.Usage.Took.TotalSeconds:0} s for ${answer.Usage.Cost:0.00} " +

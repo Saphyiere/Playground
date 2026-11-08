@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using Playground.AI.Assist;
 using Prima.Core.Music;
+using Prima.Core.Scoring;
 using Prima.Core.Transcription;
 
 namespace Prima.Core.Tests;
@@ -9,19 +10,32 @@ public class TranscriptionTests
 {
     private static readonly Usage Cents = new(0, 0, 0, 0, 0.1m, TimeSpan.Zero);
 
-    private static ReadPitch P(Step step, int octave, Accidental accidental = Accidental.None, bool tie = false) => new(step, accidental, octave, tie);
+    private static ReadPitch P(Step step, int octave, Accidental accidental = Accidental.None, bool tie = false, int finger = 0) => new(step, accidental, octave, tie, finger);
 
-    private static ReadEvent N(NoteValue value, params ReadPitch[] pitches) => new(ReadKind.Note, pitches, value, 0, 0, false, false, Articulation.None, 0, ReadClef.None);
+    private static ReadEvent N(NoteValue value, params ReadPitch[] pitches) => new(ReadKind.Note, pitches, value, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None);
 
-    private static ReadEvent Rest(NoteValue value) => new(ReadKind.Rest, [], value, 0, 0, false, false, Articulation.None, 0, ReadClef.None);
+    private static ReadEvent Rest(NoteValue value) => new(ReadKind.Rest, [], value, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None);
 
-    private static readonly ReadEvent BarRest = new(ReadKind.BarRest, [], NoteValue.Quarter, 0, 0, false, false, Articulation.None, 0, ReadClef.None);
+    private static readonly ReadEvent BarRest = new(ReadKind.BarRest, [], NoteValue.Quarter, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None);
 
     private static ReadBar Bar(int index, IReadOnlyList<ReadEvent> upper, IReadOnlyList<ReadEvent>? lower = null, int fifths = 0, int count = 4, int unit = 4) =>
         new(index, fifths, count, unit, false, BarEnd.Normal, 0,
             [new ReadStaff(1, ReadClef.Treble, [new ReadVoice(1, upper)]), new ReadStaff(2, ReadClef.Bass, [new ReadVoice(1, lower ?? [BarRest])])]);
 
     private static SystemReading Sys(params ReadBar[] bars) => new(bars, []);
+
+    private static ReadEvent With(ReadEvent e, params ReadMark[] marks) => e with { Marks = marks };
+
+    // Bar 1: n1 C5 (p), r2 (f), n3 E5 (sfz, a crescendo starts), n4 F5 above; n5 C3 (Ped.) and n6 G3 (a change) below.
+    // Bar 2: n7 G5, r8 (the crescendo ends, dim.) above; n9 C3, r10 (the pedal's let up) below.
+    private static readonly SystemReading Marked = Sys(
+        Bar(1,
+            [With(N(NoteValue.Quarter, P(Step.C, 5)), ReadMark.P), With(Rest(NoteValue.Quarter), ReadMark.F),
+                With(N(NoteValue.Quarter, P(Step.E, 5)), ReadMark.CrescendoStart, ReadMark.Sfz), N(NoteValue.Quarter, P(Step.F, 5))],
+            [With(N(NoteValue.Half, P(Step.C, 3)), ReadMark.PedalDown), With(N(NoteValue.Half, P(Step.G, 3)), ReadMark.PedalChange)]),
+        Bar(2,
+            [N(NoteValue.Half, P(Step.G, 5)), With(Rest(NoteValue.Half), ReadMark.Dim, ReadMark.HairpinEnd)],
+            [N(NoteValue.Half, P(Step.C, 3)), With(Rest(NoteValue.Half), ReadMark.PedalUp)]));
 
     private static IEnumerable<Notes> NotesOf(Score score, int bar, int staff = 1) =>
         score.Bars.Single(b => b.Number == bar).Voices.Where(v => v.Staff == staff).SelectMany(v => v.Events).OfType<Notes>();
@@ -148,6 +162,14 @@ public class TranscriptionTests
     }
 
     [Fact]
+    public void Problems_AFingerIsOneToFive()
+    {
+        var problems = ReadingChecks.Problems(Sys(Bar(1, [N(NoteValue.Whole, P(Step.C, 5, finger: 6))])), first: false);
+
+        Assert.Equal(["Bar 1, upper staff, voice 1: event 1's finger is 6; give 1 to 5 as printed, or 0 where none is."], problems);
+    }
+
+    [Fact]
     public void Build_TheKeyAndTheBarsEarlierAccidentalsSetThePitchesThatSound()
     {
         // G major: an F is sharp until a natural, which holds for the rest of the bar on its line, and not on another octave's.
@@ -240,12 +262,84 @@ public class TranscriptionTests
         var bar = Bar(1, [grace, N(NoteValue.Quarter, P(Step.C, 5, tie: true)), N(NoteValue.Quarter, P(Step.C, 5)), triplet with { TupletStart = true }, triplet, triplet,
             N(NoteValue.Quarter, P(Step.G, 4), P(Step.C, 5))]);
 
-        var mei = MeiWriter.Write(ReadingScore.Build([Sys(bar)]).Score);
+        var mei = ReadingScore.Mei(ReadingScore.Build([Sys(bar)]).Score);
 
         Assert.Contains("grace=\"unacc\"", mei);
         Assert.Contains("<tuplet", mei);
         Assert.Contains("tie=\"i\"", mei);
         Assert.Contains("<chord", mei);
+    }
+
+    [Fact]
+    public void Build_PutsFingeringOnItsNotes()
+    {
+        var score = ReadingScore.Build([Sys(Bar(1, [N(NoteValue.Whole, P(Step.C, 4, finger: 1), P(Step.E, 4, finger: 3), P(Step.G, 4))]))]).Score;
+
+        Assert.Equal(new int?[] { 1, 3, null }, NotesOf(score, 1).Single().Tones.Select(t => t.Finger));
+        Assert.Equal(2, ReadingScore.Mei(score).Split("<fing ").Length - 1);
+    }
+
+    [Fact]
+    public void Build_JoinsSlursInTheirVoice_AcrossTheBarline_AndDropsTheOpenEnded()
+    {
+        // A note can end one slur and start the next, whichever way round they're listed.
+        var bar1 = Bar(1,
+            [With(N(NoteValue.Quarter, P(Step.C, 5)), ReadMark.SlurStart), N(NoteValue.Quarter, P(Step.D, 5)),
+                With(N(NoteValue.Quarter, P(Step.E, 5)), ReadMark.SlurStart, ReadMark.SlurEnd), N(NoteValue.Quarter, P(Step.F, 5))],
+            [With(N(NoteValue.Whole, P(Step.C, 3)), ReadMark.SlurEnd)]);
+        var bar2 = Bar(2, [With(N(NoteValue.Half, P(Step.G, 5)), ReadMark.SlurEnd), With(N(NoteValue.Half, P(Step.A, 5)), ReadMark.SlurStart)]);
+
+        var score = ReadingScore.Build([Sys(bar1, bar2)]).Score;
+
+        // n1 to n4 are bar 1's upper notes and n5 its lower one; n6 and n7 are bar 2's. The lower slur has no start, A5's no end.
+        Assert.Equal([new Mark(MarkKind.Slur, "n1", "n3"), new Mark(MarkKind.Slur, "n3", "n6")], score.FileMarks);
+    }
+
+    [Fact]
+    public void Build_ASlurCanStartOnAGraceNote_AndAnotherMarkThereGoesToTheNoteItLeadsTo()
+    {
+        var grace = With(N(NoteValue.Eighth, P(Step.F, 5)) with { Grace = true }, ReadMark.SlurStart, ReadMark.Mf);
+        var bar = Bar(1, [grace, With(N(NoteValue.Quarter, P(Step.D, 6)), ReadMark.SlurEnd), Rest(NoteValue.Quarter), N(NoteValue.Half, P(Step.F, 5))]);
+
+        var score = ReadingScore.Build([Sys(bar)]).Score;
+
+        Assert.Equal([new Mark(MarkKind.Dynamic, "n2", null, "mf"), new Mark(MarkKind.Slur, "n1", "n2")], score.FileMarks);
+    }
+
+    [Fact]
+    public void Build_TiesDynamicsHairpinsAndPedalToNotes_AsAPiecesOwnFileWould()
+    {
+        var score = ReadingScore.Build([Marked]).Score;
+
+        // A mark at a rest goes to the note before it on its staff, with the ticks between; a pedal change is up, then down.
+        Assert.Equal(
+        [
+            new Mark(MarkKind.Dynamic, "n1", null, "p"),
+            new Mark(MarkKind.PedalDown, "n5"),
+            new Mark(MarkKind.Dynamic, "n1", null, "f") { StartOffset = 480 },
+            new Mark(MarkKind.Dynamic, "n3", null, "sfz"),
+            new Mark(MarkKind.PedalUp, "n6"),
+            new Mark(MarkKind.PedalDown, "n6"),
+            new Mark(MarkKind.Crescendo, "n3", "n7") { EndOffset = 960 },
+            new Mark(MarkKind.PedalUp, "n9") { StartOffset = 960 },
+            new Mark(MarkKind.Diminuendo, "n7") { StartOffset = 960 },
+        ], score.FileMarks);
+    }
+
+    [Fact]
+    public void Mei_CarriesTheMarks_SoAKeptPieceHasThemToo_AndTheJudgesTimeThemFromTheScore()
+    {
+        var score = ReadingScore.Build([Marked]).Score;
+
+        var mei = ReadingScore.Mei(score);
+
+        Assert.Equal(score.FileMarks, MeiReader.Read(mei).FileMarks);
+        Assert.Contains("dir=\"bounce\"", mei);
+        var markings = Markings.Of(score, score.Expected());
+        Assert.Equal([new Markings.Dynamic("p", 0, 480), new Markings.Dynamic("f", 480, 2880)], markings.Dynamics);
+        Assert.Equal([new Markings.Hairpin(true, 960, 2880)], markings.Hairpins);
+        Assert.Equal([new Markings.Pedalled(0, 960), new Markings.Pedalled(960, 2880)], markings.Pedal);
+        Assert.Equal(["n3", "n6"], markings.Stressed.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -269,8 +363,8 @@ public class TranscriptionTests
         Assert.Equal(0.4m, result.Cost);
         Assert.Contains("<title>Étude</title>", result.Mei);
         var reads = claude.Asked.Where(a => a.Task == "prima.read-system").Select(a => (SystemToRead)a.Input).ToList();
-        Assert.Equal(new SystemToRead(1, 1, true, 0, 0), reads[0]);
-        Assert.Equal(new SystemToRead(1, 2, false, 4, 4), reads[1]);
+        Assert.Equal(new SystemToRead(1, 1, true, 0, 0, ""), reads[0]);
+        Assert.Equal(new SystemToRead(1, 2, false, 4, 4, ""), reads[1]);
         Assert.Equal([2400, 2300], engraver.Engraved.Select(e => e.Width));
     }
 
@@ -322,7 +416,7 @@ public class TranscriptionTests
     }
 
     [Fact]
-    public async Task RereadAsync_ReadsOneSystemAgainAndRebuilds()
+    public async Task RereadAsync_ReadsOneSystemAgainWithTheOwnersHint_AndRebuilds()
     {
         var claude = new ScriptedClaude { Read = r => Ok(Sys(r.First ? CBar : DBar)) };
         var images = new[] { new SystemImage(1, 1, Png(2400)), new SystemImage(1, 2, Png(2400)) };
@@ -330,12 +424,14 @@ public class TranscriptionTests
         var first = await reader.ReadAsync(images, new FakeEngraver(), ct: TestContext.Current.CancellationToken);
 
         claude.Read = _ => Ok(Sys(Bar(1, [N(NoteValue.Whole, P(Step.F, 5))])));
-        var again = await reader.RereadAsync(first, images[1], new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+        var again = await reader.RereadAsync(first, images[1], new FakeEngraver(), hint: "Bar 1: the long note is F5, in the top space",
+            ct: TestContext.Current.CancellationToken);
 
         Assert.True(again.Ok);
         Assert.Equal(77, NotesOf(again.Score!, 2).Single().Tones[0].Pitch.Midi);
         Assert.Equal(first.Cost + 0.2m, again.Cost);
-        Assert.Equal(new SystemToRead(1, 2, false, 4, 4), claude.Asked.Select(a => a.Input).OfType<SystemToRead>().Last());
+        Assert.Equal(new SystemToRead(1, 2, false, 4, 4, "Bar 1: the long note is F5, in the top space"), claude.Asked.Select(a => a.Input).OfType<SystemToRead>().Last());
+        Assert.Equal("Bar 1: the long note is F5, in the top space", claude.Asked.Select(a => a.Input).OfType<SystemToCompare>().Last().Hint);
     }
 
     [Fact]

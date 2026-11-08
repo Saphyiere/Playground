@@ -79,6 +79,7 @@ public static class ReadingChecks
                         {
                             var sounding = new Spelled(p.Step, Alter(p.Accidental), p.Octave + e.Ottava);
                             if (sounding.Midi is < 21 or > 108) problems.Add($"{at}: {p.Step}{p.Octave} isn't on the piano; check the octave and the ledger lines.");
+                            if (p.Finger is < 0 or > 5) problems.Add($"{at}: event {i + 1}'s finger is {p.Finger}; give 1 to 5 as printed, or 0 where none is.");
                             if (!p.Tie) continue;
 
                             // A tie lands on the same pitch in the voice's next note: later in this bar, or in its next bar, or in the next

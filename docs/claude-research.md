@@ -324,6 +324,12 @@ The endpoint is in `Music/src/Prima.Core/Transcription`. The Prima session desig
   accidental printed before the note. `ReadingScore` turns them into the pitches that sound: the key signature, the bar's
   earlier accidentals on the same line or space, ties across barlines and systems, and 8va lines. It does this in code, not by
   asking Claude.
+- **The marks are read too:** fingering, slurs, dynamics (ppp to fff, fp, sf, sfz, fz, rf), hairpins, cresc. and dim., and the
+  pedal. Each is given on the note or rest it's printed at.
+  - In the score they're tied to notes just as a Library piece's own marks are, so the practice judges see them. A pedal
+    released under a rest goes to the note before it, timed at the rest.
+  - They go into the MEI for Verovio to engrave, and come back the same when the notation is kept.
+  - Ornaments and other words aren't read.
 - **`ReadingChecks`** check every reading before it's taken:
   - each voice fills its bar (only a pickup, or a bar cut short by a repeat or the end, is short);
   - every pitch is on the piano;
@@ -337,11 +343,13 @@ The endpoint is in `Music/src/Prima.Core/Transcription`. The Prima session desig
   - the first system alone, since only it prints the time signature, then the rest four at a time;
   - progress for each system;
   - doubts by bar number;
-  - failed systems named, and read again one at a time;
+  - failed systems named;
+  - read again one system at a time, with a hint in your own words if you give one, like "Bar 5: the long high note is F6".
+    Claude checks the hint against the print rather than taking it on trust;
   - a stop when the key, the credit or the connection fails.
-- **Two simplifications for now.** Notes under an 8va line keep the pitch they sound, and are engraved an octave above the print
-  without the line. Slurs, dynamics, pedalling and fingering aren't read.
-- **Tests:** 20, against a scripted stand-in for Claude. One more asks the real API to read the first system of Czerny's Op. 821
+- **One simplification for now.** Notes under an 8va line keep the pitch they sound, and are engraved an octave above the print
+  without the line.
+- **Tests:** 26, against a scripted stand-in for Claude. One more asks the real API to read the first system of Czerny's Op. 821
   No. 13 and checks its notes against the piece's MIDI, for about 20 cents. It's skipped unless `PLAYGROUND_CLAUDE_KEY` holds a
   key: set it as the [framework's README](../Kit/Playground.AI.Assist/README.md#build-and-test) says, then run
   `dotnet test --project Music/tests/Prima.Core.Tests`. What Claude reads across many pieces is measured with the tool below,
