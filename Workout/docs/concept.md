@@ -379,6 +379,7 @@ How it runs:
 - **Each workout** adds what it burned on top of resting to the maintenance of the day it started: (METs − 1) × kg × its time, from Start to its last set (to Finish when a cool-down ran, so a workout left open isn't counted on). Lifting is 3.5 METs (weight training, in the 2024 Adult Compendium of Physical Activities), rising to 6 (vigorous) as the workout's average heart rate goes from 64% to 77% of my maximum (208 − 0.7 × age); a workout of only timed exercises, like a walk or a run, goes on to 8.8 at 96%. Without heart rate or my age, it's 3.5; without a weigh-in, nothing. It's rough, within about a third either way at best, so a workout shows its likely range. A rest day is maintenance alone, and today's goes up once a workout is finished.
 - **A day I forgot to log** (it's over, and I'd started logging by then) counts as eating exactly maintenance: no loss and no gain, until I pick it on Calories and add what I ate. The averages count it that way, and say how many days were logged and how many were taken at maintenance. What my logs should do to my weight is the deficits added up ÷ 3,500 a pound (7,700 a kilogram); a day that counts neither way, like one before I started logging, counts as an average one.
 - **The scale's change** is read off the straight line through the weigh-ins in that time, so one heavy morning doesn't swing it. It needs two weigh-ins a week apart.
+- **Maintenance by the scale:** under the last four weeks, when the logs and the scale disagree by 100 a day or more, Calories says **By your scale, your maintenance is about 2,150 a day, not 2,400**, with **Use it**. It's what I ate on the days I logged, on average, plus the scale's change worth in calories a day; days I forgot are left out, since they count at maintenance and would pull it toward itself. It needs three weeks, two thirds of the days logged, and weigh-ins at least twice a week across two weeks. Used, maintenance everywhere moves by the difference, rounded to 50 (**Maintenance −250 by your scale, since Nov 8**, with **Undo**), and Settings says so; it's offered again at most every four weeks. When logs and scale disagree it's usually food that didn't get logged, not metabolism, and this takes it in either way.
 
 ## Body weight
 
@@ -414,7 +415,7 @@ ClaudeCall         Id, At, SessionId, Task, Version, Model, Attempt, Kind, Summa
                                                                                      (every call to Claude, kept for the month's cost)
 ```
 
-Settings also keep, by key, each exercise's rest countdown (`RestTarget:<exercise>`), Claude's plan for its next time once taken
+Settings also keep, by key, what the scale added to maintenance (`MaintenanceAdjust`, with when, and what it was before, for Undo), each exercise's rest countdown (`RestTarget:<exercise>`), Claude's plan for its next time once taken
 (`Trainer:<exercise>`: the workout it looked back at, weight, unit, reps, sets and rest), and `LookBack` = `off` when the look back
 is turned off. The Claude key is never in the data file: it's in the phone's secure storage.
 

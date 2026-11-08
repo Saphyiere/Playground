@@ -77,6 +77,9 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     // How I spend a usual day outside workouts. (An "Activity" before it counted workouts in, so it's left behind.)
     private const string DailyActivityKey = "DailyActivity";
 
+    // What the scale added to maintenance, when, and what it was before, for Undo.
+    private const string MaintenanceAdjustKey = "MaintenanceAdjust", MaintenanceAdjustedOnKey = "MaintenanceAdjustedOn", MaintenanceAdjustBeforeKey = "MaintenanceAdjustBefore";
+
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
     private Task lane = Task.CompletedTask;
@@ -108,7 +111,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         ? c.ExecuteAsync("DELETE FROM Setting WHERE Key = @key", new { key })
         : c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @value) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value", new { key, value }));
 
-    /// <summary>Reads the saved calorie goal and body details into <paramref name="settings"/>; any not saved are the defaults.</summary>
+    /// <summary>Reads the saved calorie goal, body details and the scale's adjustment into <paramref name="settings"/>; any not saved are the defaults.</summary>
     public async Task LoadAsync(AppSettings settings)
     {
         var saved = await GetSettingsAsync();
@@ -118,15 +121,21 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         settings.BirthYear = int.TryParse(saved.GetValueOrDefault(BirthYearKey), CultureInfo.InvariantCulture, out var born) ? born : null;
         settings.HeightCm = double.TryParse(saved.GetValueOrDefault(HeightKey), CultureInfo.InvariantCulture, out var height) ? height : null;
         settings.DailyActivity = Enum.TryParse<DailyActivity>(saved.GetValueOrDefault(DailyActivityKey), out var activity) ? activity : defaults.DailyActivity;
+        settings.MaintenanceAdjust = int.TryParse(saved.GetValueOrDefault(MaintenanceAdjustKey), CultureInfo.InvariantCulture, out var adjust) ? adjust : 0;
+        settings.MaintenanceAdjustedOn = DateOnly.TryParseExact(saved.GetValueOrDefault(MaintenanceAdjustedOnKey), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var on) ? on : null;
+        settings.MaintenanceAdjustBefore = int.TryParse(saved.GetValueOrDefault(MaintenanceAdjustBeforeKey), CultureInfo.InvariantCulture, out var before) ? before : 0;
     }
 
-    /// <summary>Saves the calorie goal and body details; an empty one is removed.</summary>
+    /// <summary>Saves the calorie goal, body details and the scale's adjustment to maintenance; an empty one is removed.</summary>
     public Task SaveAsync(AppSettings settings) => Task.WhenAll(
         SetSettingAsync(CalorieGoalKey, settings.CalorieGoal.ToString(CultureInfo.InvariantCulture)),
         SetSettingAsync(SexKey, settings.Sex?.ToString()),
         SetSettingAsync(BirthYearKey, settings.BirthYear?.ToString(CultureInfo.InvariantCulture)),
         SetSettingAsync(HeightKey, settings.HeightCm?.ToString(CultureInfo.InvariantCulture)),
-        SetSettingAsync(DailyActivityKey, settings.DailyActivity.ToString()));
+        SetSettingAsync(DailyActivityKey, settings.DailyActivity.ToString()),
+        SetSettingAsync(MaintenanceAdjustKey, settings.MaintenanceAdjust == 0 ? null : settings.MaintenanceAdjust.ToString(CultureInfo.InvariantCulture)),
+        SetSettingAsync(MaintenanceAdjustedOnKey, settings.MaintenanceAdjustedOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+        SetSettingAsync(MaintenanceAdjustBeforeKey, settings.MaintenanceAdjustBefore == 0 ? null : settings.MaintenanceAdjustBefore.ToString(CultureInfo.InvariantCulture)));
 
     /// <summary>A routine's week, Monday first: each day's session, or null for a rest day.</summary>
     public Task<long?[]> GetRoutineWeekAsync(long routineId) => RunAsync(async c =>

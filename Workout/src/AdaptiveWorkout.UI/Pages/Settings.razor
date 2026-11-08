@@ -39,7 +39,7 @@
         <p class="note">
             @if (maintenance is not null)
             {
-                @($"What would keep your weight where it is on a day without a workout: resting calories for your weight ({latestWeight!.Weight.ToString("0.#", CultureInfo.CurrentCulture)} {(metric ? "kg" : "lb")}), height, age and sex by the Mifflin-St Jeor formula, × {Calories.Factor(AppSettings.DailyActivity).ToString("0.###", CultureInfo.CurrentCulture)} for your usual day. Each workout adds what it burned, on the day you do it.")
+                @($"What would keep your weight where it is on a day without a workout: resting calories for your weight ({latestWeight!.Weight.ToString("0.#", CultureInfo.CurrentCulture)} {(metric ? "kg" : "lb")}), height, age and sex by the Mifflin-St Jeor formula, × {Calories.Factor(AppSettings.DailyActivity).ToString("0.###", CultureInfo.CurrentCulture)} for your usual day{(AppSettings.MaintenanceAdjust == 0 ? "" : $", {(AppSettings.MaintenanceAdjust > 0 ? "+" : "−")}{Math.Abs(AppSettings.MaintenanceAdjust).ToString("N0", CultureInfo.CurrentCulture)} by your scale (Calories)")}. Each workout adds what it burned, on the day you do it.")
             }
             else
             {

@@ -187,4 +187,16 @@ public sealed class AppSettings
     public double? HeightCm { get; set; }
 
     public DailyActivity DailyActivity { get; set; } = DailyActivity.Sitting;
+
+    /// <summary>
+    /// Added to the formula's maintenance, from the scale (see <see cref="Calories.FromScale"/>): negative when the scale says it's lower.
+    /// 0 until I use what the scale says.
+    /// </summary>
+    public int MaintenanceAdjust { get; set; }
+
+    /// <summary>When <see cref="MaintenanceAdjust"/> was last set from the scale; empty when it never was, or was undone.</summary>
+    public DateOnly? MaintenanceAdjustedOn { get; set; }
+
+    /// <summary>What <see cref="MaintenanceAdjust"/> was before it was last set, for Undo.</summary>
+    public int MaintenanceAdjustBefore { get; set; }
 }

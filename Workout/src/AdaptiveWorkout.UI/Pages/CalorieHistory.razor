@@ -249,9 +249,14 @@
         @* The last four weeks: the weight my logs add up to against the scale's. If the scale lost less, food is going unlogged, or
            maintenance is lower than the formula's. *@
         @{
-            var fourWeeks = Calories.Span(Range(today.AddDays(-28), today.AddDays(-1)));
+            var fourWeekDays = Range(today.AddDays(-28), today.AddDays(-1));
+            var fourWeeks = Calories.Span(fourWeekDays);
             var byLogs = fourWeeks.WeightChange(unit);
             var byScale = BodyWeight.Trend(weighIns, Start(today.AddDays(-28)), Start(today), unit);
+
+            // What the scale says maintenance is, offered when it's 100 or more off, and at most every four weeks after it's used.
+            var fromScale = Calories.FromScale(fourWeekDays, weighIns, Start(today.AddDays(-28)), Start(today));
+            var offer = fromScale is { Differs: true } && (Settings.MaintenanceAdjustedOn is not { } adjusted || adjusted.AddDays(28) <= today) ? fromScale : null;
         }
         <section class="block" aria-labelledby="month-heading">
             <h2 id="month-heading" class="label">Last 4 weeks</h2>
@@ -291,10 +296,25 @@
                         }
                     </div>
                 </div>
-                @if (byScale is double scale && scale - byLogs!.Value >= (unit == WeightUnit.Kilograms ? 0.5 : 1))
+                @if (offer is { } scaleSays)
+                {
+                    <div class="stack tight appear">
+                        <p class="body">By your scale, your maintenance is about <span class="strong tabular">@CaloriesText(scaleSays.ByScale)</span> a day, not @CaloriesText(scaleSays.ByFormula).</p>
+                        <p class="note">From what you ate on the @scaleSays.Logged days you logged, and the line through your weigh-ins. When the two disagree it's usually food that didn't get logged; this takes it in, so your deficits come out true.</p>
+                        <button type="button" class="btn tall" @onclick="() => UseScaleAsync(scaleSays)">Use it</button>
+                    </div>
+                }
+                else if (byScale is double scale && scale - byLogs!.Value >= (unit == WeightUnit.Kilograms ? 0.5 : 1))
                 {
                     <p class="note">The scale lost less than your logs add up to. Some of what you eat may not be logged, or your maintenance may be lower than the formula's.</p>
                 }
+            }
+            @if (Settings is { MaintenanceAdjust: not 0, MaintenanceAdjustedOn: { } adjustedOn })
+            {
+                <div class="spread baseline">
+                    <p class="note">Maintenance @(Settings.MaintenanceAdjust > 0 ? "+" : "−")@Math.Abs(Settings.MaintenanceAdjust).ToString("N0", CultureInfo.CurrentCulture) by your scale, since @adjustedOn.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)</p>
+                    <button type="button" class="btn-ghost" @onclick="UndoScaleAsync">Undo</button>
+                </div>
             }
         </section>
 
@@ -388,6 +408,21 @@
         : $"{first.ToString("MMM d", CultureInfo.CurrentCulture)} – {last.ToString(last.Month == first.Month ? "%d" : "MMM d", CultureInfo.CurrentCulture)}";
 
     private static string CaloriesText(double calories) => Math.Round(calories).ToString("N0", CultureInfo.CurrentCulture);
+
+    // Takes what the scale says: maintenance everywhere moves by its difference from today on, and Undo can take it back.
+    private async Task UseScaleAsync(ScaleMaintenance scale)
+    {
+        (Settings.MaintenanceAdjustBefore, Settings.MaintenanceAdjust, Settings.MaintenanceAdjustedOn) = (Settings.MaintenanceAdjust, Settings.MaintenanceAdjust + scale.Adjustment, today);
+        await Store.SaveAsync(Settings);
+        await LoadAsync();
+    }
+
+    private async Task UndoScaleAsync()
+    {
+        (Settings.MaintenanceAdjust, Settings.MaintenanceAdjustBefore, Settings.MaintenanceAdjustedOn) = (Settings.MaintenanceAdjustBefore, 0, null);
+        await Store.SaveAsync(Settings);
+        await LoadAsync();
+    }
 
     // "150 over goal", "60 under maintenance".
     private static string Against(double eaten, double mark, string what) => $"{CaloriesText(Math.Abs(eaten - mark))} {(eaten > mark ? "over" : "under")} {what}";

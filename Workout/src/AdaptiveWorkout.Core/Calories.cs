@@ -32,6 +32,20 @@ public sealed record CalorieSpan(int Days, int Logged, int AtMaintenance, double
 }
 
 /// <summary>
+/// Maintenance as the scale has it, over some weeks: what I ate on the days I logged, on average, plus the scale's change in those days,
+/// worth in calories a day (a pound lost is 3,500 not eaten). <paramref name="ByFormula"/> is the app's own maintenance over the same days,
+/// workouts in, to set it against. <paramref name="Logged"/> of <paramref name="Days"/> days were logged.
+/// </summary>
+public sealed record ScaleMaintenance(int ByScale, int ByFormula, int Logged, int Days)
+{
+    /// <summary>What to add to the formula's maintenance, to the nearest 50: negative when the scale says it's lower.</summary>
+    public int Adjustment => (int)(Math.Round((ByScale - ByFormula) / 50.0, MidpointRounding.AwayFromZero) * 50);
+
+    /// <summary>Whether it's worth saying: 100 or more either way.</summary>
+    public bool Differs => Math.Abs(Adjustment) >= 100;
+}
+
+/// <summary>
 /// Am I eating to my goal, and what should it do to my weight? What I ate is what I log, and a day I forgot to log counts as
 /// maintenance. Maintenance comes from my body and how I spend a usual day, and each workout adds what it burned on the day I did it.
 /// </summary>
@@ -62,7 +76,7 @@ public static class Calories
         if (settings is not { Sex: { } sex, BirthYear: int born, HeightCm: double height } || weighIn is null) return null;
 
         var resting = 10 * WorkoutStats.Kilograms(weighIn.Weight, weighIn.WeightUnit) + 6.25 * height - 5 * (day.Year - born) + (sex == Sex.Male ? 5 : -161);
-        return (int)Math.Round(resting * Factor(settings.DailyActivity));
+        return (int)Math.Round(resting * Factor(settings.DailyActivity)) + settings.MaintenanceAdjust;
     }
 
     /// <summary>The usual multipliers for a day without exercise, from 1.2 sitting most of it to 1.725 for physical work all day.</summary>
@@ -150,6 +164,25 @@ public static class Calories
         }
 
         return days;
+    }
+
+    /// <summary>
+    /// What the scale says maintenance is, over <paramref name="days"/> from <paramref name="from"/> to <paramref name="to"/> (four weeks,
+    /// say), set against the formula's (see <see cref="ScaleMaintenance"/>). Null unless there are 21 days or more, two thirds of them
+    /// logged with maintenance known, and weigh-ins at least twice a week across 2 weeks or more. Days I forgot are left out: they count
+    /// at maintenance, and would pull it toward itself. The scale's change is read off the line through the weigh-ins, as Calories shows it.
+    /// </summary>
+    public static ScaleMaintenance? FromScale(IReadOnlyList<CalorieDay> days, IEnumerable<BodyWeightEntry> weighIns, DateTimeOffset from, DateTimeOffset to)
+    {
+        var logged = days.Where(d => d is { Eaten: not null, Maintenance: not null }).ToList();
+        if (days.Count < 21 || logged.Count * 3 < days.Count * 2) return null;
+
+        var weighed = weighIns.Where(w => w.At >= from && w.At <= to).OrderBy(w => w.At).ToList();
+        var span = weighed.Count < 2 ? 0 : (weighed[^1].At - weighed[0].At).TotalDays;
+        if (span < 14 || weighed.Count < 2 * Math.Floor(span / 7) || BodyWeight.Trend(weighed, from, to, WeightUnit.Pounds) is not double pounds) return null;
+
+        var byScale = logged.Average(d => d.Eaten!.Value) - pounds * PerPound / days.Count;
+        return new ScaleMaintenance((int)Math.Round(byScale), (int)Math.Round(logged.Average(d => d.Maintenance!.Value)), logged.Count, days.Count);
     }
 
     /// <summary>The days together: see <see cref="CalorieSpan"/>. A day I forgot counts as eating maintenance, once that's known.</summary>
