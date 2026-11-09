@@ -199,8 +199,8 @@ a PDF plays out; this is what came of it.
   workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read, and says what to do (Settings for
   the key, the Claude Console for credit or the limit, or a few minutes' wait); the systems not read can be read again, and **Keep**
   waits until every system has been. A first system that can't be read (Claude has 64,000 tokens for a system, thinking
-  included) holds up the rest, since they're read with the time signature only it prints: they wait unsent, and reading them
-  again starts with it. Until then a bar is named by its place in its system, since a missing system would shift
+  included) holds up the rest, since they're read with the time signature only it prints: they wait unsent, with no **Read
+  again** of their own, and reading the first again carries on with them. Reading again stops what's left just as reading does. Until then a bar is named by its place in its system, since a missing system would shift
   the numbers. Kept, the reading is the piece's notation, graded and cut into
   excerpts like an import: it plays like any notation piece, with a **Print** key on its bar that shows the PDF again, as before,
   and lights while it does. About this piece says when its notes were read, what it cost and any bars left in doubt, with **Read

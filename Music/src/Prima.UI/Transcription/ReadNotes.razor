@@ -212,6 +212,9 @@ else
                 var here = result.Doubts.Where(d => d.Page == status.Page && d.System == status.Index);
                 // A draft saved before doubts knew their bar in their system has 0 there: its bar in the piece gives it.
                 var doubts = here.Select(d => d.BarInSystem > 0 ? d : d with { BarInSystem = d.Bar - first + 1 }).ToList();
+                // A system with none read before it waits for the time signature: the first, read again, carries on with the rest.
+                var held = at > 0 && result.Readings.Take(at).All(r => r is null);
+                var holding = at == 0 && reading is null ? result.Systems.Skip(1).Count(s => s.Step == SystemStep.Failed) : 0;
                 <article class="pdfread-card" aria-label="@($"System {status.Index} of page {status.Page}: {Words(status).Title}")">
                     <div class="pdfread-pair">
                         <p class="pdfread-label"><span>Print · page @status.Page, system @status.Index</span><span>@(reading is null ? "" : !numbered ? $"{reading.Bars.Count} bars" : reading.Bars.Count == 1 ? $"Bar {first}" : $"Bars {first}–{first + reading.Bars.Count - 1}")</span></p>
@@ -261,14 +264,24 @@ else
                                 <input id="@($"hint-{status.Page}-{status.Index}")" class="text-field" type="text" placeholder="The long high note is F, above the third line" value="@hints.GetValueOrDefault(key)" @onchange="@(e => hints[key] = e.Value?.ToString() ?? "")" />
                             </div>
                         }
-                        <div class="pdfread-actions">
-                            @if (reading is not null)
-                            {
-                                <button type="button" class="mu-btn" disabled="@(!CanListen || whole is null)" @onclick="() => Listen(first)">@(listeningFrom == first ? "Stop" : numbered ? $"Listen from bar {first}" : "Listen from here")</button>
-                            }
-                            <button type="button" class="mu-btn @(status.Step == SystemStep.Failed ? "mu-primary" : "")" @onclick="() => Reread([status])">Read again</button>
-                        </div>
-                        <p class="pdfread-label pdfread-cost">Reading this system again costs @Money(Reader.Estimate(1, 1).LowUsd)–@Cents(Reader.Estimate(1, 1).HighUsd).</p>
+                        @if (reading is not null || !held)
+                        {
+                            <div class="pdfread-actions">
+                                @if (reading is not null)
+                                {
+                                    <button type="button" class="mu-btn" disabled="@(!CanListen || whole is null)" @onclick="() => Listen(first)">@(listeningFrom == first ? "Stop" : numbered ? $"Listen from bar {first}" : "Listen from here")</button>
+                                }
+                                @if (!held)
+                                {
+                                    <button type="button" class="mu-btn @(status.Step == SystemStep.Failed ? "mu-primary" : "")" @onclick="() => Reread([status])">Read again</button>
+                                }
+                            </div>
+                        }
+                        @if (!held)
+                        {
+                            var then = holding switch { 0 => "", 1 => ", then the one waiting for it,", _ => $", then the {holding} waiting for it," };
+                            <p class="pdfread-label pdfread-cost">Reading this system again@(then) costs @Money(Reader.Estimate(1, 1 + holding).LowUsd)–@Cents(Reader.Estimate(1, 1 + holding).HighUsd).</p>
+                        }
                     </div>
                 </article>
             }
@@ -404,10 +417,14 @@ else
     }
 
     // Reads the systems given again, one after another (a stopped reading's rest, or one in doubt), and builds the notation anew.
+    // The first, if it isn't read, carries on with the others not read, which wait for its time signature. A missing key, used-up
+    // credit, the spend limit, no connection or a busy Claude stops what's left, as it does the first reading.
     private async Task Reread(IReadOnlyList<SystemStatus> systems)
     {
         if (result is null) return;
 
+        var unread = result.Systems.Where(s => s.Step == SystemStep.Failed);
+        if (systems.Contains(result.Systems[0]) && result.Readings.ElementAtOrDefault(0) is null) systems = [.. systems.Union(unread)];
         (stage, progress, rereading) = (Stage.Reading, new ReadingProgress(result.Systems, result.Cost, result.Took), systems.Count);
         await Run(async reader =>
         {
@@ -418,6 +435,7 @@ else
                 if (!cuts.TryGetValue(key, out var cut)) continue;
                 next = await reader.RereadAsync(next, new SystemImage(system.Page, system.Index, cut.Png), engraver!, Reporter(), Piece.Title, hints.GetValueOrDefault(key, ""), cancel!.Token);
                 hints.Remove(key);
+                if (next.StoppedBy is not null) break;
             }
             return next;
         });
