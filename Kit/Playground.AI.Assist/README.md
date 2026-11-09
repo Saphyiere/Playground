@@ -44,13 +44,17 @@ AssistLog.cs      IAssistLog, where a host keeps its calls, and two simple ones.
    `summary`, `notes` and the task's `answer`.
 3. **Fallbacks.** On Opus and Sonnet, a refused request is answered by another model on the API's side (the
    `server-side-fallback-2026-07-01` beta). Haiku has no such fallback.
-4. **Reading the reply.** A refusal, a reply that ran out of tokens, and a reply that doesn't parse are each a kind of their own.
-   `needMore` and `cannot` come back with Claude's summary and notes.
+4. **Reading the reply.** The reply streams, and the SDK puts it back together (`CreateStreaming(...).Aggregate()`): a long
+   answer, thinking and all, can take longer than a request may wait for a whole reply, and a stream keeps arriving. A task that
+   needs more than the 32,000 tokens it gets says so in `MaxTokens` (Prima's reading of a system takes 64,000). A refusal, a
+   reply that ran out of tokens, and a reply that doesn't parse are each a kind of their own. `needMore` and `cannot` come back
+   with Claude's summary and notes.
 5. **The checks.** An answer that fails the task's checks is asked for once more, with its problems listed. If it fails again,
    the kind is `CheckFailed`.
 6. **The log.** Every call goes to `IAssistLog`: the task, model, question, reply, tokens, cost and the API's message id.
 7. **When the request fails.** The API's errors become kinds: `KeyRejected`, `OutOfCredit`, `SpendLimit`, `Busy`, `Offline` and
-   `Failed`. The client retries a busy or dropped request twice on its own.
+   `Failed`, and a stream that breaks off with an error partway is `Busy`. The client retries a busy or dropped request twice on
+   its own.
 
 ## Records Claude answers in
 

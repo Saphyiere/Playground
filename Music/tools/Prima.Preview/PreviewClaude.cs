@@ -92,6 +92,7 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
         AnswerKind.OutOfCredit => "This month's API credits are used up.",
         AnswerKind.Busy => "Claude is busy right now; try again in a minute.",
         AnswerKind.Offline => "Claude couldn't be reached: check the connection.",
+        AnswerKind.TooLong => "The answer ran past 64,000 tokens.",
         _ => $"System {system.Index}: the lower staff in its last bar is too faint to make out, so its beats can't be read.",
     }, [], Usage.None);
 }

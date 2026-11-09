@@ -4765,6 +4765,11 @@ html[data-full] .piece .summary {
     gap: 20px;
 }
 
+/* Its keys on one line each ("Read all 4 again"): the words beside them wrap instead. */
+.pdfread-banner .mu-btn {
+    white-space: nowrap;
+}
+
 .pdfread-banner > div:first-child {
     display: flex;
     flex-direction: column;

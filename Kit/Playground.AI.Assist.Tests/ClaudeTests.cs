@@ -54,6 +54,7 @@ public class ClaudeTests
         Assert.Equal(JsonSerializer.Serialize(AssistSchema.For(typeof(Reply<Plan>))), body.GetProperty("output_config").GetProperty("format").GetProperty("schema").GetRawText());
         Assert.Equal("default", body.GetProperty("fallbacks").GetString());
         Assert.Contains("server-side-fallback-2026-07-01", headers["anthropic-beta"]);
+        Assert.True(body.GetProperty("stream").GetBoolean());
     }
 
     [Fact]
@@ -150,6 +151,17 @@ public class ClaudeTests
 
         Assert.Equal(kind, answer.Kind);
         Assert.Equal(kind, Assert.Single(log.Calls).Kind);
+    }
+
+    [Fact]
+    public async Task AskAsync_AStreamThatBreaksOffIsBusyNotACrash()
+    {
+        api.BrokenStream("overloaded_error", "Overloaded");
+
+        var answer = await Client().AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnswerKind.Busy, answer.Kind);
+        Assert.Equal(AnswerKind.Busy, Assert.Single(log.Calls).Kind);
     }
 
     [Fact]

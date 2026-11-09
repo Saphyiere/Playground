@@ -10,6 +10,12 @@ public sealed class ReadSystem(byte[] png) : AssistTask<SystemToRead, SystemRead
 
     public override int Version => 2;
 
+    /// <summary>
+    /// A dense system (chords on both staves, its pedal and fingering) and the thinking it takes run past the usual 32,000: twice
+    /// that. The Kit streams every answer, so one this long isn't cut off waiting.
+    /// </summary>
+    public override int MaxTokens => 64_000;
+
     public override string Instructions => """
         Read one system of printed piano music, from the image, into the JSON shape you're given: every bar from left to right,
         both staves, every voice, every note, rest and clef change, and the marks printed with them. Prima turns it into
@@ -71,6 +77,9 @@ public sealed class CompareSystem(byte[] print, byte[] engraving) : AssistTask<S
     public override string Name => "prima.compare-system";
 
     public override int Version => 2;
+
+    /// <summary>As much as a reading: every bar of a dense system may come back corrected.</summary>
+    public override int MaxTokens => 64_000;
 
     public override string Instructions => """
         Two images: first a system of printed piano music, then the same system as it was read, engraved by Prima from the

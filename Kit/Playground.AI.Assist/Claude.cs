@@ -121,7 +121,9 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             BetaMessage message;
             try
             {
-                message = await client.Beta.Messages.Create(request, ct);
+                // Streamed, and put back together by the SDK: a long answer (thinking and all, tens of thousands of tokens) can
+                // take longer than a request may wait for its whole reply, and a stream keeps coming the whole time.
+                message = await client.Beta.Messages.CreateStreaming(request, ct).Aggregate();
             }
             catch (Exception e) when (Failure(e, ct) is { } failure)
             {
@@ -197,6 +199,8 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
         AnthropicRateLimitException or Anthropic5xxException => (AnswerKind.Busy, "Claude is busy right now; try again in a minute."),
         AnthropicIOException or HttpRequestException => (AnswerKind.Offline, "Claude couldn't be reached: check the connection."),
         TaskCanceledException when !ct.IsCancellationRequested => (AnswerKind.Offline, "Claude took too long to answer."),
+        AnthropicSseException => (AnswerKind.Busy, "Claude had a problem partway through its answer; try again in a minute."),
+        AnthropicInvalidDataException => (AnswerKind.Failed, "Claude's answer came back incomplete."),
         AnthropicApiException => (AnswerKind.Failed, $"The request failed: {e.Message}"),
         _ => null,
     };

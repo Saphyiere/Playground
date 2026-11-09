@@ -66,10 +66,14 @@ public sealed record ReadingResult(bool Ok, string Summary, Score? Score, string
 /// Reads a PDF into notation, a system at a time. The first system goes alone, since its time signature is printed only there.
 /// The rest go a few at a time, each read, checked and engraved. Claude then compares each engraving with its print, side by
 /// side, and reads again the bars that differ. A missing key, used-up credit, a spend limit, no connection, or Claude too busy
-/// stops the rest.
+/// stops the rest. So does a first system that couldn't be read: the rest are read with its time signature, so without it they
+/// wait, unsent.
 /// </summary>
 public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
 {
+    /// <summary>The note on a system that wasn't sent because the first system, with the time signature, isn't read.</summary>
+    public const string WaitsForFirst = "Waiting for the first system: only it prints the time signature this one is read with.";
+
     private const int AtOnce = 4;
 
     // Rough per-system costs at Opus 5.5's prices, reading and comparing: until the log has real ones.
@@ -95,9 +99,15 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         var run = new Run([.. images.Select(s => new SystemStatus(s.Page, s.Index, SystemStep.Waiting, ""))], new SystemReading?[images.Count], 0, TimeSpan.Zero, progress, time);
         run.Report();
         await ReadOneAsync(run, images[0], 0, 0, 0, "", engraver, ct);
-        var meter = run.Readings[0]?.Bars[^1] is { } last ? (last.MeterCount, last.MeterUnit) : (0, 0);
+        var last = run.Readings[0]?.Bars[^1];
+        if (last is null && run.Stopped is null)
+        {
+            for (var i = 1; i < images.Count; i++) run.Set(i, SystemStep.Failed, WaitsForFirst);
+            return run.Finish(title);
+        }
+
         await Parallel.ForEachAsync(Enumerable.Range(1, images.Count - 1), new ParallelOptions { MaxDegreeOfParallelism = AtOnce, CancellationToken = ct },
-            async (i, token) => await ReadOneAsync(run, images[i], i, meter.Item1, meter.Item2, "", engraver, token));
+            async (i, token) => await ReadOneAsync(run, images[i], i, last?.MeterCount ?? 0, last?.MeterUnit ?? 0, "", engraver, token));
         return run.Finish(title);
     }
 
@@ -114,8 +124,10 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
         if (at < 0) throw new ArgumentException($"The result has no system {system.Index} on page {system.Page}.", nameof(system));
         var readings = previous.Readings.Count == previous.Systems.Count ? previous.Readings.ToArray() : new SystemReading?[previous.Systems.Count];
         var run = new Run([.. previous.Systems], readings, previous.Cost, previous.Took, progress, time);
+        // A later system is read with the time signature of the read one before it; with none read, it waits, unsent.
         var before = readings.Take(at).LastOrDefault(r => r is not null)?.Bars[^1];
-        await ReadOneAsync(run, system, at, before?.MeterCount ?? 0, before?.MeterUnit ?? 0, hint, engraver, ct);
+        if (at > 0 && before is null) run.Set(at, SystemStep.Failed, WaitsForFirst);
+        else await ReadOneAsync(run, system, at, before?.MeterCount ?? 0, before?.MeterUnit ?? 0, hint, engraver, ct);
         return run.Finish(title);
     }
 

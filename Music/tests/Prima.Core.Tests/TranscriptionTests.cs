@@ -434,6 +434,50 @@ public class TranscriptionTests
     }
 
     [Fact]
+    public async Task ReadAsync_WhenTheFirstSystemIsntRead_TheRestWaitUnsent()
+    {
+        var claude = new ScriptedClaude { Read = _ => Not<SystemReading>(AnswerKind.TooLong, "The answer ran past 64,000 tokens.") };
+
+        var result = await new PdfToNotation(claude).ReadAsync([new SystemImage(1, 1, Png(2400)), new SystemImage(1, 2, Png(2400)), new SystemImage(1, 3, Png(2400))],
+            new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        // Without the first's time signature the others can't be read, so they aren't sent and nothing more is spent.
+        Assert.Single(claude.Asked);
+        Assert.Null(result.StoppedBy);
+        Assert.Equal("3 of 3 systems couldn't be read. Page 1, system 1: The answer ran past 64,000 tokens.", result.Summary);
+        Assert.Equal([(SystemStep.Failed, "The answer ran past 64,000 tokens."), (SystemStep.Failed, PdfToNotation.WaitsForFirst), (SystemStep.Failed, PdfToNotation.WaitsForFirst)],
+            result.Systems.Select(s => (s.Step, s.Note)));
+    }
+
+    [Fact]
+    public async Task RereadAsync_ALaterSystemWaitsForTheFirst_ThenGetsItsTimeSignature()
+    {
+        var claude = new ScriptedClaude { Read = _ => Not<SystemReading>(AnswerKind.TooLong, "The answer ran past 64,000 tokens.") };
+        var images = new[] { new SystemImage(1, 1, Png(2400)), new SystemImage(1, 2, Png(2400)) };
+        var reader = new PdfToNotation(claude);
+        var failed = await reader.ReadAsync(images, new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        var early = await reader.RereadAsync(failed, images[1], new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        Assert.Single(claude.Asked);
+        Assert.Equal((SystemStep.Failed, PdfToNotation.WaitsForFirst), (early.Systems[1].Step, early.Systems[1].Note));
+
+        claude.Read = r => Ok(Sys(r.First ? CBar : DBar));
+        var first = await reader.RereadAsync(early, images[0], new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+        var both = await reader.RereadAsync(first, images[1], new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        Assert.True(both.Ok);
+        Assert.Equal(new SystemToRead(1, 2, false, 4, 4, ""), claude.Asked.Select(a => a.Input).OfType<SystemToRead>().Last());
+    }
+
+    [Fact]
+    public void ReadingTasks_GetTwiceTheUsualTokens()
+    {
+        Assert.Equal(64_000, new ReadSystem([]).MaxTokens);
+        Assert.Equal(64_000, new CompareSystem([], []).MaxTokens);
+    }
+
+    [Fact]
     public async Task RereadAsync_ReadsOneSystemAgainWithTheOwnersHint_AndRebuilds()
     {
         var claude = new ScriptedClaude { Read = r => Ok(Sys(r.First ? CBar : DBar)) };

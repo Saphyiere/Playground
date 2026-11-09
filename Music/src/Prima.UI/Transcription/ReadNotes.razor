@@ -173,7 +173,9 @@ else
             @if (failed.Count > 0)
             {
                 // What stopped it says what to do: the key in Settings, credit or the limit in the Console, or waiting a little.
-                var rest = failed.Count == 1 ? "Read it again" : $"Read the other {failed.Count}";
+                var rest = failed.Count == 1 ? "Read it again" : read == 0 ? $"Read all {failed.Count} again" : $"Read the other {failed.Count}";
+                // The first system not read holds up the rest, which are read with its time signature; reading again starts with it.
+                var waiting = failed.Count > 1 && result.Systems[0].Step == SystemStep.Failed ? "The rest wait for it, for the time signature only it prints. " : "";
                 var (title, lamp, help, again) = result.StoppedBy switch
                 {
                     AnswerKind.NoKey => ("No Claude key on this tablet", "fail", "Settings › Claude says how to add one.", rest),
@@ -187,7 +189,7 @@ else
                 <div class="pdfread-error pdfread-banner" role="alert">
                     <div>
                         <h3><span class="pdfread-lamp @lamp"></span>@title</h3>
-                        <p>@result.Summary @help @(read > 0 ? "What's read is kept. " : "")Keep waits until every system has been read.</p>
+                        <p>@result.Summary @waiting@help @(read > 0 ? "What's read is kept. " : "")Keep waits until every system has been read.</p>
                     </div>
                     <div class="pdfread-actions">
                         @if (result.StoppedBy is AnswerKind.NoKey or AnswerKind.KeyRejected)
