@@ -20,7 +20,10 @@
 
     [Parameter, EditorRequired] public string Mei { get; set; } = "";
 
-    /// <summary>"line": systems as wide as the sheet, as tall as the music; "page": one page the sheet's size.</summary>
+    /// <summary>
+    /// "line": a passage, its systems as wide as the sheet and as tall as the music, its bars shared evenly between them;
+    /// "scroll": a whole piece down one sheet, each line broken where its bars fit; "page": one page the sheet's size.
+    /// </summary>
     [Parameter] public string Layout { get; set; } = "line";
 
     /// <summary>Larger or smaller than the normal staff, for drill items and the small sheet on Today.</summary>
@@ -106,12 +109,17 @@
 
     /// <summary>
     /// Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter
-    /// <paramref name="startQuarter"/> of the music. Until then it waits at the first note, pulsing with the click's beats: one
-    /// every <paramref name="beatMs"/>, one of them <paramref name="msUntilBeat"/> from now.
+    /// <paramref name="startQuarter"/> of the music. Until the music starts it waits there, pulsing with the click's beats: one
+    /// every <paramref name="beatMs"/>, one of them <paramref name="msUntilBeat"/> from now. It keeps to the run's
+    /// <paramref name="path"/> when it's given one. Not <paramref name="shown"/>, it isn't drawn, but the line being played is
+    /// still kept in view.
     /// </summary>
-    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null, IReadOnlyList<(string Id, double Quarter)>? onsets = null)
+    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null, CursorPath? path = null, bool shown = true)
     {
-        if (module is not null) await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, onsets?.Select(o => new object[] { o.Id, o.Quarter }).ToArray());
+        if (module is null) return;
+
+        var way = path is null ? null : new { bars = path.Bars.Select(b => new object[] { b.Index, b.Quarter, b.Quarters }), events = path.Printed.Select(e => new object[] { e.Index, e.Id, e.Quarter }) };
+        await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, way, shown);
     }
 
     /// <summary>Read ahead's look: only the opening view of <paramref name="quarters"/> shows.</summary>

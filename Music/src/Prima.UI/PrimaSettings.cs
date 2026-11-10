@@ -66,4 +66,13 @@ public sealed class PrimaSettings
 
     /// <summary>Whether a run's summary opens its bars, as it was left last time.</summary>
     public bool BarMapOpen { get; set; }
+
+    /// <summary>Whether a run's summary shows its details (the panels and the bars) under its few lines, as it was left last time.</summary>
+    public bool SummaryDetails { get; set; }
+
+    /// <summary>Whether the cursor shows while a run plays In time, or Listen plays. Off, the music still scrolls with the run.</summary>
+    public bool Cursor { get; set; } = true;
+
+    /// <summary>Whether notes are marked as they're played. Off, they're judged all the same, and marked when the run ends.</summary>
+    public bool LiveMarks { get; set; } = true;
 }

@@ -112,6 +112,10 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
   marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
   tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to there.
+- **While playing** (Settings › Practice, and a piece's Options) says what shows on the music In time: the **Cursor**, and the
+  **Marks as you play**, each on or off, for playing with only the click and the page. With the cursor off the music still
+  scrolls with the run. With the marks off every note is still judged, and the marks show when the run ends, to go back
+  over. Wait for me always shows where it's waiting.
 
 ### Drills
 
@@ -166,10 +170,8 @@ a PDF plays out; this is what came of it.
   either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. **The
   strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
   for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
-  then drag its slim handles. Beside music that scrolls, **the thumb** drags through it: its rail marks each line's first bar,
-  the start and the loop, and while it's held the bar at the top of the view is named and outlined, the start staying where
-  it was. Full screen hides the strip and the thumb. While a run plays, tapping a bar, on the music or the strip, starts it
-  again from there, and **‹ Bar** goes back a bar (in a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a
+  run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
@@ -282,8 +284,10 @@ asking. Nothing leaves the tablet unless you back it up.
 2. **Count in.** One bar of clicks at the passage's tempo (two, in Settings), seen as well as heard: a cell for each beat
    lights on its click, and the cursor waits at the first note, pulsing with it. The timed drills (rhythm, scales, arpeggios,
    finger independence, listen and play back) show the same cells.
-3. **Play.** The click keeps time and never waits. The cursor moves with the beat, through the last note of each line to its
-   closing barline, and each note is marked as it's played: green when it's right; grey when it's another key, with a red head
+3. **Play.** The click keeps time and never waits. The cursor moves with the beat: it passes every note and rest printed,
+   either hand's, as its time comes, and moves evenly between them, so it keeps going through rests and through bars the hand
+   you're playing has nothing in. It reaches a line's closing barline as the line's last bar ends and is at the next line's
+   start at once; at a repeat or a loop's end it goes straight back. Each note is marked as it's played: green when it's right; grey when it's another key, with a red head
    on the staff where the key you played is, each named above (red is only ever a key you played); amber when it's more than 10%
    of a beat early or late (a ring on its line shows when you played it, an arrow which way); and outlined grey once its time has
    passed with nothing played. A slip stays: another key played before the right one marks the note wrong, and the right key a
@@ -337,7 +341,12 @@ asking. Nothing leaves the tablet unless you back it up.
 
 ### The summary
 
-The same after every run to a tempo (Sight-read, a Library piece). Three panels, side by side:
+The same after every run to a tempo (Sight-read, a Library piece). First **a few lines**, to take in at a glance, each with
+its bars: the **notes** (how many were right, what the others were, and the bars with the most of them) and the **timing**
+(the share in time, and where it rushed, held back or was off the beat); then a line only for what there is to work on:
+notes **held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with
+the most to fix. On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar** starts the next run
+at it. **Show details** opens the rest under them (and stays open next time if you leave it so): three panels, side by side:
 
 - **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
   (solid) and missed (hollow), with extra keys.
@@ -351,8 +360,8 @@ crescendo that didn't grow, staccato held long, gaps under slurs, accents no str
 as one strip, brighter where there was more to fix, which opens (and stays open next time if you leave it so) into a map of
 the bars, both times through a repeat together: wrong and missed notes, how early or late each bar ran, notes let go early,
 then loudness against each bar's dynamic, touch (staccato, tenuto, accents, slurs) and the pedal, each only where it's marked.
-Tap a bar's number to read it in words. On a piece, **Play from bar** starts the next run there, and **Loop bars** loops the
-four bars of the phrase with the most to fix. Each look draws it in its own two colours, what went right and what fell short,
+Tap a bar's number to read it in words; on a piece, **Play from bar** starts the next run there. Each look draws it in its
+own two colours, what went right and what fell short,
 told apart by colour blindness and by lightness too, and with a fill and a word for each kind.
 
 ### Levels
@@ -517,7 +526,11 @@ details.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
-  looks, with the look around it and the cursor and marks drawn on top.
+  looks, with the look around it and the cursor and marks drawn on top. Bars are as wide as their notes need, as in print,
+  and each line is spread to the paper's width. A whole piece's lines break where its bars fit, so a busy bar is never
+  squeezed to share a line, and a short last line keeps its bars' own widths; a short passage's bars are shared evenly
+  between its lines. The brace joining the staves stands as far in from the paper's left edge as the last bar line does
+  from its right.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
   the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
   the app as woff2 files, so it works offline; Verovio brings its own music fonts.

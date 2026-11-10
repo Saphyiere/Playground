@@ -3,258 +3,276 @@
 @inject PrimaSettings Settings
 @inject PrimaStore Store
 
-@* What a run came to, the same on every screen that plays to a tempo. In time: three panels (the notes, the timing, how long
-   notes were held), a line on expression where the music marks it, and the bars, folded into a strip that opens into a map of
-   each bar. Wait for me: the notes right first time, the wrong keys and the pace. The screen's own words follow. *@
+@* What a run came to, the same on every screen that plays to a tempo. In time: a few lines to take in at a glance (the notes,
+   the timing, then only what there is to work on, each with its bars), and under Show details the rest: three panels (the
+   notes, the timing, how long notes were held), a line on expression where the music marks it, and the bars, folded into a
+   strip that opens into a map of each bar. Wait for me: the notes right first time, the wrong keys and the pace. The screen's
+   own words follow. *@
 @if (Outcome?.InTime is { } timed)
 {
     <div class="sum">
-        <div class="sum-panels">
-            <section class="mu-screen sum-panel" aria-label="Notes">
-                <div class="sum-head"><span class="mu-readout-label">Notes right</span><span class="mu-readout-label">@timed.Right of @timed.Expected@(Outcome.Stopped && StoppedAt is { } at ? $", to {at}" : "")</span></div>
-                <span class="sum-figure">@Percent(timed.Right, timed.Expected)</span>
-                <div class="sum-bar" role="img" aria-label="@($"Of {timed.Expected} notes, {timed.Right} right and {timed.Expected - timed.Right} not")">
-                    <span class="good" style="flex: @timed.Right 1 0"></span>
-                    @if (timed.Expected > timed.Right)
-                    {
-                        <span class="bad" style="flex: @(timed.Expected - timed.Right) 1 0"></span>
-                    }
-                </div>
-                @if (timed.Expected > timed.Right)
+        <section class="mu-screen sum-quick" aria-label="In short">
+            @foreach (var (bad, about, words) in quick)
+            {
+                <p class="sum-point"><span class="sum-key @(bad ? "bad" : "good")" aria-hidden="true"></span><span class="mu-readout-label">@about</span><span>@words</span></p>
+            }
+            <div class="sum-quick-keys">
+                @if (OnLoop.HasDelegate && loop is { } stretch)
                 {
-                    <span class="mu-readout-label">The @(timed.Expected - timed.Right) that weren't</span>
-                    <div class="sum-bar tall" role="img" aria-label="@($"{timed.Corrected} slips put right, {timed.Wrong - timed.Corrected} wrong, {timed.Missed} missed")">
-                        @if (timed.Corrected > 0)
-                        {
-                            <span class="slip" style="flex: @timed.Corrected 1 0"></span>
-                        }
-                        @if (timed.Wrong > timed.Corrected)
-                        {
-                            <span class="bad" style="flex: @(timed.Wrong - timed.Corrected) 1 0"></span>
-                        }
-                        @if (timed.Missed > 0)
-                        {
-                            <span class="hollow" style="flex: @timed.Missed 1 0"></span>
-                        }
-                    </div>
+                    <button type="button" class="mu-btn" @onclick="() => OnLoop.InvokeAsync(stretch)">@(stretch.From == stretch.To ? $"Loop bar {stretch.From}" : $"Loop bars {stretch.From} to {stretch.To}")</button>
                 }
-                <div class="sum-legend">
-                    @if (timed.Corrected > 0)
-                    {
-                        <span><span class="sum-key slip" aria-hidden="true"></span>@Count(timed.Corrected, "slip") put right</span>
-                    }
-                    @if (timed.Wrong > timed.Corrected)
-                    {
-                        <span><span class="sum-key bad" aria-hidden="true"></span>@(timed.Wrong - timed.Corrected) wrong</span>
-                    }
-                    @if (timed.Missed > 0)
-                    {
-                        <span><span class="sum-key hollow" aria-hidden="true"></span>@timed.Missed missed</span>
-                    }
-                    @if (timed.Extra > 0)
-                    {
-                        <span class="sum-muted">+ @Count(timed.Extra, "extra key")</span>
-                    }
-                </div>
-                <p class="sum-said">@notesSaid</p>
-            </section>
-
-            <section class="mu-screen sum-panel" aria-label="Timing">
-                <div class="sum-head"><span class="mu-readout-label">In time</span><span class="mu-readout-label">@(Math.Abs(timed.LeanMs) < 5 ? "Lean: even" : $"Lean {Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
-                <span class="sum-figure">@($"{timed.InTimeAccuracy * 100:0}%")</span>
-                <div class="sum-histogram" role="img" aria-label="@($"Each right note's timing as a share of the beat, after your lean: {timed.InTime} within 5 percent, {timed.Audible} within 10, {timed.Off} further off")">
-                    @foreach (var (count, inTime, off) in timingBins)
-                    {
-                        <div class="@(inTime ? "band" : "")"><span class="@(off ? "bad" : "good")" style="height: @Share(count, timingPeak)"></span></div>
-                    }
-                </div>
-                <div class="sum-axis"><span>← early</span><span>on the beat</span><span>late →</span></div>
-                <div class="sum-legend">
-                    <span><span class="sum-key band" aria-hidden="true"></span>in time, within 5%</span>
-                    @if (timed.Off > 0)
-                    {
-                        <span><span class="sum-key bad" aria-hidden="true"></span>@timed.Off off, over 10%</span>
-                    }
-                </div>
-                <p class="sum-said">@timingSaid</p>
-            </section>
-
-            <section class="mu-screen sum-panel" aria-label="Held">
-                <div class="sum-head"><span class="mu-readout-label">Held</span><span class="mu-readout-label">@(timed.HoldsJudged > 0 ? $"{timed.HoldsJudged - timed.LetGoEarly} of {timed.HoldsJudged}" : "")</span></div>
-                <span class="sum-figure">@(timed.HoldsJudged > 0 ? Percent(timed.HoldsJudged - timed.LetGoEarly, timed.HoldsJudged) : "–")</span>
-                <div class="sum-histogram" role="img" aria-label="@($"How long each judged note was held, as a share of its length: {timed.LetGoEarly} let go early")">
-                    @for (var i = 0; i < heldBins.Length; i++)
-                    {
-                        if (i == 4)
-                        {
-                            <i class="sum-line" aria-hidden="true"></i>
-                        }
-                        <div><span class="bad" style="height: @Share(heldBins[i].Early, heldPeak)"></span><span class="good" style="height: @Share(heldBins[i].Held, heldPeak)"></span></div>
-                    }
-                </div>
-                <div class="sum-axis held"><span>&lt;50</span><span>50</span><span>60</span><span>70</span><i aria-hidden="true"></i><span>80</span><span>90</span><span>100+</span></div>
-                <div class="sum-legend">
-                    @if (timed.LetGoEarly > 0)
-                    {
-                        <span><span class="sum-key bad" aria-hidden="true"></span>@timed.LetGoEarly let go early</span>
-                    }
-                    <span class="sum-muted">% of each note's length; the line is 80%</span>
-                </div>
-                <p class="sum-said">@heldSaid</p>
-            </section>
-        </div>
-
-        @if (expression.Count > 0)
-        {
-            <section class="mu-screen sum-expression" aria-label="Expression">
-                <span class="mu-readout-label">Expression</span>
-                @foreach (var (bad, words) in expression)
+                @if (OnBar.HasDelegate && loop is not null)
                 {
-                    <span class="sum-item"><span class="sum-key @(bad ? "bad" : "good")" aria-hidden="true"></span>@words</span>
+                    <button type="button" class="mu-btn" @onclick="() => OnBar.InvokeAsync(worst)">Play from bar @worst</button>
                 }
-                @if (rangeNote is not null)
-                {
-                    <span class="sum-muted">@rangeNote</span>
-                }
-            </section>
-        }
-
-        <section class="mu-screen sum-map" aria-label="Bar by bar" style="--bars: @bars.Count">
-            <button type="button" class="sum-toggle" aria-expanded="@(open ? "true" : "false")" aria-controls="bar-map" @onclick="Toggle">
-                <span class="sum-head"><span class="mu-readout-label">Bar by bar@(repeated ? " · both times through" : "")</span><span class="sum-show">@(open ? "Hide bar by bar" : "Show bar by bar")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span>
-                <span class="sum-strip">
-                    <span class="sum-tiny">All</span>
-                    @foreach (var bar in bars)
-                    {
-                        <span class="sum-cell-strip @Picked(bar)" style="background: @bar.Fill"></span>
-                    }
-                </span>
-            </button>
-            <div id="bar-map" class="sum-body @(open ? "open" : "")">
-                <div class="sum-inner">
-                    <div class="sum-lanes">
-                        <div class="sum-lane notes" role="img" aria-label="@MostIn("wrong and missed notes", b => b.Wrong + b.Missed)">
-                            <span class="sum-label"><span class="mu-readout-label">Notes</span></span>
-                            @foreach (var bar in bars)
-                            {
-                                <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {bar.Wrong} wrong, {bar.Missed} missed")">
-                                    @for (var k = 0; k < bar.Wrong; k++)
-                                    {
-                                        <span class="dot bad grow" style="--d: @bar.Delay"></span>
-                                    }
-                                    @for (var k = 0; k < bar.Missed; k++)
-                                    {
-                                        <span class="dot hollow grow" style="--d: @bar.Delay"></span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                        <div class="sum-lane timing" role="img" aria-label="How early or late each bar ran on average, after your lean, against the in-time band">
-                            <span class="sum-label"><span class="mu-readout-label">Timing</span><span class="sum-tiny late">late ▴</span><span class="sum-tiny">early ▾</span></span>
-                            @foreach (var bar in bars)
-                            {
-                                <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Error is { } e ? Math.Abs(e) < 0.5 ? "on the beat" : $"{Math.Abs(e):0}% of a beat {(e < 0 ? "early" : "late")}" : "nothing played")} on average")">
-                                    <div class="half up"><span class="@(Math.Abs(bar.Error ?? 0) > 5 ? "bad" : "good") grow up" style="height: @Lean(bar.Error, late: true); --d: @bar.Delay"></span></div>
-                                    <div class="half down"><span class="@(Math.Abs(bar.Error ?? 0) > 5 ? "bad" : "good") grow down" style="height: @Lean(bar.Error, late: false); --d: @bar.Delay"></span></div>
-                                </div>
-                            }
-                        </div>
-                        <div class="sum-lane held" role="img" aria-label="@MostIn("notes let go early", b => b.Early)">
-                            <span class="sum-label"><span class="mu-readout-label">Held</span></span>
-                            @foreach (var bar in bars)
-                            {
-                                <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {bar.Early} let go early")">
-                                    @for (var k = 0; k < bar.Early; k++)
-                                    {
-                                        <span class="dash bad grow across" style="--d: @bar.Delay"></span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                        @if (loudness || articulated || pedalled)
-                        {
-                            <div class="sum-lane rule"><span class="sum-label"><span class="mu-readout-label">Expression</span></span><span class="sum-rule"></span></div>
-                        }
-                        @if (loudness)
-                        {
-                            <div class="sum-lane loudness" role="img" aria-label="How hard each bar's keys were struck, from your softest to your loudest, against the dynamic marked">
-                                <span class="sum-label"><span class="mu-readout-label">Loudness</span><span class="sum-tiny">soft to loud</span></span>
-                                @foreach (var bar in bars)
-                                {
-                                    <div class="sum-cell @Picked(bar)" style="background-image: @bar.Band" title="@($"Bar {bar.Number}: {(bar.Dynamic is { } d ? $"marked {d}, " : "")}{(bar.Loud is { } l ? $"played at {l:0}% of your range" : "nothing played")}")">
-                                        @if (bar.Loud is { } level)
-                                        {
-                                            <span class="spacer" style="height: @($"{level:0.#}%")"></span>
-                                            <span class="dot @(bar.Dynamic is { } marked && !Within(marked, level) ? "bad" : "good") grow" style="--d: @bar.Delay"></span>
-                                        }
-                                        @if (bar.DynamicStarts)
-                                        {
-                                            <span class="sum-dynamic">@bar.Dynamic</span>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        @if (articulated)
-                        {
-                            <div class="sum-lane touch" role="img" aria-label="Staccato, tenuto, accents and slurs, each as asked or not">
-                                <span class="sum-label"><span class="mu-readout-label">Touch</span></span>
-                                @foreach (var bar in bars)
-                                {
-                                    <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Marks.Count == 0 ? "nothing marked" : string.Join(", ", bar.Marks.GroupBy(m => m).Select(g => Name(g.Key, g.Count()))))}")">
-                                        @foreach (var mark in bar.Marks.Take(4))
-                                        {
-                                            <span class="mark @mark.Kind @(mark.Bad ? "bad" : "good") grow" style="--d: @bar.Delay"></span>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        @if (pedalled)
-                        {
-                            <div class="sum-lane pedal" role="img" aria-label="Where the pedal is marked, and how it was pedalled there; a ring where it was pedalled with none marked">
-                                <span class="sum-label"><span class="mu-readout-label">Pedal</span></span>
-                                @foreach (var bar in bars)
-                                {
-                                    <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Pedal is { } p ? Said(p) : bar.ExtraPedal ? "pedalled, with none marked" : "no pedal marked")}")">
-                                        @if (bar.Pedal is { } pedal)
-                                        {
-                                            <span class="span @(pedal == Pedalling.Right ? "good" : "bad") grow across" style="--d: @bar.Delay"></span>
-                                        }
-                                        else if (bar.ExtraPedal)
-                                        {
-                                            <span class="span hollow grow across" style="--d: @bar.Delay"></span>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        <div class="sum-lane numbers">
-                            <span class="sum-label"><span class="mu-readout-label">Bar</span></span>
-                            @foreach (var bar in bars)
-                            {
-                                <button type="button" class="sum-number @Picked(bar)" aria-label="@($"Bar {bar.Number}")" aria-pressed="@(bar.Number == picked ? "true" : "false")" @onclick="() => picked = bar.Number">@bar.Number</button>
-                            }
-                        </div>
-                    </div>
-                    @if (bars.FirstOrDefault(b => b.Number == picked) is { } chosen)
-                    {
-                        <div class="sum-detail">
-                            <p class="sum-said"><span class="mu-studio-only">Bar @chosen.Number ▸ </span><span class="mu-vinyl-only">Bar @chosen.Number: </span>@chosen.Detail</p>
-                            @if (OnBar.HasDelegate)
-                            {
-                                <button type="button" class="mu-btn" @onclick="() => OnBar.InvokeAsync(chosen.Number)">Play from bar @chosen.Number</button>
-                            }
-                        </div>
-                    }
-                </div>
+                <button type="button" class="mu-btn sum-more" aria-expanded="@(details ? "true" : "false")" aria-controls="sum-details" @onclick="ToggleDetails">@(details ? "Hide details" : "Show details")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
             </div>
         </section>
 
-        @if (OnLoop.HasDelegate && loop is { } stretch)
+        @if (details)
         {
-            <div class="sum-actions">
-                <button type="button" class="mu-btn" @onclick="() => OnLoop.InvokeAsync(stretch)">Loop bars @stretch.From to @stretch.To</button>
+            <div id="sum-details" class="sum-details">
+                <div class="sum-panels">
+                    <section class="mu-screen sum-panel" aria-label="Notes">
+                        <div class="sum-head"><span class="mu-readout-label">Notes right</span><span class="mu-readout-label">@timed.Right of @timed.Expected@(Outcome.Stopped && StoppedAt is { } at ? $", to {at}" : "")</span></div>
+                        <span class="sum-figure">@Percent(timed.Right, timed.Expected)</span>
+                        <div class="sum-bar" role="img" aria-label="@($"Of {timed.Expected} notes, {timed.Right} right and {timed.Expected - timed.Right} not")">
+                            <span class="good" style="flex: @timed.Right 1 0"></span>
+                            @if (timed.Expected > timed.Right)
+                            {
+                                <span class="bad" style="flex: @(timed.Expected - timed.Right) 1 0"></span>
+                            }
+                        </div>
+                        @if (timed.Expected > timed.Right)
+                        {
+                            <span class="mu-readout-label">The @(timed.Expected - timed.Right) that weren't</span>
+                            <div class="sum-bar tall" role="img" aria-label="@($"{timed.Corrected} slips put right, {timed.Wrong - timed.Corrected} wrong, {timed.Missed} missed")">
+                                @if (timed.Corrected > 0)
+                                {
+                                    <span class="slip" style="flex: @timed.Corrected 1 0"></span>
+                                }
+                                @if (timed.Wrong > timed.Corrected)
+                                {
+                                    <span class="bad" style="flex: @(timed.Wrong - timed.Corrected) 1 0"></span>
+                                }
+                                @if (timed.Missed > 0)
+                                {
+                                    <span class="hollow" style="flex: @timed.Missed 1 0"></span>
+                                }
+                            </div>
+                        }
+                        <div class="sum-legend">
+                            @if (timed.Corrected > 0)
+                            {
+                                <span><span class="sum-key slip" aria-hidden="true"></span>@Count(timed.Corrected, "slip") put right</span>
+                            }
+                            @if (timed.Wrong > timed.Corrected)
+                            {
+                                <span><span class="sum-key bad" aria-hidden="true"></span>@(timed.Wrong - timed.Corrected) wrong</span>
+                            }
+                            @if (timed.Missed > 0)
+                            {
+                                <span><span class="sum-key hollow" aria-hidden="true"></span>@timed.Missed missed</span>
+                            }
+                            @if (timed.Extra > 0)
+                            {
+                                <span class="sum-muted">+ @Count(timed.Extra, "extra key")</span>
+                            }
+                        </div>
+                        <p class="sum-said">@notesSaid</p>
+                    </section>
+
+                    <section class="mu-screen sum-panel" aria-label="Timing">
+                        <div class="sum-head"><span class="mu-readout-label">In time</span><span class="mu-readout-label">@(Math.Abs(timed.LeanMs) < 5 ? "Lean: even" : $"Lean {Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
+                        <span class="sum-figure">@($"{timed.InTimeAccuracy * 100:0}%")</span>
+                        <div class="sum-histogram" role="img" aria-label="@($"Each right note's timing as a share of the beat, after your lean: {timed.InTime} within 5 percent, {timed.Audible} within 10, {timed.Off} further off")">
+                            @foreach (var (count, inTime, off) in timingBins)
+                            {
+                                <div class="@(inTime ? "band" : "")"><span class="@(off ? "bad" : "good")" style="height: @Share(count, timingPeak)"></span></div>
+                            }
+                        </div>
+                        <div class="sum-axis"><span>← early</span><span>on the beat</span><span>late →</span></div>
+                        <div class="sum-legend">
+                            <span><span class="sum-key band" aria-hidden="true"></span>in time, within 5%</span>
+                            @if (timed.Off > 0)
+                            {
+                                <span><span class="sum-key bad" aria-hidden="true"></span>@timed.Off off, over 10%</span>
+                            }
+                        </div>
+                        <p class="sum-said">@timingSaid</p>
+                    </section>
+
+                    <section class="mu-screen sum-panel" aria-label="Held">
+                        <div class="sum-head"><span class="mu-readout-label">Held</span><span class="mu-readout-label">@(timed.HoldsJudged > 0 ? $"{timed.HoldsJudged - timed.LetGoEarly} of {timed.HoldsJudged}" : "")</span></div>
+                        <span class="sum-figure">@(timed.HoldsJudged > 0 ? Percent(timed.HoldsJudged - timed.LetGoEarly, timed.HoldsJudged) : "–")</span>
+                        <div class="sum-histogram" role="img" aria-label="@($"How long each judged note was held, as a share of its length: {timed.LetGoEarly} let go early")">
+                            @for (var i = 0; i < heldBins.Length; i++)
+                            {
+                                if (i == 4)
+                                {
+                                    <i class="sum-line" aria-hidden="true"></i>
+                                }
+                                <div><span class="bad" style="height: @Share(heldBins[i].Early, heldPeak)"></span><span class="good" style="height: @Share(heldBins[i].Held, heldPeak)"></span></div>
+                            }
+                        </div>
+                        <div class="sum-axis held"><span>&lt;50</span><span>50</span><span>60</span><span>70</span><i aria-hidden="true"></i><span>80</span><span>90</span><span>100+</span></div>
+                        <div class="sum-legend">
+                            @if (timed.LetGoEarly > 0)
+                            {
+                                <span><span class="sum-key bad" aria-hidden="true"></span>@timed.LetGoEarly let go early</span>
+                            }
+                            <span class="sum-muted">% of each note's length; the line is 80%</span>
+                        </div>
+                        <p class="sum-said">@heldSaid</p>
+                    </section>
+                </div>
+
+                @if (expression.Count > 0)
+                {
+                    <section class="mu-screen sum-expression" aria-label="Expression">
+                        <span class="mu-readout-label">Expression</span>
+                        @foreach (var (bad, _, words) in expression)
+                        {
+                            <span class="sum-item"><span class="sum-key @(bad ? "bad" : "good")" aria-hidden="true"></span>@words</span>
+                        }
+                        @if (rangeNote is not null)
+                        {
+                            <span class="sum-muted">@rangeNote</span>
+                        }
+                    </section>
+                }
+
+                <section class="mu-screen sum-map" aria-label="Bar by bar" style="--bars: @bars.Count">
+                    <button type="button" class="sum-toggle" aria-expanded="@(open ? "true" : "false")" aria-controls="bar-map" @onclick="Toggle">
+                        <span class="sum-head"><span class="mu-readout-label">Bar by bar@(repeated ? " · both times through" : "")</span><span class="sum-show">@(open ? "Hide bar by bar" : "Show bar by bar")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span>
+                        <span class="sum-strip">
+                            <span class="sum-tiny">All</span>
+                            @foreach (var bar in bars)
+                            {
+                                <span class="sum-cell-strip @Picked(bar)" style="background: @bar.Fill"></span>
+                            }
+                        </span>
+                    </button>
+                    <div id="bar-map" class="sum-body @(open ? "open" : "")">
+                        <div class="sum-inner">
+                            <div class="sum-lanes">
+                                <div class="sum-lane notes" role="img" aria-label="@MostIn("wrong and missed notes", b => b.Wrong + b.Missed)">
+                                    <span class="sum-label"><span class="mu-readout-label">Notes</span></span>
+                                    @foreach (var bar in bars)
+                                    {
+                                        <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {bar.Wrong} wrong, {bar.Missed} missed")">
+                                            @for (var k = 0; k < bar.Wrong; k++)
+                                            {
+                                                <span class="dot bad grow" style="--d: @bar.Delay"></span>
+                                            }
+                                            @for (var k = 0; k < bar.Missed; k++)
+                                            {
+                                                <span class="dot hollow grow" style="--d: @bar.Delay"></span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <div class="sum-lane timing" role="img" aria-label="How early or late each bar ran on average, after your lean, against the in-time band">
+                                    <span class="sum-label"><span class="mu-readout-label">Timing</span><span class="sum-tiny late">late ▴</span><span class="sum-tiny">early ▾</span></span>
+                                    @foreach (var bar in bars)
+                                    {
+                                        <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Error is { } e ? Math.Abs(e) < 0.5 ? "on the beat" : $"{Math.Abs(e):0}% of a beat {(e < 0 ? "early" : "late")}" : "nothing played")} on average")">
+                                            <div class="half up"><span class="@(Math.Abs(bar.Error ?? 0) > 5 ? "bad" : "good") grow up" style="height: @Lean(bar.Error, late: true); --d: @bar.Delay"></span></div>
+                                            <div class="half down"><span class="@(Math.Abs(bar.Error ?? 0) > 5 ? "bad" : "good") grow down" style="height: @Lean(bar.Error, late: false); --d: @bar.Delay"></span></div>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="sum-lane held" role="img" aria-label="@MostIn("notes let go early", b => b.Early)">
+                                    <span class="sum-label"><span class="mu-readout-label">Held</span></span>
+                                    @foreach (var bar in bars)
+                                    {
+                                        <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {bar.Early} let go early")">
+                                            @for (var k = 0; k < bar.Early; k++)
+                                            {
+                                                <span class="dash bad grow across" style="--d: @bar.Delay"></span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                @if (loudness || articulated || pedalled)
+                                {
+                                    <div class="sum-lane rule"><span class="sum-label"><span class="mu-readout-label">Expression</span></span><span class="sum-rule"></span></div>
+                                }
+                                @if (loudness)
+                                {
+                                    <div class="sum-lane loudness" role="img" aria-label="How hard each bar's keys were struck, from your softest to your loudest, against the dynamic marked">
+                                        <span class="sum-label"><span class="mu-readout-label">Loudness</span><span class="sum-tiny">soft to loud</span></span>
+                                        @foreach (var bar in bars)
+                                        {
+                                            <div class="sum-cell @Picked(bar)" style="background-image: @bar.Band" title="@($"Bar {bar.Number}: {(bar.Dynamic is { } d ? $"marked {d}, " : "")}{(bar.Loud is { } l ? $"played at {l:0}% of your range" : "nothing played")}")">
+                                                @if (bar.Loud is { } level)
+                                                {
+                                                    <span class="spacer" style="height: @($"{level:0.#}%")"></span>
+                                                    <span class="dot @(bar.Dynamic is { } marked && !Within(marked, level) ? "bad" : "good") grow" style="--d: @bar.Delay"></span>
+                                                }
+                                                @if (bar.DynamicStarts)
+                                                {
+                                                    <span class="sum-dynamic">@bar.Dynamic</span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                @if (articulated)
+                                {
+                                    <div class="sum-lane touch" role="img" aria-label="Staccato, tenuto, accents and slurs, each as asked or not">
+                                        <span class="sum-label"><span class="mu-readout-label">Touch</span></span>
+                                        @foreach (var bar in bars)
+                                        {
+                                            <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Marks.Count == 0 ? "nothing marked" : string.Join(", ", bar.Marks.GroupBy(m => m).Select(g => Name(g.Key, g.Count()))))}")">
+                                                @foreach (var mark in bar.Marks.Take(4))
+                                                {
+                                                    <span class="mark @mark.Kind @(mark.Bad ? "bad" : "good") grow" style="--d: @bar.Delay"></span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                @if (pedalled)
+                                {
+                                    <div class="sum-lane pedal" role="img" aria-label="Where the pedal is marked, and how it was pedalled there; a ring where it was pedalled with none marked">
+                                        <span class="sum-label"><span class="mu-readout-label">Pedal</span></span>
+                                        @foreach (var bar in bars)
+                                        {
+                                            <div class="sum-cell @Picked(bar)" title="@($"Bar {bar.Number}: {(bar.Pedal is { } p ? Said(p) : bar.ExtraPedal ? "pedalled, with none marked" : "no pedal marked")}")">
+                                                @if (bar.Pedal is { } pedal)
+                                                {
+                                                    <span class="span @(pedal == Pedalling.Right ? "good" : "bad") grow across" style="--d: @bar.Delay"></span>
+                                                }
+                                                else if (bar.ExtraPedal)
+                                                {
+                                                    <span class="span hollow grow across" style="--d: @bar.Delay"></span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                <div class="sum-lane numbers">
+                                    <span class="sum-label"><span class="mu-readout-label">Bar</span></span>
+                                    @foreach (var bar in bars)
+                                    {
+                                        <button type="button" class="sum-number @Picked(bar)" aria-label="@($"Bar {bar.Number}")" aria-pressed="@(bar.Number == picked ? "true" : "false")" @onclick="() => picked = bar.Number">@bar.Number</button>
+                                    }
+                                </div>
+                            </div>
+                            @if (bars.FirstOrDefault(b => b.Number == picked) is { } chosen)
+                            {
+                                <div class="sum-detail">
+                                    <p class="sum-said"><span class="mu-studio-only">Bar @chosen.Number ▸ </span><span class="mu-vinyl-only">Bar @chosen.Number: </span>@chosen.Detail</p>
+                                    @if (OnBar.HasDelegate)
+                                    {
+                                        <button type="button" class="mu-btn" @onclick="() => OnBar.InvokeAsync(chosen.Number)">Play from bar @chosen.Number</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </section>
             </div>
         }
     </div>
@@ -327,7 +345,12 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     private string notesSaid = "";
     private string timingSaid = "";
     private string heldSaid = "";
-    private List<(bool Bad, string Words)> expression = [];
+    // What wasn't as the music marks it, each line with what it's about: "Loud and soft", "Touch" or "Pedal".
+    private List<(bool Bad, string About, string Words)> expression = [];
+    // The run in short: the notes and the timing, then only what there is to work on.
+    private List<(bool Bad, string About, string Words)> quick = [];
+    private bool details;
+    private int worst;
     private string? rangeNote;
     private bool repeated;
     private bool loudness;
@@ -342,7 +365,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         if (ReferenceEquals(Outcome, shown)) return;
 
         shown = Outcome;
-        open = Settings.BarMapOpen;
+        (open, details) = (Settings.BarMapOpen, Settings.SummaryDetails);
         if (Outcome?.InTime is not { } timed) return;
 
         var notes = timed.Notes;
@@ -424,10 +447,10 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         pedalled = timed.Pedal.Count > 0;
 
         // The bar with the most to fix, picked to start with, and the four bars of its phrase to loop.
-        var worst = bars.OrderByDescending(b => b.Total).ThenBy(b => b.Number).First();
-        picked = worst.Number;
-        var phrase = Math.Max(first, worst.Number - (worst.Number - 1) % 4);
-        loop = worst.Total == 0 ? null : (phrase, Math.Min(last, phrase + 3));
+        var most = bars.OrderByDescending(b => b.Total).ThenBy(b => b.Number).First();
+        picked = worst = most.Number;
+        var phrase = Math.Max(first, most.Number - (most.Number - 1) % 4);
+        loop = most.Total == 0 ? null : (phrase, Math.Min(last, phrase + 3));
 
         // A line under each panel, from what stands out.
         var wrongOther = timed.Wrong - timed.Corrected;
@@ -439,10 +462,11 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
             : "A few wrong notes.";
         var stretches = Stretches(bars.Where(b => b.Error is < -8).Select(b => b.Number));
         var dragged = Stretches(bars.Where(b => b.Error is > 8).Select(b => b.Number));
-        timingSaid = stretches.Count > 0 ? $"Rushed {Bars(stretches[0])}{(timed.Off > 0 ? $": {timed.Off} {(timed.Off == 1 ? "note" : "notes")} over a tenth of a beat out" : "")}."
+        timingSaid = right.Count == 0 ? "No note was played right, so there's no timing to judge."
+            : stretches.Count > 0 ? $"Rushed {Bars(stretches[0])}{(timed.Off > 0 ? $": {timed.Off} {(timed.Off == 1 ? "note" : "notes")} over a tenth of a beat out" : "")}."
             : dragged.Count > 0 ? $"Held back in {Bars(dragged[0])}."
             : timed.Off == 0 ? "Steady: nothing more than a tenth of a beat out."
-            : $"{timed.Off} {(timed.Off == 1 ? "note" : "notes")} more than a tenth of a beat early or late.";
+            : $"{timed.Off} {(timed.Off == 1 ? "note" : "notes")} more than a tenth of a beat early or late, in {Listed([.. bars.Where(b => b.Off > 0).Select(b => b.Number)])}.";
         var earlyBars = bars.Where(b => b.Early > 0).Select(b => b.Number).ToList();
         heldSaid = timed.HoldsJudged == 0 ? "No notes long enough here to judge."
             : timed.LetGoEarly == 0 ? "Every judged note held its length."
@@ -455,23 +479,23 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         if (far.FirstOrDefault() is { } firstFar)
         {
             var nearest = Markings.Levels.Where(l => l.Key != "fp").MinBy(l => Math.Abs((l.Value.Low + l.Value.High) / 2 - firstFar.LevelPercent)).Key;
-            expression.Add((true, $"Marked {firstFar.Level} in {BarsOf(firstFar.FromBar, firstFar.ToBar)}: you played nearer your {nearest}{(far.Count > 1 ? $", and {Count(far.Count - 1, "more dynamic")} too {(far.Skip(1).All(d => d.Outcome == Loudness.TooLoud) ? "loud" : far.Skip(1).All(d => d.Outcome == Loudness.TooSoft) ? "soft" : "loud or soft")}, {Listed([.. far.Skip(1).Select(d => d.FromBar).Distinct()])}" : "")}."));
+            expression.Add((true, "Loud and soft", $"Marked {firstFar.Level} in {BarsOf(firstFar.FromBar, firstFar.ToBar)}: you played nearer your {nearest}{(far.Count > 1 ? $", and {Count(far.Count - 1, "more dynamic")} too {(far.Skip(1).All(d => d.Outcome == Loudness.TooLoud) ? "loud" : far.Skip(1).All(d => d.Outcome == Loudness.TooSoft) ? "soft" : "loud or soft")}, {Listed([.. far.Skip(1).Select(d => d.FromBar).Distinct()])}" : "")}."));
         }
         var same = timed.Dynamics.Where(d => d.Outcome == Loudness.NoChange).ToList();
-        if (same.Count > 0) expression.Add((true, same.Count == 1 ? $"Marked {same[0].Level} in {BarsOf(same[0].FromBar, same[0].ToBar)}: no different from the dynamic before it."
+        if (same.Count > 0) expression.Add((true, "Loud and soft", same.Count == 1 ? $"Marked {same[0].Level} in {BarsOf(same[0].FromBar, same[0].ToBar)}: no different from the dynamic before it."
             : $"No change in loudness at {same.Count} of the dynamics marked, {Listed([.. same.Select(d => d.FromBar).Distinct()])}."));
         foreach (var kind in timed.Hairpins.Where(h => h.Outcome != Swell.Right).GroupBy(h => h.Outcome))
         {
             var one = kind.First();
             var what = one.Crescendo ? "crescendo" : "diminuendo";
-            expression.Add((true, kind.Count() == 1
+            expression.Add((true, "Loud and soft", kind.Count() == 1
                 ? $"The {what} in {BarsOf(one.FromBar, one.ToBar)} {(kind.Key == Swell.Flat ? one.Crescendo ? "didn't grow" : "didn't fade" : "went the other way")}."
                 : $"{kind.Count()} crescendos and diminuendos {(kind.Key == Swell.Flat ? "didn't change" : "went the other way")}, {Listed([.. kind.Select(h => h.FromBar).Distinct()])}."));
         }
         foreach (var kind in notes.Where(n => n.Touch is not null).GroupBy(n => n.Touch!.Value))
         {
             var where = Listed([.. kind.Select(n => n.Bar).Distinct().Order()]);
-            expression.Add((true, kind.Key switch
+            expression.Add((true, "Touch", kind.Key switch
             {
                 Touch.StaccatoHeldLong => $"{Count(kind.Count(), "staccato note")} held long, {where}.",
                 Touch.TenutoShort => $"{Count(kind.Count(), "tenuto note")} not held {(kind.Count() == 1 ? "its" : "their")} whole length, {where}.",
@@ -481,22 +505,54 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         }
         foreach (var kind in timed.Pedal.Where(p => p.Outcome != Pedalling.Right).GroupBy(p => p.Outcome))
         {
-            expression.Add((true, $"Pedal {Said(kind.Key)} in {Listed([.. kind.Select(p => p.FromBar).Distinct().Order()])}."));
+            expression.Add((true, "Pedal", $"Pedal {Said(kind.Key)} in {Listed([.. kind.Select(p => p.FromBar).Distinct().Order()])}."));
         }
-        if (timed.ExtraPedal.Count > 0) expression.Add((true, $"Pedalled with none marked in {Listed([.. timed.ExtraPedal.Order()])}."));
+        if (timed.ExtraPedal.Count > 0) expression.Add((true, "Pedal", $"Pedalled with none marked in {Listed([.. timed.ExtraPedal.Order()])}."));
         var asked = timed.Dynamics.Count + timed.Hairpins.Count + timed.Pedal.Count + notes.Count(n => n.Asked != Articulation.None);
-        if (expression.Count == 0 && asked > 0) expression.Add((false, "Loud and soft, touch and pedal as marked."));
+        if (expression.Count == 0 && asked > 0) expression.Add((false, "Expression", "Loud and soft, touch and pedal as marked."));
         if (!timed.TouchVaries && right.Count >= 2 && (timed.Dynamics.Count > 0 || notes.Any(n => n.Asked == Articulation.Accent)))
         {
-            expression.Add((true, "Every key came in at one velocity: the piano's touch is set to Fixed, so loud and soft can't be judged."));
+            expression.Add((true, "Loud and soft", "Every key came in at one velocity: the piano's touch is set to Fixed, so loud and soft can't be judged."));
         }
         rangeNote = loudness && Settings.SoftVelocity is null ? "Judged on a usual soft-to-loud range: measure yours in Tools, Keyboard check." : null;
+
+        // In short. The notes: how many were right, what the others were and the bars with the most of them. The timing: its share
+        // in time and what stood out. Then a line only for what there is to work on: notes let go early, each kind of expression
+        // not as marked (its first line; the details have the rest), and the bar with the most to fix.
+        var slipped = bars.Where(b => b.Wrong + b.Missed > 0).OrderByDescending(b => b.Wrong + b.Missed).ThenBy(b => b.Number).ToList();
+        var worstThree = Listed([.. slipped.Take(3).Select(b => b.Number).Order()]);
+        var mostIn = slipped.Count == 0 ? "" : slipped.Count > 3 ? $", most in {worstThree}" : $", in {worstThree}";
+        List<string> others = [];
+        if (wrongOther > 0) others.Add($"{wrongOther} wrong");
+        if (timed.Corrected > 0) others.Add($"{Count(timed.Corrected, "slip")} put right");
+        if (timed.Missed > 0) others.Add($"{timed.Missed} missed");
+        var notRight = others.Count > 1 ? $": {string.Join(", ", others[..^1])} and {others[^1]}" : others.Count == 1 ? $": {others[0]}" : "";
+        var notesShort = timed.Right == timed.Expected ? $"All {timed.Expected} right." : $"{timed.Right} of {timed.Expected} right{notRight}{mostIn}.";
+        var steady = right.Count > 0 && timed.Off == 0 && stretches.Count == 0 && dragged.Count == 0;
+        quick =
+        [
+            (timed.Right < timed.Expected, "Notes", notesShort + (Outcome.Stopped && StoppedAt is { } at ? $" Stopped at {at}." : "")),
+            (!steady, "Timing", right.Count == 0 ? timingSaid : $"{timed.InTimeAccuracy * 100:0}% in time. {timingSaid}"),
+        ];
+        if (timed.LetGoEarly > 0) quick.Add((true, "Held", $"{Count(timed.LetGoEarly, "note")} let go early, in {Listed(earlyBars)}."));
+        foreach (var about in expression.Where(e => e.Bad).GroupBy(e => e.About))
+        {
+            quick.Add((true, about.Key, about.First().Words + (about.Count() > 1 ? $" And {about.Count() - 1} more in the details." : "")));
+        }
+        if (most.Total > 0) quick.Add((true, "Look at", $"Bar {most.Number} had the most to fix: {most.Detail}"));
     }
 
     private async Task Toggle()
     {
         open = !open;
         Settings.BarMapOpen = open;
+        await Store.SaveAsync(Settings);
+    }
+
+    private async Task ToggleDetails()
+    {
+        details = !details;
+        Settings.SummaryDetails = details;
         await Store.SaveAsync(Settings);
     }
 

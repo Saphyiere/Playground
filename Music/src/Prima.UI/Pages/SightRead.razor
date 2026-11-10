@@ -178,7 +178,7 @@
                         <button type="button" class="mu-btn" @onclick="Slower">Slower</button>
                         <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
                     }
-                    <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide details" : "Details")</button>
+                    <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide note by note" : "Note by note")</button>
                     <button type="button" class="mu-btn" data-piano="@(spotPart == 2 ? "go" : null)" @onclick="Done">Done</button>
                 </div>
             </section>
@@ -589,7 +589,6 @@
 
         if (ready?.Piece is { } from) yield return $"From {from.Title}{(from.Composer is { Length: > 0 } c ? $" by {c}" : "")}{(from.Tier == "B" && from.Credit is { } credit ? $". {credit}" : "")}.";
         if (!result.KeptGoing) yield return "You stopped for more than a bar. Next time keep the beat going, even past a wrong note.";
-        if (result.WorstBar is { } bar && !result.Clean && passage.Score.Bars.Count(b => b.Number > 0) > 1) yield return $"Bar {bar} had the most to fix.";
     }
 
     private string PhaseName() => stage switch

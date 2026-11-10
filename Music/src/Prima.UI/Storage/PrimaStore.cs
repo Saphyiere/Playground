@@ -41,6 +41,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string SoftKey = "Touch.Soft";
     private const string LoudKey = "Touch.Loud";
     private const string BarMapKey = "Summary.BarMapOpen";
+    private const string SummaryDetailsKey = "Summary.Details";
+    private const string CursorKey = "Play.Cursor";
+    private const string LiveMarksKey = "Play.LiveMarks";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -82,6 +85,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.SoftVelocity = (int?)Number(SoftKey);
         settings.LoudVelocity = (int?)Number(LoudKey);
         settings.BarMapOpen = saved.GetValueOrDefault(BarMapKey) == "true";
+        settings.SummaryDetails = saved.GetValueOrDefault(SummaryDetailsKey) == "true";
+        settings.Cursor = saved.GetValueOrDefault(CursorKey) != "false";
+        settings.LiveMarks = saved.GetValueOrDefault(LiveMarksKey) != "false";
     }
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
@@ -110,6 +116,9 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (SoftKey, settings.SoftVelocity?.ToString(CultureInfo.InvariantCulture)),
             (LoudKey, settings.LoudVelocity?.ToString(CultureInfo.InvariantCulture)),
             (BarMapKey, settings.BarMapOpen ? "true" : "false"),
+            (SummaryDetailsKey, settings.SummaryDetails ? "true" : "false"),
+            (CursorKey, settings.Cursor ? "true" : "false"),
+            (LiveMarksKey, settings.LiveMarks ? "true" : "false"),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)

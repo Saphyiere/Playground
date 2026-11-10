@@ -105,8 +105,9 @@ export function pixelsPerMm() {
     return Math.max(screen.width, screen.height) / 280;
 }
 
-// Engraves `mei` into the sheet: options are layout ("line": systems as wide as the sheet; "page": one page the sheet's size),
-// staffMm, font, page and header. Redraws by itself when the sheet's width changes, and tells .NET when it has painted.
+// Engraves `mei` into the sheet: options are layout ("line": a passage, its systems as wide as the sheet; "scroll": a whole
+// piece down one sheet; "page": one page the sheet's size), staffMm, font, page and header. Redraws by itself when the sheet's
+// width changes, and tells .NET when it has painted.
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
     const state = sheets.get(element) ?? {};
@@ -144,6 +145,9 @@ function draw(element, state) {
     const unitsPerPx = 72 / staffPx;
     state.width = element.clientWidth;
     state.height = element.clientHeight;
+    // A brace (or a bracket) joining the staves hangs to their left: the margin there makes room for it, so it stands as far
+    // in from the paper's edge as the last bar line does on the right, not on the edge itself.
+    const joined = /\ssymbol="brac(e|ket)"/.test(state.music);
     state.loaded = {
         font: options.font,
         scale: 100,
@@ -154,7 +158,7 @@ function draw(element, state) {
         minLastJustification: options.layout === "line" ? 0 : 0.8,
         header: options.header ? "auto" : "none",
         footer: "none",
-        pageMarginLeft: 24,
+        pageMarginLeft: joined ? 50 : 24,
         pageMarginRight: 24,
         pageMarginTop: options.layout === "page" ? 40 : 24,
         pageMarginBottom: 24,
@@ -165,7 +169,9 @@ function draw(element, state) {
     load(tk, state, state.music);
     state.pages = tk.getPageCount();
     music.innerHTML = tk.renderToSVG(Math.min(options.page ?? 1, state.pages));
-    // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own.
+    // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own. Not a whole
+    // piece's ("scroll"): its bars differ too much for a line of each to hold as many, and the full ones would be squeezed. Its
+    // lines break where the bars fit, and a last line that's short keeps its bars' own widths.
     const systems = music.querySelectorAll(".system");
     const bars = music.querySelectorAll(".measure").length;
     if (options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
@@ -255,11 +261,12 @@ function measureAt(element, x, y) {
 // Where each moment of the music is on the sheet: for every onset in Verovio's time map that's on this page, its time in quarter
 // notes, the left edge of its first note head and its system's top and bottom, in px from the sheet's corner; and each system's
 // end, the barline closing its last bar at the time that bar ends.
-function positions(element, state, onsets = state.options.onsets) {
+function positions(element, state) {
     const box = element.getBoundingClientRect();
+    const onsets = state.options.onsets;
     const points = [];
-    // Onsets given by .NET take its place: a stretch of a real piece, where Verovio's time map is the whole piece's, or a run's
-    // own (Verovio's map plays repeats its own way, and a run can start anywhere). A note played twice has two.
+    // Onsets given by .NET take its place: a stretch of a real piece, where Verovio's time map is the whole piece's. (A run's
+    // cursor has the run's own path instead: pathPoints.)
     if (onsets) {
         for (const [id, q] of onsets) {
             const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
@@ -304,15 +311,83 @@ function positions(element, state, onsets = state.options.onsets) {
     return points.sort((a, b) => a.q - b.q || (b.end ? 1 : 0) - (a.end ? 1 : 0));
 }
 
+// A run's own way through the music, from .NET: `bars`, every bar as it's played ([its place in the score, the quarter it starts
+// at, how many it lasts]: a repeated or looped bar once each time round), and `events`, what's printed in those bars ([the bar's
+// place, an id, quarters from the bar's start] for each note and rest, both hands'). A point for each moment something is
+// printed, where it is on the paper, so the cursor passes each as it's due and moves evenly between: through rests, and through
+// bars the hand played has nothing in. Where the bar played next isn't the next along the line (a new line, a repeat, a loop
+// going round), the bar ends at its closing bar line as its time does, and the next starts at once where its music does.
+function pathPoints(element, state, path) {
+    const box = element.getBoundingClientRect();
+    const byId = new Map([...element.querySelectorAll(".sheet-music [data-id]")].map(e => [e.dataset.id, e]));
+    const drawn = [...element.querySelectorAll(".sheet-music .measure")];
+    // Each bar on the paper: its measure, and the place of each moment in it (the leftmost of what's printed then).
+    const places = new Map();
+    for (const [index, id, at] of path.events) {
+        const printed = byId.get(id);
+        if (!printed) continue;
+        if (!places.has(index)) places.set(index, { measure: printed.closest(".measure"), moments: new Map() });
+        // A whole bar's rest is printed in the middle of its bar, not where its time starts.
+        if (printed.classList.contains("mRest")) continue;
+        const x = (printed.querySelector(".notehead") ?? printed).getBoundingClientRect().left - box.left - 6;
+        const moments = places.get(index).moments;
+        moments.set(at, Math.min(x, moments.get(at) ?? Infinity));
+    }
+    // A bar with nothing printed that was found is the one that many along from one that was.
+    const known = [...places].find(([, place]) => place.measure);
+    const along = known ? drawn.indexOf(known[1].measure) - known[0] : 0;
+    const lines = new Map();
+    const placeOf = index => {
+        const place = places.get(index) ?? { measure: drawn[index + along], moments: new Map() };
+        places.set(index, place);
+        if (!place.measure || place.system) return place;
+        place.system = place.measure.closest(".system");
+        if (!lines.has(place.system)) {
+            const s = place.system.getBoundingClientRect();
+            lines.set(place.system, [s.top - box.top - 6, s.bottom - box.top + 6]);
+        }
+        [place.top, place.bottom] = lines.get(place.system);
+        place.moments = [...place.moments].sort((a, b) => a[0] - b[0]);
+        // The bar is as wide as its staff's lines (a slur or a pedal mark drawn with it can run on past them). A bar line in
+        // its right half closes it; one before its music (a repeat's start) is passed before the music starts, as the clef and
+        // signatures a line opens with are.
+        const m = (place.measure.querySelector(":scope > .staff > path") ?? place.measure).getBoundingClientRect();
+        const middle = (m.left + m.right) / 2;
+        const barLines = [...place.measure.querySelectorAll(":scope > .barLine")].map(b => b.getBoundingClientRect());
+        const opening = [...place.measure.querySelectorAll(":scope > .staff > .clef, :scope > .staff > .keySig, :scope > .staff > .meterSig")].map(e => e.getBoundingClientRect().right);
+        const closing = barLines.filter(b => b.left > middle).map(b => b.left);
+        place.close = (closing.length > 0 ? Math.max(...closing) : m.right) - box.left - 3;
+        place.open = Math.min(Math.max(m.left, ...opening, ...barLines.filter(b => b.right < middle).map(b => b.right)) - box.left + 2, place.moments[0]?.[1] ?? place.close);
+        return place;
+    };
+    const points = [];
+    let before = null;
+    path.bars.forEach(([index, start, length], k) => {
+        const place = placeOf(index);
+        if (!place.measure) return;
+        const { system, top, bottom } = place;
+        // Carried on along its line from the bar before, a bar needs no start of its own: the cursor crosses the bar line on its
+        // way from that bar's last moment to this one's first.
+        const carried = before !== null && before.index + 1 === index && before.system === system;
+        if (!carried && place.moments[0]?.[0] !== 0) points.push({ q: start, x: place.open, top, bottom, system });
+        for (const [at, x] of place.moments) points.push({ q: start + at, x, top, bottom, system });
+        const next = path.bars[k + 1];
+        if (!next || next[0] !== index + 1 || placeOf(next[0]).system !== system) points.push({ q: start + length, x: place.close, top, bottom, system, end: true });
+        before = { index, system };
+    });
+    return points;
+}
+
 // Moves a cursor in the look's accent with the music: bar 1 starts `msUntilStart` from now, at `msPerQuarter`, from quarter
-// `startQuarter` of the music (later than 0 after a pickup). Until then (the count-in) it waits at the first note and pulses
-// with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. Given the run's own onsets ([id, quarter]), it goes
-// from note to note of those, through repeats or from wherever the run starts. A guide only: nothing is scored from it.
-export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, onsets) {
+// `startQuarter` of the music (later than 0 after a pickup). Until the music's first moment (the count-in) it waits there and
+// pulses with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. Given the run's own path (pathPoints), it
+// keeps to that, through repeats or from wherever the run starts; otherwise it goes from note to note of the sheet's music.
+// Not `shown`, it isn't drawn, but the line being played is still kept in view. A guide only: nothing is scored from it.
+export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown = true) {
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
-    const points = positions(element, state, onsets ?? state.options.onsets);
+    const points = path ? pathPoints(element, state, path) : positions(element, state);
     state.points = points;
     if (points.length === 0) return;
     const bars = windowQuarters ? measures(element, state) : null;
@@ -320,24 +395,27 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     const line = document.createElementNS(svgNs, "rect");
     line.setAttribute("class", "sheet-cursor");
     line.setAttribute("width", "3");
+    if (!shown) line.style.display = "none";
     overlay.appendChild(line);
     state.cursor = line;
     const start = performance.now() + msUntilStart;
     const beat = performance.now() + (msUntilBeat ?? msUntilStart);
-    let shown = null;
+    const opens = Math.min(points[0].q, startQuarter);
+    let at = 0;
+    let inView = null;
     const frame = now => {
         const q = startQuarter + (now - start) / msPerQuarter;
-        let i = 0;
-        while (i < points.length - 1 && points[i + 1].q <= q) i++;
-        const here = points[i];
-        const next = points[i + 1];
-        const x = next && next.system === here.system && q > here.q ? here.x + (next.x - here.x) * (q - here.q) / (next.q - here.q) : here.x;
+        // Time only goes on, so the place does too.
+        while (at < points.length - 1 && points[at + 1].q <= q) at++;
+        const here = points[at];
+        const next = points[at + 1];
+        const x = next && !here.end && next.system === here.system && q > here.q ? here.x + (next.x - here.x) * (q - here.q) / (next.q - here.q) : here.x;
         line.setAttribute("x", x);
         line.setAttribute("y", here.top);
         line.setAttribute("height", here.bottom - here.top);
-        if (here.system !== shown) follow(element, shown = here.system);
+        if (here.system !== inView) follow(element, inView = here.system);
         // The count-in: bright on each click, fading towards the next.
-        if (now < start && beatMs > 0) {
+        if (q < opens && beatMs > 0) {
             const phase = (((now - beat) / beatMs) % 1 + 1) % 1;
             line.style.opacity = String(0.3 + 0.7 * (1 - phase) * (1 - phase));
         } else line.style.opacity = "";

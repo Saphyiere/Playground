@@ -60,6 +60,12 @@
     </div>
     <p class="section-note">How long Sight-read shows a passage before the count-in starts by itself. Start (or the C♯ above middle C) begins it sooner, whenever you're ready.</p>
     <div class="control-row">
+        <span class="control-label">While playing</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.Cursor)" @onclick="() => Save(() => Options.Cursor = !Options.Cursor)"><span class="mu-led"></span>Cursor</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.LiveMarks)" @onclick="() => Save(() => Options.LiveMarks = !Options.LiveMarks)"><span class="mu-led"></span>Marks as you play</button>
+    </div>
+    <p class="section-note">What shows on the music while a run plays In time, in the Library, Sight-read and the drills with a tempo. With the cursor off, the music still scrolls as you play. With the marks off, every note is still judged, and marked when the run ends. Wait for me always shows where it's waiting.</p>
+    <div class="control-row">
         <span class="control-label">After a wrong note</span>
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = true)"><span class="mu-led"></span>Say its name</button>
         <button type="button" class="mu-toggle" aria-pressed="@On(!Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = false)"><span class="mu-led"></span>Only show it</button>

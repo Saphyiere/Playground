@@ -415,4 +415,27 @@ public class MusicTests
         Assert.Equal(Enumerable.Range(0, 9).Select(k => (long)k * bar), notes.Select(n => n.Tick));
         Assert.Equal([1, 2, 1, 2, 3, 4, 3, 5, 6], notes.Select(n => n.Bar));
     }
+
+    [Fact]
+    public void Bar_times_run_on_through_a_loop_from_the_first_bars_own_tick()
+    {
+        var score = MeiReader.Read(Repeats);
+        var bar = (long)score.Meter.BarTicks;
+
+        // Bars 3 and 4, twice round: the loop starts where bar 3 is written, and each bar follows the one before.
+        Assert.Equal([(2, 2 * bar, bar), (3, 3 * bar, bar), (2, 4 * bar, bar), (3, 5 * bar, bar)], score.BarTimes([2, 3, 2, 3]));
+        Assert.Empty(score.BarTimes([]));
+    }
+
+    [Fact]
+    public void Bar_times_give_a_pickup_its_own_length_before_the_first_downbeat()
+    {
+        // A quarter's pickup into two bars of 4/4, the second with nothing but a rest: it has its time all the same.
+        var pickup = new Bar(0, [new Voice(1, [new Notes("u", 0, Ticks.Quarter, [new Tone("u1", P(Step.G, 4))])])]) { Length = Ticks.Quarter };
+        var full = new Bar(1, [new Voice(1, [new Notes("n", 0, 4 * Ticks.Quarter, [new Tone("n1", P(Step.C, 5))])])]);
+        var silent = new Bar(2, [new Voice(1, [new Rest("r", 0, 4 * Ticks.Quarter)])]);
+        var score = new Score(new Key(0), new Meter(4, 4), [pickup, full, silent]);
+
+        Assert.Equal([(0, -(long)Ticks.Quarter, (long)Ticks.Quarter), (1, 0L, 4L * Ticks.Quarter), (2, 4L * Ticks.Quarter, 4L * Ticks.Quarter)], score.BarTimes([0, 1, 2]));
+    }
 }

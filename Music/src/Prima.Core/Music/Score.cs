@@ -275,21 +275,37 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     public IReadOnlyList<ExpectedNote> Performed(IReadOnlyList<int> order)
     {
         var starts = BarStarts().ToList();
-        var lengths = WithSignatures().Select(w => (long)(w.Bar.Length ?? w.Meter.BarTicks)).ToList();
         var byBar = Expected().ToLookup(n => n.Bar);
         var notes = new List<ExpectedNote>();
         var passes = new Dictionary<int, int>();
-        var at = order.Count > 0 ? starts[order[0]].Start : 0;
-        for (var k = 0; k < order.Count; k++)
+        foreach (var (index, at, _) in BarTimes(order))
         {
-            var (bar, written) = starts[order[k]];
-            var pass = passes[order[k]] = passes.GetValueOrDefault(order[k]) + 1;
+            var (bar, written) = starts[index];
+            var pass = passes[index] = passes.GetValueOrDefault(index) + 1;
             var shift = at - written;
             string Again(string id) => pass == 1 ? id : $"{id}~{pass}";
             foreach (var n in byBar[bar.Number]) notes.Add(n with { Id = Again(n.Id), Tick = n.Tick + shift, ChordId = n.ChordId is { } c ? Again(c) : null, Slur = n.Slur is { } sl ? Again(sl) : null });
-            at += lengths[order[k]];
         }
         return notes;
+    }
+
+    /// <summary>
+    /// When each bar of an order (<see cref="PlayOrder"/>'s, or a loop's) is played: its place in the score, the tick it starts at
+    /// and its length, each bar timed on from the one before, the first at its written tick. A bar with nothing to play has its
+    /// time all the same, which <see cref="Performed"/>'s notes can't say.
+    /// </summary>
+    public IReadOnlyList<(int Index, long Start, long Length)> BarTimes(IReadOnlyList<int> order)
+    {
+        var starts = BarStarts().ToList();
+        var lengths = WithSignatures().Select(w => (long)(w.Bar.Length ?? w.Meter.BarTicks)).ToList();
+        var times = new List<(int, long, long)>();
+        var at = order.Count > 0 ? starts[order[0]].Start : 0;
+        foreach (var index in order)
+        {
+            times.Add((index, at, lengths[index]));
+            at += lengths[index];
+        }
+        return times;
     }
 
     /// <summary>

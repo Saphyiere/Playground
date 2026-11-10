@@ -98,9 +98,8 @@ else
         }
 
         @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
-           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). Beside music
-           that scrolls, its thumb. *@
-        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "") @(Thumb ? "piece-stage-thumb" : "")">
+           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
+        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "")">
             <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
                  data-follow="@(view == View.Scroll && !Pdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
                 @if (Pdf)
@@ -112,7 +111,7 @@ else
                 }
                 else if (mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "line")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@
@@ -122,11 +121,6 @@ else
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
                 }
             </div>
-            @if (Thumb)
-            {
-                @* A finger on the music scrolls it too, so the thumb is for the eye and the hand, not a screen reader. *@
-                <div class="bar-thumb" @ref="thumb" aria-hidden="true"></div>
-            }
             @if (options)
             {
                 <section class="piece-options" aria-label="Options">
@@ -178,6 +172,12 @@ else
                             </div>
                         }
                         <div class="control-row">
+                            <span class="control-label">While playing</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Cursor)" @onclick="() => ShowWhilePlaying(!Settings.Cursor, Settings.LiveMarks)"><span class="mu-led"></span>Cursor</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => ShowWhilePlaying(Settings.Cursor, !Settings.LiveMarks)"><span class="mu-led"></span>Marks as you play</button>
+                            <span class="control-note">@(Settings is { Cursor: true, LiveMarks: true } ? "Turn either off for less on the page as you play." : Settings.LiveMarks ? "The music still scrolls with the run." : "Every note is still judged, and marked when the run ends.")</span>
+                        </div>
+                        <div class="control-row">
                             <span class="control-label">Start at</span>
                             <span class="control-value">Bar @from</span>
                             @if (from > FirstBar)
@@ -185,7 +185,7 @@ else
                                 <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
                             }
                         </div>
-                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop on its tab loops it: then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or drag a handle, or drag along the strip for a loop over those bars; × ends it. Beside music that scrolls, drag the thumb to move through it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it. Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
+                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop on its tab loops it: then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or drag a handle, or drag along the strip for a loop over those bars; × ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it (While playing turns either off). Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
                     @if (piece.IsPdf && mei is null && pdfBytes is not null)
                     {
@@ -290,10 +290,8 @@ else
     private Sheet? sheet;
     private PdfPages? pdf;
     private ElementReference frame;
-    // The strip of bars under the piece's bar, the thumb beside music that scrolls, bars.js that draws them and the choice on the
-    // music, and the choice it was last shown.
+    // The strip of bars under the piece's bar, bars.js that draws it and the choice on the music, and the choice it was last shown.
     private ElementReference strip;
-    private ElementReference thumb;
     private IJSObjectReference? bars;
     private string? shownChoice;
     private View view = View.Pages;
@@ -351,7 +349,6 @@ else
 
     private bool Pdf => piece!.IsPdf && (mei is null || print);
 
-    private bool Thumb => !Pdf && view == View.Scroll && mei is not null;
     private IReadOnlyList<double> ratios = [];
     private double drawnWidth;
     private double y;
@@ -446,16 +443,16 @@ else
             Keyboard.Received += Heard;
         }
 
-        // The choice, drawn by bars.js on the music, the strip and the thumb: the bar a run starts at (the first only once it's
-        // tapped), or the loop's first to last. bars.js tells Chose, Looped and Loop of a change made there.
+        // The choice, drawn by bars.js on the music and the strip: the bar a run starts at (the first only once it's tapped), or
+        // the loop's first to last. bars.js tells Chose, Looped and Loop of a change made there.
         if (bars is null || score is null || mei is null || Pdf || readingNotes || frame.Id is null) return;
         var lit = loopTo is not null || from > FirstBar || chosen;
-        var choice = $"{from}|{loopTo}|{lit}|{playing}|{explain}|{Thumb}|{mei.Length}";
+        var choice = $"{from}|{loopTo}|{lit}|{playing}|{explain}|{mei.Length}";
         if (choice == shownChoice) return;
 
         shownChoice = choice;
         var ids = MeasureIds().Take(score.Bars.Count).ToArray();
-        await bars.InvokeVoidAsync("show", frame, strip, Thumb ? thumb : (ElementReference?)null, self, new { from, to = loopTo, lit, playing, explain, firstBar = FirstBar, ids });
+        await bars.InvokeVoidAsync("show", frame, strip, self, new { from, to = loopTo, lit, playing, explain, firstBar = FirstBar, ids });
     }
 
     private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
@@ -550,6 +547,13 @@ else
 
     private void ToggleOptions() => options = !options;
 
+    // What shows on the music while a run plays In time: kept in Settings, for every screen that plays to a tempo.
+    private Task ShowWhilePlaying(bool cursor, bool marks)
+    {
+        (Settings.Cursor, Settings.LiveMarks) = (cursor, marks);
+        return Store.SaveAsync(Settings);
+    }
+
     private void ToggleExplain() => (explain, explained, options) = (!explain, null, false);
 
     // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
@@ -602,7 +606,7 @@ else
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
         var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
         var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Length))).ToList();
-        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other };
+        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other, Order = order };
     }
 
     private string StartLabel

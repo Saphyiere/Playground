@@ -11,9 +11,10 @@
     The play bar, the same on every screen that plays music to a tempo, so they all work and feel alike. In time: a count-in, the
     click that never waits, the cursor moving with the beat, each note marked as it's played, and the timing summed up after.
     Wait for me: no click; the cursor waits at each note or chord until its keys are played, a wrong key is marked where it was,
-    and the pace is your own. The mode is kept for each screen. The screen gives the music and its sheet, puts its own readouts
-    in the bar, and gets the outcome. A screen can offer Listen too: the piano plays the music at the tempo, the click only
-    counting in and the cursor moving with it, and nothing is judged, so you can hear how it goes or play along.
+    and the pace is your own. Settings can take the moving cursor away, and the marks until the run ends. The mode is kept for
+    each screen. The screen gives the music and its sheet, puts its own readouts in the bar, and gets the outcome. A screen can
+    offer Listen too: the piano plays the music at the tempo, the click only counting in and the cursor moving with it, and
+    nothing is judged, so you can hear how it goes or play along.
 *@
 
 <section class="reading-bar play-bar @BarClass" aria-label="Playing">
@@ -245,6 +246,9 @@
         // any piano part, expects nothing, and hears the click only in the count-in.
         var from = music.FromTick / (double)music.BeatTicks;
         double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
+        // Every bar the run plays and when, a bar with nothing to play too: the bar the readout names, and the cursor's path.
+        var bars = music.Score.BarTimes(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)]);
+        bar = music.Score.Bars[bars[0].Index].Number;
         var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
         IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. timed, .. music.PianoPart ?? []] : music.PianoPart;
         var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
@@ -261,7 +265,7 @@
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
             var now = Clock.NowNs;
-            var at = music.Notes.LastOrDefault(n => run.TimeAt(Beat(n)) <= now)?.Bar ?? first.Bar;
+            var at = music.Score.Bars[bars.LastOrDefault(b => run.TimeAt(b.Start / (double)music.BeatTicks - from) <= now, bars[0]).Index].Number;
             if (at != bar)
             {
                 bar = at;
@@ -270,11 +274,19 @@
             if (live is not null) await Draw(live.Due(now));
         }), null, 100, 100);
         StateHasChanged();
-        // The cursor once the click's beat times are set: waiting at the first note through the count-in, then with the beat, from
-        // note to note of the run itself, so it goes back at a repeat as the notes do.
+        // The cursor once the click's beat times are set: waiting where the music starts through the count-in, then with the beat
+        // along the run's own path, so it goes back at a repeat as the notes do. The path is each of the run's bars, with the
+        // quarter it starts at and how many it lasts, and what's printed in them: each note and rest, both hands', with its
+        // quarters from its bar's start. So the cursor keeps the beat through rests and through bars the hand played has nothing in.
         await Task.Delay(50);
-        var onsets = music.Notes.GroupBy(n => n.Tick).Select(g => (PlayMusic.SheetId(g.First().Id), music.QuarterOf(g.Key))).ToList();
-        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters, onsets);
+        var printed = bars.Select(b => b.Index).Distinct().SelectMany(index => music.Score.Bars[index].Voices.SelectMany(v => v.Events).SelectMany(e => e switch
+        {
+            Notes { Grace: false } n => [(index, n.Tones[0].Id, n.Start / (double)Ticks.Quarter)],
+            Rest { Hidden: false } r => [(index, r.Id, r.Start / (double)Ticks.Quarter)],
+            _ => Array.Empty<(int, string, double)>(),
+        }));
+        var path = new CursorPath([.. bars.Select(b => (b.Index, music.QuarterOf(b.Start), b.Length / (double)Ticks.Quarter))], [.. printed]);
+        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters, path, Settings.Cursor);
     }
 
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
@@ -378,7 +390,8 @@
 
         var shown = marks.Select(m => MarkOf(music, m.Id, m.Kind, m.Played, m.ErrorPercent)).ToList();
         foreach (var mark in shown) drawn[mark.Id] = mark;
-        await sheet.MarkLive(shown);
+        // With the marks as you play off, they're kept all the same and shown when the run ends.
+        if (Settings.LiveMarks) await sheet.MarkLive(shown);
     }
 
     // A note's mark on the sheet. A wrong one shows the key played, a red head that many staff positions from the written one,

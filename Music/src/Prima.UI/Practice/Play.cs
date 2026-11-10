@@ -22,6 +22,12 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// <summary>Read ahead: how much of the music shows ahead of the cursor, in quarters; the rest is covered In time.</summary>
     public double? ReadAheadQuarters { get; init; }
 
+    /// <summary>
+    /// The bars the run plays, in order, by their place in the score: a repeat's or a loop's as often as they're played. Null for
+    /// every bar, once through.
+    /// </summary>
+    public IReadOnlyList<int>? Order { get; init; }
+
     public int BeatTicks => Score.Meter.BeatTicks;
 
     /// <summary>The opening pickup's length: Verovio's times count from the very start, a pickup's notes included.</summary>

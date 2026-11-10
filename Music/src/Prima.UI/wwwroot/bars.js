@@ -2,8 +2,6 @@
 // (show); this draws it and does the dragging, so a drag never waits on .NET, which is told once it ends:
 // - on the music: the chosen bar or the loop lit, with a tab over it (Loop on a bar, × on a loop), and on a loop a handle at
 //   each end to drag, onto other lines too, the bar under the finger named;
-// - beside the music, when it scrolls: the thumb, to drag through the piece, its rail marked with each line's first bar, the
-//   start and the loop; held, it names the bar at the top of the view and outlines it;
 // - under the piece's bar: the strip, a cell a bar, the bars on screen boxed: tap a cell to start there, drag along it to loop.
 
 const pieces = new Map();
@@ -13,8 +11,7 @@ const loopIcon = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="t
 const endIcon = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
 // The choice, from .NET: { from, to (null for no loop), lit, playing, explain, firstBar, ids (every bar's MEI id, in order) }.
-// The strip and the thumb are null when they aren't on screen.
-export function show(frame, strip, thumb, dotnet, choice) {
+export function show(frame, strip, dotnet, choice) {
     if (!(frame instanceof Element)) return;
     let state = pieces.get(frame);
     if (!state) {
@@ -34,7 +31,6 @@ export function show(frame, strip, thumb, dotnet, choice) {
     state.choice = { ...choice, ids };
     state.geo = null;
     if (state.strip !== strip) bindStrip(state, strip);
-    if (state.thumb !== thumb) bindThumb(state, thumb);
     watchMusic(state);
     drawAll(state);
 }
@@ -68,10 +64,7 @@ function queue(state, all) {
     state.queued = requestAnimationFrame(() => {
         state.queued = 0;
         if (state.all) drawAll(state);
-        else {
-            placeThumb(state);
-            drawWindow(state);
-        }
+        else drawWindow(state);
         state.all = false;
     });
 }
@@ -79,7 +72,6 @@ function queue(state, all) {
 function drawAll(state) {
     drawMarks(state);
     drawStrip(state);
-    drawThumb(state);
 }
 
 const make = (tag, cls, html) => {
@@ -160,7 +152,7 @@ function onScreen(state, list, box) {
 function marksLayer(state, sheet) {
     let layer = sheet.querySelector(":scope > .bar-marks");
     if (layer) return layer;
-    layer = make("div", "bar-marks", '<div class="bar-bands"></div><div class="bar-peek" hidden></div>'
+    layer = make("div", "bar-marks", '<div class="bar-bands"></div>'
         + '<div class="bar-tab" hidden><span class="bar-tab-label"></span><button type="button" class="mu-btn bar-tab-key"></button></div>'
         + '<div class="bar-handle" data-end="from" aria-hidden="true" hidden></div><div class="bar-handle" data-end="to" aria-hidden="true" hidden></div>'
         + '<div class="bar-bubble" hidden></div>');
@@ -180,7 +172,7 @@ function drawMarks(state) {
     const { sheet, list } = drawn(state);
     if (!sheet || !state.choice) return;
     const layer = marksLayer(state, sheet);
-    const c = state.choice, d = state.drag?.kind === "thumb" ? null : state.drag;
+    const c = state.choice, d = state.drag;
     const from = d ? d.from : c.from, to = d ? d.to : c.to;
     const tab = layer.querySelector(".bar-tab"), [start, end] = layer.querySelectorAll(".bar-handle");
     const lit = d || (c.lit && !c.playing && !c.explain);
@@ -319,7 +311,7 @@ function drawStrip(state) {
         e.style.left = at(a);
         e.style.width = `${(b - a + 1) / count * 100}%`;
     };
-    const d = state.drag?.kind === "thumb" ? null : state.drag;
+    const d = state.drag;
     const from = d ? d.from : c.from, to = d ? d.to : c.to;
     const loop = cells.querySelector(".bar-strip-loop"), start = cells.querySelector(".bar-strip-start");
     loop.hidden = to == null;
@@ -398,98 +390,4 @@ function bringIntoView(state, n) {
     const { sheet, list } = drawn(state), b = list.find(x => x.n === n), f = state.frame;
     if (!b || f.scrollHeight <= f.clientHeight + 2) return;
     f.scrollTo({ top: Math.max(0, sheet.offsetTop + b.top - f.clientHeight / 4), behavior: "smooth" });
-}
-
-// ——— The thumb ———
-
-function bindThumb(state, thumb) {
-    state.thumb = thumb;
-    if (!thumb) return;
-    thumb.innerHTML = '<div class="bar-rail"></div><div class="bar-ticks"></div><div class="bar-rail-loop" hidden></div><div class="bar-rail-start" hidden></div><div class="bar-thumb-key"></div><div class="bar-bubble bar-bubble-side" hidden></div>';
-    thumb.addEventListener("pointerdown", e => holdThumb(state, e));
-}
-
-// The rail's scale: the music's whole height, from its top, over the rail's height.
-function scale(state) {
-    const t = state.thumb, f = state.frame;
-    const rail = t.clientHeight - 12, whole = Math.max(f.scrollHeight, 1);
-    return { rail, whole, y: px => 6 + px / whole * rail };
-}
-
-function drawThumb(state) {
-    const t = state.thumb, c = state.choice;
-    if (!t || !c) return;
-    const { sheet, list } = drawn(state), { y } = scale(state), top = sheet?.offsetTop ?? 0;
-    t.querySelector(".bar-ticks").replaceChildren(...lines(list).map(l => place(make("div", "bar-tick", `<span>${l.bars[0].n}</span>`), 0, y(top + l.top))));
-    const lineOf = n => lines(list).find(l => l.bars.some(b => b.n === n));
-    const loop = t.querySelector(".bar-rail-loop"), start = t.querySelector(".bar-rail-start");
-    const a = c.to != null && lineOf(c.from), b = c.to != null && lineOf(c.to);
-    loop.hidden = !(a && b);
-    if (!loop.hidden) {
-        loop.style.top = `${y(top + a.top)}px`;
-        loop.style.height = `${Math.max(8, y(top + b.bottom) - y(top + a.top))}px`;
-    }
-    const s = c.lit && lineOf(c.from);
-    start.hidden = !s;
-    if (s) start.style.top = `${y(top + (s.top + s.bottom) / 2)}px`;
-    t.classList.toggle("bar-thumb-off", !!c.playing);
-    placeThumb(state);
-}
-
-function placeThumb(state) {
-    const t = state.thumb, f = state.frame;
-    if (!t) return;
-    const key = t.querySelector(".bar-thumb-key"), { rail, whole, y } = scale(state);
-    key.hidden = f.scrollHeight <= f.clientHeight + 2;
-    key.style.top = `${y(f.scrollTop)}px`;
-    key.style.height = `${Math.max(56, f.clientHeight / whole * rail)}px`;
-}
-
-// The thumb held (or the rail pressed, the thumb jumping there): the music follows it, and the bar at the top of the view is
-// named beside it and outlined, until it's let go. The start stays where it was.
-function holdThumb(state, e) {
-    const t = state.thumb, f = state.frame, key = t.querySelector(".bar-thumb-key");
-    if (state.choice?.playing || key.hidden) return;
-    e.preventDefault();
-    t.setPointerCapture(e.pointerId);
-    const { rail, whole } = scale(state), k = key.getBoundingClientRect();
-    if (e.clientY < k.top || e.clientY > k.bottom) f.scrollTop = (e.clientY - t.getBoundingClientRect().top - 6) / rail * whole - f.clientHeight / 2;
-    const from = { y: e.clientY, top: f.scrollTop };
-    key.classList.add("bar-held");
-    state.drag = { kind: "thumb" };
-    const peek = () => {
-        const { sheet, list, box } = drawn(state), seen = onScreen(state, list, box);
-        const side = t.querySelector(".bar-bubble-side"), outline = sheet?.querySelector(":scope > .bar-marks > .bar-peek");
-        side.hidden = !seen;
-        if (outline) outline.hidden = !seen;
-        if (!seen) return;
-        const b = list.find(x => x.n === seen[0]), kb = key.getBoundingClientRect(), tb = t.getBoundingClientRect();
-        place(side, kb.left - tb.left, kb.top - tb.top + kb.height / 2).textContent = `Bar ${seen[0]}`;
-        if (outline) {
-            place(outline, b.left - 3, b.top - 12);
-            outline.style.width = `${b.right - b.left + 6}px`;
-            outline.style.height = `${b.bottom - b.top + 24}px`;
-        }
-    };
-    const move = ev => {
-        f.scrollTop = from.top + (ev.clientY - from.y) / rail * whole;
-        placeThumb(state);
-        drawWindow(state);
-        peek();
-    };
-    const done = () => {
-        t.removeEventListener("pointermove", move);
-        t.removeEventListener("pointerup", done);
-        t.removeEventListener("pointercancel", done);
-        key.classList.remove("bar-held");
-        state.drag = null;
-        t.querySelector(".bar-bubble-side").hidden = true;
-        const outline = f.querySelector(".sheet > .bar-marks > .bar-peek");
-        if (outline) outline.hidden = true;
-    };
-    t.addEventListener("pointermove", move);
-    t.addEventListener("pointerup", done);
-    t.addEventListener("pointercancel", done);
-    placeThumb(state);
-    peek();
 }
