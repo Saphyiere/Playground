@@ -545,5 +545,7 @@ Only the devices can settle:
 
 Being researched: the Library's public-domain sources, importing PDFs, and page turns (`library.md`).
 
+Researched and not built yet: the technique exercises to add next, chord changes and jumps first (`exercises.md`).
+
 Open in the research: how best to step difficulty up, whether read-ahead and rhythm-only drills carry over to full reading in
 adults, whether spaced note review helps staff reading itself, and whether streaks help adult music learners keep going.

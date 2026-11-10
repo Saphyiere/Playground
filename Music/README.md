@@ -7,6 +7,7 @@ technique, and progress as honest numbers over weeks. Local data only: no accoun
 - How it works: [docs/concept.md](docs/concept.md)
 - How it's built, part by part: [docs/plan.md](docs/plan.md)
 - The evidence behind it: [docs/research.md](docs/research.md), and for the Library, [docs/library.md](docs/library.md)
+- Researched and not built yet: the exercises to add next, [docs/exercises.md](docs/exercises.md)
 
 ## Layout
 
