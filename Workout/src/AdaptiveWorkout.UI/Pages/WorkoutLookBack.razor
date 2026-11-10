@@ -15,6 +15,7 @@
 {
     var time = TimeText.Format((session.FinishedAt ?? session.StartedAt) - session.StartedAt);
     var volume = WorkoutStats.Volume(sets, Settings.Unit).ToString("N0", CultureInfo.CurrentCulture);
+    var warmUps = sets.Count(s => s.WarmUp);
     <div class="screen look-back">
         <PageHeader Back="" BackText="Today" Label="@($"{name} · {session.StartedAt.ToString(Theme.DayFormat, CultureInfo.CurrentCulture)}")" Title="Look back" />
 
@@ -27,7 +28,17 @@
                 </div>
                 <div class="row-text">
                     <span class="label">Sets</span>
-                    <span class="number sm">@sets.Count</span>
+                    @if (warmUps == 0)
+                    {
+                        <span class="number sm">@sets.Count</span>
+                    }
+                    else
+                    {
+                        <span class="inline baseline">
+                            <span class="number sm">@(sets.Count - warmUps)</span>
+                            <span class="unit">+ @warmUps warm-up</span>
+                        </span>
+                    }
                 </div>
                 <div class="row-text">
                     <span class="label">Volume</span>
@@ -82,8 +93,8 @@
                 <div class="ledger">
                     @foreach (var lift in answer.NextTime)
                     {
-                        // Today's sets of it, in the unit they used, that the plan moves from.
-                        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).Select(s => new WorkoutSet { Weight = s.Weight, WeightUnit = s.Unit, Reps = s.Reps }).ToList();
+                        // Today's sets of it, in the unit they used, that the plan moves from: not a warm-up, lighter on purpose.
+                        var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId && !s.WarmUp).Select(s => new WorkoutSet { Weight = s.Weight, WeightUnit = s.Unit, Reps = s.Reps }).ToList();
                         <NextLiftRow Name="@(input.Exercises.FirstOrDefault(e => e.Id == lift.ExerciseId)?.Name ?? "An exercise")" Change="@Lifts.Change(today, lift.Reps, lift.Weight)"
                                      Plan="@Lifts.Plan(today, lift.Sets, lift.Reps, lift.Weight, input.Body.Unit)" RestSeconds="lift.RestSeconds" Why="@lift.Why" />
                     }
@@ -104,7 +115,7 @@
                             <div class="row set-note">
                                 <span class="row-text">
                                     <span class="spread baseline">
-                                        <span class="name">@(set is null ? "A set" : $"{set.Exercise}, set {set.Number}")</span>
+                                        <span class="name">@(set is null ? "A set" : set.WarmUp ? $"{set.Exercise}, warm-up" : $"{set.Exercise}, set {set.Number}")</span>
                                         <span class="caption">@Treated(note.TreatedAs)</span>
                                     </span>
                                     @if (set is { Flags: [var flag, ..] })

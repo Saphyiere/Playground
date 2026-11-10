@@ -71,6 +71,20 @@
     flex: none;
 }
 
+/* A tick box that doesn't apply, like Hit goal on a warm-up set: faded, as a button that can't be pressed is. */
+.goal:has(input:disabled) {
+    opacity: 0.4;
+}
+
+/* Today so far: an exercise's sets, with its warm-up set written small under them, against the right edge. */
+.today-sets {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+}
+
 /* Left in the tank: how many more reps a set had in it, four small choices beside their label. */
 .tank {
     display: flex;

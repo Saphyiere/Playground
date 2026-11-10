@@ -185,9 +185,9 @@
             sessionRows.Add((template, days, theirs.Count, Total(theirs, theirs.SelectMany(s => setsBySession[s.Id]))));
         }
 
-        // Exercises, the latest done first, each against its own first time.
+        // Exercises, the latest done first, each against its own first time. One only ever warmed up with hasn't been done.
         var startedAt = sessions.ToDictionary(s => s.Id, s => s.StartedAt);
-        foreach (var exerciseSets in sets.GroupBy(s => s.ExerciseId).OrderByDescending(g => g.Max(s => startedAt[s.SessionId])))
+        foreach (var exerciseSets in sets.Working().GroupBy(s => s.ExerciseId).OrderByDescending(g => g.Max(s => startedAt[s.SessionId])))
         {
             if (!exercises.TryGetValue(exerciseSets.Key, out var exercise)) continue;
 

@@ -171,7 +171,8 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
         var highlights = new List<string>();
         foreach (var exercise in input.Exercises.Where(e => e.Measure == ExerciseMeasure.Weight))
         {
-            var sets = input.Workout.Sets.Where(s => s.ExerciseId == exercise.Id).ToList();
+            // A warm-up set isn't one of the exercise's sets.
+            var sets = input.Workout.Sets.Where(s => s.ExerciseId == exercise.Id && !s.WarmUp).ToList();
             var reps = sets.Select(s => s.Reps ?? 0).ToList();
             var weight = sets.GroupBy(s => s.Weight).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).First().Key;
             var reached = sets.Any(s => s.HitGoal) || reps.All(r => r >= 10);
@@ -206,8 +207,9 @@ public sealed class PreviewClaude(IAssistKeyStore keys, IAssistLog log) : IClaud
 
     private static string Summary(LookBackInput input, LookBack plan)
     {
-        var ups = plan.NextTime.Count(l => input.Workout.Sets.Where(s => s.ExerciseId == l.ExerciseId).Max(s => s.Weight) is double w && l.Weight > w);
-        return $"A steady {input.Workout.Name.ToLowerInvariant()}: {input.Workout.Sets.Count} sets in {input.Workout.Minutes} minutes. " +
+        var working = input.Workout.Sets.Where(s => !s.WarmUp).ToList();
+        var ups = plan.NextTime.Count(l => working.Where(s => s.ExerciseId == l.ExerciseId).Max(s => s.Weight) is double w && l.Weight > w);
+        return $"A steady {input.Workout.Name.ToLowerInvariant()}: {working.Count} sets in {input.Workout.Minutes} minutes. " +
             (ups > 0 ? $"{ups} of {plan.NextTime.Count} lifts go up a step next time; the rest hold their weight." : "Everything holds its weight next time.");
     }
 

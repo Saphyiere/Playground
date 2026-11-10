@@ -23,7 +23,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         CREATE TABLE IF NOT EXISTS Exercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, NameKey TEXT NOT NULL UNIQUE, Measure INTEGER NOT NULL, TaggedBy TEXT);
         CREATE TABLE IF NOT EXISTS TemplateExercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, TemplateId INTEGER NOT NULL REFERENCES SessionTemplate (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, PlannedSets INTEGER, SupersetGroup INTEGER);
         CREATE TABLE IF NOT EXISTS WorkoutSession (Id INTEGER PRIMARY KEY AUTOINCREMENT, TemplateId INTEGER REFERENCES SessionTemplate (Id), StartedAt TEXT NOT NULL, FinishedAt TEXT, LoggedAfterward INTEGER NOT NULL DEFAULT 0, Improvement REAL, ExercisesCompared INTEGER, WarmUp INTEGER NOT NULL DEFAULT 0, WarmUpEndedAt TEXT, CoolDown INTEGER NOT NULL DEFAULT 0, CoolDownStartedAt TEXT, AverageBpm REAL);
-        CREATE TABLE IF NOT EXISTS WorkoutSet (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, StartedAt TEXT, StoppedAt TEXT, Weight REAL, WeightUnit INTEGER NOT NULL, Reps INTEGER, DurationSeconds INTEGER, HitGoal INTEGER NOT NULL DEFAULT 0, RepsLeft INTEGER);
+        CREATE TABLE IF NOT EXISTS WorkoutSet (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, StartedAt TEXT, StoppedAt TEXT, Weight REAL, WeightUnit INTEGER NOT NULL, Reps INTEGER, DurationSeconds INTEGER, HitGoal INTEGER NOT NULL DEFAULT 0, RepsLeft INTEGER, WarmUp INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS FoodEntry (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Calories INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS BodyWeightEntry (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Weight REAL NOT NULL, WeightUnit INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS HeartRateSample (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Bpm INTEGER NOT NULL);
@@ -81,6 +81,9 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
 
     // Sets got how many more reps they had in them after the table existed.
     private const string SetRepsLeft = "ALTER TABLE WorkoutSet ADD COLUMN RepsLeft INTEGER;";
+
+    // Sets got the warm-up mark after the table existed.
+    private const string SetWarmUp = "ALTER TABLE WorkoutSet ADD COLUMN WarmUp INTEGER NOT NULL DEFAULT 0;";
 
     // Exercises got who tagged their muscles (claude or owner; empty until tagged) after the table existed.
     private const string ExerciseTaggedBy = "ALTER TABLE Exercise ADD COLUMN TaggedBy TEXT;";
@@ -250,21 +253,21 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     public Task DeleteSessionAsync(WorkoutSession session) => RunAsync(c => c.ExecuteAsync("DELETE FROM WorkoutSession WHERE Id = @Id", session));
 
     public Task<List<WorkoutSet>> GetSetsAsync() => RunAsync(async c =>
-        (await c.QueryAsync<WorkoutSet>("""SELECT Id, SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft FROM WorkoutSet ORDER BY SessionId, "Order" """)).AsList());
+        (await c.QueryAsync<WorkoutSet>("""SELECT Id, SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft, WarmUp FROM WorkoutSet ORDER BY SessionId, "Order" """)).AsList());
 
     /// <summary>One workout's sets, in order.</summary>
     public Task<List<WorkoutSet>> GetSessionSetsAsync(long sessionId) => RunAsync(async c =>
-        (await c.QueryAsync<WorkoutSet>("""SELECT Id, SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft FROM WorkoutSet WHERE SessionId = @sessionId ORDER BY "Order" """, new { sessionId })).AsList());
+        (await c.QueryAsync<WorkoutSet>("""SELECT Id, SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft, WarmUp FROM WorkoutSet WHERE SessionId = @sessionId ORDER BY "Order" """, new { sessionId })).AsList());
 
-    /// <summary>How many sets each workout had of each exercise: enough for Gym's list and trend, without reading every set.</summary>
+    /// <summary>How many sets each workout had of each exercise, warm-ups aside: enough for Gym's list and trend, without reading every set.</summary>
     public Task<List<(long SessionId, long ExerciseId, int Sets)>> GetExerciseSetCountsAsync() => RunAsync(async c =>
-        (await c.QueryAsync<(long SessionId, long ExerciseId, int Sets)>("SELECT SessionId, ExerciseId, COUNT(*) FROM WorkoutSet GROUP BY SessionId, ExerciseId")).AsList());
+        (await c.QueryAsync<(long SessionId, long ExerciseId, int Sets)>("SELECT SessionId, ExerciseId, COUNT(*) FROM WorkoutSet WHERE WarmUp = 0 GROUP BY SessionId, ExerciseId")).AsList());
 
     /// <summary>Saves a new set and fills in its Id. The session may still be waiting to be saved; its Id is read when this runs.</summary>
     public Task InsertSetAsync(WorkoutSession session, WorkoutSet set) => RunAsync(async c =>
     {
         set.SessionId = session.Id;
-        set.Id = await c.ExecuteScalarAsync<long>("""INSERT INTO WorkoutSet (SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft) VALUES (@SessionId, @ExerciseId, @Order, @StartedAt, @StoppedAt, @Weight, @WeightUnit, @Reps, @DurationSeconds, @HitGoal, @RepsLeft); SELECT last_insert_rowid();""", set);
+        set.Id = await c.ExecuteScalarAsync<long>("""INSERT INTO WorkoutSet (SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft, WarmUp) VALUES (@SessionId, @ExerciseId, @Order, @StartedAt, @StoppedAt, @Weight, @WeightUnit, @Reps, @DurationSeconds, @HitGoal, @RepsLeft, @WarmUp); SELECT last_insert_rowid();""", set);
     });
 
     /// <summary>Removes a set, e.g. one started on an exercise that was changed before it was done. Its Id is read when this runs.</summary>
@@ -284,7 +287,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     });
 
     public Task UpdateSetAsync(WorkoutSet set) => RunAsync(c =>
-        c.ExecuteAsync("UPDATE WorkoutSet SET StoppedAt = @StoppedAt, Weight = @Weight, WeightUnit = @WeightUnit, Reps = @Reps, DurationSeconds = @DurationSeconds, HitGoal = @HitGoal, RepsLeft = @RepsLeft WHERE Id = @Id", set));
+        c.ExecuteAsync("UPDATE WorkoutSet SET StoppedAt = @StoppedAt, Weight = @Weight, WeightUnit = @WeightUnit, Reps = @Reps, DurationSeconds = @DurationSeconds, HitGoal = @HitGoal, RepsLeft = @RepsLeft, WarmUp = @WarmUp WHERE Id = @Id", set));
 
     public Task AddFoodAsync(int calories, DateTimeOffset at) => RunAsync(c => c.ExecuteAsync("INSERT INTO FoodEntry (At, Calories) VALUES (@at, @calories)", new { at, calories }));
 
@@ -353,6 +356,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSession') WHERE name = 'WarmUp'") == 0) await connection.ExecuteAsync(WarmUpAndCoolDown);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSession') WHERE name = 'AverageBpm'") == 0) await connection.ExecuteAsync(SessionHeartRate);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSet') WHERE name = 'RepsLeft'") == 0) await connection.ExecuteAsync(SetRepsLeft);
+                    if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSet') WHERE name = 'WarmUp'") == 0) await connection.ExecuteAsync(SetWarmUp);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('Exercise') WHERE name = 'TaggedBy'") == 0) await connection.ExecuteAsync(ExerciseTaggedBy);
                     schemaReady = true;
                 }

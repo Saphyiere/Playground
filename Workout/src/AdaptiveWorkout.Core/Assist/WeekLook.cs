@@ -117,7 +117,7 @@ public static class WeekFacts
         {
             var date = monday.AddDays(i);
             var done = sessions.Where(s => DateOnly.FromDateTime(s.StartedAt.DateTime) == date).Select(s => s.Id).ToHashSet();
-            var names = sets.Where(s => done.Contains(s.SessionId)).Select(s => s.ExerciseId).Distinct().Select(id => exercises.TryGetValue(id, out var e) ? e.Name : "").ToList();
+            var names = sets.Working().Where(s => done.Contains(s.SessionId)).Select(s => s.ExerciseId).Distinct().Select(id => exercises.TryGetValue(id, out var e) ? e.Name : "").ToList();
             return new WeekDay(date, context.Routine is null ? "" : context.Routine.Week[i]?.Name ?? "Rest", done.Count, names);
         }).ToList();
 

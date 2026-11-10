@@ -96,7 +96,8 @@
         var bodyWeights = await Store.GetBodyWeightsAsync();
         var theirs = sessions.Where(s => s.TemplateId == Id).ToList();
         var ids = theirs.Select(s => s.Id).ToHashSet();
-        var theirSets = sets.Where(s => ids.Contains(s.SessionId)).ToList();
+        // Warm-up sets aside: they aren't among a workout's sets here, or its exercises'.
+        var theirSets = sets.Working().Where(s => ids.Contains(s.SessionId)).ToList();
         setsBySession = theirSets.ToLookup(s => s.SessionId);
         workouts = [.. Enumerable.Reverse(theirs)];
         trend = Progress.Trend(theirs, theirSets, exercises, bodyWeights);

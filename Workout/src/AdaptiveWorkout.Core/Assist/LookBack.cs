@@ -52,8 +52,8 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
 {
     public override string Name => "workout.look-back";
 
-    // 2: reps left, the first minute's heart rate fall, and plateaus. 3: the week's muscles, on its last planned workout.
-    public override int Version => 3;
+    // 2: reps left, the first minute's heart rate fall, and plateaus. 3: the week's muscles, on its last planned workout. 4: warm-up sets.
+    public override int Version => 4;
 
     // The owner waits on the screen for it, and judging a workout's sets doesn't need the deepest thinking.
     public override EffortLevel Effort => EffortLevel.Medium;
@@ -72,11 +72,12 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
           bpmAtStart, bpmAverage and bpmPeak for the set, restLowBpm for the rest before it, and bpmDropFirstMinute, how far it fell
           in the minute after the set stopped. Any of these is null when the set was logged afterward or the watch had no readings.
           repsLeft, when the owner said it, is how many more reps the set had in it: 0 to 3, where 3 means three or more.
+          warmUp marks a set the owner said was a warm-up: lighter on purpose, before the exercise's working sets (its number is 0).
         - flags: what the app found odd about a set, with what it saw: longSet, shortRest, effortDuringRest, oddNumber, goalBox.
-        - exercises: each exercise done today, with plannedSets (null: as many as last time), the rest countdown it had, what the
-          last look back said for today (trainerSaid; empty when it wasn't used), and its last three times before today. When it has
-          gone flat, counting today, flatWorkouts is how many workouts since its best without beating it, and best is that workout;
-          0 and empty otherwise.
+        - exercises: each exercise with a working set today, with plannedSets (null: as many as last time), the rest countdown it
+          had, what the last look back said for today (trainerSaid; empty when it wasn't used), and its last three times before
+          today. When it has gone flat, counting today, flatWorkouts is how many workouts since its best without beating it, and
+          best is that workout; 0 and empty otherwise.
         - hitGoalStep: how much a weight moves, in the set's unit. body: the latest weigh-in, and the daily calorie goal against
           maintenance; a goal under maintenance means they're eating less to lose weight.
         - muscles, only when today is the last workout their routine plans this week (null otherwise): the week's hard sets for each
@@ -92,6 +93,9 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
         - Never swap an exercise or add one: they're keeping their routine as it is until they're lighter and training steadily.
         - While they eat below maintenance, progress can be slow; a flat day isn't a failure, and it isn't a reason to go down.
         - Where today followed trainerSaid, judge today against it.
+
+        Warm-up sets aren't the exercise's sets: leave them out of its reps, its weight and its plan, never read a lighter warm-up as
+        a slip or a typo, and don't count them against plannedSets. They need no note. An exercise with only a warm-up isn't planned.
 
         Reps left: people tend to guess about one rep low, and guess better close to failure, so read it across an exercise's sets,
         never from one. Every set at its reps with 3 or more left means the weight is light for them: two steps if that stays within
@@ -132,8 +136,9 @@ public static class LookBackPlan
 {
     /// <summary>
     /// What's wrong with an answer, as sentences for Claude to fix; none when it's fine. Each weight exercise of the workout has one
-    /// next time and nothing else does; sets, reps and rest are in range; a weight is whole hit-goal steps from a weight used today or
-    /// in the exercise's last times, by at most a tenth of it or one step (bodyweight stays 0); notes are about the workout's sets.
+    /// next time and nothing else does; sets, reps and rest are in range; a weight is whole hit-goal steps from a weight used today
+    /// (not in a warm-up) or in the exercise's last times, by at most a tenth of it or one step (bodyweight stays 0); notes are about
+    /// the workout's sets.
     /// </summary>
     public static IReadOnlyList<string> Problems(LookBackInput input, LookBack answer)
     {
@@ -157,7 +162,7 @@ public static class LookBackPlan
                 continue;
             }
 
-            var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
+            var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId && !s.WarmUp).ToList();
             var bases = today.Select(s => s.Weight).Concat(exercise.LastTimes.SelectMany(t => t.Weights.Select(w => (double?)w))).OfType<double>().Distinct().ToList();
             problems.AddRange(Lifts.Problems(exercise.Name, lift.Sets, lift.Reps, lift.Weight, lift.RestSeconds, lift.Why, bases, today.All(s => s.Weight is null), step,
                 "used today or in its last times"));
@@ -183,7 +188,7 @@ public static class LookBackPlan
     public static IReadOnlyList<(long ExerciseId, TrainerTarget Target)> Targets(LookBackInput input, LookBack answer) =>
         [.. answer.NextTime.Select(lift =>
         {
-            var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId).ToList();
+            var today = input.Workout.Sets.Where(s => s.ExerciseId == lift.ExerciseId && !s.WarmUp).ToList();
             var unit = today.Count > 0 ? today[^1].Unit : input.Body.Unit;
             double? weight = today.All(s => s.Weight is null) && lift.Weight == 0 ? null : lift.Weight;
             return (lift.ExerciseId, new TrainerTarget(input.Workout.Id, weight, unit, lift.Reps, lift.Sets, lift.RestSeconds));

@@ -18,19 +18,22 @@ public sealed record LookBackWorkout(long Id, string Name, DateOnly Date, TimeOn
     IReadOnlyList<LookBackSet> Sets);
 
 /// <summary>
-/// One set as the app saw it. <paramref name="Number"/> counts the exercise's sets today; <paramref name="WithPrevious"/> marks a superset
+/// One set as the app saw it. <paramref name="Number"/> counts the exercise's sets today (0 for a warm-up, which isn't one of them);
+/// <paramref name="WithPrevious"/> marks a superset
 /// round's later exercises, started with the one before. Times and heart rate are null when the set was logged afterward or the watch had no
 /// readings: <paramref name="Seconds"/> is how long it ran, <paramref name="RestBeforeSeconds"/> the gap since the round before stopped.
 /// <paramref name="RepsLeft"/> is how many more reps it had in it, when the owner said (0 to 3, 3 meaning three or more), and
 /// <paramref name="BpmDropFirstMinute"/> how far heart rate fell in the minute after it stopped. Those two came with version 2, so a look
-/// back kept before reads without them.
+/// back kept before reads without them. <paramref name="WarmUp"/> marks a set the owner said was a warm-up, lighter on purpose: it has no
+/// flags and counts for nothing in the exercise's numbers. It came with version 4.
 /// </summary>
 public sealed record LookBackSet(long Id, long ExerciseId, string Exercise, int Number, bool WithPrevious, double? Weight, WeightUnit Unit, int? Reps,
     bool HitGoal, int? Seconds, int? RestBeforeSeconds, int? BpmAtStart, int? BpmAverage, int? BpmPeak, int? RestLowBpm, IReadOnlyList<SetFlag> Flags,
-    int? RepsLeft = null, int? BpmDropFirstMinute = null);
+    int? RepsLeft = null, int? BpmDropFirstMinute = null, bool WarmUp = false);
 
 /// <summary>
-/// An exercise done today: its planned sets (null: as many as last time), the rest countdown it had, what the last look back said for today
+/// An exercise with a working set today (one with nothing but warm-up sets isn't here): its planned sets (null: as many as last time), the
+/// rest countdown it had, what the last look back said for today
 /// (empty when none was used), and its last three times before today, newest first. When it's gone flat, counting today (see
 /// <see cref="Plateaus"/>), <paramref name="FlatWorkouts"/> is how many workouts since its best, and <paramref name="Best"/> that workout; 0
 /// and empty otherwise, and in a look back kept before version 2.
@@ -99,7 +102,8 @@ public static class LookBackFacts
         var earlierIds = earlier.Select(s => s.Id).ToHashSet();
         var earlierSets = allSets.Where(s => earlierIds.Contains(s.SessionId)).ToList();
         var setsBySession = earlierSets.ToLookup(s => s.SessionId);
-        var exerciseIds = ordered.Select(s => s.ExerciseId).Distinct().ToList();
+        // The exercises are the ones with a working set today: a warm-up set, lighter on purpose, isn't one of an exercise's sets.
+        var exerciseIds = ordered.Working().Select(s => s.ExerciseId).Distinct().ToList();
         var history = exerciseIds.ToDictionary(id => id, id => ExerciseHistory.Recent(id, earlier, earlierSets, session.Id, 3));
 
         // Rounds: sets started together (a superset's) rest together, from the round before's last stop.
@@ -122,17 +126,18 @@ public static class LookBackFacts
             {
                 var set = rounds[r][m];
                 var measure = exercises[set.ExerciseId].Measure;
-                var today = ordered.Where(s => s.ExerciseId == set.ExerciseId).ToList();
+                var today = ordered.Working().Where(s => s.ExerciseId == set.ExerciseId).ToList();
                 int? seconds = measure == ExerciseMeasure.Time && set.DurationSeconds is int typed ? typed
                     : set is { StartedAt: { } start, StoppedAt: { } stop } && stop >= start ? (int)Math.Round((stop - start).TotalSeconds) : null;
                 var during = set is { StartedAt: { } s1, StoppedAt: { } s2 } ? WorkoutStats.HeartRate(readings, s1, s2) : null;
                 var flags = new List<SetFlag>();
-                if (measure == ExerciseMeasure.Weight)
+                if (measure == ExerciseMeasure.Weight && !set.WarmUp)
                 {
                     var past = history[set.ExerciseId].SelectMany(p => p.Sets).ToList();
                     var others = today.Where(s => s.Id != set.Id).Concat(past).ToList();
                     LongSet(set, seconds, others, flags);
-                    if (m == 0 && rest is int gap) ShortRest(gap, before![^1].ExerciseId, exercises, context, flags);
+                    // A short rest after a warm-up is as it should be.
+                    if (m == 0 && rest is int gap && !before!.All(s => s.WarmUp)) ShortRest(gap, before![^1].ExerciseId, exercises, context, flags);
                     if (m == 0 && restFrom is { } restStart) EffortDuringRest(set, restStart, readings, flags);
                     OddNumber(set, others, flags);
                     GoalBox(set, today, history[set.ExerciseId].FirstOrDefault()?.Sets, flags);
@@ -141,7 +146,7 @@ public static class LookBackFacts
                 facts.Add(new LookBackSet(set.Id, set.ExerciseId, exercises[set.ExerciseId].Name, today.IndexOf(set) + 1, m > 0, set.Weight, set.WeightUnit,
                     set.Reps, set.HitGoal, seconds, rest, Bpm(readings, set.StartedAt), during?.Average, during?.Max,
                     restFrom is { } low && restTo is { } high ? Lowest(readings, low, high) : null, flags,
-                    set.RepsLeft, set.StoppedAt is { } stopped ? HeartRateRecovery.FirstMinute(readings, stopped, nextStart) : null));
+                    set.RepsLeft, set.StoppedAt is { } stopped ? HeartRateRecovery.FirstMinute(readings, stopped, nextStart) : null, set.WarmUp));
             }
         }
 

@@ -1,5 +1,6 @@
 @* A workout's sets by exercise: weight × reps (or the time), how long each set took, and the heart rate during it when there's
-   any. Tapping a set opens it to change its numbers or Hit goal, or to delete it, after asking once. *@
+   any. A warm-up set has W for its number, and the others count without it. Tapping a set opens it to change its numbers, Hit goal
+   or Warm-up, or to delete it, after asking once. *@
 
 @foreach (var exerciseSets in Sets.GroupBy(s => s.ExerciseId))
 {
@@ -30,10 +31,10 @@
             @for (var i = 0; i < list.Count; i++)
             {
                 var set = list[i];
-                var number = i + 1;
+                var number = set.WarmUp ? "W" : (list.Take(i).Count(s => !s.WarmUp) + 1).ToString(CultureInfo.CurrentCulture);
                 var open = editing == set;
                 <button type="button" class="set-line @(open ? "picked" : "")" aria-expanded="@(open ? "true" : "false")" @onclick="() => Open(set)">
-                    <span class="caption">@number</span>
+                    <span class="caption">@number@if (set.WarmUp) { <span class="sr-only">, warm-up</span> }</span>
                     <span class="body">@(timed ? TimeText.Format(TimeSpan.FromSeconds(set.DurationSeconds ?? 0)) : $"{SetSummary.WeightText(set.Weight)} × {set.Reps ?? 0}")</span>
                     <span class="caption">@(timed || set.StartedAt is null || set.StoppedAt is null ? "" : TimeText.Format(set.StoppedAt.Value - set.StartedAt.Value))</span>
                     @if (Samples is not null)
@@ -47,7 +48,7 @@
                     <div class="set-edit appear">
                         @if (confirming)
                         {
-                            <p class="name">Delete set @number of @exercise.Name?</p>
+                            <p class="name">@(set.WarmUp ? $"Delete the warm-up set of {exercise.Name}?" : $"Delete set {number} of {exercise.Name}?")</p>
                             <div class="grid-2">
                                 <button type="button" class="btn tall" @onclick="() => confirming = false">Keep it</button>
                                 <button type="button" class="btn tall fill" @onclick="() => DeleteAsync(set)">Delete</button>
@@ -87,14 +88,21 @@
                                         </div>
                                     </div>
                                     <label class="goal">
-                                        <input type="checkbox" @bind="hitGoal" />
+                                        <input type="checkbox" disabled="@warmUp" @bind="hitGoal" />
                                         <span>Hit goal</span>
                                     </label>
                                 }
                             </div>
                             @if (!timed)
                             {
-                                <RepsLeftPicker Id="@($"{id}-tank")" @bind-Value="repsLeft" />
+                                <RepsLeftPicker Id="@($"{id}-tank")" Disabled="warmUp" @bind-Value="repsLeft" />
+                                <label class="goal">
+                                    <input type="checkbox" @bind="warmUp" @bind:after="() => { if (warmUp) (hitGoal, repsLeft) = (false, null); }" />
+                                    <span class="row-text">
+                                        <span>Warm-up</span>
+                                        <span class="note">Left out of its sets and next time's weight.</span>
+                                    </span>
+                                </label>
                             }
                             <div class="spread">
                                 <button type="button" class="btn-ghost" @onclick="() => confirming = true"><Icon Name="trash" Size="18" />Delete set</button>
@@ -121,6 +129,7 @@
     private int? reps;
     private bool hitGoal;
     private int? repsLeft;
+    private bool warmUp;
     private int? minutes;
     private int? seconds;
 
@@ -132,7 +141,7 @@
     /// <summary>Heart rate readings for the Bpm column; without them there's no such column.</summary>
     [Parameter] public IReadOnlyList<HeartRateSample>? Samples { get; set; }
 
-    /// <summary>Called with a set whose numbers or Hit goal changed, already changed.</summary>
+    /// <summary>Called with a set whose numbers, Hit goal or Warm-up changed, already changed.</summary>
     [Parameter] public EventCallback<WorkoutSet> OnSave { get; set; }
 
     /// <summary>Called with a set to delete, once deleting it was confirmed.</summary>
@@ -145,14 +154,14 @@
     {
         editing = editing == set ? null : set;
         confirming = false;
-        (weight, reps, hitGoal, repsLeft) = (set.Weight, set.Reps, set.HitGoal, set.RepsLeft);
+        (weight, reps, hitGoal, repsLeft, warmUp) = (set.Weight, set.Reps, set.HitGoal, set.RepsLeft, set.WarmUp);
         (minutes, seconds) = (set.DurationSeconds / 60, set.DurationSeconds % 60);
     }
 
     private Task SaveAsync(WorkoutSet set)
     {
         if (Exercises[set.ExerciseId].Measure == ExerciseMeasure.Time) set.DurationSeconds = Math.Max(0, (minutes ?? 0) * 60 + (seconds ?? 0));
-        else (set.Weight, set.Reps, set.HitGoal, set.RepsLeft) = (weight, reps, hitGoal, repsLeft);
+        else (set.Weight, set.Reps, set.HitGoal, set.RepsLeft, set.WarmUp) = (weight, reps, hitGoal, repsLeft, warmUp);
         editing = null;
         return OnSave.InvokeAsync(set);
     }

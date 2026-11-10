@@ -16,19 +16,22 @@ public static class SetSuggestion
     /// <summary>
     /// The previous set this session; else the trainer's next time, when it's applied for this time; else, after a hit goal last time,
     /// that set's weight plus the step; else the first set last time. Bodyweight stays bodyweight. Null when there is nothing to go on.
+    /// Warm-up sets, lighter on purpose, are passed over: this session's and last time's.
     /// </summary>
     /// <param name="thisSession">This exercise's sets so far this session, in order.</param>
     /// <param name="lastTime">This exercise's sets the last time I did it, in order.</param>
     /// <param name="trainer">The trainer's applied next time for this exercise, when it's from the last time I did it.</param>
     public static SetValues? For(IReadOnlyList<WorkoutSet> thisSession, IReadOnlyList<WorkoutSet> lastTime, double hitGoalStep, TrainerTarget? trainer = null)
     {
-        if (thisSession.Count > 0) return new SetValues(thisSession[^1].Weight, thisSession[^1].WeightUnit, thisSession[^1].Reps, false);
+        if (thisSession.Working().LastOrDefault() is { } before) return new SetValues(before.Weight, before.WeightUnit, before.Reps, false);
         if (trainer is not null) return new SetValues(trainer.Weight, trainer.Unit, trainer.Reps, false, FromTrainer: true);
-        if (lastTime.Count == 0) return null;
 
-        var goalSet = lastTime.LastOrDefault(s => s.HitGoal && s.Weight is not null);
+        var last = lastTime.Working().ToList();
+        if (last.Count == 0) return null;
+
+        var goalSet = last.LastOrDefault(s => s.HitGoal && s.Weight is not null);
         if (goalSet is not null) return new SetValues(goalSet.Weight + hitGoalStep, goalSet.WeightUnit, goalSet.Reps, true);
 
-        return new SetValues(lastTime[0].Weight, lastTime[0].WeightUnit, lastTime[0].Reps, false);
+        return new SetValues(last[0].Weight, last[0].WeightUnit, last[0].Reps, false);
     }
 }

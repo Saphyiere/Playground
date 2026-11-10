@@ -21,8 +21,8 @@
     <div class="screen">
         <WorkoutHeader State="state" Advanced="true" OnFinish="FinishAsync" />
 
-        @* Each exercise's box: ticked in pen once it has sets, the pen's dot while it's the one now, empty until then. A warm-up and a
-           cool-down are boxes of their own at either end. *@
+        @* Each exercise's box: ticked in pen once it has sets, the pen's dot while it's the one now, empty until then. A warm-up set
+           isn't one of its sets: it says "Warmed up", without a tick. A warm-up and a cool-down are boxes of their own at either end. *@
         @if (state.Plan.Count > 0 || state.Session.WarmUp || state.Session.CoolDown)
         {
             <section class="ledger" aria-label="Plan">
@@ -65,9 +65,10 @@
                         @foreach (var entry in block)
                         {
                             var exercise = state.Exercises[entry.ExerciseId];
-                            var done = blockSets.Where(s => s.ExerciseId == entry.ExerciseId && s.StoppedAt is not null).ToList();
+                            var logged = blockSets.Where(s => s.ExerciseId == entry.ExerciseId && s.StoppedAt is not null).ToList();
+                            var done = logged.Working().ToList();
                             var isCurrent = isCurrentBlock && current.Contains(entry.ExerciseId);
-                            var last = done.Count == 0 ? state.History(entry.ExerciseId).FirstOrDefault() : null;
+                            var last = logged.Count == 0 ? state.History(entry.ExerciseId).FirstOrDefault() : null;
                             <div class="row @(isCurrent ? "picked" : "")">
                                 <span class="status">
                                     @if (isCurrent)
@@ -86,9 +87,9 @@
                                         {
                                             @("Skipped")
                                         }
-                                        else if (done.Count > 0)
+                                        else if (logged.Count > 0)
                                         {
-                                            @($"{SetSummary.Format(done, exercise.Measure)}{(isCurrent ? " · now" : "")}")
+                                            @($"{Done(logged, exercise.Measure)}{(isCurrent ? " · now" : "")}")
                                         }
                                         else
                                         {
@@ -134,10 +135,15 @@
                     {
                         var exercise = state.Exercises[sets.Key];
                         <div class="row">
-                            <span class="status"><Mark Kind="MarkKind.Tick" Size="28" /></span>
+                            <span class="status">
+                                @if (sets.Any(s => !s.WarmUp))
+                                {
+                                    <Mark Kind="MarkKind.Tick" Size="28" />
+                                }
+                            </span>
                             <span class="row-text">
                                 <span class="name">@exercise.Name</span>
-                                <span class="caption">@SetSummary.Format([.. sets], exercise.Measure)</span>
+                                <span class="caption">@Done([.. sets], exercise.Measure)</span>
                             </span>
                         </div>
                     }
@@ -179,6 +185,13 @@
     private void OnFlowChanged() => _ = InvokeAsync(StateHasChanged);
 
     public void Dispose() => Flow.Changed -= OnFlowChanged;
+
+    // An exercise's sets so far: "10, 9 at 30", after "Warmed up" when it had a warm-up set, which isn't one of them.
+    private static string Done(IReadOnlyList<WorkoutSet> sets, ExerciseMeasure measure)
+    {
+        var working = sets.Working().ToList();
+        return working.Count == sets.Count ? SetSummary.Format(working, measure) : working.Count == 0 ? "Warmed up" : $"Warmed up · {SetSummary.Format(working, measure)}";
+    }
 
     // Another set of the last exercise, or another round of its superset.
     private void AddSet()

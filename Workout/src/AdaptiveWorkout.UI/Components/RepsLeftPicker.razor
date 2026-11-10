@@ -6,7 +6,7 @@
         @for (var reps = 0; reps <= 3; reps++)
         {
             var value = reps;
-            <button type="button" aria-pressed="@(Value == value ? "true" : "false")" aria-label="@Label(value)" @onclick="() => PickAsync(value)">@(value == 3 ? "3+" : value.ToString(CultureInfo.InvariantCulture))</button>
+            <button type="button" aria-pressed="@(Value == value ? "true" : "false")" aria-label="@Label(value)" disabled="@Disabled" @onclick="() => PickAsync(value)">@(value == 3 ? "3+" : value.ToString(CultureInfo.InvariantCulture))</button>
         }
     </div>
 </div>
@@ -19,6 +19,9 @@
     [Parameter] public int? Value { get; set; }
 
     [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    /// <summary>Not asked, e.g. of a warm-up set.</summary>
+    [Parameter] public bool Disabled { get; set; }
 
     private Task PickAsync(int value) => ValueChanged.InvokeAsync(Value == value ? null : value);
 

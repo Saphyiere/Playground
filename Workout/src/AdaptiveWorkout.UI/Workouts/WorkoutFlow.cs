@@ -191,8 +191,19 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         Announce();
     }
 
-    /// <summary>Saves edits to a set (weight, reps, hit goal).</summary>
-    public void SaveSet(WorkoutSet set) => Save(store.UpdateSetAsync(set));
+    /// <summary>
+    /// Saves edits to a set of the open workout (weight, reps, hit goal, reps left, warm-up). What's next follows, since a warm-up
+    /// isn't one of an exercise's sets and the next set starts from the last working one; a warm-up has no goal to hit.
+    /// </summary>
+    public void SaveSet(WorkoutSet set)
+    {
+        if (set.WarmUp) (set.HitGoal, set.RepsLeft) = (false, null);
+        Save(store.UpdateSetAsync(set));
+        if (Current is not { } state) return;
+
+        state.Refresh();
+        Announce();
+    }
 
     /// <summary>Deletes a finished set of the open workout, e.g. one done by mistake. What's next follows from the sets left.</summary>
     public void DeleteSet(WorkoutSet set)
@@ -211,6 +222,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         await LoadAsync();
         var at = pastSets.FindIndex(s => s.Id == set.Id);
         if (at >= 0) pastSets[at] = set;
+        if (set.WarmUp) (set.HitGoal, set.RepsLeft) = (false, null);
         Save(store.UpdateSetAsync(set));
         await RescoreFromAsync(set.SessionId);
     }

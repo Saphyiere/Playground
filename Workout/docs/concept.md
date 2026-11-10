@@ -58,7 +58,7 @@ Am I getting better, and everything I've done:
 
 - **Improvement:** how much better my exercises are than the first time I did them, on average (**+12.8%** over 13 workouts), with the line of how it got there. Tapping the line picks a workout: its name, date and how it did against the last time. See *Adaptive* for how it's worked out.
 - **Edit routine** opens the routines, to edit one or switch.
-- **History:** every finished workout, newest first and grouped by month: its name, date, length, set count and improvement, with a delete on each row. Tapping one shows its numbers (time, sets, volume, average and highest heart rate, and roughly what it burned, with its likely range) and every set by exercise: weight × reps, how long the set took, and the heart rate during it. Tapping a set opens it to change its weight and reps (or time), Hit goal and what was left in the tank, or to delete just that set after asking once; that workout's improvement, and every later one's, is worked out again. A warm-up comes before the exercises and a cool-down after them, each with how long it took and its average and highest heart rate. **Delete workout** at the bottom removes it and its sets, so suggestions and the last three times forget it too.
+- **History:** every finished workout, newest first and grouped by month: its name, date, length, set count and improvement, with a delete on each row. Tapping one shows its numbers (time, sets, volume, average and highest heart rate, and roughly what it burned, with its likely range) and every set by exercise: weight × reps, how long the set took, and the heart rate during it. Tapping a set opens it to change its weight and reps (or time), Hit goal, what was left in the tank and whether it was a warm-up set (see *Warm-up sets*), or to delete just that set after asking once; that workout's improvement, and every later one's, is worked out again. A warm-up comes before the exercises and a cool-down after them, each with how long it took and its average and highest heart rate. **Delete workout** at the bottom removes it and its sets, so suggestions and the last three times forget it too.
 
 ### Stats
 
@@ -175,7 +175,7 @@ I can leave simple mode at any moment, like leaving full screen. **Advanced mode
 
    A superset's round runs both exercises at once, split side by side: each one's name with its own **Change**, one timer, and each one's last three times under it.
 2. **Stop** ends the set, and rest starts counting.
-3. **Break.** The rest timer, live heart rate with how far it's fallen since the set stopped (**Down 34 since the set**: from its peak around the stop, in this rest only, never set against another workout; in Telemetry the stop is marked on the last minute's line), and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, and if I like, how many more reps I could have done (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear), each with its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`), with **Edit** to see today's sets one by one: tapping a set changes its numbers or Hit goal, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up.
+3. **Break.** The rest timer, live heart rate with how far it's fallen since the set stopped (**Down 34 since the set**: from its peak around the stop, in this rest only, never set against another workout; in Telemetry the stop is marked on the last minute's line), and an entry for each set since the last rest (one, or both halves of a superset round): weight, reps and **Hit goal**, pre-filled, and if I like, how many more reps I could have done (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear), each with a **Warm-up** tick box under them on the left, for a lighter set done to get ready (see *Warm-up sets*), and its own **Save** (Enter works too). Time exercises need nothing: the stopwatch was the duration. Once every entry is saved, the break becomes a plain rest screen: **Today so far**, every exercise done in this workout in short form (`3 × 10 at 100`, with a warm-up set written small under it: `Warm-up 12 at 60`), with **Edit** to see today's sets one by one: tapping a set changes its numbers, Hit goal or Warm-up, or deletes it (a set done by mistake), after asking once. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set; anything not saved yet keeps what's in its fields. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up.
 4. **Finish workout** is always reachable, in every state.
 
 The break screen reads **Rest 0:48**: the word big beside the timer, counting up. **Tapping the time** turns it into a countdown (and back); the choice sticks for later rests.
@@ -190,7 +190,7 @@ The break screen reads **Rest 0:48**: the word big beside the timer, counting up
 ### Pre-filled and suggested values
 
 The app is suggestive, especially in simple mode:
-- Weight and reps pre-fill from the previous set in this session; the first set of an exercise pre-fills from the first set the last time I did it.
+- Weight and reps pre-fill from the previous set in this session; the first set of an exercise pre-fills from the first set the last time I did it. Warm-up sets are passed over, in this session and last time's.
 - **Hit goal:** every set's entry on the break screen has a **Hit goal** checkbox. Next time, that exercise's first set suggests the weight of the set I marked plus 5 (in that set's unit), and the following sets pre-fill from it as usual. Assisted weights move toward less assistance (−40 becomes −35); bodyweight stays bodyweight.
 - **Claude's plan:** once a look back's plan is taken (**Use for next time**), the next time I do each of its exercises, the first set pre-fills from Claude's weight × reps instead, and Next on the break screen says **From Claude's look back**. Its sets count where the session doesn't plan them, and its rest becomes the exercise's countdown. It's for that one time: once the exercise is done again, the rules above are back.
 
@@ -204,7 +204,7 @@ What the big button offers after each set:
 4. Moving on means the next exercise in the plan after this one. Ones I went past (swapped out, dropped, skipped, or left for another exercise I picked) never come back on their own; they stay in the lists of what's still to do, so I can go back to one by picking it.
 5. Once it moves on, a second button offers **Another set of rows** (or **Another round**) for when I'm doing more than planned.
 
-Each place in the plan counts its own sets: an exercise swapped into another one's place starts at set 1 there, even if I did it earlier in a superset.
+Each place in the plan counts its own sets: an exercise swapped into another one's place starts at set 1 there, even if I did it earlier in a superset. A warm-up set says where I am in the plan without being one of the exercise's sets: after it, the same set is still next.
 
 When nothing planned is left, the big button is **Finish workout**, with **Another set** and **Add more** above it. When just tracking, the break screen always offers **Different exercise** and **Finish workout** under the big button. With a cool-down, each of those reads **Start cool-down** instead.
 
@@ -216,6 +216,18 @@ A session can start with a warm-up and end with a cool-down, each turned on in i
 - **Cool-down:** where the big button would finish the workout, it reads **Start cool-down**. The cool-down shows its time and live heart rate, and its big button is **Finish workout**. A set started during it (another exercise, or another set from advanced mode) puts the cool-down off until the end again.
 - **Finish** in the masthead still finishes at once, with no cool-down. Finishing during the warm-up makes the whole workout warm-up.
 - Advanced mode lists them as the first and last boxes of the plan; **Today so far** starts with the warm-up's time.
+
+### Warm-up sets
+
+Some days an exercise needs a lighter set first: biceps at the end of leg day, hamstrings after nothing but quads. It depends on the day, so it isn't planned in a session: it's said set by set. Every set's entry on the break screen has a **Warm-up** tick box, and so does a set opened from **Edit** or from a workout's page in history. A set ticked is kept, with its time and heart rate, and counted differently:
+
+- **It isn't one of the exercise's sets.** The plan's count doesn't move (after a warm-up, **set 1 of 3** is still next), and neither does the masthead's tally. Its entry is headed **Warm-up**, and has no Hit goal or Left in the tank.
+- **No weight starts from it.** The next set pre-fills as if it weren't there, and so does next time.
+- **It's left out of how I'm doing:** the last three times, improvement and its trends, plateaus, volume, each muscle's hard sets, and the rest the countdown learns from.
+- **Claude is told it was a warm-up** (see *Claude's look back*), so the lighter weight isn't read as a slip and the plan for next time comes from the other sets. An exercise I only warmed up with gets no plan.
+- **It's still shown:** **W** in place of its number among a workout's sets, **Warm-up 12 at 60** under the exercise in Today so far, **Warmed up** in advanced mode, and **14 + 1 warm-up** as a workout's Sets. The workout's time and what it burned count it like any set.
+
+Unticking it makes it an ordinary set again. Time exercises have no warm-up sets.
 
 ### Changing today's workout
 
@@ -283,7 +295,7 @@ Suggestions from my method ("Last time 10, 10, 10 at 100. Try 105.") come from C
 
 Until I choose a lead signal, one number stands for "better", so the Gym trend has something to show:
 
-- **Each exercise** counts as its sets' average estimated one-rep max, weight × (1 + reps ÷ 30), so heavier and more reps both count, however the sets were split (10, 10, 8 → 10, 10, 10 at 100 is +1.7%; 100 → 105 is +5%). Bodyweight and assisted sets lift my body too, at my last weigh-in before the workout, the same for both workouts (−50 → −40 assist at 200 lb is +6.7%); with no weigh-in, plain bodyweight compares by reps alone. Time exercises count their average set length.
+- **Each exercise** counts as its sets' average estimated one-rep max, weight × (1 + reps ÷ 30), so heavier and more reps both count, however the sets were split (10, 10, 8 → 10, 10, 10 at 100 is +1.7%; 100 → 105 is +5%). Bodyweight and assisted sets lift my body too, at my last weigh-in before the workout, the same for both workouts (−50 → −40 assist at 200 lb is +6.7%); with no weigh-in, plain bodyweight compares by reps alone. Time exercises count their average set length. Warm-up sets count for nothing.
 - **A workout's improvement** is how its exercises did against the last time I did each, averaged (the geometric mean, so +10% and the same ratio down even out). Exercises done for the first time are left out; with none to compare, a workout has no improvement. It's worked out once after Finish and stored; workouts finished before this existed get theirs the first time Gym opens.
 - **The trend** is each exercise's change since its first time, averaged over every exercise compared so far. More workouts in a week don't inflate it: bench +10% and curls +10% is +10%.
 - **A trend of some workouts** (a routine's, a session's or an exercise's, on Stats) compares each of them only with the last of them that had each exercise, the other workouts left out. It's worked out from their sets when Stats opens, not stored.
@@ -314,8 +326,8 @@ Which muscles did this week train, and which did it miss? **Stats › Muscles**:
 
 How it counts: a set counts 1 for each muscle its exercise is mainly for, and ½ for each one that helps; counted this way, sets
 predicted growth best (Pelland 2024). About 10 to 20 hard sets a week grows a muscle well, with less to gain past 20 (Schoenfeld
-2017). A week runs Monday to Sunday, by the day each workout started. Empty sets don't count, and neither do exercises not tagged
-yet. The 15 muscles: chest; front, side and rear delts; biceps, triceps and forearms; lats, upper back and lower back; abs; glutes,
+2017). A week runs Monday to Sunday, by the day each workout started. Empty sets don't count, and neither do warm-up sets or exercises not
+tagged yet. The 15 muscles: chest; front, side and rear delts; biceps, triceps and forearms; lats, upper back and lower back; abs; glutes,
 quads, hamstrings and calves.
 
 **Claude tags them** (task `workout.tag-exercises`, at low effort): every exercise not tagged yet, in one question, with its name,
@@ -356,6 +368,9 @@ What Claude is sent, and what holds it to its answer:
   hard sets from Monday to this workout, the ones at none, and the week's exercises not tagged yet, which are tagged first. When
   some got none, the last highlight names them, as a fact: never a swapped, added or changed exercise. On the other days it says
   nothing about muscles, since the week's other workouts are still to come.
+- **Warm-up sets** are sent marked as such, with no number among the exercise's sets and nothing flagged as odd about them.
+  Claude leaves them out of the exercise's reps, weight and plan, and an exercise with only a warm-up isn't planned; its answer is
+  held to that, since a weight is checked against the working sets only.
 - **What was left in the tank** is read across an exercise's sets, never from one, since people guess about a rep low: every set at
   its reps with 3+ left means two steps up where that's within a tenth of the weight; 0 left on the last set, one step; reps
   missed with 2+ left, the same weight and a push closer.
@@ -495,6 +510,7 @@ Set                Id, SessionId, ExerciseId, Order,
                    Duration                     (time exercises; from the stopwatch or typed)
                    HitGoal                      (checked on any break screen)
                    RepsLeft                     (how many more reps it had in it: 0 to 3, 3 meaning three or more; empty when not said)
+                   WarmUp                       (a lighter set done to get ready: kept, but not one of the exercise's sets)
 HeartRateSample    At, Bpm                      (matched to sessions, sets and rests by time)
 FoodEntry          Id, At, Calories
 BodyWeightEntry    Id, At, Weight, WeightUnit

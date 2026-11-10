@@ -153,7 +153,7 @@ public sealed class WorkoutState
         var planned = WorkoutPlan.Next(Plan, before, setsLastTime, Skipped);
         if (planned is not null && planned.ExerciseIds.Contains(set.ExerciseId)) return planned;
 
-        var setNumber = before.Count(s => s.ExerciseId == set.ExerciseId) + 1;
+        var setNumber = before.Working().Count(s => s.ExerciseId == set.ExerciseId) + 1;
         int? lastTime = setsLastTime.GetValueOrDefault(set.ExerciseId) is var count && count >= setNumber ? count : null;
         return new PlanStep([set.ExerciseId], setNumber, lastTime);
     }

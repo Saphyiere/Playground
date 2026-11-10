@@ -195,6 +195,7 @@ public class LookBackTests
         var kept = JsonSerializer.SerializeToNode(input, AssistSchema.Json)!;
         foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("repsLeft");
         foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("bpmDropFirstMinute");
+        foreach (var set in kept["workout"]!["sets"]!.AsArray()) set!.AsObject().Remove("warmUp");
         foreach (var exercise in kept["exercises"]!.AsArray()) { exercise!.AsObject().Remove("flatWorkouts"); exercise.AsObject().Remove("best"); }
         kept.AsObject().Remove("muscles");
 
@@ -203,6 +204,40 @@ public class LookBackTests
         Assert.Equal(input.Workout.Sets[0] with { Flags = read.Workout.Sets[0].Flags }, read.Workout.Sets[0]);
         Assert.Equal((0, ""), (read.Exercises[0].FlatWorkouts, read.Exercises[0].Best));
         Assert.Null(read.Muscles);
+        Assert.False(read.Workout.Sets[0].WarmUp);
+    }
+
+    [Fact]
+    public void AWarmUpSet_HasNoFlags_AndIsntOneOfTheExercisesSets()
+    {
+        // Rows warmed up at 30, far from its 100s, with 20 seconds' rest after; curls only got a warm-up.
+        var before = Workout(1, Today.AddDays(-7), new Done(Rows, 100, 10), new Done(Rows, 100, 10), new Done(Rows, 100, 10));
+        var today = Workout(9, Today, new Done(Rows, 30, 12, RestAfter: 20), new Done(Rows, 100, 10), new Done(Rows, 100, 10), new Done(Rows, 100, 10), new Done(Curls, 15, 12));
+        today.Sets[0].WarmUp = today.Sets[4].WarmUp = true;
+
+        var input = Input(today, [before]);
+        var warmUp = input.Workout.Sets[0];
+
+        Assert.True(warmUp.WarmUp);
+        Assert.Equal((0, 0), (warmUp.Number, warmUp.Flags.Count));
+        Assert.Equal([0, 1, 2, 3, 0], input.Workout.Sets.Select(s => s.Number));
+        Assert.All(input.Workout.Sets, s => Assert.Empty(s.Flags));
+        Assert.Equal(["Overhand rows"], input.Exercises.Select(e => e.Name));
+        Assert.Contains("\"warmUp\":true", JsonSerializer.Serialize(input, AssistSchema.Json));
+    }
+
+    [Fact]
+    public void Problems_AWarmUpsWeightIsntOneToPlanFrom()
+    {
+        var today = Workout(9, Today, new Done(Rows, 30, 12), new Done(Rows, 100, 10), new Done(Rows, 100, 10));
+        today.Sets[0].WarmUp = true;
+        var input = Input(today);
+        LookBack Plan(double weight) => new(["Rows held."], [new NextLift(Rows, 3, 10, weight, 120, "10, 10 at 100")], []);
+
+        Assert.Empty(LookBackPlan.Problems(input, Plan(105)));
+        Assert.Equal(["Overhand rows: 35 isn't whole steps of 5 from a weight used today or in its last times (100), by at most a tenth of it or one step."],
+            LookBackPlan.Problems(input, Plan(35)));
+        Assert.Equal(new TrainerTarget(9, 105, WeightUnit.Pounds, 10, 3, 120), LookBackPlan.Targets(input, Plan(105))[0].Target);
     }
 
     // The six-day split: a session every day but Sunday.

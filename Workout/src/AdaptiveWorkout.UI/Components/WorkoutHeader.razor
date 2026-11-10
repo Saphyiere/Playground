@@ -1,7 +1,7 @@
-@* The workout's masthead: its name, time and a tally of the sets done, the view switch, and Finish, which is always reachable.
-   Its rule is in the pen's color while the workout is live. *@
+@* The workout's masthead: its name, time and a tally of the sets done (warm-up sets aside), the view switch, and Finish, which is
+   always reachable. Its rule is in the pen's color while the workout is live. *@
 @inject AppNavigation Navigation
-@{ var setsDone = State.Sets.Count(s => s.StoppedAt is not null); }
+@{ var setsDone = State.Sets.Working().Count(s => s.StoppedAt is not null); }
 <header class="masthead live">
     <div class="spread">
         @if (Theme == Theme.Telemetry)

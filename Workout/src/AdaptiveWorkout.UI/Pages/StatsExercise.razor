@@ -5,7 +5,8 @@
 
 <PageTitle>@(exercise?.Name ?? "Exercise")</PageTitle>
 
-@* How has this exercise been going? Every workout that had it, against the time before, and its heaviest (or longest) set. *@
+@* How has this exercise been going? Every workout that had it, against the time before, and its heaviest (or longest) set. Warm-up
+   sets aren't among its sets here. *@
 @if (exercise is not null)
 {
     var telemetry = Theme == Theme.Telemetry;
@@ -117,7 +118,7 @@
         }
 
         var (sessions, sets) = await Flow.LoadFinishedAsync();
-        var exerciseSets = sets.Where(s => s.ExerciseId == Id).ToList();
+        var exerciseSets = sets.Working().Where(s => s.ExerciseId == Id).ToList();
         tags = (await Store.GetMuscleTagsAsync()).GetValueOrDefault(Id);
         templateNames = (await Store.GetTemplatesAsync()).ToDictionary(t => t.Id, t => t.Name);
         var bodyWeights = await Store.GetBodyWeightsAsync();

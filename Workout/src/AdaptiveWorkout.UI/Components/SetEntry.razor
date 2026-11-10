@@ -1,7 +1,8 @@
 @inject WorkoutFlow Flow
 @inject AppSettings Settings
-@* One stopped set on the rest screen: weight, reps and Hit goal, pre-filled, and how many more reps it had in it if I say. Save (or
-   Enter) tucks it into today's summary. *@
+@* One stopped set on the rest screen: weight, reps and Hit goal, pre-filled, and how many more reps it had in it if I say. Warm-up,
+   under them on the left, says it was a lighter set to get ready: it has no goal or reps left, and isn't one of the exercise's sets.
+   Save (or Enter) tucks it into today's summary. *@
 
 @{
     var exercise = State.Exercises[Set.ExerciseId];
@@ -9,7 +10,7 @@
     var unit = Set.WeightUnit == WeightUnit.Kilograms ? "kg" : "lb";
 }
 <form class="block appear" aria-labelledby="@id-heading" @onsubmit="SaveAsync">
-    <h2 id="@id-heading" class="label">@exercise.Name · @WorkoutState.StepLabel(State.Describe(Set))</h2>
+    <h2 id="@id-heading" class="label">@exercise.Name · @(Set.WarmUp ? "Warm-up" : WorkoutState.StepLabel(State.Describe(Set)))</h2>
     <div class="entry-row">
         <div class="field-group entry-weight">
             <label class="field-label" for="@id-weight">Weight</label>
@@ -25,13 +26,18 @@
             </div>
         </div>
         <label class="goal">
-            <input type="checkbox" @bind="Set.HitGoal" @bind:after="() => Flow.SaveSet(Set)" />
+            <input type="checkbox" disabled="@Set.WarmUp" @bind="Set.HitGoal" @bind:after="() => Flow.SaveSet(Set)" />
             <span>Hit goal</span>
         </label>
     </div>
-    <RepsLeftPicker Id="@($"{id}-tank")" @bind-Value="Set.RepsLeft" @bind-Value:after="() => Flow.SaveSet(Set)" />
+    <RepsLeftPicker Id="@($"{id}-tank")" Disabled="Set.WarmUp" @bind-Value="Set.RepsLeft" @bind-Value:after="() => Flow.SaveSet(Set)" />
+    <p class="note">@(Set.WarmUp ? "Left out of its sets and next time's weight."
+        : Set.Weight is double weight ? $"Hit goal: next time starts at {SetSummary.WeightText(weight + Settings.HitGoalStep)} {unit}" : "Bodyweight stays bodyweight")</p>
     <div class="spread">
-        <p class="note">@(Set.Weight is double weight ? $"Hit goal: next time starts at {SetSummary.WeightText(weight + Settings.HitGoalStep)} {unit}" : "Bodyweight stays bodyweight")</p>
+        <label class="goal">
+            <input type="checkbox" @bind="Set.WarmUp" @bind:after="() => Flow.SaveSet(Set)" />
+            <span>Warm-up</span>
+        </label>
         <div class="inline">
             <button type="button" class="btn tall" aria-label="Switch between added and assisted weight" disabled="@(Set.Weight is null)" @onclick="() => { Set.Weight = -Set.Weight; Flow.SaveSet(Set); }">+/−</button>
             <button type="submit" class="btn tall adjust">Save</button>

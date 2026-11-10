@@ -9,7 +9,8 @@ public sealed record TrendPoint(WorkoutSession Session, double Change, double To
 /// <summary>
 /// Am I doing better? Each exercise in a workout against the last workout that had it, as one number per workout, and the
 /// trend those numbers make across all my exercises. A weight exercise counts as its sets' average estimated one-rep max (weight × (1 + reps / 30)),
-/// so heavier and more reps both count, however the sets were split; a time exercise counts as its average set length.
+/// so heavier and more reps both count, however the sets were split; a time exercise counts as its average set length. Warm-up sets
+/// count for nothing.
 /// </summary>
 public static class Progress
 {
@@ -24,7 +25,7 @@ public static class Progress
     {
         var earlier = sessions.Where(s => s.StartedAt < session.StartedAt).ToList();
         IReadOnlyList<WorkoutSet>? LastTime(long exerciseId) => ExerciseHistory.Recent(exerciseId, earlier, sets, session.Id, 1) is [var last] ? last.Sets : null;
-        var now = sets.Where(s => s.SessionId == session.Id).GroupBy(s => s.ExerciseId);
+        var now = sets.Working().Where(s => s.SessionId == session.Id).GroupBy(s => s.ExerciseId);
         return Compare(now, LastTime, exercises, WeighIn(session, BodyWeight.InOrder(bodyWeights)));
     }
 
@@ -46,7 +47,8 @@ public static class Progress
         IReadOnlyList<BodyWeightEntry> bodyWeights)
     {
         // Only the workouts with some of the sets count, e.g. the ones that had the exercise.
-        var setsBySession = sets.ToLookup(s => s.SessionId);
+        var working = sets.Working().ToList();
+        var setsBySession = working.ToLookup(s => s.SessionId);
         var done = sessions.Where(s => s.FinishedAt is not null && setsBySession.Contains(s.Id)).OrderBy(s => s.StartedAt).ToList();
         var weighIns = BodyWeight.InOrder(bodyWeights);
         var lastTime = new Dictionary<long, IReadOnlyList<WorkoutSet>>();
@@ -58,7 +60,7 @@ public static class Progress
             foreach (var exerciseSets in now) lastTime[exerciseSets.Key] = [.. exerciseSets];
         }
 
-        return Accumulate(done, sets.Select(s => (s.SessionId, s.ExerciseId)), s => changes[s.Id]);
+        return Accumulate(done, working.Select(s => (s.SessionId, s.ExerciseId)), s => changes[s.Id]);
     }
 
     // One workout's sets, by exercise, against each exercise's sets the last time (empty when there was none), as the geometric
@@ -92,7 +94,7 @@ public static class Progress
     public static double? Score(IEnumerable<WorkoutSet> sets, ExerciseMeasure measure, double body)
     {
         var scores = new List<double>();
-        foreach (var set in sets)
+        foreach (var set in sets.Working())
         {
             var load = body + WorkoutStats.Pounds(set.Weight ?? 0, set.WeightUnit);
             if (measure == ExerciseMeasure.Time && set.DurationSeconds is int seconds and > 0) scores.Add(seconds);

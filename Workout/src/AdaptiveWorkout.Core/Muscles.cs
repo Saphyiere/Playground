@@ -58,12 +58,12 @@ public static class Muscles
 
     /// <summary>
     /// The hard sets each muscle got from some sets: 1 for each set of an exercise it's the main muscle of, ½ for each of one it helps
-    /// with. Sets of untagged exercises, and empty ones (no reps, no time), count for nothing. Every muscle, top to bottom.
+    /// with. Sets of untagged exercises, warm-up sets, and empty ones (no reps, no time) count for nothing. Every muscle, top to bottom.
     /// </summary>
     public static IReadOnlyList<MuscleSets> Count(IEnumerable<WorkoutSet> sets, IReadOnlyDictionary<long, MuscleTags> tags)
     {
         var count = All.ToDictionary(m => m, _ => 0.0);
-        foreach (var set in sets.Where(s => s.Reps > 0 || s.DurationSeconds > 0))
+        foreach (var set in sets.Working().Where(s => s.Reps > 0 || s.DurationSeconds > 0))
         {
             if (!tags.TryGetValue(set.ExerciseId, out var tag)) continue;
             foreach (var muscle in tag.Main) count[muscle] += 1;

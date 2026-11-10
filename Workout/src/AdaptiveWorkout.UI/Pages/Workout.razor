@@ -72,7 +72,7 @@
                     }
                     @foreach (var set in running)
                     {
-                        var firstToday = state.Sets.First(s => s.ExerciseId == set.ExerciseId);
+                        var firstToday = state.Sets.Working().First(s => s.ExerciseId == set.ExerciseId);
                         @if (state.SuggestionFor(firstToday)?.RaisedForGoal == true)
                         {
                             <p class="pen-note">@(round ? $"{state.Exercises[set.ExerciseId].Name}: " : "")@SetSummary.WeightText(firstToday.Weight) @Unit(firstToday.WeightUnit) today: you hit your goal last time</p>
@@ -181,7 +181,8 @@
 
                 @if (toConfirm.Count == 0)
                 {
-                    @* Everything entered: the rest screen becomes a look at the whole workout so far. *@
+                    @* Everything entered: the rest screen becomes a look at the whole workout so far. A warm-up set is written small,
+                       under the exercise's own sets. *@
                     <section class="block appear" aria-labelledby="today-heading">
                         <div class="spread">
                             <h2 id="today-heading" class="label">Today so far</h2>
@@ -198,6 +199,8 @@
                             @foreach (var exerciseSets in state.Sets.Where(s => s.StoppedAt is not null).GroupBy(s => s.ExerciseId))
                             {
                                 var exercise = state.Exercises[exerciseSets.Key];
+                                var working = exerciseSets.Working().ToList();
+                                var warmUps = exerciseSets.Where(s => s.WarmUp).ToList();
                                 <div class="spread row">
                                     <span class="inline name big">
                                         @exercise.Name
@@ -207,7 +210,20 @@
                                             <span class="sr-only">, hit goal</span>
                                         }
                                     </span>
-                                    <span class="name big tabular">@SetSummary.Format([.. exerciseSets], exercise.Measure)</span>
+                                    @if (warmUps.Count == 0)
+                                    {
+                                        <span class="name big tabular">@SetSummary.Format(working, exercise.Measure)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="today-sets">
+                                            @if (working.Count > 0)
+                                            {
+                                                <span class="name big tabular">@SetSummary.Format(working, exercise.Measure)</span>
+                                            }
+                                            <span class="caption">Warm-up @SetSummary.Format(warmUps, exercise.Measure)</span>
+                                        </span>
+                                    }
                                 </div>
                             }
                         </div>

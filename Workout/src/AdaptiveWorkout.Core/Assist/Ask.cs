@@ -239,7 +239,8 @@ public static class AskFacts
 
     /// <summary>
     /// The exercises done from <paramref name="from"/> through <paramref name="to"/>, the latest done first, each with its times there (at
-    /// most 8), whether it's gone flat counting every time, and the plan waiting for its next time.
+    /// most 8), whether it's gone flat counting every time, and the plan waiting for its next time. Warm-up sets aren't among an
+    /// exercise's sets, so one only warmed up with isn't here.
     /// </summary>
     public static IReadOnlyList<AskExercise> Exercises(DateOnly from, DateOnly to, IReadOnlyList<WorkoutSession> sessions, IReadOnlyList<WorkoutSet> sets,
         IReadOnlyDictionary<long, Exercise> exercises, IReadOnlyList<BodyWeightEntry> weighIns, AskContext context)
@@ -249,7 +250,7 @@ public static class AskFacts
         var latest = weighIns.MaxBy(w => w.At);
         double? bodyPounds = latest is null ? null : WorkoutStats.Pounds(latest.Weight, latest.WeightUnit);
         var list = new List<AskExercise>();
-        foreach (var id in sets.Where(s => startedAt.ContainsKey(s.SessionId)).GroupBy(s => s.ExerciseId).OrderByDescending(g => g.Max(s => startedAt[s.SessionId])).Select(g => g.Key))
+        foreach (var id in sets.Working().Where(s => startedAt.ContainsKey(s.SessionId)).GroupBy(s => s.ExerciseId).OrderByDescending(g => g.Max(s => startedAt[s.SessionId])).Select(g => g.Key))
         {
             if (!exercises.TryGetValue(id, out var exercise)) continue;
 

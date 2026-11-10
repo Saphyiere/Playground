@@ -12,6 +12,7 @@
     var heartRate = WorkoutStats.HeartRate(samples, session.StartedAt, session.FinishedAt ?? session.StartedAt);
     var time = TimeText.Format((session.FinishedAt ?? session.StartedAt) - session.StartedAt);
     var volume = WorkoutStats.Volume(sets, Settings.Unit).ToString("N0", CultureInfo.CurrentCulture);
+    var warmUps = sets.Count(s => s.WarmUp);
     <div class="screen">
         <PageHeader Back="gym" BackText="Gym" Label="@session.StartedAt.ToString("dddd, MMM d · h:mm tt", CultureInfo.CurrentCulture)" Title="@name" />
 
@@ -24,7 +25,17 @@
                 </div>
                 <div class="row-text">
                     <span class="label">Sets</span>
-                    <span class="number sm">@sets.Count</span>
+                    @if (warmUps == 0)
+                    {
+                        <span class="number sm">@sets.Count</span>
+                    }
+                    else
+                    {
+                        <span class="inline baseline">
+                            <span class="number sm">@(sets.Count - warmUps)</span>
+                            <span class="unit">+ @warmUps warm-up</span>
+                        </span>
+                    }
                 </div>
                 <div class="row-text">
                     <span class="label">Volume</span>

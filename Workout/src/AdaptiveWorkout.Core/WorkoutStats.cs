@@ -9,8 +9,11 @@ public static class WorkoutStats
 
     public static double Kilograms(double weight, WeightUnit unit) => unit == WeightUnit.Kilograms ? weight : weight / PoundsPerKilogram;
 
-    /// <summary>Total weight moved: weight × reps over every weighted set, in <paramref name="unit"/>. Bodyweight and assisted sets add nothing.</summary>
-    public static double Volume(IEnumerable<WorkoutSet> sets, WeightUnit unit) => sets.Where(s => s.Weight > 0 && s.Reps > 0).Sum(s =>
+    /// <summary>
+    /// Total weight moved: weight × reps over every weighted set, in <paramref name="unit"/>. Bodyweight and assisted sets add nothing,
+    /// and neither do warm-up sets.
+    /// </summary>
+    public static double Volume(IEnumerable<WorkoutSet> sets, WeightUnit unit) => sets.Working().Where(s => s.Weight > 0 && s.Reps > 0).Sum(s =>
     {
         var weight = s.WeightUnit == unit ? s.Weight!.Value : unit == WeightUnit.Pounds ? s.Weight!.Value * PoundsPerKilogram : s.Weight!.Value / PoundsPerKilogram;
         return weight * s.Reps!.Value;
