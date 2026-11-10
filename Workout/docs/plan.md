@@ -23,8 +23,8 @@ task goes to version 2 and reads reps left, plateaus and how fast your heart rat
 
 ## 1. Heart rate drop on the rest screen (S)
 
-**What you'll see.** During a rest, under the live heart rate: **Down 34 from 152 · 1:10**, the reading when the set stopped and
-how far it's fallen since. In Logbook it's a margin note in the pen; in Telemetry a falling readout on the heart channel, with the
+**What you'll see.** During a rest, under the live heart rate: **Down 34 since the set**, how far it's fallen since the set
+stopped, in this rest only. In Logbook it's a margin note in the pen; in Telemetry a falling readout on the heart channel, with the
 set's stop marked on the last minute's line.
 
 **How it works.** Core takes the highest reading within 10 seconds of the set's stop and the latest one. Each set also keeps how far

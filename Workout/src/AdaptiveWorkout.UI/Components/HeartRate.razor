@@ -103,8 +103,9 @@ else
         return HeartRateRecovery.Since(peak is not null && peakFor == stop ? [peak, .. readings] : readings, stop, DateTimeOffset.Now);
     }
 
-    // "Down 34 from 152", or while it's still climbing, "Up 4 from 148".
-    private static string DropText(HeartRateFall fall) => fall.Drop >= 0 ? $"Down {fall.Drop} from {fall.From}" : $"Up {-fall.Drop} from {fall.From}";
+    // "Down 34 since the set", or while it's still climbing, "Up 4 since the set": this rest only, never set against another workout.
+    // Telemetry's readout drops the article, to stay on its one line beside the last minute's ruler.
+    private string DropText(HeartRateFall fall) => $"{(fall.Drop >= 0 ? "Down" : "Up")} {Math.Abs(fall.Drop)} since {(Theme == Theme.Telemetry ? "set" : "the set")}";
 
     protected override void OnInitialized()
     {

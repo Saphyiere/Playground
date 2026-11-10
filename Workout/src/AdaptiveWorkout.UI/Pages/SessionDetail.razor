@@ -67,15 +67,25 @@
             </div>
         </section>
 
-        @* Claude's look back at it, when there's one kept, or a way to ask for one. *@
+        @* What Claude said about it, kept with the workout: its sentence on the day and its few lines on what went up or slipped. A tap
+           opens the whole look back, with the plan for next time and the sets that looked off. Without one kept, a way to ask. *@
         @if (lookBack is { } kept)
         {
-            <a class="block" href="look-back/@Id" aria-labelledby="look-back-heading">
+            <a class="block stack" href="look-back/@Id" aria-labelledby="look-back-heading">
                 <div class="spread">
-                    <h2 id="look-back-heading" class="label">Look back</h2>
+                    <h2 id="look-back-heading" class="label">Claude's look back</h2>
                     <Icon Name="forward" Size="16" />
                 </div>
                 <p class="body">@kept.Summary</p>
+                @if (kept.Answer is { Highlights: [_, ..] highlights })
+                {
+                    <ul class="highlights">
+                        @foreach (var line in highlights)
+                        {
+                            <li>@line</li>
+                        }
+                    </ul>
+                }
             </a>
         }
         else if (canAsk)
