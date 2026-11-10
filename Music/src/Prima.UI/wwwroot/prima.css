@@ -1059,9 +1059,13 @@ a {
         display: none;
     }
 
+    /* Eight keys across: Studio's share the row alike, their print set a little closer so the longest name stays inside its
+       key; Vinyl's names take the room each needs. */
     .shell .mu-nav-item {
         flex: 1;
         min-width: 0;
+        padding-inline: 8px;
+        letter-spacing: 0.06em;
     }
 
     .shell .mu-nav-end {
@@ -1069,9 +1073,12 @@ a {
     }
 
     [data-theme="vinyl"] .shell .mu-nav-item {
+        flex: 1 1 auto;
         justify-content: center;
         gap: 8px;
+        padding: 0;
         font-size: 24px;
+        letter-spacing: 0.03em;
     }
 
     [data-theme="vinyl"] .shell .mu-nav-code {
@@ -4716,5 +4723,142 @@ html[data-full] .piece .summary {
     .pdfread-banner {
         flex-direction: column;
         align-items: stretch;
+    }
+}
+
+/* Exercises: the filters share their line with the search; each section's rows are like the Library's, with what you do on up
+   to two lines and when it was last done. */
+.control-row.exercise-filters > .mu-toggle {
+    flex-basis: 120px;
+}
+
+.exercise-list .piece-meta {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.exercise-done {
+    grid-area: level;
+    justify-self: end;
+    font-family: var(--mu-print);
+    font-size: 11px;
+    line-height: 22px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--ink-faint);
+}
+
+.exercise-done.before {
+    color: var(--ink);
+}
+
+.exercise-done.today,
+.exercise-tag-routine {
+    color: var(--accent);
+}
+
+.exercise-tag-routine {
+    border-color: currentColor;
+}
+
+/* An exercise: what you do, in a line; what to play; its music; its words. In landscape the key and hands run across the top
+   and the words sit beside the music, so both show at the piano. In portrait they come in that order, one under the other. */
+.exercise {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.exercise-does {
+    margin: 0;
+    max-width: 640px;
+    font-size: 18px;
+    line-height: 26px;
+}
+
+.exercise-choice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 36px;
+}
+
+.exercise-choice .control-row {
+    flex-wrap: nowrap;
+}
+
+.exercise-choice .control-label {
+    min-width: 0;
+}
+
+/* The key's name keeps its place between − and + whichever key it is. */
+.exercise-key {
+    min-width: 5.5em;
+    text-align: center;
+}
+
+.exercise-music {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.exercise-words {
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.exercise-steps {
+    margin: 0;
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 16px;
+    line-height: 24px;
+}
+
+.exercise-notice {
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--ink-muted);
+}
+
+@media (orientation: landscape) {
+    .exercise-played {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+        grid-template-rows: auto auto 1fr;
+        grid-template-areas: "choice choice" "music does" "music words";
+        align-items: start;
+        gap: 20px 32px;
+    }
+
+    .exercise-played.exercise-fixed {
+        grid-template-rows: auto 1fr;
+        grid-template-areas: "music does" "music words";
+    }
+
+    .exercise-played .exercise-choice {
+        grid-area: choice;
+    }
+
+    .exercise-played .exercise-music {
+        grid-area: music;
+    }
+
+    .exercise-played .exercise-does {
+        grid-area: does;
+    }
+
+    .exercise-played .exercise-words {
+        grid-area: words;
     }
 }

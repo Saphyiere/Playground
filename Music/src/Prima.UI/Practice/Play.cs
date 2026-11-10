@@ -1,3 +1,4 @@
+using Prima.Core.Generation;
 using Prima.Core.Music;
 using Prima.Core.Scoring;
 
@@ -70,3 +71,9 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
     /// <summary>In time: when a beat of the music sounded on the click's clock (beat 0 is bar 1's downbeat), for keeping a take.</summary>
     public Func<double, long>? TimeAt { get; init; }
 }
+
+/// <summary>
+/// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo. The exercises
+/// pinned as My routine are kept together, as their ids ("exercise-routine").
+/// </summary>
+public sealed record ExerciseChoice(int Fifths, bool Minor, HandUse Hands, double Tempo);

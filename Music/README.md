@@ -2,12 +2,13 @@
 
 Sight-reading and piano practice for the owner's Lenovo Idea Tab Pro, played on a Yamaha P-225B over USB MIDI. New music at
 your level every day, read in time with a click that never waits, short drills for what reading leans on and for even
-technique, and progress as honest numbers over weeks. Local data only: no accounts, no cloud.
+technique, a catalogue of technique exercises with how to do each, and progress as honest numbers over weeks. Local data only:
+no accounts, no cloud.
 
 - How it works: [docs/concept.md](docs/concept.md)
 - How it's built, part by part: [docs/plan.md](docs/plan.md)
 - The evidence behind it: [docs/research.md](docs/research.md), and for the Library, [docs/library.md](docs/library.md)
-- Researched and not built yet: the exercises to add next, [docs/exercises.md](docs/exercises.md)
+- The research behind the Exercises tab, and what it proposes to build next: [docs/exercises.md](docs/exercises.md)
 
 ## Layout
 

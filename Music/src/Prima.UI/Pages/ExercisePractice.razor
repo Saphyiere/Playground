@@ -1,0 +1,213 @@
+@page "/exercises/{Id}"
+@inject PrimaStore Store
+@using System.Text.Json
+@using Prima.Core.Generation
+
+<PageTitle>@(exercise?.Name ?? "Exercise") · Prima</PageTitle>
+
+@if (exercise is null)
+{
+    <PageHead Title="Exercises" Kicker="Not one of the exercises" />
+    <div class="control-row"><a class="mu-btn" href="exercises">All the exercises</a></div>
+}
+else
+{
+    var choosing = keys.Count > 1 || exercise.Hands.Count > 1;
+    // What comes after this one: the next in My routine when that's the list it was opened from, or else the next in its section.
+    var after = Exercises.All.SkipWhile(e => e.Id != Id).Skip(1);
+    var next = From == "routine" ? after.FirstOrDefault(e => routine.Contains(e.Id)) : after.FirstOrDefault(e => e.Section == exercise.Section);
+    var history = "Not tried yet.";
+    if (was is not null)
+    {
+        var last = was.Last == Today ? "today" : was.Last.ToString("d MMMM", CultureInfo.InvariantCulture);
+        var days = was.Days == 1 ? "1 day" : $"{was.Days} days";
+        var times = was.Times == 1 ? "once" : $"{was.Times} times";
+        var fastest = was.CleanTempo is { } clean ? $" Fastest clean run In time: {clean:0}." : "";
+        history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
+    }
+
+    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name"><KeyboardLamp /></PageHead>
+
+    @* What you do, in a line. One that's played then has what to play (its key and hands), the play bar every screen with a
+       tempo shares, its sheet, and the run's summary; in landscape the words sit beside the music, so both show at the piano.
+       The words are how, what to notice, what's been done of it, the switch that keeps it in My routine, and what comes next. *@
+    <div @key="Id" class="exercise @(exercise.Kind == ExerciseKind.Played ? "exercise-played" : "") @(choosing ? "" : "exercise-fixed")">
+        <p class="exercise-does">@exercise.Does</p>
+
+        @if (exercise.Kind == ExerciseKind.Played)
+        {
+            @if (choosing)
+            {
+                <section class="exercise-choice" aria-label="What to play">
+                    @if (keys.Count > 1)
+                    {
+                        <div class="control-row">
+                            <span class="control-label">Key</span>
+                            <button type="button" class="mu-btn" aria-label="An easier key" disabled="@(playing || keys.IndexOf(key) == 0)" @onclick="() => Choose(keys[keys.IndexOf(key) - 1], hands)">−</button>
+                            <span class="control-value exercise-key">@key.Name</span>
+                            <button type="button" class="mu-btn" aria-label="A harder key" disabled="@(playing || keys.IndexOf(key) == keys.Count - 1)" @onclick="() => Choose(keys[keys.IndexOf(key) + 1], hands)">+</button>
+                        </div>
+                    }
+                    @if (exercise.Hands.Count > 1)
+                    {
+                        <div class="control-row">
+                            <span class="control-label">Hands</span>
+                            @foreach (var h in exercise.Hands)
+                            {
+                                <button type="button" class="mu-toggle" aria-pressed="@On(hands == h)" disabled="@playing" @onclick="() => Choose(key, h)"><span class="mu-led"></span>@(h switch { HandUse.Right => "Right", HandUse.Left => "Left", _ => "Together" })</button>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+
+            <div class="exercise-music">
+                <PlayAlong Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" OnStarting="Starting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" />
+
+                <div class="sheet-frame">
+                    <Sheet @ref="sheet" Mei="@mei" />
+                </div>
+
+                @if (outcome is not null)
+                {
+                    <section class="summary" aria-label="How it went">
+                        <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" />
+                    </section>
+                }
+            </div>
+        }
+
+        <section class="exercise-words" aria-label="How to do it">
+            <h2 class="section-title">How</h2>
+            <ol class="exercise-steps">
+                @foreach (var step in exercise.How)
+                {
+                    <li>@step</li>
+                }
+            </ol>
+            <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Why" : "Notice")</h2>
+            <p class="exercise-notice">@exercise.Notice</p>
+            @if (exercise.Kind != ExerciseKind.Way)
+            {
+                <div class="control-row">
+                    @if (exercise.Kind == ExerciseKind.Away)
+                    {
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(was?.Last == Today)" @onclick="MarkDone">@(was?.Last == Today ? "Done today" : "Done")</button>
+                    }
+                    <button type="button" class="mu-toggle" aria-pressed="@On(routine.Contains(Id))" @onclick="ToggleRoutine"><span class="mu-led"></span>In my routine</button>
+                </div>
+                <p class="control-note">@history</p>
+            }
+            @if (next is not null && !playing)
+            {
+                <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}{(From == "routine" ? "?from=routine" : "")}")">
+                    <span class="piece-title">@next.Name</span>
+                    <span class="piece-meta">@(From == "routine" ? "Next in my routine" : "Next in this section")</span>
+                    <span class="piece-level" aria-hidden="true">›</span>
+                </a>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    /// <summary>"routine" when it was opened from My routine: what comes next is then the routine's next.</summary>
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+
+    private Exercise? exercise;
+    private List<Key> keys = [];
+    private Key key;
+    private HandUse hands;
+    private double tempo = 60;
+    private string mei = "";
+    private PlayMusic? music;
+    private Sheet? sheet;
+    private bool playing;
+    private PlayOutcome? outcome;
+    private DoneRecord? was;
+    private List<string> routine = [];
+    private DateTime started;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (exercise?.Id == Id) return;
+
+        exercise = Exercises.Find(Id);
+        if (exercise is null) return;
+
+        (outcome, playing, music, started) = (null, false, null, DateTime.Now);
+        routine = await Store.GetTrackAsync<List<string>>("exercise-routine") ?? [];
+        await Recount();
+        if (exercise.Kind != ExerciseKind.Played) return;
+
+        // As it was last played, where that's still one of its keys and hands; else its first key and its first hand.
+        keys = [.. Exercises.KeysOf(exercise)];
+        var last = await Store.GetTrackAsync<ExerciseChoice>($"exercise:{Id}");
+        key = last is not null && keys.Contains(new Key(last.Fifths, last.Minor)) ? new Key(last.Fifths, last.Minor) : keys[0];
+        hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
+        tempo = last?.Tempo ?? exercise.Tempo;
+        Build();
+    }
+
+    private async Task Recount() => was = (await Store.GetDoneAsync("exercise")).FirstOrDefault(d => d.SetId == Id);
+
+    private void Build()
+    {
+        var score = exercise!.Music!(key, hands);
+        mei = MeiWriter.Write(score, tempo);
+        music = new PlayMusic(score, score.Expected());
+        outcome = null;
+    }
+
+    private async Task Choose(Key toKey, HandUse toHands)
+    {
+        (key, hands) = (toKey, toHands);
+        Build();
+        await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+    }
+
+    private async Task SetTempo(double bpm)
+    {
+        tempo = Math.Clamp(bpm, 20, 240);
+        await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+    }
+
+    private void Starting() => (playing, outcome) = (true, null);
+
+    // A run is kept as an attempt at this exercise: its mode, tempo, key and hands, what was played and how it went.
+    private async Task Finished(PlayOutcome how)
+    {
+        (playing, outcome) = (false, how);
+        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Finished);
+        object measures = how.InTime is { } r
+            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, stopped = how.Stopped }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, seconds = how.Wait.Seconds, stopped = how.Stopped };
+        var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
+        var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
+        var chosen = JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() });
+        var inTime = how.Mode == PlayMode.InTime;
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, chosen, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null));
+        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+        started = DateTime.Now;
+        await Recount();
+    }
+
+    // One with nothing for Prima to follow is done when you say so.
+    private async Task MarkDone()
+    {
+        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", "done", Id, null, null, null, null, "[]", null, "{}", null, true, null));
+        await Recount();
+    }
+
+    private async Task ToggleRoutine()
+    {
+        routine = routine.Contains(Id) ? [.. routine.Where(id => id != Id)] : [.. routine, Id];
+        await Store.SaveTrackAsync("exercise-routine", routine);
+    }
+}

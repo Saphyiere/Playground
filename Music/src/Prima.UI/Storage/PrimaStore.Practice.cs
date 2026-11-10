@@ -14,6 +14,12 @@ namespace Prima.UI.Storage;
 /// </summary>
 public sealed record AttemptRecord(long Id, DateTimeOffset At, DateOnly Day, string Kind, string? Variant, string? SetId, int? Level, double? Tempo, long? Seed, string? Settings, string Played, string? Beats, string Measures, double? Headline, bool Clean, bool? Looked);
 
+/// <summary>
+/// How often something has been done: its attempts' kind, what was played where they're counted for each thing (an exercise's
+/// id), the times, the days, the last day, and the fastest tempo of a clean run In time.
+/// </summary>
+public sealed record DoneRecord(string Kind, string? SetId, int Times, int Days, DateOnly Last, double? CleanTempo);
+
 /// <summary>A practised day: its minutes, the plan made for it, the steps done, and the five-minute plan.</summary>
 public sealed record DayRecord(DateOnly Day, double Minutes, string? Plan, string StepsDone, bool ShortDone);
 
@@ -121,6 +127,15 @@ public sealed partial class PrimaStore
             "SELECT Id, At, Day, Kind, Variant, SetId, Level, Tempo, Seed, Settings, Played, Beats, Measures, Headline, Clean, Looked FROM Attempt WHERE Day >= @since ORDER BY At", new { since = Iso(since) });
         return rows.Where(r => kinds.Length == 0 || kinds.Contains(r.Kind)).Select(r => new AttemptRecord(r.Id, DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), r.Kind, r.Variant, r.SetId, (int?)r.Level, r.Tempo, r.Seed, r.Settings, r.Played, r.Beats, r.Measures, r.Headline, r.Clean == 1, r.Looked is null ? null : r.Looked == 1)).ToList();
     });
+
+    /// <summary>
+    /// What's been done: the attempts of one kind counted for each thing played (each exercise), and those of the other kinds
+    /// given each counted whole (a drill, whichever scale was played in it).
+    /// </summary>
+    public Task<List<DoneRecord>> GetDoneAsync(string each, params string[] whole) => RunAsync(async c =>
+        (await c.QueryAsync<(string Kind, string? SetId, long Times, long Days, string Last, double? CleanTempo)>(
+            "SELECT Kind, CASE WHEN Kind = @each THEN SetId END AS Played, COUNT(*), COUNT(DISTINCT Day), MAX(Day), MAX(CASE WHEN Clean = 1 AND Variant = 'in time' THEN Tempo END) FROM Attempt WHERE Kind = @each OR Kind IN @whole GROUP BY Kind, Played", new { each, whole }))
+        .Select(r => new DoneRecord(r.Kind, r.SetId, (int)r.Times, (int)r.Days, DateOnly.Parse(r.Last, CultureInfo.InvariantCulture), r.CleanTempo)).ToList());
 
     public Task<List<DayRecord>> GetDaysAsync(DateOnly since) => RunAsync(async c => (await c.QueryAsync<(string Day, double Minutes, string? Plan, string StepsDone, long ShortDone)>("SELECT Day, Minutes, Plan, StepsDone, ShortDone FROM PracticeDay WHERE Day >= @since ORDER BY Day", new { since = Iso(since) }))
         .Select(r => new DayRecord(DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), r.Minutes, r.Plan, r.StepsDone, r.ShortDone == 1)).ToList());

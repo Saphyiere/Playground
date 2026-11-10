@@ -1,8 +1,18 @@
 # Music: the exercises to build next
 
-Research for the technique exercises Prima doesn't have yet, done on 10 November 2026: build chord changes first, then
-jumps. **Nothing here is built.** It's written like [research.md](research.md) and uses its labels for how strong each piece of
-evidence is. Every scoring band and step in it is a starting value, not a tested one.
+Research for the technique exercises Prima didn't have, done on 10 November 2026: build chord changes first, then jumps. It's
+written like [research.md](research.md) and uses its labels for how strong each piece of evidence is. Every scoring band and
+step in it is a starting value, not a tested one.
+
+**A first set is built**: the Exercises tab ([concept.md](concept.md#exercises-1)). It has the notes of builds 1 to 6 in the
+table near the end as fixed patterns (the triad walk and the inversions; jumps with a shrinking pause and a ladder of
+distances; the cadence near and far; bass then chord and the broken figures; contrary motion, the chromatic scale, staccato and
+dynamics as exercises of their own; pedal changes), judged by the measures the play bar already takes. Beside them is the
+owner's own list of technique work for an adult beginner (sitting and hand shape, warm-ups, arm weight and rotation,
+five-finger patterns, thumb under, trills, touch, ways to practise), from research the owner brought to the session that built
+the tab; that document isn't in the repo. **Not built**: the landing measures proposed here (the first landing, a chord's
+spread, travel time, the size and direction of a miss), the adapting steps, the log for each chord pair, the overlays on the
+Scales drill, and voicing.
 
 The notes behind it, with every source, are beside it, one file for each line of research:
 [the exercise books and exam lists](exercises/exercise_canon_and_taxonomy.md),

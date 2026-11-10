@@ -15,8 +15,8 @@ finding, it says so.
 The one thing that reliably builds sight-reading is reading a lot of fresh, easy-enough music in time, every day. So the heart
 of the app is a generator that writes new passages at your level and a reading screen that plays them with you, never waiting.
 Around it sit short drills for what reading leans on (notes, rhythm, key signatures, intervals, chords, finding keys without
-looking) and for clean technique (scales, arpeggios, even fingers, measured from MIDI), a daily plan of about twenty minutes,
-and progress shown as honest numbers over weeks.
+looking) and for clean technique (scales, arpeggios, even fingers, measured from MIDI), a catalogue of technique exercises
+with how to do each, a daily plan of about twenty minutes, and progress shown as honest numbers over weeks.
 
 ## What the research decided
 
@@ -44,8 +44,8 @@ and progress shown as honest numbers over weeks.
 
 ## Sections
 
-The rail down the left edge, in both looks: Today, Drills and Sight-read; Library, Tools and You; Settings at the foot. In
-Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
+The rail down the left edge, in both looks: Today, Drills, Sight-read and Exercises; Library, Tools and You; Settings at the
+foot. In Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
 
 ### Today
 
@@ -122,6 +122,12 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 Short, focused practice, each a few minutes. Reading drills: Notes, Endless notes, Ledger lines, Intervals and shapes, Chords,
 Key signatures, Rhythm, Keyboard geography, and Listen and play back. Technique drills: Scales, Arpeggios, and Finger
 independence. Each is described under [Drills](#drills-1) below.
+
+### Exercises
+
+Technique to work through, at the piano and away from it: fourteen sections, from how you sit to the pedal, each exercise with
+what you do, how, and what to notice. The list can be searched and filtered, and shows when each was last done; an exercise
+opens on a page of its own, with its music if it's played. Described under [Exercises](#exercises-1) below.
 
 ### Library
 
@@ -438,6 +444,56 @@ tempo and target, by key, octaves past one, and hands. The first time, a run in 
 comfortable speed the In time runs start a little under; the tempo can also be set with − and +. Wait for me runs are practice
 for the notes: they count towards the set's five runs and the day, not towards evenness or the tempo.
 
+## Exercises
+
+Where a drill measures a few things closely, the exercises are a catalogue to work through: 66 entries in 14 sections, from the
+owner's own list of technique work for an adult beginner and from the research in `exercises.md`. The words are Prima's; the
+patterns are the common stock of piano teaching, and Prima writes each one's notes itself, in the key and for the hands you
+choose.
+
+| Section | What's in it |
+| --- | --- |
+| Sitting and hand shape | Bench height and distance, sitting balanced, the hand's own shape, shoulders down, a tension check, filming yourself from the side |
+| Warm-ups away from the keys | Arm swings and shoulder rolls, wrist circles and doorknob turns, shaking out, fan and close, finger taps on a table, gentle forearm stretches, an arm drop onto the knee |
+| Arm weight and rotation | Dropping onto one note, rocking between thumb and little finger, smaller turns between fingers a third apart, wrist circles on a held note |
+| Five-finger patterns | The pattern in every key, major then minor, the hands in mirror, long–short, the pattern then its chord, and Hanon's first pattern played quietly |
+| Scales | The Scales drill, a scale in contrary motion, the chromatic scale |
+| Broken chords and left-hand patterns | The Arpeggios drill, a chord passed between the hands, broken chords through the inversions, an Alberti bass |
+| Chords and cadences | One shape up the scale, up through the inversions, four kinds of chord on one note, I–IV–I–V–I with the hands close, four chords round and round |
+| Jumps | An octave with less time to travel on each line, further each time (a third, a fifth, an octave, a tenth), a chord an octave away, the cadence with each chord from its own bottom note, bass note then chord |
+| Thumb under | Under three fingers, and under four |
+| Trills | The Finger independence drill, and slow trills on fingers 2 and 3, 1 and 2, 1 and 3 |
+| Hands doing different things | One hand holds while the other moves, two notes against one, smooth against detached, two against three |
+| Touch, loud and soft | Two-note slurs, five fingers detached, one note soft to loud, growing and fading |
+| Pedal | The pedal by itself, and changed on each chord |
+| Ways to practise anything | Slow enough to be right, hands separately then together, small sections, fixing a mistake at once, the metronome ladder, mixing things up, sleeping on it, recording yourself, the hard bit first, when to stop |
+
+There are four kinds. One **played at the piano** (39 of them) shows its music with the fingering under the play bar every
+screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards. Its notes, timing and held notes
+are judged as a passage's are, and so, where its music marks them, are the touch (slurs and staccato), loud and soft, and the
+pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) has nothing for Prima to follow: you do it and
+press Done, once a day. A **way to practise** is a few lines to read. And the three technique **drills** are listed in the
+sections they belong to, their rows opening the drill.
+
+An exercise's page has what you do in a line, how in a few steps, and what to notice. One that's played offers its keys with −
+and +, easier to harder in the exams' order (every major and minor key, the major keys, or C alone, as suits it), and the hands
+it's written for: right, left, together. It opens as you last played it, at the tempo you left it. What's been done of it is
+under its words: how many times and on how many days, when last, and the fastest clean run In time. **In my routine** keeps it
+in the list's My routine. The row under that leads to the next in its section, or, when the exercise was opened from My
+routine, to the routine's next. In landscape the music and the words sit side by side, so both show at the piano; in portrait
+one is under the other.
+
+The list shows each section with a line on what it's for, and each exercise as a row: its name, what you do, when it was last
+done (Today, a date, or Not tried), and tags for Routine, Drill, Start here (played, and for the first weeks) and Later (for
+when the basics are easy). The filters are All, My routine, Start here (sitting, the warm-ups and the played exercises for the
+first weeks) and Not tried. My routine is one list, in the catalogue's order, without the sections' headings. The search looks
+in an exercise's name, its section and all its words, so "jump", "thumb" or "pedal" finds whatever mentions it.
+
+What it doesn't do yet: the exercises are fixed patterns, not adapted to how the last run went; they aren't a step of the
+daily plan; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
+notes arrive, the time to travel, how far a miss missed) aren't taken. What MIDI can't carry isn't judged at all: the arm's
+weight, the forearm's turn, a loose wrist and the fingering are yours to feel, and the exercises that depend on them say so.
+
 ## The daily plan
 
 About twenty minutes, in this order. The order is a design choice; the evidence supports its parts.
@@ -497,7 +553,7 @@ Everything lives in one SQLite file on the tablet.
 - **Levels**: the current reading level and tempo, the rhythm level, and per scale and arpeggio the current tempo and target.
 - **Note cards**: one per note and clef, with its review box, when it's next due, its recent answers and response times.
 - **Sessions**: each day's practice, its steps and minutes.
-- **Attempts**: one per passage, rhythm or technique run, keeping its settings (the level's step, the key it was in and the key it
+- **Attempts**: one per passage, rhythm, technique or exercise run, keeping its settings (the level's step, the key it was in and the key it
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
   passage can be made again (one spot does) and a result recomputed if the scoring changes.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
@@ -509,6 +565,8 @@ Everything lives in one SQLite file on the tablet.
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
   (Read again's included), and when it was kept.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
+- **Exercises**: each one's runs are attempts under its id, with the key and hands (a Done away from the keys is one too); the
+  key, hands and tempo each was last played in; and the ones kept in My routine.
 - **Streak**: the days practised and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no
   images, and never the key), and the tokens and cost, so Settings can show the month's cost.
@@ -545,7 +603,8 @@ Only the devices can settle:
 
 Being researched: the Library's public-domain sources, importing PDFs, and page turns (`library.md`).
 
-Researched and not built yet: the technique exercises to add next, chord changes and jumps first (`exercises.md`).
+Partly built from its research: the Exercises tab has a first set of technique exercises as fixed patterns; the landing
+measures and the adapting steps that `exercises.md` proposes for chord changes and jumps aren't built.
 
 Open in the research: how best to step difficulty up, whether read-ahead and rhythm-only drills carry over to full reading in
 adults, whether spaced note review helps staff reading itself, and whether streaks help adult music learners keep going.

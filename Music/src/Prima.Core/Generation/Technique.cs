@@ -74,6 +74,9 @@ public static class Technique
         [-7] = ([3, 4, 1, 2, 3, 1, 2, 3], [3, 2, 1, 3, 2, 1, 4, 3]),
     };
 
+    /// <summary>A major scale's fingering over one octave going up, tonic to tonic: the right hand's, then the left's.</summary>
+    public static (int[] Right, int[] Left) MajorFingers(Key key) => Major[Math.Clamp(key.Fifths, -7, 7)];
+
     /// <summary>The order keys come in, by the boards' ladder: C, G, F, D and their minors first, then a sharp or flat more each.</summary>
     public static IReadOnlyList<Key> Order { get; } =
     [
