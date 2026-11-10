@@ -539,6 +539,12 @@ a drop.
 
 - **MIDI over USB** from the P-225B is the only input. It gives exact notes, chords, velocity, the pedals and timing, in every
   drill. There's no microphone and no on-screen keyboard.
+- **A key is one key, whatever voices sound on it.** With two voices layered (the piano's Dual, say piano and strings), the
+  piano sends each key's note twice, the second voice's on the MIDI channel after the first's, and Prima used to take that as
+  the key pressed twice: the second press landed on the next notes, as a wrong key or as the next note played already. Prima
+  now passes a key on once, when it first goes down and when its last voice lets go, and a pedal's message once. This is from
+  Yamaha's MIDI references for the P-145 and P-125 (the P-225's couldn't be opened) and from how it failed; only the piano
+  can confirm it, and whether a second voice set an octave away is sent as a different key.
 - **Sound from the piano.** Prima sends notes back to the piano over MIDI, so Duet, Hear first and Listen and play back play
   through the piano itself, and so do a piece's Listen and play along. Each note goes out a fifth of a second ahead, its time
   worked out then from the click's beats: the tablet's click knows when its beats really sound only once its audio timestamp

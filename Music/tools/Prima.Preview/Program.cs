@@ -65,6 +65,8 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
 // The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.
 app.MapGet("/keys/connect", (SimulatedKeyboard keys) => { keys.Plug(true); return Results.Text("connected"); });
 app.MapGet("/keys/disconnect", (SimulatedKeyboard keys) => { keys.Plug(false); return Results.Text("disconnected"); });
+// Two voices layered on the keys, as the P-225's Dual: each key and pedal then says its message on channels 1 and 2.
+app.MapGet("/keys/dual", (bool on, SimulatedKeyboard keys) => { keys.Voices = on ? 2 : 1; return Results.Text(on ? "two voices on each key" : "one voice"); });
 app.MapGet("/keys/play", (string notes, int? velocity, int? hold, SimulatedKeyboard keys) =>
 {
     keys.Play(notes.Split(',').Select(n => int.Parse(n, CultureInfo.InvariantCulture)), velocity ?? 80, hold ?? 300);

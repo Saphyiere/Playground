@@ -13,6 +13,7 @@ namespace Prima.Tablet;
 /// The piano over USB MIDI, through Android's MidiManager: it opens the first device that sends MIDI (the P-225B on its USB TO HOST
 /// port), follows plugging in and out, and hands each message to the Core's parser with Android's timestamp (System.nanoTime).
 /// Active Sensing goes to the jitter measure; notes on Prima's own channel (16) are dropped in case the piano echoes them back.
+/// A key or pedal the piano says on two channels (two voices layered, its Dual) is passed on once (<see cref="OneVoice"/>).
 /// Notes for the piano wait on a thread of their own and go out 10 ms early with their exact timestamp, so they're on time whether
 /// or not the device holds timestamped messages until then.
 /// </summary>
@@ -24,6 +25,7 @@ public sealed class AndroidKeyboard : IKeyboard
     private readonly MidiManager manager;
     private readonly Handler handler = new(Looper.MainLooper!);
     private readonly MidiParser parser = new();
+    private readonly OneVoice voice = new();
     private readonly List<MidiEvent> parsed = [];
     private readonly Lock gate = new();
     private readonly PriorityQueue<byte[], long> outgoing = new();
@@ -106,6 +108,7 @@ public sealed class AndroidKeyboard : IKeyboard
         var props = info.Properties;
         Name = props?.GetString(MidiDeviceInfo.PropertyProduct) ?? props?.GetString(MidiDeviceInfo.PropertyName) ?? "Keyboard";
         Sensing.Clear();
+        lock (gate) voice.Clear();
         // Prima's channel starts on the grand piano voice, since a channel other than 1 may start on another one.
         Send([0xC0 | (OwnChannel - 1), 0], 0);
         Changed?.Invoke();
@@ -131,14 +134,14 @@ public sealed class AndroidKeyboard : IKeyboard
         lock (gate)
         {
             parser.Read(bytes.AsSpan(offset, count), timestamp, parsed);
-            events = [.. parsed];
+            events = [.. parsed.Where(e => e.Kind == MidiKind.ActiveSensing || e.Channel != OwnChannel && voice.Hears(e))];
             parsed.Clear();
         }
 
         foreach (var e in events)
         {
             if (e.Kind == MidiKind.ActiveSensing) Sensing.Add(e.TimeNs);
-            else if (e.Channel != OwnChannel) Received?.Invoke(e);
+            else Received?.Invoke(e);
         }
     }
 
