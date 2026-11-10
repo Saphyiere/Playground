@@ -12,6 +12,17 @@
     var others = state.StillToDo().Where(other => other != id && together?.Contains(other) != true).Select(other => state.Exercises[other]).ToList();
     <div class="screen">
         <PageHeader Back="workout" BackText="@state.Name" Label="Today only" Title="@($"Change {target.Name}")" Small="true" Live="true" />
+
+        @* In the superset that's next or running, Change opens on one of its exercises: this picks which of them to change. *@
+        @if (together is not null)
+        {
+            <div class="segmented" role="group" aria-label="Which exercise to change">
+                @foreach (var member in together)
+                {
+                    <button type="button" aria-pressed="@(member == id ? "true" : "false")" @onclick="() => targetId = member">@state.Exercises[member].Name</button>
+                }
+            </div>
+        }
         <p class="note">@(state.Running.Count == 0 ? "The session itself stays as it is." : $"The running {(state.Running.Count > 1 ? "round" : "set")} starts over with whatever you pick. The session itself stays as it is.")</p>
 
         @* In the superset that's next or running: take it apart, so this one goes on alone, then the others. *@

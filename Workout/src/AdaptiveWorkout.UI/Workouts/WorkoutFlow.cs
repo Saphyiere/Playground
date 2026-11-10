@@ -105,10 +105,9 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
             Save(store.SaveWarmUpAndCoolDownAsync(state.Session));
         }
 
-        // Starting closes the rest's entries; anything not saved yet keeps what's in its fields.
+        // Starting closes the rest's entries, as they stand in their fields.
         foreach (var entry in state.ToConfirm) Save(store.UpdateSetAsync(entry));
         state.LoggedThrough = state.LastOrder;
-        state.Confirmed.Clear();
 
         foreach (var exerciseId in exerciseIds)
         {
@@ -210,7 +209,6 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     {
         if (Current is not { } state || set.StoppedAt is null || !state.Sets.Remove(set)) return;
 
-        state.Confirmed.Remove(set.Order);
         state.Refresh();
         Save(store.DeleteSetAsync(set));
         Announce();
@@ -259,15 +257,6 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         foreach (var session in during) await MeasureAsync(session, pastSets.Where(s => s.SessionId == session.Id));
     }
 
-    /// <summary>Saves a set entered on the rest screen; once every set there is saved, the rest screen shows today's summary.</summary>
-    public void ConfirmSet(WorkoutSet set)
-    {
-        if (Current is not { } state) return;
-
-        state.Confirmed.Add(set.Order);
-        Save(store.UpdateSetAsync(set));
-    }
-
     /// <summary>Passes over an exercise (or a superset's) in today's plan.</summary>
     public void Skip(IEnumerable<long> exerciseIds)
     {
@@ -285,7 +274,6 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
 
         foreach (var entry in state.ToConfirm) Save(store.UpdateSetAsync(entry));
         state.LoggedThrough = state.LastOrder;
-        state.Confirmed.Clear();
         state.Session.CoolDownStartedAt = DateTimeOffset.Now;
         Save(store.SaveWarmUpAndCoolDownAsync(state.Session));
         Announce();

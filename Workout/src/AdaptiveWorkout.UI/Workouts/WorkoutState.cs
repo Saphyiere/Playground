@@ -40,14 +40,11 @@ public sealed class WorkoutState
     /// <summary>The last set's order; 0 before the first. Orders can skip numbers, after a set is deleted.</summary>
     public int LastOrder => Sets.Count == 0 ? 0 : Sets[^1].Order;
 
-    /// <summary>Sets saved on the current rest screen, by order.</summary>
-    public HashSet<int> Confirmed { get; } = [];
-
     /// <summary>
-    /// What the rest screen asks for: weight sets stopped since the last rest and not saved yet. A superset round's sets
-    /// all wait for the rest after the round. Time sets need nothing; the stopwatch was the entry.
+    /// What the rest screen asks for, until the next set starts: the weight sets stopped since the last rest. A superset round's
+    /// sets all wait for the rest after the round. Time sets need nothing; the stopwatch was the entry.
     /// </summary>
-    public List<WorkoutSet> ToConfirm => [.. Sets.Where(s => s.StoppedAt is not null && s.Order > LoggedThrough && !Confirmed.Contains(s.Order) && Exercises[s.ExerciseId].Measure == ExerciseMeasure.Weight)];
+    public List<WorkoutSet> ToConfirm => [.. Sets.Where(s => s.StoppedAt is not null && s.Order > LoggedThrough && Exercises[s.ExerciseId].Measure == ExerciseMeasure.Weight)];
 
     public string Name => Template?.Name ?? "Workout";
 

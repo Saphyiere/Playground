@@ -174,15 +174,23 @@
                     <HeartRate AfterSet="logged.StoppedAt" />
                 </section>
 
-                @foreach (var set in toConfirm)
+                @if (toConfirm.Count > 0)
                 {
-                    <SetEntry State="state" Set="set" OnSaved="() => { }" @key="set.Order" />
+                    @* The set, or the superset's round, just done: an exercise a line, pre-filled, each change saved as it's made. *@
+                    <section class="block appear" aria-labelledby="entry-heading">
+                        <h2 id="entry-heading" class="label">@(toConfirm.Find(s => !s.WarmUp) is { } counted ? WorkoutState.StepLabel(state.Describe(counted)) : "Warm-up")</h2>
+                        <div class="lifts">
+                            @foreach (var set in toConfirm)
+                            {
+                                <SetEntry State="state" Set="set" @key="set.Order" />
+                            }
+                        </div>
+                    </section>
                 }
-
-                @if (toConfirm.Count == 0)
+                else
                 {
-                    @* Everything entered: the rest screen becomes a look at the whole workout so far. A warm-up set is written small,
-                       under the exercise's own sets. *@
+                    @* Nothing to enter (a time exercise, or the workout reopened): a look at the whole workout so far. A warm-up set
+                       is written small, under the exercise's own sets. *@
                     <section class="block appear" aria-labelledby="today-heading">
                         <div class="spread">
                             <h2 id="today-heading" class="label">Today so far</h2>

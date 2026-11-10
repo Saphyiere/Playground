@@ -1,6 +1,6 @@
 @* How many more reps a set had in it: 0, 1, 2 or 3+, one tap, and optional. Tapping the one chosen clears it. Claude's look back
-   reads it; the app's own suggestions don't. *@
-<div class="tank" role="group" aria-labelledby="@Id">
+   reads it; the app's own suggestions don't. On the rest screen it's quiet: hairline boxes until one is picked. *@
+<div class="tank @(Quiet ? "quiet" : null)" role="group" aria-labelledby="@Id">
     <span class="field-label" id="@Id">Left in the tank</span>
     <div class="segmented tank-choices">
         @for (var reps = 0; reps <= 3; reps++)
@@ -22,6 +22,9 @@
 
     /// <summary>Not asked, e.g. of a warm-up set.</summary>
     [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Kept in view without drawing the eye, as on the rest screen.</summary>
+    [Parameter] public bool Quiet { get; set; }
 
     private Task PickAsync(int value) => ValueChanged.InvokeAsync(Value == value ? null : value);
 
