@@ -588,7 +588,9 @@ details.
   and each line is spread to the paper's width. A whole piece's lines break where its bars fit, so a busy bar is never
   squeezed to share a line, and a short last line keeps its bars' own widths; a short passage's bars are shared evenly
   between its lines. The brace joining the staves stands as far in from the paper's left edge as the last bar line does
-  from its right.
+  from its right. A sheet that prints fingering (the technique drills, the exercises) keeps a deeper top margin, and a
+  mark's words go above the fingering, so the names of a wrong key and the note it was played for sit over their own note
+  without covering the finger numbers.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
   the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
   the app as woff2 files, so it works offline; Verovio brings its own music fonts.

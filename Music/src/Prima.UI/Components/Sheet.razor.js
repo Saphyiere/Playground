@@ -148,6 +148,9 @@ function draw(element, state) {
     // A brace (or a bracket) joining the staves hangs to their left: the margin there makes room for it, so it stands as far
     // in from the paper's edge as the last bar line does on the right, not on the edge itself.
     const joined = /\ssymbol="brac(e|ket)"/.test(state.music);
+    // Fingering is printed over the top staff, and a mark's words (the name of a wrong key) go over the fingering: a deeper
+    // top margin leaves them room there, over their own note.
+    const fingered = /<fing[\s>]/.test(state.music);
     state.loaded = {
         font: options.font,
         scale: 100,
@@ -160,7 +163,7 @@ function draw(element, state) {
         footer: "none",
         pageMarginLeft: joined ? 50 : 24,
         pageMarginRight: 24,
-        pageMarginTop: options.layout === "page" ? 40 : 24,
+        pageMarginTop: options.layout === "page" || fingered ? 40 : 24,
         pageMarginBottom: 24,
         svgViewBox: true,
         svgHtml5: true,
@@ -649,9 +652,9 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
         t.appendChild(s);
     });
     overlay.appendChild(t);
-    // In the way: the marks' words already there, and the music's own words (a figure's named first note, a dynamic).
+    // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering).
     const sheet = overlay.closest(".sheet").getBoundingClientRect();
-    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
     const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
     // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
     const inWay = () => {
