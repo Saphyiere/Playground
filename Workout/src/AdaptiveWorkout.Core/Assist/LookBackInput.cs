@@ -251,16 +251,13 @@ public static class LookBackFacts
         if (reached) flags.Add(new SetFlag(SetFlagKind.GoalBox, $"Every set reached last time's goal ({goalReps} at {Weight(goal.Weight, goal.WeightUnit)}), but Hit goal isn't ticked"));
     }
 
-    // The planned sets for an exercise: its entry's, or, in a superset, the first entry's (which counts for all).
+    // The planned sets for an exercise: its entry's, or, in a superset, the first entry's (which counts for all). One in the plan more
+    // than once (a superset taken apart part way, or an exercise put off and come back to) has them added up; any without a count
+    // leaves it without one.
     private static int? PlannedSets(IReadOnlyList<TemplateExercise> plan, long exerciseId)
     {
-        var at = plan.ToList().FindIndex(e => e.ExerciseId == exerciseId);
-        if (at < 0) return null;
-        if (plan[at].PlannedSets is not null || plan[at].SupersetGroup is not int group) return plan[at].PlannedSets;
-
-        var first = at;
-        while (first > 0 && plan[first - 1].SupersetGroup == group) first--;
-        return plan[first].PlannedSets;
+        var counts = WorkoutPlan.Blocks(plan).Where(b => b.Any(e => e.ExerciseId == exerciseId)).Select(b => b[0].PlannedSets).ToList();
+        return counts.Count == 0 || counts.Contains(null) ? null : counts.Sum();
     }
 
     // The reading nearest a moment, within 15 seconds of it.

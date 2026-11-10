@@ -227,8 +227,9 @@ Machines are taken all the time, so a workout never has to follow its session ex
 - **Swap it for** any other exercise, today only, keeping its spot, sets and superset. The one swapped out is gone for today. One still to do later in the plan moves up instead; one already done today goes in afresh.
 - **Drop it today** (no dip station at this gym: the superset becomes just pull-ups, with the same rounds). There's no skip button anywhere else; changing the plan should take a deliberate step.
 - **Superset**, a checkbox above the others: the one picked then goes with the changed one instead of in its place, a round of both back to back for the rounds it has left (no one's in the gym, so curls and skull crushers together). One still to do later in the plan leaves its own spot; any other joins afresh. With three or more to a round, their names get smaller to fit side by side.
+- **Split the superset**, at the top when the exercise is in the superset that's next or running: it's taken apart for today (the seat needs changing between the two every round, so one at a time instead). The exercise Change was opened on goes on alone for the sets the superset had left, then the others, each alone for the same; the rounds already done stay as they were. Right after, the break screen doesn't offer another round.
 
-In a superset, each exercise has its own **Change**. From the set screen, the running set (or round) starts over with the new exercise.
+In a superset, each exercise has its own **Change**. From the set screen, the running set (or round) starts over with the new exercise; splitting from there starts a set of the one picked, alone.
 
 **Different exercise** in advanced mode starts something in place of what's next: a planned one (with its superset), or one the plan doesn't have, which joins the plan right after what's next. Either way the plan carries on after it, and what it took the place of waits in the list of what's still to do. **Add more**, once everything planned is done, adds a whole other session (an ab session after the bike) or one exercise after everything else.
 

@@ -12,6 +12,8 @@ else if (State.Next is { } next)
 {
     // Going on with what I just did reads "Start set 3" (or round); anything else, its name.
     var goingOn = State.LastRound.Select(s => s.ExerciseId).SequenceEqual(next.ExerciseIds);
+    // The superset I just did a round of was taken apart: one of its exercises is next, alone, so another round isn't offered.
+    var takenApart = State.LastRound.Count > 1 && !next.IsRound && State.LastRound.Any(s => s.ExerciseId == next.ExerciseId);
     var names = State.Names(next.ExerciseIds);
     @if (State.Plan.Count > 0 && next.IsRound)
     {
@@ -68,7 +70,7 @@ else if (State.Next is { } next)
             <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
         </div>
     }
-    else if (!goingOn && CanGoOn)
+    else if (!goingOn && CanGoOn && !takenApart)
     {
         <button type="button" class="btn tall" @onclick="StartAnotherAsync">@(State.LastRound is [var only] ? $"Another set of {State.Exercises[only.ExerciseId].Name}" : "Another round")</button>
     }

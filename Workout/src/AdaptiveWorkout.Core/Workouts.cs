@@ -123,6 +123,21 @@ public sealed class WorkoutSet
 
     /// <summary>How many more reps I could have done, when I said: 0 to 3, where 3 is three or more. Empty when I didn't say.</summary>
     public int? RepsLeft { get; set; }
+
+    /// <summary>
+    /// A warm-up set, lighter on purpose, when I said so: it's kept and shown, but left out of everything that judges the workout
+    /// (see <see cref="WorkoutSets.Working"/>).
+    /// </summary>
+    public bool WarmUp { get; set; }
+}
+
+public static class WorkoutSets
+{
+    /// <summary>
+    /// The sets that count: every one but the warm-ups. A warm-up set is left out of the plan's set count, the next set's and next
+    /// time's weights, the last times, improvement and plateaus, each muscle's hard sets, volume, and the usual rest.
+    /// </summary>
+    public static IEnumerable<WorkoutSet> Working(this IEnumerable<WorkoutSet> sets) => sets.Where(s => !s.WarmUp);
 }
 
 public sealed class FoodEntry

@@ -60,7 +60,7 @@
                     <div class="@(block.Count > 1 ? "superset" : "")">
                         @if (block.Count > 1)
                         {
-                            <p class="label">Superset@(block[0].PlannedSets is int rounds ? $" · {rounds} rounds" : "")</p>
+                            <p class="label">Superset@(block[0].PlannedSets is int rounds ? $" · {rounds} {(rounds == 1 ? "round" : "rounds")}" : "")</p>
                         }
                         @foreach (var entry in block)
                         {

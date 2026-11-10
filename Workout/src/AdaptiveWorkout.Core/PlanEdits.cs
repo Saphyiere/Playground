@@ -84,6 +84,24 @@ public static class PlanEdits
     }
 
     /// <summary>
+    /// Takes a superset apart: the block at this index in <see cref="WorkoutPlan.Blocks"/>. Each of its exercises goes on alone, the
+    /// one picked first and the others in their order, for the rounds the superset had left; with no count, as many as I like. The
+    /// rounds done stay as the superset they were. Not a superset, or without the exercise, or with no rounds left: the plan stays
+    /// as it is.
+    /// </summary>
+    public static List<TemplateExercise> Split(IReadOnlyList<TemplateExercise> plan, long exerciseId, int block, int roundsDone, int? roundsLeft)
+    {
+        var blocks = WorkoutPlan.Blocks(plan);
+        if (block < 0 || block >= blocks.Count || blocks[block] is not { Count: > 1 } superset || superset.All(e => e.ExerciseId != exerciseId) || roundsLeft <= 0) return Build(blocks);
+
+        var alone = superset.OrderBy(e => e.ExerciseId != exerciseId).Select(e => (List<TemplateExercise>)[With(e, e.ExerciseId, roundsLeft)]).ToList();
+        if (roundsDone > 0) blocks[block] = [.. superset.Select((e, i) => With(e, e.ExerciseId, i == 0 ? roundsDone : null))];
+        else blocks.RemoveAt(block);
+        blocks.InsertRange(roundsDone > 0 ? block + 1 : block, alone);
+        return Build(blocks);
+    }
+
+    /// <summary>
     /// Adds an exercise as its own entry right after the block at this index in <see cref="WorkoutPlan.Blocks"/> (an exercise, or a
     /// whole superset), e.g. one picked from the list in that one's place; with no index, after everything else.
     /// </summary>

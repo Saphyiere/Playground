@@ -98,6 +98,92 @@ public class WorkoutPlanTests
     }
 
     [Fact]
+    public void Split_PartWay_EachExerciseGoesOnAloneForTheRoundsLeft_ThePickedOneFirst()
+    {
+        TemplateExercise[] plan = [Entry(Rows, 0, sets: 3), Entry(PullUps, 1, sets: 3, superset: 1), Entry(Dips, 2, superset: 1), Entry(Pulldown, 3, sets: 3)];
+        var done = Done(Rows, Rows, Rows, PullUps, Dips);
+
+        var split = PlanEdits.Split(plan, Dips, block: 1, roundsDone: 1, roundsLeft: 2);
+
+        Assert.Equal([(Rows, 3, null), (PullUps, 1, 1), (Dips, null, 1), (Dips, 2, null), (PullUps, 2, null), (Pulldown, 3, null)],
+            split.Select(e => (e.ExerciseId, e.PlannedSets, e.SupersetGroup is null ? (int?)null : 1)));
+        Assert.Equal(new PlanStep([Dips], 1, 2), WorkoutPlan.Next(split, done, NoHistory, []));
+        Assert.Equal(new PlanStep([Dips], 2, 2), WorkoutPlan.Next(split, [.. done, .. Done(Dips)], NoHistory, []));
+        Assert.Equal(new PlanStep([PullUps], 1, 2), WorkoutPlan.Next(split, [.. done, .. Done(Dips, Dips)], NoHistory, []));
+        Assert.Equal(new PlanStep([Pulldown], 1, 3), WorkoutPlan.Next(split, [.. done, .. Done(Dips, Dips, PullUps, PullUps)], NoHistory, []));
+    }
+
+    [Fact]
+    public void Split_BeforeAnyRound_TakesTheSupersetApartWhereItIs()
+    {
+        TemplateExercise[] plan = [Entry(PullUps, 0, sets: 3, superset: 1), Entry(Dips, 1, superset: 1), Entry(Rows, 2, sets: 3)];
+
+        var split = PlanEdits.Split(plan, PullUps, block: 0, roundsDone: 0, roundsLeft: 3);
+
+        Assert.Equal([(PullUps, 3), (Dips, 3), (Rows, 3)], split.Select(e => (e.ExerciseId, e.PlannedSets!.Value)));
+        Assert.All(split, e => Assert.Null(e.SupersetGroup));
+        Assert.Equal(new PlanStep([PullUps], 1, 3), WorkoutPlan.Next(split, [], NoHistory, []));
+        Assert.Equal(new PlanStep([Dips], 1, 3), WorkoutPlan.Next(split, Done(PullUps, PullUps, PullUps), NoHistory, []));
+    }
+
+    [Fact]
+    public void Split_LeavesThePlanAlone_WhenItsNotASuperset_OrNoRoundsAreLeft()
+    {
+        TemplateExercise[] plan = [Entry(PullUps, 0, sets: 3, superset: 1), Entry(Dips, 1, superset: 1), Entry(Rows, 2, sets: 3)];
+
+        Assert.Equal([1, 1, null], PlanEdits.Split(plan, Rows, block: 2, roundsDone: 0, roundsLeft: 3).Select(e => e.SupersetGroup));
+        Assert.Equal([1, 1, null], PlanEdits.Split(plan, Rows, block: 0, roundsDone: 0, roundsLeft: 3).Select(e => e.SupersetGroup));
+        Assert.Equal([1, 1, null], PlanEdits.Split(plan, Dips, block: 0, roundsDone: 3, roundsLeft: 0).Select(e => e.SupersetGroup));
+    }
+
+    [Fact]
+    public void Split_WithOneSkippedAfterwards_StillCountsTheOthersSets()
+    {
+        TemplateExercise[] plan = [Entry(PullUps, 0, sets: 3, superset: 1), Entry(Dips, 1, superset: 1)];
+        var split = PlanEdits.Split(plan, PullUps, block: 0, roundsDone: 1, roundsLeft: 2);
+
+        Assert.Equal(new PlanStep([Dips], 1, 2), WorkoutPlan.Next(split, Done(PullUps, Dips), NoHistory, [PullUps]));
+        Assert.Equal(new PlanStep([Dips], 2, 2), WorkoutPlan.Next(split, Done(PullUps, Dips, Dips), NoHistory, [PullUps]));
+        Assert.Null(WorkoutPlan.Next(split, Done(PullUps, Dips, Dips, Dips), NoHistory, [PullUps]));
+    }
+
+    [Fact]
+    public void Next_AnExerciseRightAfterItself_CountsForTheNextOneOnceTheFirstHasItsSets()
+    {
+        TemplateExercise[] plan = [Entry(Rows, 0, sets: 2), Entry(Rows, 1, sets: 2), Entry(Pulldown, 2, sets: 3)];
+
+        Assert.Equal(new PlanStep([Rows], 1, 2), WorkoutPlan.Next(plan, Done(Rows, Rows), NoHistory, []));
+        Assert.Equal(new PlanStep([Rows], 2, 2), WorkoutPlan.Next(plan, Done(Rows, Rows, Rows), NoHistory, []));
+        Assert.Equal(new PlanStep([Pulldown], 1, 3), WorkoutPlan.Next(plan, Done(Rows, Rows, Rows, Rows), NoHistory, []));
+    }
+
+    [Fact]
+    public void Next_AnotherSetOfOnePutOff_StaysExtra_AndTheOneDoneFirstIsStillNext()
+    {
+        // Rows had a set, then Pulldown goes first: one more set of rows anyway is extra, and Pulldown is still next.
+        TemplateExercise[] plan = [Entry(Rows, 0, sets: 3), Entry(Pulldown, 1, sets: 3)];
+        var first = PlanEdits.DoFirst(plan, Pulldown, block: 0, setsDone: 1, setsLeft: 2);
+
+        Assert.Equal(new PlanStep([Pulldown], 1, 3), WorkoutPlan.Next(first, Done(Rows), NoHistory, []));
+        Assert.Equal(new PlanStep([Pulldown], 1, 3), WorkoutPlan.Next(first, Done(Rows, Rows), NoHistory, []));
+    }
+
+    [Fact]
+    public void Next_AWarmUpSetIsntOneOfTheExercisesSets_ButSaysWhereIAm()
+    {
+        TemplateExercise[] counted = [Entry(Rows, 0, sets: 3), Entry(Curls, 1, sets: 3)];
+        TemplateExercise[] uncounted = [Entry(Pulldown, 0), Entry(Curls, 1, sets: 3)];
+        WorkoutSet WarmUp(long exerciseId) => new() { ExerciseId = exerciseId, WarmUp = true };
+
+        Assert.Equal(new PlanStep([Curls], 1, 3), WorkoutPlan.Next(counted, [.. Done(Rows, Rows, Rows), WarmUp(Curls)], NoHistory, []));
+        Assert.Equal(new PlanStep([Curls], 2, 3), WorkoutPlan.Next(counted, [.. Done(Rows, Rows, Rows), WarmUp(Curls), .. Done(Curls)], NoHistory, []));
+        Assert.Equal(new PlanStep([Rows], 1, 3), WorkoutPlan.Next(counted, [WarmUp(Rows)], NoHistory, []));
+        // With no count, a warm-up of the next exercise is moving on.
+        Assert.Equal(new PlanStep([Curls], 1, 3), WorkoutPlan.Next(uncounted, [.. Done(Pulldown, Pulldown), WarmUp(Curls)], NoHistory, []));
+        Assert.Equal(new PlanStep([Dips], 2, null), WorkoutPlan.Next([], [WarmUp(Dips), .. Done(Dips)], NoHistory, []));
+    }
+
+    [Fact]
     public void Next_PassesOverSkippedExercises()
     {
         TemplateExercise[] plan = [Entry(Rows, 0, sets: 3), Entry(Pulldown, 1, sets: 3), Entry(Dips, 2, sets: 3)];

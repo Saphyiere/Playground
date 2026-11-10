@@ -87,6 +87,17 @@ public sealed class WorkoutState
     /// <summary>The exercise Change applies to when none is named: the running set's, else the next step's (a superset's first).</summary>
     public long? ChangeTarget => Running.FirstOrDefault()?.ExerciseId ?? Next?.ExerciseId;
 
+    /// <summary>
+    /// The superset that's next in the plan, or running now, when this exercise is in it: its exercises in order. Null otherwise.
+    /// </summary>
+    public IReadOnlyList<long>? SupersetNow(long exerciseId) =>
+        NextBlock is int at && WorkoutPlan.Blocks(Plan)[at] is { Count: > 1 } superset && superset.Any(e => e.ExerciseId == exerciseId) ? [.. superset.Select(e => e.ExerciseId)] : null;
+
+    /// <summary>
+    /// The step now: the running set's (or round's), else the next one. Its set number less one is how many sets (or rounds) are done.
+    /// </summary>
+    public PlanStep? StepNow => Running is [var first, ..] ? Describe(first) : Next;
+
     /// <summary>Exercises still to do in the plan, in order, supersets together; ones I went past too.</summary>
     public List<long> StillToDo() =>
         [.. WorkoutPlan.Open(Plan, [.. Sets.Where(s => s.StoppedAt is not null)], setsLastTime, Skipped).SelectMany(o => o.Members).Select(e => e.ExerciseId)];

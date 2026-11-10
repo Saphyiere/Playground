@@ -7,12 +7,23 @@
 @if (state is not null && targetId is long id)
 {
     var target = state.Exercises[id];
-    // Its own superset's other exercises start with it, so doing one of them first is no choice.
-    var partners = WorkoutPlan.Blocks(state.Plan).Find(b => b.Any(e => e.ExerciseId == id))?.Select(e => e.ExerciseId).ToHashSet() ?? [id];
-    var others = state.StillToDo().Where(other => !partners.Contains(other)).Select(other => state.Exercises[other]).ToList();
+    // The superset it's in now, when it's in one: its other exercises start with it, so doing one of them first is no choice.
+    var together = state.SupersetNow(id);
+    var others = state.StillToDo().Where(other => other != id && together?.Contains(other) != true).Select(other => state.Exercises[other]).ToList();
     <div class="screen">
         <PageHeader Back="workout" BackText="@state.Name" Label="Today only" Title="@($"Change {target.Name}")" Small="true" Live="true" />
         <p class="note">@(state.Running.Count == 0 ? "The session itself stays as it is." : $"The running {(state.Running.Count > 1 ? "round" : "set")} starts over with whatever you pick. The session itself stays as it is.")</p>
+
+        @* In the superset that's next or running: take it apart, so this one goes on alone, then the others. *@
+        @if (together is not null && state.StepNow is { } step)
+        {
+            var rest = string.Join(" and ", together.Where(other => other != id).Select(other => state.Exercises[other].Name));
+            var left = step.TargetSets - (step.SetNumber - 1);
+            <div class="stack tight">
+                <button type="button" class="btn tall" @onclick="SplitAsync">Split the superset</button>
+                <p class="note">@(left is int rounds ? $"{target.Name} goes on alone for the {rounds} {(rounds == 1 ? "set" : "sets")} left, then {rest}." : $"{target.Name} goes on alone, then {rest}.")</p>
+            </div>
+        }
 
         @* With Superset, what I pick goes with this one instead: rounds of both, back to back. It needs this one in today's plan. *@
         @if (state.Plan.Any(e => e.ExerciseId == id))
@@ -79,6 +90,12 @@
     private Task SupersetAsync(Exercise exercise)
     {
         Flow.SupersetWith(exercise, targetId!.Value);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task SplitAsync()
+    {
+        Flow.SplitSuperset(targetId!.Value);
         return Navigation.ReturnToAsync("workout");
     }
 

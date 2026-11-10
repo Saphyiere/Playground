@@ -353,7 +353,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     {
         if (Current is not { } state) return;
 
-        var step = state.Running is [var first, ..] ? state.Describe(first) : state.Next;
+        var step = state.StepNow;
         var plan = step is { SetNumber: > 1 } && state.NextBlock is int block
             ? PlanEdits.DoFirst(state.Plan, exercise.Id, block, step.SetNumber - 1, step.TargetSets - (step.SetNumber - 1))
             : PlanEdits.DoFirst(state.Plan, exercise.Id, target);
@@ -385,6 +385,18 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         state.Exercises.TryAdd(exercise.Id, exercise);
         var moveUp = state.Plan.Any(e => e.ExerciseId == exercise.Id) && state.Sets.All(s => s.ExerciseId != exercise.Id);
         ChangePlan(state, PlanEdits.Join(moveUp ? PlanEdits.Drop(state.Plan, exercise.Id) : state.Plan, exercise.Id, target), state.Exercises[target]);
+    }
+
+    /// <summary>
+    /// Takes the superset the exercise Change was opened on is in apart, today only, when it's the one next or running: that exercise
+    /// goes on alone for the rounds left, then the superset's others, each alone. The rounds done stay as they were. A running round
+    /// starts over as a set of it.
+    /// </summary>
+    public void SplitSuperset(long target)
+    {
+        if (Current is not { } state || state.SupersetNow(target) is null || state.NextBlock is not int block || state.StepNow is not { } step) return;
+
+        ChangePlan(state, PlanEdits.Split(state.Plan, target, block, step.SetNumber - 1, step.TargetSets - (step.SetNumber - 1)), state.Exercises[target]);
     }
 
     /// <summary>Leaves the exercise Change was opened on out of today's workout.</summary>
