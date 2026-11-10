@@ -187,7 +187,8 @@ public static class MeiWriter
         }
     }
 
-    private static bool Beamable(Event e) => e is Notes { Grace: false } n && Written(n) <= Ticks.Eighth;
+    // Any note written shorter than a quarter has a flag, so it can go under a beam: a dotted eighth with its sixteenth too.
+    private static bool Beamable(Event e) => e is Notes { Grace: false } n && Written(n) < Ticks.Quarter;
 
     // Where beams break, as tick boundaries in the bar: the beat, or for 3/8 the bar, 5/8 2+3, 7/8 2+2+3, 2/2 the half.
     private static int[] BeamGroups(Meter meter) => (meter.Count, meter.Unit) switch

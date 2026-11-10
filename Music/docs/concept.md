@@ -584,13 +584,15 @@ details.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
-  looks, with the look around it and the cursor and marks drawn on top. Bars are as wide as their notes need, as in print,
-  and each line is spread to the paper's width. A whole piece's lines break where its bars fit, so a busy bar is never
-  squeezed to share a line, and a short last line keeps its bars' own widths; a short passage's bars are shared evenly
-  between its lines. The brace joining the staves stands as far in from the paper's left edge as the last bar line does
-  from its right. A sheet that prints fingering (the technique drills, the exercises) keeps a deeper top margin, and a
-  mark's words go above the fingering, so the names of a wrong key and the note it was played for sit over their own note
-  without covering the finger numbers.
+  looks, with the look around it and the cursor and marks drawn on top. Bars are as wide as their notes need, as in print, and
+  each line is spread to the paper's width. A whole piece's lines break where its bars fit, so a busy bar is never squeezed to
+  share a line, and a short last line keeps its bars' own widths; a short passage's bars are shared evenly between its lines.
+  In the music Prima writes itself (passages, drills, exercises, a piece from a MIDI file, notes read from a PDF), notes
+  shorter than a quarter are joined under a beam within the beat, a dotted eighth with its sixteenth as well as plain eighths
+  and sixteenths; a bundled piece keeps its own engraving's beams. The brace joining the staves stands as far in from the
+  paper's left edge as the last bar line does from its right. A sheet that prints fingering (the technique drills, the
+  exercises) keeps a deeper top margin, and a mark's words go above the fingering, so the names of a wrong key and the note it
+  was played for sit over their own note without covering the finger numbers.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
   the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
   the app as woff2 files, so it works offline; Verovio brings its own music fonts.

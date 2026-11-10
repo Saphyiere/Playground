@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Prima.Core.Music;
 
 namespace Prima.Core.Tests;
@@ -151,6 +152,27 @@ public class MusicTests
         Assert.Contains("<mRest xml:id=\"k\"", mei);
         Assert.Contains("<dynam staff=\"1\" startid=\"#a1\" place=\"below\">p</dynam>", mei);
         Assert.Contains("right=\"end\"", mei);
+    }
+
+    [Fact]
+    public void ADottedEighthAndItsSixteenthShareABeam()
+    {
+        // A bar of 4/4: long then short on the first beat, short then long on the second, a dotted eighth with a rest after it on
+        // the third, and a quarter.
+        static Notes Note(string id, int start, int length, Step step) => new(id, start, length, [new Tone(id, P(step, 4))]);
+        var voice = new Voice(1,
+        [
+            Note("a", 0, 360, Step.C), Note("b", 360, 120, Step.D),
+            Note("c", 480, 120, Step.E), Note("d", 600, 360, Step.F),
+            Note("e", 960, 360, Step.G), new Rest("f", 1320, 120),
+            Note("g", 1440, Ticks.Quarter, Step.A),
+        ]);
+        var mei = XDocument.Parse(MeiWriter.Write(new Score(new Key(0), new Meter(4, 4), [new Bar(1, [voice])])));
+
+        // Each pair is under one beam, inside its beat. A dotted eighth with no note to join keeps its flag, and a rest or a
+        // quarter is never under a beam.
+        var beams = mei.Descendants().Where(e => e.Name.LocalName == "beam").Select(b => string.Join(" ", b.Elements().Select(n => n.Attributes().First(a => a.Name.LocalName == "id").Value)));
+        Assert.Equal(["a b", "c d"], beams);
     }
 
     [Fact]
