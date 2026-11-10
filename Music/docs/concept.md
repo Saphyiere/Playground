@@ -353,11 +353,12 @@ asking. Nothing leaves the tablet unless you back it up.
 
 The same after every run to a tempo (Sight-read, a Library piece). First **a few lines**, to take in at a glance, each with
 its bars: the **notes** (how many were right, what the others were, and the bars with the most of them) and the **timing**
-(the share in time, and where it rushed, held back or was off the beat); then a line only for what there is to work on:
-notes **held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with
-the most to fix. On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar** starts the next run
-at it. **Show details** opens the rest under them, brought into view (and stays open next time if you leave it so): three
-panels, side by side:
+(the share in time, and where it rushed, held back or was off the beat); then a line only for what there is to work on: notes
+**held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with the
+most to fix, where a wrong or missed note counts as three of anything else (a note off the beat or let go early, a marking
+not played as asked, the pedal). On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar**
+starts the next run at it. **Show details** opens the rest under them, brought into view (and stays open next time if you
+leave it so): three panels, side by side:
 
 - **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
   (solid) and missed (hollow), with extra keys.

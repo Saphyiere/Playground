@@ -330,7 +330,9 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     // are together.
     private sealed record BarView(int Number, int Wrong, int Missed, int Off, int Early, double? Error, double? Loud, string? Dynamic, bool DynamicStarts, IReadOnlyList<(string Kind, bool Bad)> Marks, Pedalling? Pedal, bool ExtraPedal)
     {
-        public int Total => Wrong + Missed + Off + Early + Marks.Count(m => m.Bad) + (Pedal is { } p && p != Pedalling.Right ? 1 : 0) + (ExtraPedal ? 1 : 0);
+        /// <summary>How much there was to fix in it, for which bar comes first and how bright it is on the strip. A wrong or missed
+        /// note counts as three of anything else: a note off the beat or let go early, a marking not played as asked, the pedal.</summary>
+        public int Total => 3 * (Wrong + Missed) + Off + Early + Marks.Count(m => m.Bad) + (Pedal is { } p && p != Pedalling.Right ? 1 : 0) + (ExtraPedal ? 1 : 0);
 
         /// <summary>Its shade in the folded strip, by how much there was to fix: nothing, some, more, most.</summary>
         public string Fill { get; init; } = "";
@@ -454,8 +456,8 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
                 Fill = bar.Total switch
                 {
                     0 => "var(--chart-off)",
-                    <= 2 => "color-mix(in srgb, var(--chart-bad) 38%, var(--chart-off))",
-                    <= 4 => "color-mix(in srgb, var(--chart-bad) 68%, var(--chart-off))",
+                    <= 3 => "color-mix(in srgb, var(--chart-bad) 38%, var(--chart-off))",
+                    <= 6 => "color-mix(in srgb, var(--chart-bad) 68%, var(--chart-off))",
                     _ => "var(--chart-bad)",
                 },
                 Band = dynamic is not null && Markings.Levels.TryGetValue(dynamic, out var band)
@@ -464,9 +466,11 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
                 Detail = parts.Count == 0 ? "nothing to fix here." : string.Join(" · ", parts) + ".",
             };
         })];
-        // The order the bars come in, on the strip and on the map: the ones with the most to fix first, the worst three a moment
+        // The bars from the one with the most to fix; of two with as much, the one with more notes not right, then the earlier.
+        var ranked = bars.OrderByDescending(b => b.Total).ThenByDescending(b => b.Wrong + b.Missed).ThenBy(b => b.Number).ToList();
+        // The order they come in, on the strip and on the map: the ones with the most to fix first, the worst three a moment
         // apart so the eye lands on each, the others in a run, and then the bars with nothing to fix, left to right.
-        var toFix = bars.Where(b => b.Total > 0).OrderByDescending(b => b.Total).ThenBy(b => b.Number).Select(b => b.Number).ToList();
+        var toFix = ranked.Where(b => b.Total > 0).Select(b => b.Number).ToList();
         var lead = Math.Min(3, toFix.Count);
         var step = Math.Min(60, 600.0 / Math.Max(1, toFix.Count - lead));
         var rest = 200 + lead * 150 + (toFix.Count - lead) * step + (toFix.Count > 0 ? 150 : 0);
@@ -479,7 +483,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         pedalled = timed.Pedal.Count > 0;
 
         // The bar with the most to fix, picked to start with, and the four bars of its phrase to loop.
-        var most = bars.OrderByDescending(b => b.Total).ThenBy(b => b.Number).First();
+        var most = ranked[0];
         picked = worst = most.Number;
         var phrase = Math.Max(first, most.Number - (most.Number - 1) % 4);
         loop = most.Total == 0 ? null : (phrase, Math.Min(last, phrase + 3));
