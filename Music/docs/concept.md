@@ -222,12 +222,16 @@ a PDF plays out; this is what came of it.
 - **Imports** (**Import files**, one or several at once, or a zip of them, like a download that bundles a song's files):
   MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages, and takes a MIDI file of the same
   name picked or zipped with it, to be heard on the piano and scrolled at its tempo. One piece imported opens; several stay in
-  the Library with a line saying what came in and what couldn't. A MIDI file is
-  written out as notation first, since it holds when notes sound, not how they're written: the hands from its tracks (or
-  middle C), the bars from its time signatures, the key from its signature or its notes, each beat snapped to sixteenths,
-  thirty-seconds or triplets, a hand's held notes as a second voice, ties across beats and barlines. One exported from notation
-  software comes out close to its score; one recorded from playing comes out ragged, and a pickup comes out as a full bar.
-  MuseScore and Humdrum files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
+  the Library with a line saying what came in and what couldn't. A MIDI file is written out as notation first, since it holds
+  when notes sound, not how they're written: the hands from its tracks (or middle C), the bars from its time signatures, the
+  key from its signature or its notes, each beat snapped to sixteenths, thirty-seconds or triplets, a hand's held notes as a
+  second voice, ties across beats and barlines. Notation software lets each note go a little before its written end (a file
+  from MuseScore holds each for 95% of its length), so where a file's notes stop a little short of the next, each is written
+  at its full length: a half note is a half note, not a dotted quarter tied to a scrap with a rest after it. A staccato note
+  stays as short as it sounds, with its rest, and a written rest stays. One exported from notation software comes out close to
+  its score, less what a MIDI file can't hold: its repeats are written out, a trill is the notes it plays, and slurs and
+  dynamics are gone. One recorded from playing comes out ragged, and a pickup comes out as a full bar. MuseScore and Humdrum
+  files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.

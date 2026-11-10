@@ -674,12 +674,23 @@ the repo:
   bars to the page, so the follower can follow a PDF without OMR. This is an idea and untested. It holds only when the MIDI
   is score MIDI with the same bars and repeats.
 - **MuseScore (`.mscz`):** convert to MusicXML in MuseScore on the PC. webmscore is too heavy, and GPL.
-- **MIDI files** (built November 2026): written out as notation by the Core (`MidiNotation`), which suits score MIDI, the
-  kind notation software exports: hands from the tracks (or middle C), bars from the time signatures, the key from the
-  signature or the notes (Krumhansl and Kessler's profiles), each beat snapped to sixteenths, thirty-seconds or triplets by
-  which fits best, held notes as a second voice, ties across beats and barlines, and a file that starts late (LilyPond's,
-  after a grace note) moved back onto the beat. All 104 Mutopia MIDI files in the bundle convert, and their notation sounds
-  the file's notes exactly. Performance MIDI comes out ragged, and a pickup comes out as a full bar.
+- **MIDI files** (built November 2026): written out as notation by the Core (`MidiNotation`), which suits score MIDI, the kind
+  notation software exports: hands from the tracks (or middle C), bars from the time signatures, the key from the signature or
+  the notes (Krumhansl and Kessler's profiles), each beat snapped to sixteenths, thirty-seconds or triplets by which fits
+  best, held notes as a second voice, ties across beats and barlines, and a file that starts late (LilyPond's, after a grace
+  note) moved back onto the beat. Software that lets each note go a little before its written end has its notes written at
+  their full lengths: a file from MuseScore holds each note for 95% of its length, less a tick (measured), and by its forum's
+  account plays one under a slur in full; LilyPond's articulate script holds 7/8, as the bundle's Pineapple Rag does
+  (measured). The share is read from the file's own notes, the ones that stop a little short of their hand's next note and off
+  any sixteenth's or triplet's place, and each note is then written up to the half beat, or the next note, nearest where it
+  would end held in full; a staccato note, a written rest and a file of full-length notes are left as they are. Checked by
+  playing the bundle's 179 engraved scores (79,524 notes) out as MIDI and importing them: held in full, 92.0% of the notes,
+  staccato ones aside, come back at their written length, the same as before the rule and with the same ties and rests; held
+  for 95% with those under a slur in full, 91.6% do, where 85.2% did; held for 85%, 91.3% against 34.1%. A file that holds its
+  notes for less than five sixths of their length is taken as written. All 104 Mutopia MIDI files in the bundle convert. For
+  103 the notation is what it was and sounds the file's notes exactly; the Pineapple Rag, which LilyPond played at 7/8 of each
+  note, is now written at full lengths (112 tied notes and 17 rests, where it had 182 and 70). Performance MIDI comes out
+  ragged, and a pickup comes out as a full bar.
 
 ### The full-page view
 

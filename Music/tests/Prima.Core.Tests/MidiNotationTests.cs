@@ -162,6 +162,59 @@ public class MidiNotationTests
     }
 
     [Fact]
+    public void NotesLetGoALittleEarlyAreWrittenAtTheirFullLength()
+    {
+        // As MuseScore plays its score: each note held for 95% of its length, less a tick. A quarter, a dotted eighth, a
+        // sixteenth and a half, then a note two bars long with nothing after it.
+        var file = File(480, [Meter(4, 2), .. Notes((69, 0, 455), (69, 480, 821), (69, 840, 953), (69, 960, 1871), (72, 1920, 5567))]);
+
+        var score = MidiNotation.Read(file, "Exported");
+
+        Assert.Equal([(69, 0L, 480), (69, 480L, 360), (69, 840L, 120), (69, 960L, 960), (72, 1920L, 3840)], Sounding(score));
+        // Each is written whole: the first bar's four notes with no scrap tied on, and no rest anywhere.
+        var treble = score.Bars.SelectMany(b => b.Voices.Where(v => v.Staff == 1)).SelectMany(v => v.Events).ToList();
+        Assert.Equal([480, 360, 120, 960, 1920, 1920], treble.OfType<Notes>().Select(n => n.Length));
+        Assert.DoesNotContain(treble, e => e is Rest);
+    }
+
+    [Fact]
+    public void NotesUnderASlurHeldInFullDontHideTheOnesLetGoEarly()
+    {
+        // MuseScore holds the notes under a slur for all their length, and the slur's last note and the rest for 95%.
+        var file = File(480, [Meter(4, 2), .. Notes((60, 0, 480), (62, 480, 960), (64, 960, 1440), (65, 1440, 1895), (67, 1920, 2375), (69, 2400, 2855), (67, 2880, 3791))]);
+
+        var score = MidiNotation.Read(file, "Slurred");
+
+        Assert.Equal([(60, 0L, 480), (62, 480L, 480), (64, 960L, 480), (65, 1440L, 480), (67, 1920L, 480), (67, 2880L, 960), (69, 2400L, 480)], Sounding(score));
+    }
+
+    [Fact]
+    public void AStaccatoNoteAndAWrittenRestStayAmongNotesLetGoEarly()
+    {
+        // Held for 95%: a quarter, a staccato quarter (half its length), a dotted eighth before a sixteenth rest, a quarter; then
+        // two quarters and a half.
+        var file = File(480, [Meter(4, 2), .. Notes((72, 0, 455), (72, 480, 720), (72, 960, 1301), (72, 1440, 1895), (74, 1920, 2375), (76, 2400, 2855), (72, 2880, 3791))]);
+
+        var score = MidiNotation.Read(file, "Detached");
+
+        Assert.Equal([(72, 0L, 480), (72, 480L, 240), (72, 960L, 360), (72, 1440L, 480), (72, 2880L, 960), (74, 1920L, 480), (76, 2400L, 480)], Sounding(score));
+        Assert.Equal([(720, 240), (1320, 120)], score.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Rest>().Select(r => (r.Start, r.Length)));
+        Assert.DoesNotContain(score.Bars[1].Voices.Single(v => v.Staff == 1).Events, e => e is Rest);
+    }
+
+    [Fact]
+    public void AFileThatHoldsItsNotesInFullKeepsAShortRestAsWritten()
+    {
+        // A note seven sixteenths long and a sixteenth rest, then quarters: nothing is let go early, so the rest is a rest.
+        var file = File(480, [Meter(4, 2), .. Notes((72, 0, 840), (74, 960, 1440), (76, 1440, 1920), (77, 1920, 2400), (79, 2400, 2880), (81, 2880, 3360), (83, 3360, 3840))]);
+
+        var score = MidiNotation.Read(file, "As written");
+
+        Assert.Equal((72, 0L, 840), Sounding(score)[0]);
+        Assert.Equal((840, 120), Assert.Single(score.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Rest>().Select(r => (r.Start, r.Length))));
+    }
+
+    [Fact]
     public void AFileThatStartsLateIsMovedBackOntoTheBeat()
     {
         // LilyPond's MIDI after a grace note before the first beat: the grace at 0, then every note 54 ticks late.

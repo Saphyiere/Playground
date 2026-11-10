@@ -8,6 +8,8 @@ namespace Prima.Core.Library;
 /// <list type="bullet">
 /// <item>The hands come from its tracks (the higher of two is the right hand), or in a single track from middle C.</item>
 /// <item>The bars come from its time signatures, the key from its key signature, or from the notes when it has none.</item>
+/// <item>Where the file lets its notes go a little early, as notation software does, each is written at the length it would
+/// have held in full.</item>
 /// <item>Each quarter-note beat is snapped to sixteenths, thirty-seconds or triplets, whichever fits its notes best.</item>
 /// <item>Notes a hand holds over others make a second voice; notes are tied across barlines, and off the beat across beats.</item>
 /// </list>
@@ -45,6 +47,47 @@ public static class MidiNotation
         if (late != 0 && Near(late) > 2 * Near(0) && Near(late) * 3 >= heard.Count)
         {
             heard = [.. heard.Select(n => n with { On = Math.Max(0, n.On - late), Off = Math.Max(1, n.Off - late) })];
+        }
+
+        // Notation software lets each note go a little before its written end, all by about the same share: a file from
+        // MuseScore holds a note for 95% of its length, and written as it sounds its half note is a dotted quarter tied to a
+        // dotted sixteenth, and a rest. So where notes stop a little short of their hand's next note, off any sixteenth's or
+        // triplet's place, the share they're held is taken from them (the middle one: some may be held in full, as notes
+        // under a slur are said to be), and each note is written up to the half beat, or the next note, nearest where it would
+        // end held in full. A little is a fifth of the time held: a staccato note stops well short and stays short, a written
+        // rest stays, and a file that holds its notes in full is left as it is.
+        var hands = heard.GroupBy(n => (n.Track, n.Channel)).ToDictionary(g => g.Key, g => g.Select(n => n.On).Distinct().Order().ToList());
+        var reaching = heard.Select(n =>
+        {
+            var own = hands[(n.Track, n.Channel)];
+            long From(long tick)
+            {
+                var found = own.BinarySearch(tick);
+                var at = found < 0 ? ~found : found;
+                return at < own.Count ? own[at] : long.MaxValue;
+            }
+
+            // A note held a little into its hand's next one (legato) is cut to it further on: here it's one held in full.
+            var following = From(n.On + 1);
+            var legato = following < n.Off && n.Off - following <= Math.Min(120, (n.Off - n.On) / 4);
+            return (Note: n, Next: legato ? n.Off : From(n.Off));
+        }).ToList();
+        var near = reaching.Where(r => r.Next - r.Note.Off <= (r.Note.Off - r.Note.On) / 5).ToList();
+        var offPlace = near.Where(r => r.Note.Off % 120 is > 2 and < 118 && r.Note.Off % 160 is > 2 and < 158);
+        var shares = offPlace.Select(r => (r.Note.Off - r.Note.On) / (double)(r.Next - r.Note.On)).Where(share => share < 0.99).Order().ToList();
+        if (shares.Count >= 3 && shares.Count * 50 >= near.Count)
+        {
+            var share = shares[shares.Count / 2];
+            heard = [.. reaching.Select(r =>
+            {
+                var (n, next) = r;
+                var held = n.Off - n.On;
+                var full = n.On + held / share;
+                var last = Math.Min(next, n.Off + held / 5);
+                var first = (n.Off / Ticks.Eighth + 1) * Ticks.Eighth;
+                var halfBeats = Enumerable.Range(0, (int)((last - first + Ticks.Eighth) / Ticks.Eighth)).Select(k => first + k * Ticks.Eighth);
+                return n with { Off = halfBeats.Append(last == next ? next : n.Off).MinBy(p => Math.Abs(p - full)) };
+            })];
         }
 
         // Each beat's grid: the one its starts and ends fit best, a finer grid paying a little per note, so a beat that fits
