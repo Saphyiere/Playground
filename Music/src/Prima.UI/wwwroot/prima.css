@@ -1972,6 +1972,139 @@ a.mu-btn {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    scroll-margin: 16px 0 24px;
+}
+
+/* The details come in a part at a time, each when it's first seen and the part before has had its turn, so the eye is led and
+   not met with them all at once: the notes (the bar fills with the right ones, then the ones that weren't, and what those were
+   rises under it), the timing from the beat outwards, the held notes from their full length down, the expression, and the
+   bars, the ones with the most to fix first. What fell short comes last in each, where the eye is by then. A part waiting its
+   turn is its empty frame, so there's something to scroll to; PlaySummary.razor.js gives the turns, each as long as the part's
+   --turn. */
+.sum {
+    --sum-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes sum-show {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes sum-across {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+@keyframes sum-up {
+    from {
+        transform: scaleY(0);
+    }
+}
+
+@keyframes sum-grow {
+    from {
+        transform: scale(0);
+    }
+}
+
+@keyframes sum-pop {
+    from {
+        opacity: 0;
+        transform: scaleY(0.2);
+    }
+
+    55% {
+        opacity: 1;
+        transform: scaleY(2);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .sum-details.staged .sum-stage:not([data-seen]) > * {
+        visibility: hidden;
+    }
+
+    .sum-details.staged .sum-stage[data-seen] > * {
+        animation: sum-show 260ms ease backwards;
+    }
+
+    /* The notes: the right ones fill the bar as the figure counts up, then the ones that weren't; then what those were, each
+       rising with its name, and the line about them. */
+    .staged .sum-panel.notes[data-seen] .sum-bar:not(.tall) > span {
+        transform-origin: left;
+        animation: sum-across 460ms var(--sum-ease) 140ms backwards;
+    }
+
+    .staged .sum-panel.notes[data-seen] .sum-bar:not(.tall) > .bad {
+        animation-duration: 320ms;
+        animation-delay: 600ms;
+    }
+
+    .staged .sum-panel.notes[data-seen] > .mu-readout-label {
+        animation: sum-show 240ms ease 860ms backwards;
+    }
+
+    .staged .sum-panel.notes[data-seen] .sum-bar.tall > span {
+        transform-origin: bottom;
+        animation: sum-up 260ms var(--sum-ease) calc(900ms + var(--nth, 0) * 100ms) backwards;
+    }
+
+    .staged .sum-panel.notes[data-seen] .sum-legend > span {
+        animation: sum-show 240ms ease calc(940ms + var(--nth, 0) * 100ms) backwards;
+    }
+
+    .staged .sum-panel.notes[data-seen] :is(.sum-bar.tall, .sum-legend) > :nth-child(2) {
+        --nth: 1;
+    }
+
+    .staged .sum-panel.notes[data-seen] :is(.sum-bar.tall, .sum-legend) > :nth-child(3) {
+        --nth: 2;
+    }
+
+    .staged .sum-panel.notes[data-seen] .sum-legend > :nth-child(4) {
+        --nth: 3;
+    }
+
+    .staged .sum-panel.notes[data-seen] .sum-said {
+        animation: sum-show 260ms ease 1250ms backwards;
+    }
+
+    .staged .sum-panel.notes.clean[data-seen] :is(.sum-legend > span, .sum-said) {
+        animation-delay: 620ms;
+    }
+
+    /* The timing and the held notes: each bin rises at its time (--at), what fell short last, with its name; then the line. */
+    .staged .sum-panel[data-seen] .sum-histogram > div > span {
+        transform-origin: bottom;
+        animation: sum-up 300ms var(--sum-ease) var(--at, 0ms) backwards;
+    }
+
+    .staged .sum-panel:is(.timing, .held)[data-seen] .sum-legend > span {
+        animation: sum-show 240ms ease 300ms backwards;
+    }
+
+    .staged .sum-panel:is(.timing, .held)[data-seen] .sum-legend > span:has(.bad) {
+        animation-delay: 520ms;
+    }
+
+    .staged .sum-panel:is(.timing, .held)[data-seen] .sum-said {
+        animation: sum-show 260ms ease 850ms backwards;
+    }
+
+    .staged .sum-panel:is(.timing, .held).clean[data-seen] .sum-said {
+        animation-delay: 600ms;
+    }
+
+    /* The bars: each at its turn (--d), the worst few springing up as they come. */
+    .staged .sum-map[data-seen] .sum-cell-strip {
+        animation: sum-show 300ms ease var(--d, 0ms) backwards;
+    }
+
+    .staged .sum-map[data-seen] .sum-cell-strip.lead {
+        animation: sum-pop 380ms ease-out var(--d, 0ms) backwards;
+    }
 }
 
 .sum-panels {
@@ -2131,6 +2264,7 @@ a.mu-btn {
 .sum-map.mu-screen {
     padding: 16px 22px;
     gap: 0;
+    scroll-margin: 16px 0 24px;
 }
 
 .sum-toggle {
@@ -2185,7 +2319,7 @@ a.mu-btn {
     box-shadow: 0 0 0 2px var(--accent);
 }
 
-/* Opening: the map slides open, and each bar's marks grow in a moment after the bar before. */
+/* Opening: the map slides open, and each bar's marks grow in at the bar's turn, the bars with the most to fix first. */
 .sum-body {
     display: grid;
     grid-template-rows: 0fr;
@@ -2208,28 +2342,31 @@ a.mu-btn {
     transition-delay: 80ms;
 }
 
-.sum-body .grow {
-    transform: scale(0);
-    transition: transform 260ms ease;
-}
-
 .sum-body .grow.up {
-    transform: scaleY(0);
     transform-origin: bottom;
 }
 
 .sum-body .grow.down {
-    transform: scaleY(0);
     transform-origin: top;
 }
 
-.sum-body .grow.across {
-    transform: scaleX(0);
-}
+/* With the details coming in a part at a time, the marks wait for the bars' part to be seen. */
+@media (prefers-reduced-motion: no-preference) {
+    :is(.sum-details:not(.staged), .sum-details.staged [data-seen]) .sum-body.open .grow {
+        animation: sum-grow 260ms ease calc(var(--d, 0ms) + 160ms) backwards;
+    }
 
-.sum-body.open .grow {
-    transform: none;
-    transition-delay: var(--d, 0ms);
+    :is(.sum-details:not(.staged), .sum-details.staged [data-seen]) .sum-body.open .grow:is(.up, .down) {
+        animation-name: sum-up;
+    }
+
+    :is(.sum-details:not(.staged), .sum-details.staged [data-seen]) .sum-body.open .grow.across {
+        animation-name: sum-across;
+    }
+
+    :is(.sum-details:not(.staged), .sum-details.staged [data-seen]) .sum-body.open .sum-detail {
+        animation: sum-show 300ms ease 800ms backwards;
+    }
 }
 
 /* The map's lanes line up with the strip, bar for bar; a long piece scrolls sideways, its lanes' names staying put. */
@@ -2494,7 +2631,6 @@ a.mu-btn {
 @media (prefers-reduced-motion: reduce) {
     .sum-body,
     .sum-inner,
-    .sum-body .grow,
     .sum-chevron {
         transition: none;
     }

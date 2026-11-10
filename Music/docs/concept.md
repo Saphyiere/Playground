@@ -356,7 +356,8 @@ its bars: the **notes** (how many were right, what the others were, and the bars
 (the share in time, and where it rushed, held back or was off the beat); then a line only for what there is to work on:
 notes **held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with
 the most to fix. On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar** starts the next run
-at it. **Show details** opens the rest under them (and stays open next time if you leave it so): three panels, side by side:
+at it. **Show details** opens the rest under them, brought into view (and stays open next time if you leave it so): three
+panels, side by side:
 
 - **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
   (solid) and missed (hollow), with extra keys.
@@ -373,6 +374,15 @@ then loudness against each bar's dynamic, touch (staccato, tenuto, accents, slur
 Tap a bar's number to read it in words; on a piece, **Play from bar** starts the next run there. Each look draws it in its
 own two colours, what went right and what fell short,
 told apart by colour blindness and by lightness too, and with a fill and a word for each kind.
+
+The details **come in a part at a time**, so the eye is led through them and not met with everything at once. Each part (a
+panel, the expression line, the bars) is an empty frame until most of it is in view and the part before has had its turn:
+about four seconds from the first to the last when they're all in view. What fell short comes last in each, where the eye is
+by then: the notes' bar fills with the right ones as the figure counts up, then the ones that weren't, and what those were
+rises under it; the timing rises from the beat outwards, the notes that were off last; the held notes from their full length
+down, the ones let go early last. The bars come in from **the one with the most to fix**: the worst three a moment apart,
+then the others in a run, then the bars with nothing to fix. The map's marks grow in the same order, whenever it opens, and
+the page follows it down as it does. With the tablet set to remove animations, everything is there at once.
 
 ### Levels
 

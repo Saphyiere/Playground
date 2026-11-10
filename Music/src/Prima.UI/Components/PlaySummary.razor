@@ -1,13 +1,17 @@
 @using Prima.Core.Scoring
 @using NoteOutcome = Prima.Core.Scoring.Outcome
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject PrimaSettings Settings
 @inject PrimaStore Store
 
 @* What a run came to, the same on every screen that plays to a tempo. In time: a few lines to take in at a glance (the notes,
    the timing, then only what there is to work on, each with its bars), and under Show details the rest: three panels (the
    notes, the timing, how long notes were held), a line on expression where the music marks it, and the bars, folded into a
-   strip that opens into a map of each bar. Wait for me: the notes right first time, the wrong keys and the pace. The screen's
-   own words follow. *@
+   strip that opens into a map of each bar. The details come in a part at a time, each when it's first seen (a "sum-stage",
+   its turn's length in --turn; PlaySummary.razor.js gives the turns and the stylesheet draws them), and what fell short comes
+   last in each: the notes that weren't right, the timing that was off, the notes let go early; the bars come in from the one
+   with the most to fix. Wait for me: the notes right first time, the wrong keys and the pace. The screen's own words follow. *@
 @if (Outcome?.InTime is { } timed)
 {
     <div class="sum">
@@ -31,9 +35,9 @@
 
         @if (details)
         {
-            <div id="sum-details" class="sum-details">
+            <div @key="run" @ref="detailsElement" id="sum-details" class="sum-details @(staged ? "staged" : "")">
                 <div class="sum-panels">
-                    <section class="mu-screen sum-panel" aria-label="Notes">
+                    <section class="mu-screen sum-panel sum-stage notes @(timed.Right == timed.Expected ? "clean" : "")" aria-label="Notes" style="--turn: @(timed.Right == timed.Expected ? 700 : 1300)ms">
                         <div class="sum-head"><span class="mu-readout-label">Notes right</span><span class="mu-readout-label">@timed.Right of @timed.Expected@(Outcome.Stopped && StoppedAt is { } at ? $", to {at}" : "")</span></div>
                         <span class="sum-figure">@Percent(timed.Right, timed.Expected)</span>
                         <div class="sum-bar" role="img" aria-label="@($"Of {timed.Expected} notes, {timed.Right} right and {timed.Expected - timed.Right} not")">
@@ -82,13 +86,15 @@
                         <p class="sum-said">@notesSaid</p>
                     </section>
 
-                    <section class="mu-screen sum-panel" aria-label="Timing">
+                    <section class="mu-screen sum-panel sum-stage timing @(timed.Off == 0 ? "clean" : "")" aria-label="Timing" style="--turn: 400ms">
                         <div class="sum-head"><span class="mu-readout-label">In time</span><span class="mu-readout-label">@(Math.Abs(timed.LeanMs) < 5 ? "Lean: even" : $"Lean {Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
                         <span class="sum-figure">@($"{timed.InTimeAccuracy * 100:0}%")</span>
                         <div class="sum-histogram" role="img" aria-label="@($"Each right note's timing as a share of the beat, after your lean: {timed.InTime} within 5 percent, {timed.Audible} within 10, {timed.Off} further off")">
-                            @foreach (var (count, inTime, off) in timingBins)
+                            @* Its bins rise from the beat outwards, and the ones that are off after a pause. *@
+                            @for (var i = 0; i < timingBins.Length; i++)
                             {
-                                <div class="@(inTime ? "band" : "")"><span class="@(off ? "bad" : "good")" style="height: @Share(count, timingPeak)"></span></div>
+                                var (count, inTime, off) = timingBins[i];
+                                <div class="@(inTime ? "band" : "")"><span class="@(off ? "bad" : "good")" style="height: @Share(count, timingPeak); --at: @(100 + (i < 8 ? 7 - i : i - 8) * 45 + (off ? 180 : 0))ms"></span></div>
                             }
                         </div>
                         <div class="sum-axis"><span>← early</span><span>on the beat</span><span>late →</span></div>
@@ -102,17 +108,18 @@
                         <p class="sum-said">@timingSaid</p>
                     </section>
 
-                    <section class="mu-screen sum-panel" aria-label="Held">
+                    <section class="mu-screen sum-panel sum-stage held @(timed.LetGoEarly == 0 ? "clean" : "")" aria-label="Held" style="--turn: @(timed.HoldsJudged == 0 ? 400 : timed.LetGoEarly == 0 ? 650 : 900)ms">
                         <div class="sum-head"><span class="mu-readout-label">Held</span><span class="mu-readout-label">@(timed.HoldsJudged > 0 ? $"{timed.HoldsJudged - timed.LetGoEarly} of {timed.HoldsJudged}" : "")</span></div>
                         <span class="sum-figure">@(timed.HoldsJudged > 0 ? Percent(timed.HoldsJudged - timed.LetGoEarly, timed.HoldsJudged) : "–")</span>
                         <div class="sum-histogram" role="img" aria-label="@($"How long each judged note was held, as a share of its length: {timed.LetGoEarly} let go early")">
+                            @* Its bins rise from the full length down, and then the notes let go early, from the line down. *@
                             @for (var i = 0; i < heldBins.Length; i++)
                             {
                                 if (i == 4)
                                 {
                                     <i class="sum-line" aria-hidden="true"></i>
                                 }
-                                <div><span class="bad" style="height: @Share(heldBins[i].Early, heldPeak)"></span><span class="good" style="height: @Share(heldBins[i].Held, heldPeak)"></span></div>
+                                <div><span class="bad" style="height: @Share(heldBins[i].Early, heldPeak); --at: @(480 + Math.Max(0, 3 - i) * 60)ms"></span><span class="good" style="height: @Share(heldBins[i].Held, heldPeak); --at: @(100 + (6 - i) * 45)ms"></span></div>
                             }
                         </div>
                         <div class="sum-axis held"><span>&lt;50</span><span>50</span><span>60</span><span>70</span><i aria-hidden="true"></i><span>80</span><span>90</span><span>100+</span></div>
@@ -129,7 +136,7 @@
 
                 @if (expression.Count > 0)
                 {
-                    <section class="mu-screen sum-expression" aria-label="Expression">
+                    <section class="mu-screen sum-expression sum-stage" aria-label="Expression" style="--turn: 350ms">
                         <span class="mu-readout-label">Expression</span>
                         @foreach (var (bad, _, words) in expression)
                         {
@@ -142,14 +149,14 @@
                     </section>
                 }
 
-                <section class="mu-screen sum-map" aria-label="Bar by bar" style="--bars: @bars.Count">
+                <section @ref="mapElement" class="mu-screen sum-map sum-stage" aria-label="Bar by bar" style="--bars: @bars.Count">
                     <button type="button" class="sum-toggle" aria-expanded="@(open ? "true" : "false")" aria-controls="bar-map" @onclick="Toggle">
                         <span class="sum-head"><span class="mu-readout-label">Bar by bar@(repeated ? " · both times through" : "")</span><span class="sum-show">@(open ? "Hide bar by bar" : "Show bar by bar")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span>
                         <span class="sum-strip">
                             <span class="sum-tiny">All</span>
                             @foreach (var bar in bars)
                             {
-                                <span class="sum-cell-strip @Picked(bar)" style="background: @bar.Fill"></span>
+                                <span class="sum-cell-strip @(bar.Leads ? "lead" : "") @Picked(bar)" style="background: @bar.Fill; --d: @bar.Delay"></span>
                             }
                         </span>
                     </button>
@@ -321,7 +328,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     // A bar on the map: its notes and timing, how they were held, and what its expression asked and got (each articulation
     // mark: staccato, tenuto, accent, or a gap under a slur, and whether it was played as asked). With repeats, its times through
     // are together.
-    private sealed record BarView(int Number, int Wrong, int Missed, int Off, int Early, double? Error, double? Loud, string? Dynamic, bool DynamicStarts, IReadOnlyList<(string Kind, bool Bad)> Marks, Pedalling? Pedal, bool ExtraPedal, string Delay)
+    private sealed record BarView(int Number, int Wrong, int Missed, int Off, int Early, double? Error, double? Loud, string? Dynamic, bool DynamicStarts, IReadOnlyList<(string Kind, bool Bad)> Marks, Pedalling? Pedal, bool ExtraPedal)
     {
         public int Total => Wrong + Missed + Off + Early + Marks.Count(m => m.Bad) + (Pedal is { } p && p != Pedalling.Right ? 1 : 0) + (ExtraPedal ? 1 : 0);
 
@@ -333,6 +340,12 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
 
         /// <summary>What there was to fix in it, in words.</summary>
         public string Detail { get; init; } = "";
+
+        /// <summary>When it comes in, after the bars start to: the ones with the most to fix first.</summary>
+        public string Delay { get; init; } = "0ms";
+
+        /// <summary>Whether it's one of the worst few, which come in first and stand out as they do.</summary>
+        public bool Leads { get; init; }
     }
 
     private PlayOutcome? shown;
@@ -359,6 +372,16 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     private bool open;
     private int picked;
     private (int From, int To)? loop;
+    private ElementReference detailsElement;
+    private ElementReference mapElement;
+    private IJSObjectReference? module;
+    // The details come in a part at a time; where the page's script can't give the turns, they're all there at once.
+    private bool staged = true;
+    private bool toStage;
+    private bool toScroll;
+    private bool toFollow;
+    // Counts the runs shown, so a new run's details are new on the page and come in afresh.
+    private int run;
 
     protected override void OnParametersSet()
     {
@@ -366,6 +389,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
 
         shown = Outcome;
         (open, details) = (Settings.BarMapOpen, Settings.SummaryDetails);
+        (run, toStage, toScroll, toFollow) = (run + 1, details, false, false);
         if (Outcome?.InTime is not { } timed) return;
 
         var notes = timed.Notes;
@@ -403,7 +427,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         {
             for (var b = p.FromBar; b <= p.ToBar; b++) pedalOf[b] = pedalOf.TryGetValue(b, out var had) && had != Pedalling.Right ? had : p.Outcome;
         }
-        bars = [.. Enumerable.Range(first, count).Select((number, i) =>
+        bars = [.. Enumerable.Range(first, count).Select(number =>
         {
             var inBar = notes.Where(n => n.Bar == number).ToList();
             var heard = inBar.Where(n => n.Outcome == NoteOutcome.Right).ToList();
@@ -413,11 +437,9 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
             double? level = timed.TouchVaries && velocities.Count > 0 ? Math.Clamp((velocities.Average() - soft) / Math.Max(1, loud - soft) * 100, 0, 100) : null;
             var marks = heard.Where(n => n.Asked != Articulation.None || n.Touch == Touch.GapUnderSlur)
                 .Select(n => (n.Touch == Touch.GapUnderSlur ? "gap" : n.Asked.ToString().ToLowerInvariant(), n.Touch is not null)).ToList();
-            // Each bar's marks grow in a moment after the one before, across the map in well under a second.
-            var delay = $"{160 + i * Math.Min(14, 600 / Math.Max(1, count)):0}ms";
             var dynamic = dynamicOf.GetValueOrDefault(number);
             var bar = new BarView(number, inBar.Count(n => n.Outcome == NoteOutcome.Wrong), inBar.Count(n => n.Outcome == NoteOutcome.Missed), inBar.Count(n => n.Band == Band.Off), inBar.Count(n => n.LetGoEarly),
-                errors.Count == 0 ? null : errors.Average(), level, dynamic, starts.Contains(number), marks, pedalOf.TryGetValue(number, out var pedal) ? pedal : null, timed.ExtraPedal.Contains(number), delay);
+                errors.Count == 0 ? null : errors.Average(), level, dynamic, starts.Contains(number), marks, pedalOf.TryGetValue(number, out var pedal) ? pedal : null, timed.ExtraPedal.Contains(number));
             var parts = new List<string>();
             if (bar.Wrong > 0) parts.Add($"{bar.Wrong} wrong");
             if (bar.Missed > 0) parts.Add($"{bar.Missed} missed");
@@ -442,6 +464,16 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
                 Detail = parts.Count == 0 ? "nothing to fix here." : string.Join(" · ", parts) + ".",
             };
         })];
+        // The order the bars come in, on the strip and on the map: the ones with the most to fix first, the worst three a moment
+        // apart so the eye lands on each, the others in a run, and then the bars with nothing to fix, left to right.
+        var toFix = bars.Where(b => b.Total > 0).OrderByDescending(b => b.Total).ThenBy(b => b.Number).Select(b => b.Number).ToList();
+        var lead = Math.Min(3, toFix.Count);
+        var step = Math.Min(60, 600.0 / Math.Max(1, toFix.Count - lead));
+        var rest = 200 + lead * 150 + (toFix.Count - lead) * step + (toFix.Count > 0 ? 150 : 0);
+        var sweep = Math.Min(16, 300.0 / Math.Max(1, count - toFix.Count));
+        var turns = toFix.Select((bar, rank) => (Bar: bar, At: 200 + Math.Min(rank, lead) * 150 + Math.Max(0, rank - lead) * step))
+            .Concat(bars.Where(b => b.Total == 0).Select((b, i) => (Bar: b.Number, At: rest + i * sweep))).ToDictionary(t => t.Bar, t => t.At);
+        bars = [.. bars.Select(b => b with { Delay = $"{turns[b.Number]:0}ms", Leads = toFix.Take(lead).Contains(b.Number) })];
         loudness = timed.Dynamics.Count > 0;
         articulated = bars.Any(b => b.Marks.Count > 0);
         pedalled = timed.Pedal.Count > 0;
@@ -545,6 +577,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     private async Task Toggle()
     {
         open = !open;
+        toFollow = open;
         Settings.BarMapOpen = open;
         await Store.SaveAsync(Settings);
     }
@@ -552,8 +585,41 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     private async Task ToggleDetails()
     {
         details = !details;
+        (toStage, toScroll) = (details, details);
         Settings.SummaryDetails = details;
         await Store.SaveAsync(Settings);
+    }
+
+    // New details on the page are handed to the script that brings them in. What a key opens is below the key, where the
+    // screen's edge may be: the details are scrolled into view, and the page follows the bars' map down as it opens.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!details || Outcome?.InTime is null || !(toStage || toFollow)) return;
+
+        var (stage, scroll, follow) = (toStage, toScroll, toFollow);
+        (toStage, toScroll, toFollow) = (false, false, false);
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PlaySummary.razor.js");
+            if (stage) await module.InvokeVoidAsync("stage", detailsElement, scroll);
+            if (follow) await module.InvokeVoidAsync("follow", mapElement);
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        {
+            staged = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (module is not null) await module.DisposeAsync();
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        {
+        }
     }
 
     private static string Percent(int part, int whole) => whole == 0 ? "–" : $"{part * 100.0 / whole:0}%";
