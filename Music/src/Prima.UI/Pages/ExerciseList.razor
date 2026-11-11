@@ -1,18 +1,21 @@
 @page "/exercises"
 @inject PrimaStore Store
+@inject NavigationManager Nav
 @using Prima.Core.Generation
 
 <PageTitle>Exercises · Prima</PageTitle>
 
 <PageHead Title="Exercises" Kicker="Technique, a little at a time"><KeyboardLamp /></PageHead>
 
-@* Every exercise by section, as rows: its name, what you do, when it was last done, and its tags. A row opens the exercise, or
-   the drill Prima already has for it. The filters and the search narrow the list; a section with nothing left isn't shown. My
-   routine is one list without the sections, and an exercise opened from it leads on to the routine's next. *@
+@* The exercises in two lists: the ones to play at the piano, which it opens on, and the ones to read and do (how you sit, the
+   warm-ups, the ways to practise). Each is by section, as rows: an exercise's name, what you do, when it was last done, and its
+   tags. A row opens the exercise, or the drill Prima already has for it. My routine is your own list, of both kinds and without
+   the sections, and an exercise opened from it leads on to the routine's next. Start here and Not tried are picks of the ones
+   to play. The search narrows the list showing, and says when the other of the two lists has what it's after. *@
 <div class="control-row library-filters exercise-filters">
-    @foreach (var (key, label) in Filters)
+    @foreach (var (key, label) in Views)
     {
-        <button type="button" class="mu-toggle" aria-pressed="@(filter == key ? "true" : "false")" @onclick="() => filter = key"><span class="mu-led"></span>@label</button>
+        <button type="button" class="mu-toggle" aria-pressed="@(view == key ? "true" : "false")" @onclick="() => See(key)"><span class="mu-led"></span>@label</button>
     }
     <input class="text-field text-field-short" type="search" placeholder="Jump, thumb, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
 </div>
@@ -20,9 +23,17 @@
 @{
     var shown = Exercises.All.Where(Shown).ToList();
     var bySection = Exercises.Sections.Select(s => (Section: (ExerciseSection?)s, Rows: shown.Where(e => e.Section == s.Key).ToList()));
-    List<(ExerciseSection? Section, List<Exercise> Rows)> groups = filter == "routine" ? [(null, shown)] : [.. bySection];
+    List<(ExerciseSection? Section, List<Exercise> Rows)> groups = view == "routine" ? [(null, shown)] : [.. bySection];
+    // What the search finds in the other of the two lists.
+    var elsewhere = view is "play" or "read" && search is { Length: > 0 } ? Exercises.All.Count(e => e.ToPlay != (view == "play") && Exercises.Matches(e, search)) : 0;
 }
-@if (filter == "routine" && routine.Count == 0)
+@if (elsewhere > 0)
+{
+    <div class="control-row">
+        <button type="button" class="mu-btn" @onclick="@(() => See(view == "play" ? "read" : "play"))">@elsewhere to @(view == "play" ? "read" : "play") @(elsewhere == 1 ? "matches" : "match") “@search”</button>
+    </div>
+}
+@if (view == "routine" && routine.Count == 0)
 {
     <p class="section-note">Nothing in your routine yet. Open an exercise and turn on In my routine to keep it here.</p>
 }
@@ -44,7 +55,7 @@ else if (shown.Count == 0)
             {
                 var was = Done(exercise);
                 <li>
-                    <a class="piece-row" href="@(exercise.Route ?? $"exercises/{exercise.Id}{(filter == "routine" ? "?from=routine" : "")}")">
+                    <a class="piece-row" href="@(exercise.Route ?? $"exercises/{exercise.Id}{(view == "routine" ? "?from=routine" : "")}")">
                         <span class="piece-title">@exercise.Name</span>
                         <span class="piece-meta">@exercise.Does</span>
                         @if (exercise.Kind != ExerciseKind.Way)
@@ -52,7 +63,8 @@ else if (shown.Count == 0)
                             <span class="exercise-done @(was is null ? "" : was.Last == Today ? "today" : "before")">@(was is null ? "Not tried" : was.Last == Today ? "Today" : was.Last.ToString("d MMM", CultureInfo.InvariantCulture))</span>
                         }
                         <span class="piece-tags">
-                            @if (filter != "routine" && routine.Contains(exercise.Id)) { <span class="piece-tag exercise-tag-routine">Routine</span> }
+                            @if (view != "routine" && routine.Contains(exercise.Id)) { <span class="piece-tag exercise-tag-routine">Routine</span> }
+                            @if (view == "routine" && !exercise.ToPlay) { <span class="piece-tag">To read</span> }
                             @if (exercise.Kind == ExerciseKind.Drill) { <span class="piece-tag">Drill</span> }
                             @if (exercise.Kind == ExerciseKind.Played && exercise.Level == ExerciseLevel.Start) { <span class="piece-tag">Start here</span> }
                             @if (exercise.Level == ExerciseLevel.Intermediate) { <span class="piece-tag">Later</span> }
@@ -66,14 +78,18 @@ else if (shown.Count == 0)
 }
 
 @code {
-    private static readonly (string Key, string Label)[] Filters = [("all", "All"), ("routine", "My routine"), ("start", "Start here"), ("new", "Not tried")];
+    // The lists: the two kinds of exercise, then your own, and two picks of the ones to play.
+    private static readonly (string Key, string Label)[] Views = [("play", "To play"), ("read", "To read"), ("routine", "My routine"), ("start", "Start here"), ("new", "Not tried")];
+
+    /// <summary>The list showing ("read", "routine", "start", "new"; the ones to play otherwise). It's in the address, so coming back from an exercise comes back to it.</summary>
+    [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
 
     // The kind a drill's attempts are kept under, by its route.
     private static readonly Dictionary<string, string> DrillKinds = new() { ["drills/scales"] = "scale", ["drills/arpeggios"] = "arpeggio", ["drills/independence"] = "independence" };
 
     private List<DoneRecord> done = [];
     private HashSet<string> routine = [];
-    private string filter = "all";
+    private string view = "play";
     private string? search;
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
@@ -84,6 +100,11 @@ else if (shown.Count == 0)
         routine = [.. await Store.GetTrackAsync<List<string>>("exercise-routine") ?? []];
     }
 
+    protected override void OnParametersSet() => view = Views.Any(v => v.Key == Show) ? Show! : "play";
+
+    // Changes the list showing, in place of the one in the address, so the way back still leaves the exercises.
+    private void See(string list) => Nav.NavigateTo(list == "play" ? "exercises" : $"exercises?show={list}", replace: true);
+
     // When an exercise was done: its own attempts, or for a drill every scale, arpeggio or pattern played in it.
     private DoneRecord? Done(Exercise exercise)
     {
@@ -91,11 +112,12 @@ else if (shown.Count == 0)
         return done.FirstOrDefault(d => d.Kind == kind && (exercise.Route is not null || d.SetId == exercise.Id));
     }
 
-    private bool Shown(Exercise exercise) => Exercises.Matches(exercise, search) && filter switch
+    private bool Shown(Exercise exercise) => Exercises.Matches(exercise, search) && view switch
     {
+        "read" => !exercise.ToPlay,
         "routine" => routine.Contains(exercise.Id),
-        "start" => exercise.Level == ExerciseLevel.Start && exercise.Kind != ExerciseKind.Way,
-        "new" => exercise.Kind != ExerciseKind.Way && Done(exercise) is null,
-        _ => true,
+        "start" => exercise.Kind == ExerciseKind.Played && exercise.Level == ExerciseLevel.Start,
+        "new" => exercise.ToPlay && Done(exercise) is null,
+        _ => exercise.ToPlay,
     };
 }

@@ -4872,10 +4872,16 @@ html[data-full] .piece .summary {
     }
 }
 
-/* Exercises: the filters share their line with the search; each section's rows are like the Library's, with what you do on up
-   to two lines and when it was last done. */
+/* Exercises: the lists' keys share their line with the search, or in portrait come three and then two beside the search; each
+   section's rows are like the Library's, with what you do on up to two lines and when it was last done. */
 .control-row.exercise-filters > .mu-toggle {
     flex-basis: 120px;
+}
+
+@media (max-width: 900px) {
+    .control-row.exercise-filters > .mu-toggle {
+        flex-basis: 30%;
+    }
 }
 
 .exercise-list .piece-meta {

@@ -27,6 +27,8 @@ public class ExerciseTests
         Assert.All(Exercises.All.Where(e => e.Kind == ExerciseKind.Played), e => Assert.True(e.Music is not null && e.Hands.Count > 0 && e.How.Count > 0 && e.Notice.Length > 0 && e.Tempo is >= 40 and <= 120));
         Assert.All(Exercises.All.Where(e => e.Kind == ExerciseKind.Drill), e => Assert.StartsWith("drills/", e.Route));
         Assert.All(Exercises.All.Where(e => e.Kind is ExerciseKind.Away or ExerciseKind.Way), e => Assert.True(e.Music is null && e.How.Count > 0 && e.Notice.Length > 0));
+        // The two lists they're shown in: one to play has something to play, its own music or a drill's, and one to read has neither.
+        Assert.All(Exercises.All, e => Assert.Equal(e.ToPlay, e.Music is not null || e.Route is not null));
     }
 
     [Theory]

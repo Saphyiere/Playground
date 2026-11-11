@@ -53,6 +53,9 @@ public sealed record Exercise(string Id, string Section, string Name, ExerciseLe
     public IReadOnlyList<HandUse> Hands { get; init; } = [];
 
     public double Tempo { get; init; } = 60;
+
+    /// <summary>Whether it's one to play at the piano, with its own music or a drill's, and not one to read and do.</summary>
+    public bool ToPlay => Kind is ExerciseKind.Played or ExerciseKind.Drill;
 }
 
 /// <summary>

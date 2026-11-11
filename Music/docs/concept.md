@@ -130,9 +130,10 @@ independence. Each is described under [Drills](#drills-1) below.
 
 ### Exercises
 
-Technique to work through, at the piano and away from it: fourteen sections, from how you sit to the pedal, each exercise with
-what you do, how, and what to notice. The list can be searched and filtered, and shows when each was last done; an exercise
-opens on a page of its own, with its music if it's played. Described under [Exercises](#exercises-1) below.
+Technique to work through, at the piano and away from it: fourteen sections, from how you sit to the pedal, each exercise
+with what you do, how, and what to notice. They come as two lists, the ones **to play** and the ones **to read**, which can
+be searched and show when each was last done; an exercise opens on a page of its own, with its music if it's played.
+Described under [Exercises](#exercises-1) below.
 
 ### Library
 
@@ -503,11 +504,15 @@ in the list's My routine. The row under that leads to the next in its section, o
 routine, to the routine's next. In landscape the music and the words sit side by side, so both show at the piano; in portrait
 one is under the other.
 
-The list shows each section with a line on what it's for, and each exercise as a row: its name, what you do, when it was last
-done (Today, a date, or Not tried), and tags for Routine, Drill, Start here (played, and for the first weeks) and Later (for
-when the basics are easy). The filters are All, My routine, Start here (sitting, the warm-ups and the played exercises for the
-first weeks) and Not tried. My routine is one list, in the catalogue's order, without the sections' headings. The search looks
-in an exercise's name, its section and all its words, so "jump", "thumb" or "pedal" finds whatever mentions it.
+They come as **two lists**, so the ones you play aren't among the ones you read. **To play**, which the tab opens on, has the
+42 played at the piano, the three drills among them; **To read** has the other 24, to read and do: how you sit, the warm-ups,
+the pedal by itself, and the ways to practise. Each shows its sections with a line on what they're for, and each exercise as
+a row: its name, what you do, when it was last done (Today, a date, or Not tried), and tags for Routine, Drill, Start here
+(played, and for the first weeks) and Later (for when the basics are easy). Beside the two are **My routine**, your own list
+of both kinds in the catalogue's order, without the sections' headings, where one to read is tagged so; and two picks of the
+ones to play, **Start here** and **Not tried**. The search looks in an exercise's name, its section and all its words, so
+"jump", "thumb" or "pedal" finds whatever mentions it in the list showing, and a key under it says how many the other of the
+two lists has and goes there. The list showing is kept in the address, so coming back from an exercise comes back to it.
 
 What it doesn't do yet: the exercises are fixed patterns, not adapted to how the last run went; they aren't a step of the
 daily plan; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
