@@ -562,13 +562,13 @@ export function markLive(element, marks) {
     for (const mark of marks) drawMark(element, state, mark);
 }
 
-const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-heat1", "mark-heat2", "mark-heat3", "mark-picked"];
+const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-apart", "mark-heat1", "mark-heat2", "mark-heat3", "mark-picked"];
 
 function drawMark(element, state, mark) {
     const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);
     if (!note) return;
-    // An extra key is drawn beside the note before it, which keeps its own mark.
-    if (mark.kind !== "extra") {
+    // An extra key is drawn beside the note before it, which keeps its own mark, as a note with a word over it does.
+    if (mark.kind !== "extra" && mark.kind !== "hint") {
         note.classList.remove(...markKinds);
         element.querySelectorAll(`.sheet-overlay [data-for="${mark.id}"]`).forEach(n => n.remove());
         note.classList.add(`mark-${mark.kind}`);
@@ -582,6 +582,12 @@ function drawMark(element, state, mark) {
     const space = staffSpace(note) ?? h.height;
     // Words go above the note, or above its staff when it's lower.
     const above = Math.min((note.closest(".staff")?.getBoundingClientRect().top ?? h.top) - box.top, h.top - box.top) - 6;
+    // A word over the note ("together", over a chord played a key at a time); with no word, the one there goes.
+    if (mark.kind === "hint") {
+        overlay.querySelectorAll(`.sheet-hint[data-for="${mark.id}"]`).forEach(n => n.remove());
+        if (mark.played) label(overlay, mark.played, cx, above, "sheet-hint", mark.id);
+        return;
+    }
     // The key played: a red head beside the note, that many positions away, named in red above it. A wrong note's written name
     // goes beside that in grey, over the note (grey too), so the pair reads left to right as the heads do: meant, then played.
     if ((mark.kind === "wrong" || mark.kind === "extra") && mark.played) {
@@ -631,7 +637,7 @@ export function clearMarks(element) {
 
 function clearDrawnMarks(element) {
     element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove(...markKinds));
-    element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow").forEach(n => n.remove());
+    element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow, .sheet-hint").forEach(n => n.remove());
 }
 
 // Words centred at x with their baseline at y, moved up clear of any already there (neighbouring notes' marks): a string, or
@@ -655,7 +661,7 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
     // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering).
     const sheet = overlay.closest(".sheet").getBoundingClientRect();
     const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
-    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
+    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
     // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
     const inWay = () => {
         const b = t.getBBox();

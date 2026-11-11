@@ -123,12 +123,25 @@ app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? s
     });
     return Results.Text($"playing {notes.Count} notes live");
 });
-// Answers the drill item on screen: right, or wrong.
-app.MapGet("/keys/answer", (bool? right, SessionRegistry registry, SimulatedKeyboard keys) =>
+// Answers the drill item on screen: right, or wrong. A step's keys go down together, or with "apart" one at a time, that many
+// ms after the one before, as a chord played a note at a time.
+app.MapGet("/keys/answer", async (bool? right, int? apart, SessionRegistry registry, SimulatedKeyboard keys) =>
 {
     if (registry.DrillAnswer is not { } answer) return Results.Text("no drill item");
 
-    foreach (var step in answer(right ?? true)) keys.Play(step, 70, 200);
+    foreach (var step in answer(right ?? true))
+    {
+        if (apart is not { } ms)
+        {
+            keys.Play(step, 70, 200);
+            continue;
+        }
+        foreach (var key in step)
+        {
+            keys.Play([key], 70, 200);
+            await Task.Delay(ms);
+        }
+    }
     return Results.Text("answered");
 });
 // The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.

@@ -184,10 +184,10 @@ else
     private async Task Finished(PlayOutcome how)
     {
         (playing, outcome) = (false, how);
-        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Finished);
+        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
         object measures = how.InTime is { } r
             ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, stopped = how.Stopped }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, seconds = how.Wait.Seconds, stopped = how.Stopped };
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, stopped = how.Stopped };
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
         var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
         var chosen = JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() });

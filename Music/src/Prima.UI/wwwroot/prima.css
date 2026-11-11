@@ -1689,10 +1689,13 @@ a.mu-btn {
     stroke-width: 28px;
 }
 
+/* Early or late; and in Wait for me, a chord's note played right but a key at a time, where its keys go down together. */
 .sheet-music .mark-early .notehead,
 .sheet-music .mark-late .notehead,
+.sheet-music .mark-apart .notehead,
 .sheet-music .mark-early .notehead g,
-.sheet-music .mark-late .notehead g {
+.sheet-music .mark-late .notehead g,
+.sheet-music .mark-apart .notehead g {
     fill: var(--mark-timing);
 }
 
@@ -1716,7 +1719,8 @@ a.mu-btn {
 }
 
 .sheet-label,
-.sheet-arrow {
+.sheet-arrow,
+.sheet-hint {
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 700;
@@ -1726,6 +1730,12 @@ a.mu-btn {
 .sheet-arrow {
     font-size: 18px;
     fill: var(--mark-timing);
+}
+
+/* What to do with the chord the cursor waits at: "together", from its top note rightwards, clear of the cursor's line. */
+.sheet-hint {
+    fill: var(--mark-timing);
+    text-anchor: start;
 }
 
 .sheet-label .sheet-meant {

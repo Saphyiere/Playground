@@ -10,8 +10,9 @@
 @*
     The play bar, the same on every screen that plays music to a tempo, so they all work and feel alike. In time: a count-in, the
     click that never waits, the cursor moving with the beat, each note marked as it's played, and the timing summed up after.
-    Wait for me: no click; the cursor waits at each note or chord until its keys are played, a wrong key is marked where it was,
-    and the pace is your own. Settings can take the moving cursor away, and the marks until the run ends. The mode is kept for
+    Wait for me: no click; the cursor waits at each note or chord until its keys are played, a chord's together (played a key at
+    a time, it's marked so and says "together"), a wrong key is marked where it was, and the pace is your own. Settings can take
+    the moving cursor away, and the marks until the run ends. The mode is kept for
     each screen. The screen gives the music and its sheet, puts its own readouts in the bar, and gets the outcome. A screen can
     offer Listen too: the piano plays the music at the tempo, the click only counting in and the cursor moving with it, and
     nothing is judged, so you can hear how it goes or play along.
@@ -158,6 +159,8 @@
     private Dictionary<string, ExpectedNote> notes = [];
     private readonly Dictionary<string, SheetMark> drawn = [];
     private readonly List<PlayedNote> heard = [];
+    // The note with "together" over it: the top of a chord played a key at a time, in Wait for me.
+    private string? hinted;
 
     private string ModeKey => $"Play.Mode.{Name}";
 
@@ -226,6 +229,7 @@
         notes = music.Notes.ToDictionary(n => n.Id);
         drawn.Clear();
         heard.Clear();
+        hinted = null;
         await sheet.ClearMarks();
         var first = music.Notes.MinBy(n => n.Tick)!;
         bar = first.Bar;
@@ -342,7 +346,7 @@
         await OnFinished.InvokeAsync(last);
     }
 
-    // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down.
+    // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down together.
     private void Heard(MidiEvent e)
     {
         if (wait is null || e.Kind != MidiKind.NoteOn) return;
@@ -354,6 +358,16 @@
             heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
             var (marks, moved) = judge.Play(e.Note, e.TimeNs);
             await Draw(marks);
+            // A chord played a key at a time has "together" over its top note until it's played so. That's what to do next, not
+            // how a note went, so it shows whatever Settings says of the marks.
+            var word = judge.Apart ? PlayMusic.SheetId(judge.Current.MaxBy(n => n.Midi)!.Id) : null;
+            if ((word ?? hinted) is not null && SheetOf() is { } paper)
+            {
+                List<SheetMark> hints = hinted is not null && hinted != word ? [new SheetMark(hinted, "hint")] : [];
+                if (word is not null) hints.Add(new SheetMark(word, "hint", "together"));
+                await paper.MarkLive(hints);
+                hinted = word;
+            }
             if (!moved) return;
             if (judge.Done)
             {

@@ -427,6 +427,88 @@ public class ScoringTests
     }
 
     [Fact]
+    public void WaitForMeWantsAChordsKeysDownTogether()
+    {
+        // A chord E–G, then C.
+        var judge = new WaitJudge([new("b", 64, 1, 1, 0, 480, "ch"), new("c", 67, 1, 1, 0, 480, "ch"), new("d", 72, 1, 1, 480, 480, null)]);
+
+        // One key, and the other half a second on: each is the right key, but that's the chord found, not played. It waits, its
+        // notes marked apart.
+        Assert.Equal(new LiveMark("b", LiveKind.Right, 64, 0), Assert.Single(judge.Play(64, 0).Marks));
+        var (marks, moved) = judge.Play(67, 500 * Ms);
+        Assert.False(moved);
+        Assert.Equal([new LiveMark("b", LiveKind.Apart, 64, 0), new LiveMark("c", LiveKind.Apart, 67, 0)], marks);
+        Assert.True(judge.Apart);
+        // One after another again is still nothing; struck together, it moves on.
+        Assert.False(judge.Play(64, 1500 * Ms).Moved);
+        Assert.False(judge.Play(67, 2000 * Ms).Moved);
+        Assert.False(judge.Play(64, 2500 * Ms).Moved);
+        var together = judge.Play(67, 2540 * Ms);
+        Assert.Equal((0, true), (together.Marks.Count, together.Moved));
+        Assert.False(judge.Apart);
+        judge.Play(72, 3000 * Ms);
+
+        // The chord's notes weren't right first time; the note after it was.
+        var result = judge.Result();
+        Assert.Equal((3, 1, 0, 1), (result.Notes, result.RightFirstTime, result.WrongKeys, result.Apart));
+        Assert.True(result.Finished);
+    }
+
+    [Theory]
+    [InlineData(150, true)]
+    [InlineData(151, false)]
+    public void WaitForMeCallsKeysTogetherWithinAMoment(int msApart, bool together)
+    {
+        var judge = new WaitJudge([new("b", 64, 1, 1, 0, 480, "ch"), new("c", 67, 1, 1, 0, 480, "ch")]);
+        judge.Play(64, 0);
+
+        Assert.Equal(together, judge.Play(67, msApart * Ms).Moved);
+        Assert.Equal(together ? 0 : 1, judge.Result().Apart);
+    }
+
+    [Fact]
+    public void WaitForMeTakesAKeyFoundAloneAndThenTheChordTogether()
+    {
+        var judge = new WaitJudge([new("b", 64, 1, 1, 0, 480, "ch"), new("c", 67, 1, 1, 0, 480, "ch")]);
+
+        // A key of the chord on its own, a pause, then the chord: nothing was played apart, so both are right first time.
+        Assert.False(judge.Play(64, 0).Moved);
+        Assert.False(judge.Play(64, 2000 * Ms).Moved);
+        Assert.True(judge.Play(67, 2030 * Ms).Moved);
+        Assert.Equal((2, 0), (judge.Result().RightFirstTime, judge.Result().Apart));
+    }
+
+    [Fact]
+    public void WaitForMeTakesAChordWithASlipPlayedAgainTogether()
+    {
+        // C–E–G, played C–E–A: the A is a slip for the G, and the chord again, right, moves on without being apart.
+        var judge = new WaitJudge([new("a", 60, 1, 1, 0, 480, "ch"), new("b", 64, 1, 1, 0, 480, "ch"), new("c", 67, 1, 1, 0, 480, "ch")]);
+        judge.Play(60, 0);
+        judge.Play(64, 10 * Ms);
+        Assert.Equal(new LiveMark("c", LiveKind.Wrong, 69, 0), Assert.Single(judge.Play(69, 20 * Ms).Marks));
+        judge.Play(60, 1000 * Ms);
+        judge.Play(64, 1010 * Ms);
+
+        Assert.True(judge.Play(67, 1020 * Ms).Moved);
+        var result = judge.Result();
+        Assert.Equal((3, 2, 1, 0), (result.Notes, result.RightFirstTime, result.WrongKeys, result.Apart));
+    }
+
+    [Fact]
+    public void WaitForMeMarksAWrongKeyOnAChordWaitingToBePlayedTogether()
+    {
+        // E–G found a key at a time, then an F: a slip for the E, the nearest, though every key of the chord has been found.
+        var judge = new WaitJudge([new("b", 64, 1, 1, 0, 480, "ch"), new("c", 67, 1, 1, 0, 480, "ch")]);
+        judge.Play(64, 0);
+        judge.Play(67, 500 * Ms);
+
+        Assert.Equal(new LiveMark("b", LiveKind.Wrong, 65, 0), Assert.Single(judge.Play(65, 900 * Ms).Marks));
+        judge.Play(64, 1500 * Ms);
+        Assert.True(judge.Play(67, 1520 * Ms).Moved);
+        Assert.Equal((0, 1, 1), (judge.Result().RightFirstTime, judge.Result().WrongKeys, judge.Result().Apart));
+    }
+
+    [Fact]
     public void WaitForMeMarksASlipWhereItWasAndKeepsWaiting()
     {
         var judge = new WaitJudge(Scale().Take(3));

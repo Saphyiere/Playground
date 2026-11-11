@@ -5,7 +5,9 @@ namespace Prima.UI.Components;
 /// and how many staff positions from the written note it is, so the sheet shows it there as a red note head named in red, and the
 /// written note grey, named in grey when Written is given; an early or late one when it was played, in quarter notes from the
 /// start of the music, so a ring shows there on its line. "extra" is a key played that the music didn't ask for, named and placed
-/// the same way beside the note before it, which keeps its own mark.
+/// the same way beside the note before it, which keeps its own mark. "apart" is a chord's note played right, but one key after
+/// another where they go down together (Wait for me). "hint" is no mark but a word over the note, given as Played, which keeps
+/// its own mark; with no word, the one there goes.
 /// </summary>
 public sealed record SheetMark(string Id, string Kind, string? Played = null, int Steps = 0, double? Quarter = null, string? Written = null);
 

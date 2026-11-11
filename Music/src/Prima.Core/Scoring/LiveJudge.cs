@@ -15,6 +15,8 @@ public enum LiveKind
     Wrong,
     /// <summary>Its time passed with nothing played for it.</summary>
     Missed,
+    /// <summary>The right key of a chord whose keys were played one after another, not together (Wait for me).</summary>
+    Apart,
 }
 
 /// <summary>A note judged during a run: its id on the sheet, what it was, the key played (if any) and when, in % of a beat from its time.</summary>

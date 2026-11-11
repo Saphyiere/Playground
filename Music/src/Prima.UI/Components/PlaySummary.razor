@@ -11,7 +11,8 @@
    strip that opens into a map of each bar. The details come in a part at a time, each when it's first seen (a "sum-stage",
    its turn's length in --turn; PlaySummary.razor.js gives the turns and the stylesheet draws them), and what fell short comes
    last in each: the notes that weren't right, the timing that was off, the notes let go early; the bars come in from the one
-   with the most to fix. Wait for me: the notes right first time, the wrong keys and the pace. The screen's own words follow. *@
+   with the most to fix. Wait for me: the notes right first time, the wrong keys, the chords played a key at a time, and the
+   pace. The screen's own words follow. *@
 @if (Outcome?.InTime is { } timed)
 {
     <div class="sum">
@@ -290,6 +291,10 @@ else if (Outcome?.Wait is { } waited)
         <div class="mu-readouts">
             <div class="mu-readout @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime of @waited.Notes</span></div>
             <div class="mu-readout"><span class="mu-readout-label">Wrong keys</span><span class="mu-readout-value">@waited.WrongKeys</span></div>
+            @if (waited.Apart > 0)
+            {
+                <div class="mu-readout miss"><span class="mu-readout-label">Not together</span><span class="mu-readout-value">@waited.Apart</span></div>
+            }
             <div class="mu-readout"><span class="mu-readout-label">Notes a minute</span><span class="mu-readout-value">@waited.NotesPerMinute.ToString("0", CultureInfo.InvariantCulture)</span></div>
         </div>
     </section>
@@ -298,6 +303,10 @@ else if (Outcome?.Wait is { } waited)
 {
     <ul class="summary-words">
         <li>@(wait.Notes == 0 ? "Nothing played yet." : $"{wait.RightFirstTime} of {wait.Notes} notes right first time{(Outcome.Stopped && StoppedAt is { } where ? $", up to {where}" : "")}. A note with a slip stays grey, with the key you played beside it in red.")</li>
+        @if (wait.Apart > 0)
+        {
+            <li>@Count(wait.Apart, "chord") @(wait.Apart == 1 ? "was" : "were") played a key at a time first: @(wait.Apart == 1 ? "it stays" : "they stay") amber. Notes written together, in one hand or both, go down together.</li>
+        }
         @if (wait.Notes > 0)
         {
             <li>About @wait.NotesPerMinute.ToString("0", CultureInfo.InvariantCulture) notes a minute at your own pace, over @TimeSpan.FromSeconds(wait.Seconds).ToString(@"m\:ss", CultureInfo.InvariantCulture).</li>

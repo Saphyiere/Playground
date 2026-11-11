@@ -746,10 +746,10 @@ else
     {
         (playing, outcome) = (false, how);
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Finished);
+        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
         object measures = how.InTime is { } r
             ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, seconds = how.Wait.Seconds, from, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" };
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" };
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 })), null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
         await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);

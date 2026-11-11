@@ -198,7 +198,8 @@ The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `mont
 and stores it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine. `/keys/dual?on=true`
 layers two voices on the simulated piano's keys, as the P-225's Dual does: each key and pedal then says its message on channels
-1 and 2.
+1 and 2. `/keys/answer` plays what a drill or a Wait for me run is waiting for (`right=false` for a wrong key), a chord's keys
+together, or with `apart=600` one at a time, that many ms apart.
 
 Claude in the preview is a stand-in that never calls the API (`tools/Prima.Preview/PreviewClaude.cs`). `/claude/key` puts a key
 on (one ending `a1B2`) and `/claude/key?clear=true` takes it off; `/claude/file` leaves a `claude-key.txt` for Settings to find;

@@ -104,18 +104,23 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and a summary after (see [The summary](#the-summary) and
   [How a passage is scored](#how-a-passage-is-scored)).
-- **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played, in any order. A
-  wrong key turns the note grey, named in grey, with a red head where the key is, named in red, and the cursor waits on; the
-  note stays so once it's put right, so the slip shows where it was. A trill's, a mordent's or a turn's keys, and grace notes
-  leading into a note, aren't slips. Afterwards: the notes
-  right first time, the wrong keys, and notes a minute at your own pace.
+- **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played. Notes written
+  together, a chord in one hand or both hands at once, go down **together**: in any order, the first key to the last within
+  0.15 of a second. Played a key at a time, which finds the chord but doesn't play it, its notes turn amber, "together" shows
+  over them, and the cursor waits until they're struck together; they stay amber, so it shows where that was. A key of the
+  chord on its own before the chord is played together is no fault. A wrong key turns the note grey, named in grey, with a
+  red head where the key is, named in red, and the cursor waits on; the note stays so once it's put right, so the slip shows
+  where it was. A trill's, a mordent's or a turn's keys, and grace notes leading into a note, aren't slips. A chord the music
+  marks to be rolled isn't known as one, and wants its keys together like any other. Afterwards: the notes right first time
+  (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
+  minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
   marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
   tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to there.
 - **While playing** (Settings › Practice, and a piece's Options) says what shows on the music In time: the **Cursor**, and the
   **Marks as you play**, each on or off, for playing with only the click and the page. With the cursor off the music still
   scrolls with the run. With the marks off every note is still judged, and the marks show when the run ends, to go back
-  over. Wait for me always shows where it's waiting.
+  over. Wait for me always shows where it's waiting, and "together" over a chord that needs it.
 
 ### Drills
 
