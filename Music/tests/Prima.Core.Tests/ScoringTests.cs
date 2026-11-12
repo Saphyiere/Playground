@@ -427,6 +427,51 @@ public class ScoringTests
     }
 
     [Fact]
+    public void WaitForMeTakesAChordMarkedToBeRolledAsARoll()
+    {
+        // C–E–G–C marked to be rolled, then a D.
+        ExpectedNote[] notes = [new("a", 48, 1, 1, 0, 480, "ch"), new("b", 52, 1, 1, 0, 480, "ch"), new("c", 55, 1, 1, 0, 480, "ch"), new("d", 60, 1, 1, 0, 480, "ch"), new("e", 62, 1, 1, 480, 480, null)];
+        var judge = new WaitJudge(notes, rolled: new HashSet<string> { "a", "b", "c", "d" });
+
+        // Rolled at 70 ms a note: 0.21 s from the first key to the last, further apart than keys together, and it's the chord.
+        Assert.True(judge.Rolling);
+        foreach (var (key, at) in new[] { (48, 0), (52, 70), (55, 140) }) Assert.False(judge.Play(key, at * Ms).Moved);
+        Assert.True(judge.Play(60, 210 * Ms).Moved);
+        Assert.False(judge.Rolling);
+        judge.Play(62, 700 * Ms);
+
+        var result = judge.Result();
+        Assert.Equal((5, 5, 0, 0), (result.Notes, result.RightFirstTime, result.WrongKeys, result.Apart));
+
+        // The same chord not marked to be rolled wants its keys together.
+        var plain = new WaitJudge(notes);
+        foreach (var (key, at) in new[] { (48, 0), (52, 70), (55, 140) }) plain.Play(key, at * Ms);
+        Assert.False(plain.Play(60, 210 * Ms).Moved);
+        Assert.True(plain.Apart);
+    }
+
+    [Theory]
+    [InlineData(300, true)]
+    [InlineData(301, false)]
+    public void WaitForMeWantsARollInOneGo(int msBetween, bool rolled)
+    {
+        var judge = new WaitJudge([new("a", 48, 1, 1, 0, 480, "ch"), new("b", 52, 1, 1, 0, 480, "ch"), new("c", 55, 1, 1, 0, 480, "ch")], rolled: new HashSet<string> { "a", "b", "c" });
+
+        // A wait in the middle of the roll: no longer than a roll's, it's still one roll; longer, it's keys found one at a time.
+        judge.Play(48, 0);
+        judge.Play(52, 60 * Ms);
+        Assert.Equal(rolled, judge.Play(55, (60 + msBetween) * Ms).Moved);
+        Assert.Equal(!rolled, judge.Apart);
+        if (rolled) return;
+
+        // Rolled again in one go, it moves on; the chord wasn't right first time.
+        judge.Play(48, 2000 * Ms);
+        judge.Play(52, 2060 * Ms);
+        Assert.True(judge.Play(55, 2120 * Ms).Moved);
+        Assert.Equal((0, 1), (judge.Result().RightFirstTime, judge.Result().Apart));
+    }
+
+    [Fact]
     public void WaitForMeKeepsWhenEachMomentOfTheMusicWasPlayed()
     {
         // Hands together: C in each hand, then D in each, then E in each, the hands landing 10 ms apart, half a second a note.

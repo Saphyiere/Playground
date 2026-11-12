@@ -199,6 +199,22 @@ public class MusicTests
     }
 
     [Fact]
+    public void AChordMarkedToBeRolledIsReadAsOne()
+    {
+        // A roll's sign over both hands' chords, then one on a single note's chord by its start.
+        var mei = """
+            <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score><scoreDef><staffGrp>
+            <staffDef n="1" lines="5" clef.shape="G" clef.line="2" meter.count="4" meter.unit="4"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef>
+            <section><measure n="1"><staff n="1"><layer n="1">
+            <chord xml:id="rh" dur="2"><note xml:id="a" pname="e" oct="4"/><note xml:id="b" pname="g" oct="4"/></chord><chord xml:id="rh2" dur="2"><note xml:id="c" pname="f" oct="4"/><note xml:id="d" pname="a" oct="4"/></chord>
+            </layer></staff><staff n="2"><layer n="1"><chord xml:id="lh" dur="1"><note xml:id="e" pname="c" oct="3"/><note xml:id="f" pname="g" oct="3"/></chord></layer></staff>
+            <arpeg plist="#rh #lh"/><arpeg startid="#rh2"/></measure></section></score></mdiv></body></music></mei>
+            """;
+
+        Assert.Equal([new Mark(MarkKind.Roll, "rh"), new Mark(MarkKind.Roll, "lh"), new Mark(MarkKind.Roll, "rh2")], MeiReader.Read(mei).FileMarks);
+    }
+
+    [Fact]
     public void APiecesArticulationsSlurEndsAndOrnamentsAreReadOntoItsNotes()
     {
         var mei = """

@@ -27,8 +27,10 @@ public sealed record WaitResult(int Notes, int Total, int RightFirstTime, int Wr
 /// right. Once a chord's keys have all been played but one after another, which is how it's found and not how it's played, its
 /// notes are marked apart and the step waits for them together. Another key marks wrong the step's note not yet played that's
 /// nearest to it, with the key, and the step waits on; that note stays marked wrong once it's played, so the slip shows where it
-/// was. Keys within a tone of an ornamented note (a trill's or a mordent's), in its step or just after it, aren't slips. No
-/// other time is judged: the pace is your own.
+/// was. Keys within a tone of an ornamented note (a trill's or a mordent's), in its step or just after it, aren't slips. A
+/// chord the music marks to be rolled is played as a roll: its keys one after another, none more than <see cref="RollGapNs"/>
+/// after the one before; with a longer wait between two of them it's marked apart, and waits to be rolled in one go. No other
+/// time is judged: the pace is your own.
 /// </summary>
 public sealed class WaitJudge
 {
@@ -38,8 +40,15 @@ public sealed class WaitJudge
     /// </summary>
     public const long TogetherNs = 150_000_000;
 
+    /// <summary>
+    /// The longest from one key of a rolled chord to the next: 0.3 s. A roll's keys follow each other a few hundredths of a
+    /// second apart, a slow one's a tenth or two; keys being looked for one at a time come further apart than that.
+    /// </summary>
+    public const long RollGapNs = 300_000_000;
+
     private readonly List<IReadOnlyList<ExpectedNote>> steps;
     private readonly HashSet<string> ornamented;
+    private readonly HashSet<string> rolled;
     private readonly HashSet<string> played = [];
     private readonly HashSet<string> slipped = [];
     // The step's keys that are down together so far, each with when it went down, and the steps played a key at a time.
@@ -50,10 +59,11 @@ public sealed class WaitJudge
     private long? firstNs;
     private long lastNs;
 
-    public WaitJudge(IEnumerable<ExpectedNote> notes, IReadOnlySet<string>? ornamented = null)
+    public WaitJudge(IEnumerable<ExpectedNote> notes, IReadOnlySet<string>? ornamented = null, IReadOnlySet<string>? rolled = null)
     {
         steps = [.. notes.GroupBy(n => n.Tick).OrderBy(g => g.Key).Select(g => (IReadOnlyList<ExpectedNote>)[.. g.OrderBy(n => n.Midi)])];
         this.ornamented = ornamented is null ? [] : [.. ornamented];
+        this.rolled = rolled is null ? [] : [.. rolled];
     }
 
     /// <summary>The step waited for, from 0.</summary>
@@ -67,6 +77,9 @@ public sealed class WaitJudge
     /// <summary>Whether the chord waited for has had its keys played, but one after another: it waits for them together.</summary>
     public bool Apart => apart.Contains(Step);
 
+    /// <summary>Whether the chord waited for is one the music marks to be rolled.</summary>
+    public bool Rolling => !Done && steps[Step].Any(n => rolled.Contains(n.Id));
+
     /// <summary>A key going down: the marks it makes (none for a key that's nothing), and whether it moved the cursor on.</summary>
     public (IReadOnlyList<LiveMark> Marks, bool Moved) Play(int midi, long timeNs)
     {
@@ -79,8 +92,10 @@ public sealed class WaitJudge
         {
             var found = step.Where(n => n.Midi == midi && !played.Contains(n.Id)).ToList();
             played.UnionWith(found.Select(n => n.Id));
-            // The chord's keys that went down just before this one are down with it; those from longer ago are let go of.
-            foreach (var old in struck.Where(s => timeNs - s.Value > TogetherNs).Select(s => s.Key).ToList()) struck.Remove(old);
+            // The chord's keys that went down just before this one are down with it; those from longer ago are let go of. A
+            // rolled chord's follow one another: after a longer wait than a roll has, the roll starts again from this key.
+            if (!Rolling) foreach (var old in struck.Where(s => timeNs - s.Value > TogetherNs).Select(s => s.Key).ToList()) struck.Remove(old);
+            else if (struck.Count > 0 && timeNs - struck.Values.Max() > RollGapNs) struck.Clear();
             struck[midi] = timeNs;
             var together = step.All(n => struck.ContainsKey(n.Midi));
             // Every key found, but not in one go: its notes are marked apart, all of them, and it waits to be played together.

@@ -111,7 +111,10 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   chord on its own before the chord is played together is no fault. A wrong key turns the note grey, named in grey, with a
   red head where the key is, named in red, and the cursor waits on; the note stays so once it's put right, so the slip shows
   where it was. A trill's, a mordent's or a turn's keys, and grace notes leading into a note, aren't slips. A chord the music
-  marks to be rolled isn't known as one, and wants its keys together like any other. Afterwards: the notes right first time
+  marks to be rolled (an arpeggio sign, on one hand's chord or across both) is played as a roll: its keys one after
+  another, none more than 0.3 s after the one before. With a longer wait between two of them it's marked like a chord played
+  a key at a time, says "in one roll", and waits to be rolled in one go. (In time doesn't know a roll yet: its notes are
+  all judged against the one moment they're written at.) Afterwards: the notes right first time
   (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
   minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's

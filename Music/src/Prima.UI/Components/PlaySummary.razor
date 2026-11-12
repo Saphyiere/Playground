@@ -305,7 +305,7 @@ else if (Outcome?.Wait is { } waited)
         <li>@(wait.Notes == 0 ? "Nothing played yet." : $"{wait.RightFirstTime} of {wait.Notes} notes right first time{(Outcome.Stopped && StoppedAt is { } where ? $", up to {where}" : "")}. A note with a slip stays grey, with the key you played beside it in red.")</li>
         @if (wait.Apart > 0)
         {
-            <li>@Count(wait.Apart, "chord") @(wait.Apart == 1 ? "was" : "were") played a key at a time first: @(wait.Apart == 1 ? "it stays" : "they stay") amber. Notes written together, in one hand or both, go down together.</li>
+            <li>@Count(wait.Apart, "chord") @(wait.Apart == 1 ? "was" : "were") played a key at a time first: @(wait.Apart == 1 ? "it stays" : "they stay") amber. Notes written together, in one hand or both, go down together; a chord marked to be rolled, in one roll.</li>
         }
         @if (wait.Notes > 0)
         {

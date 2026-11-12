@@ -51,9 +51,18 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
                     if (events[i - 1].Grace && !events[i].Grace) marked.UnionWith(events[i].Tones.Select(t => t.Id));
                 }
             }
-            return Notes.Where(n => marked.Contains(n.WrittenId) || n.ChordId is { } chord && marked.Contains(SheetId(chord))).Select(n => n.Id).ToHashSet();
+            return NotesOf(marked);
         }
     }
+
+    /// <summary>
+    /// Notes of a chord the music marks to be rolled (an arpeggio sign on the note or its chord), each time they're played: in
+    /// Wait for me their keys follow one another instead of going down together.
+    /// </summary>
+    public IReadOnlySet<string> Rolled => NotesOf(Score.AllMarks.Where(m => m.Kind == MarkKind.Roll).Select(m => m.StartId).ToHashSet());
+
+    // The run's notes a mark is on: those written with one of these ids, or in a chord with one.
+    private HashSet<string> NotesOf(HashSet<string> marked) => Notes.Where(n => marked.Contains(n.WrittenId) || n.ChordId is { } chord && marked.Contains(SheetId(chord))).Select(n => n.Id).ToHashSet();
 
     /// <summary>A tick of the run in quarter notes from its start: the cursor's measure, which it's given the run's onsets in.</summary>
     public double QuarterOf(long tick) => (tick + PickupTicks) / (double)Ticks.Quarter;

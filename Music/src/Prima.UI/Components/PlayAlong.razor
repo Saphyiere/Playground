@@ -282,7 +282,7 @@
 
         if (Mode == PlayMode.WaitForMe && !listen)
         {
-            var judge = wait = new WaitJudge(music.Notes, music.Ornamented);
+            var judge = wait = new WaitJudge(music.Notes, music.Ornamented, music.Rolled);
             // The preview's simulated player answers the step waited for: its keys, or a key beside its first.
             Registry.DrillAnswer = right => judge.Done ? [] : right ? [[.. judge.Current.Select(n => n.Midi)]] : [[judge.Current[0].Midi + 1]];
             StateHasChanged();
@@ -407,13 +407,13 @@
             heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
             var (marks, moved) = judge.Play(e.Note, e.TimeNs);
             await Draw(marks);
-            // A chord played a key at a time has "together" over its top note until it's played so. That's what to do next, not
-            // how a note went, so it shows whatever Settings says of the marks.
+            // A chord played a key at a time has "together" over its top note until it's played so (a chord marked to be rolled,
+            // "in one roll"). That's what to do next, not how a note went, so it shows whatever Settings says of the marks.
             var word = judge.Apart ? PlayMusic.SheetId(judge.Current.MaxBy(n => n.Midi)!.Id) : null;
             if ((word ?? hinted) is not null && SheetOf() is { } paper)
             {
                 List<SheetMark> hints = hinted is not null && hinted != word ? [new SheetMark(hinted, "hint")] : [];
-                if (word is not null) hints.Add(new SheetMark(word, "hint", "together"));
+                if (word is not null) hints.Add(new SheetMark(word, "hint", judge.Rolling ? "in one roll" : "together"));
                 await paper.MarkLive(hints);
                 hinted = word;
             }

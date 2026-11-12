@@ -84,7 +84,7 @@ public static class MeiReader
             var repeatStart = left is "rptstart" or "rptboth" || startsNext;
             var repeatEnd = right is "rptend" or "rptboth";
             var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter };
-            controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn").Select(e => (bars.Count, e)));
+            controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn" or "arpeg").Select(e => (bars.Count, e)));
             meters.Add(meter);
             bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });
             startsNext = right == "rptboth";
@@ -96,6 +96,14 @@ public static class MeiReader
         var fileMarks = new List<Mark>();
         foreach (var (index, control) in controls)
         {
+            // A roll's sign names what it's on: a chord or a note each, in one staff or both.
+            if (control.Name.LocalName == "arpeg")
+            {
+                var rolled = (string?)control.Attribute("plist") ?? (string?)control.Attribute("startid") ?? "";
+                fileMarks.AddRange(rolled.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(on => new Mark(MarkKind.Roll, Id(on))));
+                continue;
+            }
+
             var staves = ((string?)control.Attribute("staff") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(n => int.Parse(n, CultureInfo.InvariantCulture)).ToList();
             if (Place(index, (string?)control.Attribute("startid"), (string?)control.Attribute("tstamp")) is not { } start) continue;
 

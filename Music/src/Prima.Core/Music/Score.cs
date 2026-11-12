@@ -105,6 +105,8 @@ public enum MarkKind
     Text,
     /// <summary>A turn, read from a piece's file; Prima writes none.</summary>
     Turn,
+    /// <summary>A chord to be rolled (an arpeggio sign): one for each chord or note the sign is on. Read from a piece's file; Prima writes none.</summary>
+    Roll,
 }
 
 /// <summary>
