@@ -4065,6 +4065,18 @@ html[data-full] .piece .summary {
     box-sizing: border-box;
 }
 
+/* A start key whose words still need three lines grows to hold them, rather than letting them spill out. In portrait, where the
+   run's controls wrap rather than shrink, a long one takes two lines rather than pushing Listen onto a row of its own. */
+.piece-bar .mu-btn {
+    height: auto;
+}
+
+@media (orientation: portrait) {
+    .piece-bar .mu-btn.mu-primary {
+        max-width: 220px;
+    }
+}
+
 .piece-bar .play-mode-option {
     display: flex;
     align-items: center;
