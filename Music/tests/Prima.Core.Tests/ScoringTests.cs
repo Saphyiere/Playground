@@ -14,8 +14,8 @@ public class ScoringTests
     private static List<ExpectedNote> Scale() => [.. new[] { 60, 62, 64, 65, 67, 69, 71, 72 }.Select((m, i) => new ExpectedNote($"n{i}", m, i / 4 + 1, 1, i * 480L, 480, null))];
 
     private static PassageResult Score(IReadOnlyList<ExpectedNote> expected, IEnumerable<PlayedNote> played, double offsetMs = 0, IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long, long)>? damper = null,
-        Markings? markings = null, (int, int)? range = null) =>
-        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented, damper, markings, range);
+        Markings? markings = null, (int, int)? range = null, IReadOnlySet<string>? rolled = null) =>
+        PassageScorer.Score(expected, At, 480, BeatNs, 4 * BeatNs, [.. played], offsetMs, ornamented, damper, markings, range, rolled);
 
     // A key down and up, in beats, struck this hard.
     private static PlayedNote Hit(int midi, double down, double up, int velocity) => new(midi, At(down), At(up), velocity);
@@ -776,6 +776,28 @@ public class ScoringTests
     }
 }
 
+public class RolledChordTests
+{
+    private const long Ms = 1_000_000;
+    private const double BeatNs = 500 * Ms; // 120 beats a minute
+    private static long At(double beats) => (long)(beats * BeatNs);
+
+    [Fact]
+    public void InTimeARolledChordIsTimedByTheRollsStart()
+    {
+        // C, E and G on the beat, then D: the chord rolled up, its keys 90 ms apart. Marked to be rolled, every note is in time
+        // and no key is extra; not marked, the roll's keys are off the beat.
+        ExpectedNote[] notes = [new("c", 60, 1, 1, 0, 480, "x"), new("e", 64, 1, 1, 0, 480, "x"), new("g", 67, 1, 1, 0, 480, "x"), new("d", 62, 1, 1, 480, 480, null)];
+        PlayedNote[] keys = [new(60, 0, At(0.9), 70), new(64, 90 * Ms, At(0.9), 70), new(67, 180 * Ms, At(0.9), 70), new(62, At(1), At(1.9), 70)];
+
+        var rolled = PassageScorer.Score(notes, At, 480, BeatNs, 4 * BeatNs, keys, 0, rolled: new HashSet<string> { "c", "e", "g" });
+        var plain = PassageScorer.Score(notes, At, 480, BeatNs, 4 * BeatNs, keys, 0);
+
+        Assert.Equal((4, 4, 0), (rolled.Right, rolled.InTime, rolled.Extra));
+        Assert.True(plain.Off > 0);
+    }
+}
+
 public class LiveJudgeTests
 {
     private const double BeatNs = 1e9;
@@ -793,7 +815,36 @@ public class LiveJudgeTests
         Assert.Equal(LiveKind.Early, judge.Play(62, At(0.8))!.Kind);
         var late = judge.Play(64, At(2.2))!;
         Assert.Equal((LiveKind.Late, "c"), (late.Kind, late.Id));
-        Assert.Equal(20, late.ErrorPercent, 3);
+        // 20% late, with the lean of the two keys before it taken off: (5 − 20) / 2 = −7.5, so 27.5.
+        Assert.Equal(27.5, late.ErrorPercent, 3);
+    }
+
+    [Fact]
+    public void ASteadyLeanIsTakenOffAsTheSummaryTakesItOff()
+    {
+        // Every key 15% of a beat early: the first is marked early, with no lean yet to go by; the rest are right, as the summary
+        // will have them all once it takes the run's lean off.
+        var judge = new LiveJudge([N("a", 60, 0), N("b", 62, 1), N("c", 64, 2), N("d", 65, 3)], At, Ticks.Quarter, BeatNs, 0);
+
+        var marks = new[] { (60, 0), (62, 1), (64, 2), (65, 3) }.Select(k => judge.Play(k.Item1, At(k.Item2 - 0.15))!.Kind);
+
+        Assert.Equal([LiveKind.Early, LiveKind.Right, LiveKind.Right, LiveKind.Right], marks);
+    }
+
+    [Fact]
+    public void ARolledChordIsTimedByItsFirstKey()
+    {
+        // C, E and G rolled up from the beat, a fifth of a beat between keys: each right, as its first is, though the top one
+        // comes after the window. Not marked to be rolled, the middle key is late and the top one too late to be the chord's.
+        ExpectedNote[] chord = [N("c", 60, 0) with { ChordId = "x" }, N("e", 64, 0) with { ChordId = "x" }, N("g", 67, 0) with { ChordId = "x" }];
+        var rolled = new LiveJudge(chord, At, Ticks.Quarter, BeatNs, 0, rolled: new HashSet<string> { "c", "e", "g" });
+        var plain = new LiveJudge(chord, At, Ticks.Quarter, BeatNs, 0);
+
+        Assert.All(new[] { (60, 0.0), (64, 0.2), (67, 0.4) }.Select(k => rolled.Play(k.Item1, At(k.Item2))), m => Assert.Equal(LiveKind.Right, m!.Kind));
+        Assert.Empty(rolled.Due(At(1)));
+        Assert.Equal(LiveKind.Right, plain.Play(60, At(0))!.Kind);
+        Assert.Equal(LiveKind.Late, plain.Play(64, At(0.2))!.Kind);
+        Assert.Null(plain.Play(67, At(0.4)));
     }
 
     [Fact]

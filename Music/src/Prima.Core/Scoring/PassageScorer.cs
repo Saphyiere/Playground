@@ -186,8 +186,10 @@ public static class PassageScorer
     /// <param name="damper">When the damper pedal was down, from and to: a key let go while it's down sounds on until it comes up.</param>
     /// <param name="markings">What the music asks besides the notes (dynamics, crescendos, the pedal), in the notes' ticks.</param>
     /// <param name="range">How hard you strike a key soft and loud (velocity), for where in it a dynamic was played (ours: 25 to 105).</param>
+    /// <param name="rolled">Ids of the notes of chords marked to be rolled: timed by the roll's first key.</param>
     public static PassageResult Score(IReadOnlyList<ExpectedNote> expected, Func<double, long> timeAt, int beatTicks, double beatNs, double barNs, IReadOnlyList<PlayedNote> played, double offsetMs,
-        IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long DownNs, long UpNs)>? damper = null, Markings? markings = null, (int Soft, int Loud)? range = null)
+        IReadOnlySet<string>? ornamented = null, IReadOnlyList<(long DownNs, long UpNs)>? damper = null, Markings? markings = null, (int Soft, int Loud)? range = null,
+        IReadOnlySet<string>? rolled = null)
     {
         var window = Grading.WindowNs(beatNs);
         var times = expected.Select(e => (double)timeAt(e.Tick / (double)beatTicks)).ToArray();
@@ -195,6 +197,22 @@ public static class PassageScorer
         var last = expected.Count == 0 ? 0 : expected.Select((e, i) => times[i] + e.Length / (double)beatTicks * beatNs).Max();
         // Notes played during the look don't count: scoring starts half a window before the first note.
         var notes = played.Select(p => (Note: p, At: p.OnNs - offsetMs * 1e6)).Where(p => p.At >= first - window / 2 && p.At <= last + window).OrderBy(p => p.At).ToList();
+
+        // A chord marked to be rolled is played as a roll: its first key near its time, then each other key of it no more than a
+        // roll's gap after the one before. Its keys count as struck together when the roll began, so it's timed by its start, as
+        // Wait for me takes it.
+        foreach (var chord in Enumerable.Range(0, expected.Count).Where(i => rolled?.Contains(expected[i].Id) == true).GroupBy(i => expected[i].Tick))
+        {
+            var (left, at) = (chord.Select(i => expected[i].Midi).ToHashSet(), times[chord.First()]);
+            var roll = new List<int>();
+            foreach (var k in Enumerable.Range(0, notes.Count).Where(k => notes[k].At >= at - window && left.Contains(notes[k].Note.Midi)))
+            {
+                if (roll.Count == 0 ? notes[k].At > at + window : notes[k].At - notes[roll[^1]].At > WaitJudge.RollGapNs) break;
+                if (left.Remove(notes[k].Note.Midi)) roll.Add(k);
+            }
+            foreach (var k in roll.Skip(1)) notes[k] = (notes[k].Note, notes[roll[0]].At);
+        }
+        if (rolled is { Count: > 0 }) notes = [.. notes.OrderBy(p => p.At)];
 
         var matched = new Dictionary<int, int>();
         foreach (var pitch in expected.Select(e => e.Midi).Distinct())

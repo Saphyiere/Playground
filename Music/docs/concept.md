@@ -115,8 +115,9 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   where it was. A trill's, a mordent's or a turn's keys, and grace notes leading into a note, aren't slips. A chord the music
   marks to be rolled (an arpeggio sign, on one hand's chord or across both) is played as a roll: its keys one after
   another, none more than 0.3 s after the one before. With a longer wait between two of them it's marked like a chord played
-  a key at a time, says "in one roll", and waits to be rolled in one go. (In time doesn't know a roll yet: its notes are
-  all judged against the one moment they're written at.) Afterwards: the notes right first time
+  a key at a time, says "in one roll", and waits to be rolled in one go. In time takes it the same way: its keys count as
+  struck when the roll began, so the roll is timed by its first key, and its later keys aren't late or missed. Afterwards: the
+  notes right first time
   (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
   minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
@@ -342,9 +343,12 @@ asking. Nothing leaves the tablet unless you back it up.
    of a beat early or late (a ring on its line shows when you played it, an arrow which way); and outlined grey once its time has
    passed with nothing played. A slip stays: another key played before the right one marks the note wrong, and the right key a
    moment later leaves it so (it isn't held against the next note either). A chord's own key struck twice makes no mark, and a
-   trill's, a mordent's or a turn's keys and grace notes aren't slips. These are judged note by note, before your lean is known.
+   trill's, a mordent's or a turn's keys and grace notes aren't slips. These are judged note by note, each with your lean so
+   far taken out (the average of the right notes before it), so a steady habit of playing a little early or late isn't marked
+   amber as you play and green afterwards; only the first note or two, before there's a lean, can still change.
 4. **Summary.** After the last bar, [the summary](#the-summary), and the passage again with each note marked the same way, now
-   from the whole take lined up and your lean taken out, so a note can change from the mark it had while playing. A wrong note
+   from the whole take lined up and the whole run's lean taken out, so a note can still change here and there from the mark it
+   had while playing. A wrong note
    names what you played instead (G4→A4) and shows it on the staff. Notes let go early and expression aren't marked on the
    staff, which is busy enough: the summary has them, bar by bar.
 5. **Next.** The level and tempo adjust and the next passage comes up.

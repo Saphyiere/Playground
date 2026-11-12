@@ -353,7 +353,7 @@
         var plan = new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars), listen ? ClickStage.CountInOnly : ClickStage.Throughout);
         run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano, Settings.TimingOffsetMs);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
-        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented);
+        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
         if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
@@ -430,7 +430,7 @@
         // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
-            Markings.Of(music.Score, due), range);
+            Markings.Of(music.Score, due), range, music.Rolled);
         // Round a loop, each time round played to its end is a pass, scored by itself: one whose last note is among those that
         // count. Any the run hadn't scored yet are now, any it scored after the last key was played go, and the run's result is
         // the last pass's, which is how the loop stood when it was left. Stopped in its first time round, the result is what was
@@ -475,7 +475,7 @@
         var keys = run.PlayedSoFar(Clock.NowNs).Where(p => p.OnNs < until).ToList();
         (int, int)? range = expression && Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         return PassageScorer.Score(notes, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, keys, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
-            expression ? Markings.Of(music.Score, notes) : null, range);
+            expression ? Markings.Of(music.Score, notes) : null, range, music.Rolled);
     }
 
     // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down together.
