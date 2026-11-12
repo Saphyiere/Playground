@@ -89,7 +89,8 @@
 
                     <section class="mu-screen sum-panel sum-stage timing @(timed.Off == 0 ? "clean" : "")" aria-label="Timing" style="--turn: 400ms">
                         <div class="sum-head"><span class="mu-readout-label">In time</span><span class="mu-readout-label">@(Math.Abs(timed.LeanMs) < 5 ? "Lean: even" : $"Lean {Math.Abs(timed.LeanMs):0} ms {(timed.LeanMs < 0 ? "early" : "late")}")</span></div>
-                        <span class="sum-figure">@($"{timed.InTimeAccuracy * 100:0}%")</span>
+                        @* The right notes' timing: how many of them were in time, whatever the wrong ones did to the run's headline. *@
+                        <span class="sum-figure">@(timed.Right > 0 ? Percent(timed.Right - timed.Off, timed.Right) : "–")</span>
                         <div class="sum-histogram" role="img" aria-label="@($"Each right note's timing as a share of the beat, after your lean: {timed.InTime} within 5 percent, {timed.Audible} within 10, {timed.Off} further off")">
                             @* Its bins rise from the beat outwards, and the ones that are off after a pause. *@
                             @for (var i = 0; i < timingBins.Length; i++)
@@ -574,10 +575,13 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         var notRight = others.Count > 1 ? $": {string.Join(", ", others[..^1])} and {others[^1]}" : others.Count == 1 ? $": {others[0]}" : "";
         var notesShort = timed.Right == timed.Expected ? $"All {timed.Expected} right." : $"{timed.Right} of {timed.Expected} right{notRight}{mostIn}.";
         var steady = right.Count > 0 && timed.Off == 0 && stretches.Count == 0 && dragged.Count == 0;
+        // The timing is the right notes': how many of them were in time. A wrong note has no timing to be out.
+        var ofRight = timed.Right == timed.Expected ? "" : "right ";
+        var inTime = timed.Off == 0 ? $"Every {ofRight}note in time." : $"{Percent(timed.Right - timed.Off, timed.Right)} of the {ofRight}notes in time.";
         quick =
         [
             (timed.Right < timed.Expected, "Notes", notesShort + (Outcome.Stopped && StoppedAt is { } at ? $" Stopped at {at}." : "")),
-            (!steady, "Timing", right.Count == 0 ? timingSaid : $"{timed.InTimeAccuracy * 100:0}% in time. {timingSaid}"),
+            (!steady, "Timing", right.Count == 0 ? timingSaid : $"{inTime} {timingSaid}"),
         ];
         if (timed.LetGoEarly > 0) quick.Add((true, "Held", $"{Count(timed.LetGoEarly, "note")} let go early, in {Listed(earlyBars)}."));
         foreach (var about in expression.Where(e => e.Bad).GroupBy(e => e.About))

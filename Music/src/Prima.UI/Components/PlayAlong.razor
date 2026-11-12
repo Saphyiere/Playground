@@ -44,7 +44,7 @@
     {
         @if (ShowResult && last?.InTime is { } timed)
         {
-            <div class="mu-readout @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
+            <div class="mu-readout @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right in time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
         }
         else if (ShowResult && last?.Wait is { Notes: > 0 } waited)
         {

@@ -3235,6 +3235,12 @@ a.mu-btn {
     gap: 8px;
 }
 
+/* Vinyl's keys and switch are wider than Studio's: its bar keeps them closer, so a run's figure fits beside them in landscape
+   with a level and a tempo of any length. */
+[data-theme="vinyl"] .piece-bar {
+    gap: 16px;
+}
+
 .piece-frame {
     position: relative;
     height: calc(100dvh - 250px);
@@ -3256,7 +3262,9 @@ a.mu-btn {
 }
 
 /* Between runs a piece fits the screen: the music takes what its head, its bar and About this piece leave, and is all that
-   scrolls. While a run plays About goes, and the music has that too. */
+   scrolls. While a run plays About goes, and the music has that too. After a run its summary is where About was, so how it
+   went is on the screen with the music, as in full screen: its short lines fit, and its details scroll in the summary's own
+   share of the screen, the music keeping a line's height above it. */
 .piece-fit {
     height: 100%;
 }
@@ -3266,12 +3274,23 @@ a.mu-btn {
     min-height: 300px;
 }
 
+.piece-fit:where(.piece-summed) .piece-stage {
+    min-height: 170px;
+}
+
 .piece-fit .piece-frame {
     height: 100%;
     min-height: 0;
 }
 
-.piece-playing .piece-about {
+.piece-fit .summary {
+    flex: none;
+    max-height: 45%;
+    overflow-y: auto;
+}
+
+.piece-playing .piece-about,
+.piece-fit.piece-summed .piece-about {
     display: none;
 }
 

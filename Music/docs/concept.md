@@ -170,8 +170,9 @@ a PDF plays out; this is what came of it.
 - **A piece** opens on its bar and its music. The bar ends with two keys: **Options**, which shows the piece's options in
   place of the music (the view, the hands, play along, where to start; a PDF's tempo and bars) until it's pressed again,
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
-  same key, or leaving the piece, brings everything back. Between runs a piece fits the screen, only its music scrolling, with
-  About this piece under it; while a run plays About goes and the music has that space too. A notation piece shows whole in
+  same key, or leaving the piece, brings everything back. A piece fits the screen, only its music scrolling: between runs with
+  About this piece under it, and after a run with the run's summary there instead; while a run plays the music has that space
+  too. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
   the piece opens in Pages again the next time). As pages: two systems at a time in landscape, the whole page
   in portrait under a slim bar. They turn by a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
@@ -197,7 +198,9 @@ a PDF plays out; this is what came of it.
   they move a run, still listening. It needs the piano taking notes from the tablet, as play along does: without
   one its key looks off, and a tap on it says what it needs. While it plays, the music
   scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
-  bar shows the headline (in time, or right first time), every note stays marked, and the summary is under the music. It
+  bar shows the headline (**right in time**: the share of the notes played right and not off the beat; or right first time),
+  every note stays marked, and the summary takes About this piece's place under the music, so how it went is on the screen
+  with it, as in full screen: its few lines fit, and its details scroll in the summary's own share of the screen. It
   doesn't move your level.
 - **A PDF** turns by the same means, and by a tap on the page's outer thirds. Portrait shows a whole page, and by default a half-page turn first shows the next page's
   top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
@@ -366,7 +369,8 @@ asking. Nothing leaves the tablet unless you back it up.
 
 The same after every run to a tempo (Sight-read, a Library piece). First **a few lines**, to take in at a glance, each with
 its bars: the **notes** (how many were right, what the others were, and the bars with the most of them) and the **timing**
-(the share in time, and where it rushed, held back or was off the beat); then a line only for what there is to work on: notes
+(the share of the right notes that were in time, since a wrong note has no timing to be out, and where it rushed, held back
+or was off the beat); then a line only for what there is to work on: notes
 **held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with the
 most to fix, where a wrong or missed note counts as three of anything else (a note off the beat or let go early, a marking
 not played as asked, the pedal). On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar**
@@ -375,7 +379,7 @@ leave it so): three panels, side by side:
 
 - **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
   (solid) and missed (hollow), with extra keys.
-- **In time**: in-time accuracy and the lean, and every right note's timing after the lean in a strip from 20% of a beat early
+- **In time**: the share of the right notes that were in time, and the lean, and every right note's timing after the lean in a strip from 20% of a beat early
   to 20% late, the in-time band shaded.
 - **Held**: the share of judged notes held their length, and how long each was held, with the 80% line.
 

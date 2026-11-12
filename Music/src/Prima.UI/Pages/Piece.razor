@@ -23,8 +23,10 @@
 }
 else
 {
-    @* It fits the screen, only the music scrolling, while there's no run's summary or reading of a PDF under it to read. *@
-    <div class="piece @(readingNotes || outcome is not null ? "" : "piece-fit") @(playing ? "piece-playing" : "")">
+    @* It fits the screen, only the music scrolling: between runs with About this piece under the music, and after a run with
+       the run's summary there in About's place, so how it went is on the screen with the music (its details scroll in the
+       summary's own space). While a PDF's notes are being read the page is as long as that needs, and scrolls. *@
+    <div class="piece @(readingNotes ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null ? "piece-summed" : "")">
         <header class="reading-head">
             <div>
                 <p class="page-kicker">@Kicker()</p>
