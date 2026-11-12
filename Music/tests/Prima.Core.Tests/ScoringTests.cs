@@ -427,6 +427,19 @@ public class ScoringTests
     }
 
     [Fact]
+    public void WaitForMeKeepsWhenEachMomentOfTheMusicWasPlayed()
+    {
+        // Hands together: C in each hand, then D in each, then E in each, the hands landing 10 ms apart, half a second a note.
+        var judge = new WaitJudge([new("l1", 48, 1, 1, 0, 480, null), new("r1", 60, 1, 1, 0, 480, null), new("l2", 50, 1, 1, 480, 480, null), new("r2", 62, 1, 1, 480, 480, null),
+            new("l3", 52, 1, 2, 960, 480, null), new("r3", 64, 1, 2, 960, 480, null)]);
+        foreach (var (key, at) in new[] { (60, 0), (48, 10), (62, 500), (50, 510), (61, 900), (64, 1000), (52, 1010) }) judge.Play(key, at * Ms);
+
+        // A moment is played when the last of its keys goes down: the gaps are the pace, not the 10 ms between the hands. A wrong
+        // key on the way isn't a moment.
+        Assert.Equal([10 * Ms, 510 * Ms, 1010 * Ms], judge.Result().StepNs);
+    }
+
+    [Fact]
     public void WaitForMeWantsAChordsKeysDownTogether()
     {
         // A chord E–G, then C.

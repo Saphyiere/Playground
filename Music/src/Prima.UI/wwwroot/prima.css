@@ -3994,8 +3994,10 @@ html[data-full] .piece .summary {
     background: var(--surface);
 }
 
-/* Listen without a piano that takes notes from the tablet: the key looks off, and a tap says what it needs, under it. */
-.play-listen {
+/* Listen without a piano that takes notes from the tablet: the key looks off, and a tap says what it needs, under it. Start
+   with no piano plugged in is the same, said under the bar's end. */
+.play-listen,
+.play-bar {
     position: relative;
 }
 

@@ -730,14 +730,14 @@ else
         return index >= 0 && index < MeasureIds().Count ? MeasureIds()[index] : null;
     }
 
-    // The run plays in the scrolling view, a line at a time.
+    // The run plays in the scrolling view, a line at a time: for the run, so a piece kept in Pages opens in Pages the next time.
     private async Task Starting()
     {
         (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
         if (view == View.Scroll) return;
 
         repainted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SetView(View.Scroll);
+        view = View.Scroll;
         StateHasChanged();
         await Task.WhenAny(repainted.Task, Task.Delay(4000));
     }
@@ -745,6 +745,9 @@ else
     private async Task Finished(PlayOutcome how)
     {
         (playing, outcome) = (false, how);
+        // Stopped before a key that could be judged (in the count-in, or with nothing played): there's no run to keep.
+        if (how is { InTime: null, Wait: null or { Notes: 0 } }) return;
+
         var today = DateOnly.FromDateTime(DateTime.Now);
         var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
         object measures = how.InTime is { } r

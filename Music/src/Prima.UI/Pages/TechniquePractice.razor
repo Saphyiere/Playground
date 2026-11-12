@@ -197,11 +197,12 @@ else if (outcome?.Wait is not null)
         runs++;
         if (how.Mode == PlayMode.WaitForMe)
         {
-            // The first time, your own pace in Wait for me is the comfortable speed: the gap between notes, as beats a minute.
-            var onsets = how.Played.Select(p => p.OnNs).ToArray();
-            if (state.Tempo is null && onsets.Length >= 4)
+            // The first time, your own pace in Wait for me is the comfortable speed: the gap from one moment of the music to the
+            // next, as beats a minute. Hands together a moment is two keys, and the gap between those isn't the pace.
+            var steps = how.Wait!.StepNs;
+            var gapMs = steps.Count < 4 ? 0 : Stats.Median(steps.Zip(steps.Skip(1), (a, b) => (b - a) / 1e6).ToArray());
+            if (state.Tempo is null && gapMs > 0)
             {
-                var gapMs = Stats.Median(onsets.Zip(onsets.Skip(1), (a, b) => (b - a) / 1e6).ToArray());
                 comfortable = 60_000 / (gapMs * item.NotesPerBeat);
                 state = state.Comfortable(comfortable.Value, Today);
                 await Store.SaveTrackAsync(StateKey, state);

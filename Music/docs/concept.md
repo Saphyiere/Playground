@@ -116,7 +116,10 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
   marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
-  tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to there.
+  tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
+  due between that key and Stop, while the hands were on their way to the screen, isn't counted as missed. A run stopped
+  before any key leaves no summary and isn't kept. A run is played on the piano: with none plugged in, Start and Listen look
+  off, and a tap says so under the bar.
 - **While playing** (Settings › Practice, and a piece's Options) says what shows on the music In time: the **Cursor**, and the
   **Marks as you play**, each on or off, for playing with only the click and the page. With the cursor off the music still
   scrolls with the run. With the marks off every note is still judged, and the marks show when the run ends, to go back
@@ -166,7 +169,8 @@ a PDF plays out; this is what came of it.
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
   same key, or leaving the piece, brings everything back. Between runs a piece fits the screen, only its music scrolling, with
   About this piece under it; while a run plays About goes and the music has that space too. A notation piece shows whole in
-  one scroll unless it's been set to Pages (kept for each piece). As pages: two systems at a time in landscape, the whole page
+  one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
+  the piece opens in Pages again the next time). As pages: two systems at a time in landscape, the whole page
   in portrait under a slim bar. They turn by a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
   (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. A tap
   on the music never turns: it's for the bars.
@@ -462,7 +466,8 @@ What a technique drill plays is yours to choose, whatever your reading level: th
 order (C, A minor, G, F, D …), a minor scale harmonic or melodic, one to four octaves (or an arpeggio's broken triad), and
 the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
 tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
-comfortable speed the In time runs start a little under; the tempo can also be set with − and +. Wait for me runs are practice
+comfortable speed the In time runs start a little under (the pace from one moment of the music to the next, so the two keys
+of a moment played hands together count once); the tempo can also be set with − and +. Wait for me runs are practice
 for the notes: they count towards the set's five runs and the day, not towards evenness or the tempo.
 
 ## Exercises

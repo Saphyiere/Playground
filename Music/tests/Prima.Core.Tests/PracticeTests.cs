@@ -199,6 +199,9 @@ public class PracticeTests
     {
         var state = TechniqueState.New.Comfortable(100, Today);
         Assert.Equal(85, state.Tempo);
+        // Never a tempo the click can't be set to, whatever the first run's pace came to.
+        Assert.Equal(240, TechniqueState.New.Comfortable(3000, Today).Tempo);
+        Assert.Equal(20, TechniqueState.New.Comfortable(10, Today).Tempo);
 
         // The first week sets the target (the median, never under 8%).
         foreach (var sd in new[] { 12.0, 10, 11 }) state = state.After(true, sd, Today);

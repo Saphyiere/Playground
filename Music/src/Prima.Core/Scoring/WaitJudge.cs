@@ -8,6 +8,12 @@ public sealed record WaitResult(int Notes, int Total, int RightFirstTime, int Wr
     /// <summary>The chords (keys that go down together, in one hand or both) played a key at a time before they were played together.</summary>
     public int Apart { get; init; }
 
+    /// <summary>
+    /// When each step of the music was played: the moment the last of its keys went down. The pace from one moment of the music
+    /// to the next, however many keys a moment takes (two, hands together).
+    /// </summary>
+    public IReadOnlyList<long> StepNs { get; init; } = [];
+
     /// <summary>Whether every note was reached.</summary>
     public bool Finished => Notes == Total;
 
@@ -39,6 +45,7 @@ public sealed class WaitJudge
     // The step's keys that are down together so far, each with when it went down, and the steps played a key at a time.
     private readonly Dictionary<int, long> struck = [];
     private readonly HashSet<int> apart = [];
+    private readonly List<long> stepNs = [];
     private int wrongKeys;
     private long? firstNs;
     private long lastNs;
@@ -82,6 +89,7 @@ public sealed class WaitJudge
             {
                 Step++;
                 struck.Clear();
+                stepNs.Add(timeNs);
             }
             // A note that had a slip keeps its wrong mark.
             var marked = (parted ? step : found).Where(n => !slipped.Contains(n.Id));
@@ -109,6 +117,6 @@ public sealed class WaitJudge
         var parted = apart.SelectMany(at => steps[at]).Select(n => n.Id).ToHashSet();
         var rightFirstTime = played.Count(id => !slipped.Contains(id) && !parted.Contains(id));
         var seconds = firstNs is { } first ? (lastNs - first) / 1e9 : 0;
-        return new(played.Union(slipped).Count(), steps.Sum(s => s.Count), rightFirstTime, wrongKeys, seconds) { Apart = apart.Count };
+        return new(played.Union(slipped).Count(), steps.Sum(s => s.Count), rightFirstTime, wrongKeys, seconds) { Apart = apart.Count, StepNs = [.. stepNs] };
     }
 }

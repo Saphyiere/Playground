@@ -73,7 +73,8 @@
         }
         @if (ShowStart)
         {
-            <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+            @* A run is played on the piano: with none plugged in the key looks off, and a tap says so under the bar. *@
+            <button type="button" class="mu-btn mu-primary @(Keyboard.Name is null ? "mu-btn-off" : "")" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
         }
         @if (ShowListen)
         {
@@ -88,6 +89,10 @@
                     <p class="tempo-pop play-why" role="status">@listenNeeds</p>
                 }
             </div>
+        }
+        @if (startNeeds is not null)
+        {
+            <p class="tempo-pop play-why" role="status">@startNeeds</p>
         }
     }
 </section>
@@ -167,6 +172,8 @@
     private bool tempoOpen;
     // What Listen needs, said under it when it's tapped without a piano that takes notes.
     private string? listenNeeds;
+    // What a run needs, said under the bar when one is asked for with no piano plugged in.
+    private string? startNeeds;
 
     private async Task TypedTempo(ChangeEventArgs e)
     {
@@ -178,11 +185,25 @@
     protected override async Task OnInitializedAsync()
     {
         Keyboard.Received += Heard;
+        Keyboard.Changed += Plugged;
         Mode = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
         await ModeChanged.InvokeAsync(Mode);
     }
 
-    private Task StartPressed() => OnStart.HasDelegate ? OnStart.InvokeAsync() : Start();
+    private Task StartPressed() => Keyboard.Name is null ? StartNeeds() : OnStart.HasDelegate ? OnStart.InvokeAsync() : Start();
+
+    // The piano plugged in or out: Start and Listen look as they can be used.
+    private void Plugged() => _ = InvokeAsync(StateHasChanged);
+
+    // A run is played on the piano. With none plugged in nothing starts, and the bar says so for a few seconds.
+    private async Task StartNeeds()
+    {
+        startNeeds = "Plug in your keyboard first.";
+        StateHasChanged();
+        await Task.Delay(4000);
+        startNeeds = null;
+        StateHasChanged();
+    }
 
     private async Task SetMode(PlayMode mode)
     {
@@ -216,6 +237,11 @@
     private async Task Run(PlayMusic? with, bool listen)
     {
         if (Running || (with ?? Music) is not { Notes.Count: > 0 }) return;
+        if (!listen && Keyboard.Name is null)
+        {
+            _ = InvokeAsync(StartNeeds);
+            return;
+        }
 
         tempoOpen = false;
         await OnStarting.InvokeAsync();
@@ -324,9 +350,12 @@
         }
 
         var from = music.FromTick / (double)music.BeatTicks;
-        // Stopped early, only the notes due by then count.
-        var due = stoppedNs is { } at ? music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= at).ToList() : music.Notes;
         var beatNs = 60e9 / Tempo;
+        // Stopped early, only the notes due by the last key played count, and none after the stop. What was due between that key
+        // and Stop wasn't played wrong: the hands had left the keys to press it. With no key played, nothing counts.
+        var lastKey = run.Played.Count == 0 ? long.MinValue : (long)(run.Played.Max(p => p.OnNs) - Settings.TimingOffsetMs * 1e6 + Grading.WindowNs(beatNs));
+        var until = stoppedNs is { } at ? Math.Min(at, lastKey) : long.MaxValue;
+        var due = stoppedNs is null ? music.Notes : music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
         // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
@@ -428,6 +457,7 @@
     public void Dispose()
     {
         Keyboard.Received -= Heard;
+        Keyboard.Changed -= Plugged;
         if (wait is not null) Registry.DrillAnswer = null;
         ticker?.Dispose();
         session?.Dispose();

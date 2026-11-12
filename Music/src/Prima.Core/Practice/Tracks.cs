@@ -144,8 +144,8 @@ public sealed record TechniqueState(double? Tempo, double? Target, IReadOnlyList
 
     public static TechniqueState New { get; } = new(null, null, [], null, [], 0, null);
 
-    /// <summary>The first run, without the click: its tempo is your comfortable speed.</summary>
-    public TechniqueState Comfortable(double bpm, DateOnly today) => this with { Tempo = Math.Round(bpm * 0.85), Started = today };
+    /// <summary>The first run, without the click: its tempo is your comfortable speed, kept to what the click can be set to.</summary>
+    public TechniqueState Comfortable(double bpm, DateOnly today) => this with { Tempo = Math.Clamp(Math.Round(bpm * 0.85), 20, 240), Started = today };
 
     public TechniqueState After(bool valid, double? ioiSdPercent, DateOnly today)
     {
