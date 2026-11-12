@@ -102,16 +102,25 @@ public sealed partial class PrimaStore
 
     private const string PieceColumns = "Id, Origin, Title, Composer, Work, Format, File, Midi, Level, TypicalLevel, Reasons, Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position, Added, Opened";
 
-    // Read back with whether a PDF has notes read from it.
-    private const string PieceSelect = PieceColumns + ", Format = 'pdf' AND Mei IS NOT NULL AS HasNotes";
+    // Whether a PDF has notes read from it. It's asked apart from the piece's own columns: a worked-out column has no type of
+    // its own, so with no rows to take one from (a new data file, an id that isn't there) the row can't be read with it.
+    private const string NotesRead = "Format = 'pdf' AND Mei IS NOT NULL";
 
     /// <summary>The folder imported files are kept in, beside the data file.</summary>
     public string FilesPath => Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", "library");
 
     /// <summary>Every piece, without its music: for the Library's list.</summary>
-    public Task<List<PieceRecord>> GetPiecesAsync() => RunAsync(async c => (await c.QueryAsync<PieceRow>($"SELECT {PieceSelect} FROM Piece")).Select(r => r.ToRecord()).ToList());
+    public Task<List<PieceRecord>> GetPiecesAsync() => RunAsync(async c =>
+    {
+        var read = (await c.QueryAsync<string>($"SELECT Id FROM Piece WHERE {NotesRead}")).ToHashSet();
+        return (await c.QueryAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece")).Select(r => r.ToRecord(read.Contains(r.Id))).ToList();
+    });
 
-    public Task<PieceRecord?> GetPieceAsync(string id) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<PieceRow>($"SELECT {PieceSelect} FROM Piece WHERE Id = @id", new { id }))?.ToRecord());
+    public Task<PieceRecord?> GetPieceAsync(string id) => RunAsync(async c =>
+    {
+        var row = await c.QuerySingleOrDefaultAsync<PieceRow>($"SELECT {PieceColumns} FROM Piece WHERE Id = @id", new { id });
+        return row?.ToRecord(await c.ExecuteScalarAsync<long>($"SELECT COUNT(*) FROM Piece WHERE Id = @id AND {NotesRead}", new { id }) > 0);
+    });
 
     /// <summary>A notation piece's MEI, or a PDF's read from it; null for a PDF not read.</summary>
     public Task<string?> GetMeiAsync(string id) => RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
@@ -202,10 +211,10 @@ public sealed partial class PrimaStore
 
     // Dapper's view of a row: dates as text.
     private sealed record PieceRow(string Id, string Origin, string Title, string Composer, string? Work, string Format, string? File, string? Midi, long? Level, long? TypicalLevel, string? Reasons, long? Bars,
-        string? Source, string? SourceUrl, string? Licence, string? LicenceUrl, string? Credit, string? Tier, double? Tempo, string? Layout, string? Position, string Added, string? Opened, long HasNotes)
+        string? Source, string? SourceUrl, string? Licence, string? LicenceUrl, string? Credit, string? Tier, double? Tempo, string? Layout, string? Position, string Added, string? Opened)
     {
-        public PieceRecord ToRecord() => new(Id, Origin, Title, Composer, Work, Format, File, Midi, (int?)Level, (int?)TypicalLevel, Reasons, (int?)Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position,
-            DateTimeOffset.Parse(Added, CultureInfo.InvariantCulture), Opened is null ? null : DateTimeOffset.Parse(Opened, CultureInfo.InvariantCulture)) { HasNotes = HasNotes != 0 };
+        public PieceRecord ToRecord(bool hasNotes) => new(Id, Origin, Title, Composer, Work, Format, File, Midi, (int?)Level, (int?)TypicalLevel, Reasons, (int?)Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position,
+            DateTimeOffset.Parse(Added, CultureInfo.InvariantCulture), Opened is null ? null : DateTimeOffset.Parse(Opened, CultureInfo.InvariantCulture)) { HasNotes = hasNotes };
 
         public static object From(PieceRecord p, string? mei) => new
         {
