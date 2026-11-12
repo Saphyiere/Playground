@@ -2,6 +2,7 @@ using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Prima.Core.Library;
+using Prima.Core.Music;
 
 namespace Prima.UI.Storage;
 
@@ -122,8 +123,15 @@ public sealed partial class PrimaStore
         return row?.ToRecord(await c.ExecuteScalarAsync<long>($"SELECT COUNT(*) FROM Piece WHERE Id = @id AND {NotesRead}", new { id }) > 0);
     });
 
-    /// <summary>A notation piece's MEI, or a PDF's read from it; null for a PDF not read.</summary>
-    public Task<string?> GetMeiAsync(string id) => RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
+    /// <summary>
+    /// A notation piece's MEI, or a PDF's read from it; null for a PDF not read. Without the hidden playback tempos (bare numbers)
+    /// that a piece stored before the bundle left them out still has.
+    /// </summary>
+    public async Task<string?> GetMeiAsync(string id)
+    {
+        var mei = await RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
+        return mei is null ? null : MeiReader.WithoutBareTempos(mei);
+    }
 
     /// <summary>The pieces already in the Library, by id: so a bundled piece is prepared once.</summary>
     public Task<HashSet<string>> GetPieceIdsAsync() => RunAsync(async c => (await c.QueryAsync<string>("SELECT Id FROM Piece")).ToHashSet());

@@ -6,7 +6,8 @@ namespace Prima.Core.Library;
 /// A collection engraved as one score (Chopin's 24 preludes, say) is split into its pieces at their final barlines, so a piece
 /// opens, and its excerpts engrave, without the whole collection behind it. Each part keeps the file's header, numbered, and
 /// starts with the key signature, metre and clefs in force where it begins. Only a long score whose pieces each end at a final
-/// barline is split, and none of the parts may be a scrap.
+/// barline is split, and none of the parts may be a scrap. A score whose pieces each start with settings of their own and a
+/// metronome mark (Kinderszenen, whose pieces end at repeats and double bars as often as at final barlines) is split there.
 /// </summary>
 public static class Collections
 {
@@ -23,9 +24,22 @@ public static class Collections
         var ends = measures.Select((m, i) => (string?)m.Attribute("right") == "end" ? i : -1).Where(i => i >= 0).ToList();
         if (ends.Count == 0 || ends[^1] != measures.Count - 1) ends.Add(measures.Count - 1);
         var firsts = ends.Prepend(-1).SkipLast(1).Select(e => e + 1).ToList();
-        if (measures.Count <= longBars || ends.Count < fewestPieces || ends.Zip(firsts).Any(p => p.First - p.Second + 1 < shortestPiece)) return [mei];
+        bool Whole(List<int> from, List<int> to) => from.Count < fewestPieces || to.Zip(from).Any(p => p.First - p.Second + 1 < shortestPiece);
+        if (measures.Count > longBars && !Whole(firsts, ends)) return [.. firsts.Zip(ends).Select((range, i) => Part(doc, range.First, range.Second, i + 1))];
 
-        return [.. firsts.Zip(ends).Select((range, i) => Part(doc, range.First, range.Second, i + 1))];
+        // Or each piece starts with settings of its own (a key, a metre) and a metronome mark in its first bar.
+        var settled = new HashSet<XElement>();
+        var pending = false;
+        foreach (var e in doc.Descendants().Where(e => e.Name == Mei + "scoreDef" || e.Name == Mei + "measure"))
+        {
+            if (e.Name == Mei + "scoreDef") pending = true;
+            else if (pending && settled.Add(e)) pending = false;
+        }
+        var metronomes = doc.Descendants(Mei + "tempo").Where(t => t.Attribute("mm") is not null || t.Value.Contains('=') || t.Value.Any(c => c is >= '\uECA0' and <= '\uECBF'));
+        var marked = metronomes.Select(t => t.Ancestors(Mei + "measure").FirstOrDefault()).OfType<XElement>().ToHashSet();
+        var starts = measures.Select((m, i) => i == 0 || settled.Contains(m) && marked.Contains(m) ? i : -1).Where(i => i >= 0).ToList();
+        var lasts = starts.Skip(1).Select(s => s - 1).Append(measures.Count - 1).ToList();
+        return Whole(starts, lasts) ? [mei] : [.. starts.Zip(lasts).Select((range, i) => Part(doc, range.First, range.Second, i + 1))];
     }
 
     private static string Part(XDocument whole, int first, int last, int number)

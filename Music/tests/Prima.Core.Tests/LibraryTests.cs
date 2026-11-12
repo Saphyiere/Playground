@@ -219,4 +219,39 @@ public class CollectionTests
         Assert.Single(Collections.Split(TwoPieces, longBars: 0, fewestPieces: 3, shortestPiece: 2));
         Assert.Single(Collections.Split(TwoPieces, longBars: 0, fewestPieces: 2, shortestPiece: 3));
     }
+
+    // The second piece's first bar, its bass staff closed: where a tempo can go after it.
+    private const string Bar4Bass = "<note xml:id=\"n8\" dur=\"2\" dots=\"1\" pname=\"d\" oct=\"4\" /></layer></staff>";
+
+    [Fact]
+    public void ACollectionWhosePiecesStartWithTheirOwnSettingsAndAMetronomeMarkIsSplitThere()
+    {
+        // As Kinderszenen is: the first piece ends at a repeat, not a final barline, and the second starts with its own key and
+        // metre and a metronome mark (a quarter note, in Verovio's music font, = 96). A tempo of bare words doesn't start a piece.
+        var repeats = TwoPieces.Replace("n=\"3\" right=\"end\"", "n=\"3\" right=\"rptend\"")
+            .Replace(Bar4Bass, Bar4Bass + "<tempo xml:id=\"t1\" tstamp=\"1\" staff=\"1\">(\uECA5 = 96)</tempo>");
+
+        var parts = Collections.Split(repeats, fewestPieces: 2, shortestPiece: 2);
+
+        Assert.Equal(2, parts.Count);
+        Assert.Equal((3, 2), (MeiReader.Read(parts[0]).Bars.Count, MeiReader.Read(parts[1]).Bars.Count));
+        Assert.Equal((2, 3), (MeiReader.Read(parts[1]).Key.Fifths, MeiReader.Read(parts[1]).Meter.Beats));
+        Assert.Single(Collections.Split(repeats.Replace("(\uECA5 = 96)", "Allegro"), fewestPieces: 2, shortestPiece: 2));
+        Assert.Single(Collections.Split(repeats));
+    }
+
+    [Fact]
+    public void BareTempoNumbersAreTakenOutAndPrintedTemposKept()
+    {
+        // MuseScore keeps a ritardando's tempo changes as hidden numbers, which Verovio would print; a marking is printed.
+        var tempos = "<tempo tstamp=\"1\" staff=\"1\">64</tempo><tempo tstamp=\"1.5\" staff=\"1\">28,5</tempo><tempo tstamp=\"2\" staff=\"1\">Lento</tempo><tempo tstamp=\"3\" staff=\"1\">(\uECA5 = 56)</tempo>";
+
+        var cleaned = MeiReader.WithoutBareTempos(TwoPieces.Replace(Bar4Bass, Bar4Bass + tempos));
+
+        Assert.DoesNotContain(">64<", cleaned);
+        Assert.DoesNotContain(">28,5<", cleaned);
+        Assert.Contains(">Lento<", cleaned);
+        Assert.Contains("= 56)", cleaned);
+        Assert.Same(TwoPieces, MeiReader.WithoutBareTempos(TwoPieces));
+    }
 }

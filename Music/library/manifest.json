@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "built": "2026-11-05",
+  "built": "2026-11-12",
   "pieces": [
     {
       "id": "pdmx-QmZLmH4rC6AGdK4MYd4L7bhADET4o9wRSjoVWYJRoW6mrV",
@@ -25938,13 +25938,13 @@
       "anchor": null,
       "prepared": [
         {
-          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy",
-          "title": "Kinderszenen Op. 15",
-          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy.mei.gz",
-          "level": 12,
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-01",
+          "title": "Von fremden L\u00E4ndern und Menschen, No. 1",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-01.mei.gz",
+          "level": 10,
           "typicalLevel": 9,
-          "reasons": "2/8",
-          "bars": 339,
+          "reasons": "four notes in one hand",
+          "bars": 23,
           "excerpts": [
             {
               "firstBar": 1,
@@ -26001,516 +26001,6 @@
               "within": 0.757
             },
             {
-              "firstBar": 23,
-              "lastBar": 24,
-              "level": 11,
-              "within": 0.538
-            },
-            {
-              "firstBar": 25,
-              "lastBar": 26,
-              "level": 7,
-              "within": 0.61
-            },
-            {
-              "firstBar": 27,
-              "lastBar": 28,
-              "level": 11,
-              "within": 0.663
-            },
-            {
-              "firstBar": 29,
-              "lastBar": 30,
-              "level": 8,
-              "within": 0.658
-            },
-            {
-              "firstBar": 33,
-              "lastBar": 34,
-              "level": 7,
-              "within": 0.66
-            },
-            {
-              "firstBar": 37,
-              "lastBar": 38,
-              "level": 11,
-              "within": 0.7
-            },
-            {
-              "firstBar": 39,
-              "lastBar": 40,
-              "level": 8,
-              "within": 0.64
-            },
-            {
-              "firstBar": 41,
-              "lastBar": 42,
-              "level": 11,
-              "within": 0.667
-            },
-            {
-              "firstBar": 46,
-              "lastBar": 47,
-              "level": 9,
-              "within": 0.651
-            },
-            {
-              "firstBar": 49,
-              "lastBar": 50,
-              "level": 9,
-              "within": 0.7
-            },
-            {
-              "firstBar": 57,
-              "lastBar": 58,
-              "level": 7,
-              "within": 0.672
-            },
-            {
-              "firstBar": 63,
-              "lastBar": 64,
-              "level": 9,
-              "within": 0.677
-            },
-            {
-              "firstBar": 68,
-              "lastBar": 69,
-              "level": 7,
-              "within": 0.678
-            },
-            {
-              "firstBar": 70,
-              "lastBar": 71,
-              "level": 8,
-              "within": 0.702
-            },
-            {
-              "firstBar": 72,
-              "lastBar": 73,
-              "level": 8,
-              "within": 0.66
-            },
-            {
-              "firstBar": 74,
-              "lastBar": 75,
-              "level": 8,
-              "within": 0.692
-            },
-            {
-              "firstBar": 76,
-              "lastBar": 77,
-              "level": 8,
-              "within": 0.73
-            },
-            {
-              "firstBar": 81,
-              "lastBar": 82,
-              "level": 8,
-              "within": 0.708
-            },
-            {
-              "firstBar": 85,
-              "lastBar": 86,
-              "level": 8,
-              "within": 0.611
-            },
-            {
-              "firstBar": 93,
-              "lastBar": 94,
-              "level": 8,
-              "within": 0.635
-            },
-            {
-              "firstBar": 97,
-              "lastBar": 98,
-              "level": 8,
-              "within": 0.666
-            },
-            {
-              "firstBar": 101,
-              "lastBar": 102,
-              "level": 8,
-              "within": 0.665
-            },
-            {
-              "firstBar": 105,
-              "lastBar": 106,
-              "level": 8,
-              "within": 0.635
-            },
-            {
-              "firstBar": 107,
-              "lastBar": 108,
-              "level": 8,
-              "within": 0.69
-            },
-            {
-              "firstBar": 109,
-              "lastBar": 110,
-              "level": 8,
-              "within": 0.641
-            },
-            {
-              "firstBar": 111,
-              "lastBar": 112,
-              "level": 8,
-              "within": 0.73
-            },
-            {
-              "firstBar": 113,
-              "lastBar": 114,
-              "level": 10,
-              "within": 0.626
-            },
-            {
-              "firstBar": 115,
-              "lastBar": 116,
-              "level": 10,
-              "within": 0.614
-            },
-            {
-              "firstBar": 117,
-              "lastBar": 118,
-              "level": 10,
-              "within": 0.668
-            },
-            {
-              "firstBar": 119,
-              "lastBar": 120,
-              "level": 8,
-              "within": 0.573
-            },
-            {
-              "firstBar": 121,
-              "lastBar": 122,
-              "level": 10,
-              "within": 0.647
-            },
-            {
-              "firstBar": 124,
-              "lastBar": 125,
-              "level": 8,
-              "within": 0.684
-            },
-            {
-              "firstBar": 126,
-              "lastBar": 127,
-              "level": 8,
-              "within": 0.662
-            },
-            {
-              "firstBar": 128,
-              "lastBar": 129,
-              "level": 8,
-              "within": 0.724
-            },
-            {
-              "firstBar": 130,
-              "lastBar": 131,
-              "level": 10,
-              "within": 0.621
-            },
-            {
-              "firstBar": 132,
-              "lastBar": 133,
-              "level": 8,
-              "within": 0.563
-            },
-            {
-              "firstBar": 137,
-              "lastBar": 138,
-              "level": 10,
-              "within": 0.725
-            },
-            {
-              "firstBar": 141,
-              "lastBar": 142,
-              "level": 8,
-              "within": 0.758
-            },
-            {
-              "firstBar": 145,
-              "lastBar": 146,
-              "level": 11,
-              "within": 0.72
-            },
-            {
-              "firstBar": 149,
-              "lastBar": 150,
-              "level": 10,
-              "within": 0.719
-            },
-            {
-              "firstBar": 153,
-              "lastBar": 154,
-              "level": 10,
-              "within": 0.772
-            },
-            {
-              "firstBar": 157,
-              "lastBar": 158,
-              "level": 8,
-              "within": 0.635
-            },
-            {
-              "firstBar": 161,
-              "lastBar": 162,
-              "level": 8,
-              "within": 0.665
-            },
-            {
-              "firstBar": 165,
-              "lastBar": 166,
-              "level": 8,
-              "within": 0.698
-            },
-            {
-              "firstBar": 169,
-              "lastBar": 170,
-              "level": 8,
-              "within": 0.707
-            },
-            {
-              "firstBar": 177,
-              "lastBar": 178,
-              "level": 8,
-              "within": 0.687
-            },
-            {
-              "firstBar": 181,
-              "lastBar": 182,
-              "level": 8,
-              "within": 0.61
-            },
-            {
-              "firstBar": 186,
-              "lastBar": 187,
-              "level": 7,
-              "within": 0.622
-            },
-            {
-              "firstBar": 190,
-              "lastBar": 191,
-              "level": 11,
-              "within": 0.751
-            },
-            {
-              "firstBar": 199,
-              "lastBar": 200,
-              "level": 8,
-              "within": 0.592
-            },
-            {
-              "firstBar": 203,
-              "lastBar": 204,
-              "level": 9,
-              "within": 0.677
-            },
-            {
-              "firstBar": 205,
-              "lastBar": 206,
-              "level": 8,
-              "within": 0.676
-            },
-            {
-              "firstBar": 207,
-              "lastBar": 208,
-              "level": 8,
-              "within": 0.529
-            },
-            {
-              "firstBar": 209,
-              "lastBar": 210,
-              "level": 8,
-              "within": 0.617
-            },
-            {
-              "firstBar": 211,
-              "lastBar": 212,
-              "level": 8,
-              "within": 0.624
-            },
-            {
-              "firstBar": 213,
-              "lastBar": 214,
-              "level": 8,
-              "within": 0.614
-            },
-            {
-              "firstBar": 216,
-              "lastBar": 217,
-              "level": 12,
-              "within": 0.556
-            },
-            {
-              "firstBar": 249,
-              "lastBar": 250,
-              "level": 10,
-              "within": 0.718
-            },
-            {
-              "firstBar": 257,
-              "lastBar": 258,
-              "level": 8,
-              "within": 0.623
-            },
-            {
-              "firstBar": 261,
-              "lastBar": 262,
-              "level": 8,
-              "within": 0.666
-            },
-            {
-              "firstBar": 265,
-              "lastBar": 266,
-              "level": 8,
-              "within": 0.653
-            },
-            {
-              "firstBar": 267,
-              "lastBar": 268,
-              "level": 8,
-              "within": 0.691
-            },
-            {
-              "firstBar": 269,
-              "lastBar": 270,
-              "level": 8,
-              "within": 0.693
-            },
-            {
-              "firstBar": 273,
-              "lastBar": 274,
-              "level": 8,
-              "within": 0.599
-            },
-            {
-              "firstBar": 283,
-              "lastBar": 284,
-              "level": 8,
-              "within": 0.679
-            },
-            {
-              "firstBar": 285,
-              "lastBar": 286,
-              "level": 8,
-              "within": 0.695
-            },
-            {
-              "firstBar": 292,
-              "lastBar": 293,
-              "level": 10,
-              "within": 0.688
-            },
-            {
-              "firstBar": 294,
-              "lastBar": 295,
-              "level": 10,
-              "within": 0.711
-            },
-            {
-              "firstBar": 297,
-              "lastBar": 298,
-              "level": 8,
-              "within": 0.646
-            },
-            {
-              "firstBar": 299,
-              "lastBar": 300,
-              "level": 10,
-              "within": 0.71
-            },
-            {
-              "firstBar": 301,
-              "lastBar": 302,
-              "level": 10,
-              "within": 0.704
-            },
-            {
-              "firstBar": 303,
-              "lastBar": 304,
-              "level": 8,
-              "within": 0.696
-            },
-            {
-              "firstBar": 305,
-              "lastBar": 306,
-              "level": 8,
-              "within": 0.712
-            },
-            {
-              "firstBar": 307,
-              "lastBar": 308,
-              "level": 8,
-              "within": 0.681
-            },
-            {
-              "firstBar": 309,
-              "lastBar": 310,
-              "level": 8,
-              "within": 0.7
-            },
-            {
-              "firstBar": 315,
-              "lastBar": 316,
-              "level": 7,
-              "within": 0.444
-            },
-            {
-              "firstBar": 317,
-              "lastBar": 318,
-              "level": 11,
-              "within": 0.568
-            },
-            {
-              "firstBar": 319,
-              "lastBar": 320,
-              "level": 11,
-              "within": 0.575
-            },
-            {
-              "firstBar": 321,
-              "lastBar": 322,
-              "level": 8,
-              "within": 0.497
-            },
-            {
-              "firstBar": 323,
-              "lastBar": 324,
-              "level": 10,
-              "within": 0.663
-            },
-            {
-              "firstBar": 325,
-              "lastBar": 326,
-              "level": 11,
-              "within": 0.756
-            },
-            {
-              "firstBar": 328,
-              "lastBar": 329,
-              "level": 11,
-              "within": 0.59
-            },
-            {
-              "firstBar": 332,
-              "lastBar": 333,
-              "level": 11,
-              "within": 0.567
-            },
-            {
-              "firstBar": 335,
-              "lastBar": 336,
-              "level": 8,
-              "within": 0.469
-            },
-            {
-              "firstBar": 337,
-              "lastBar": 338,
-              "level": 8,
-              "within": 0.395
-            },
-            {
               "firstBar": 1,
               "lastBar": 4,
               "level": 9,
@@ -26541,372 +26031,6 @@
               "within": 0.767
             },
             {
-              "firstBar": 21,
-              "lastBar": 24,
-              "level": 11,
-              "within": 0.802
-            },
-            {
-              "firstBar": 25,
-              "lastBar": 28,
-              "level": 11,
-              "within": 0.689
-            },
-            {
-              "firstBar": 29,
-              "lastBar": 32,
-              "level": 8,
-              "within": 0.726
-            },
-            {
-              "firstBar": 33,
-              "lastBar": 36,
-              "level": 8,
-              "within": 0.695
-            },
-            {
-              "firstBar": 37,
-              "lastBar": 40,
-              "level": 11,
-              "within": 0.717
-            },
-            {
-              "firstBar": 41,
-              "lastBar": 44,
-              "level": 11,
-              "within": 0.739
-            },
-            {
-              "firstBar": 46,
-              "lastBar": 49,
-              "level": 9,
-              "within": 0.692
-            },
-            {
-              "firstBar": 53,
-              "lastBar": 56,
-              "level": 9,
-              "within": 0.712
-            },
-            {
-              "firstBar": 57,
-              "lastBar": 60,
-              "level": 9,
-              "within": 0.712
-            },
-            {
-              "firstBar": 63,
-              "lastBar": 66,
-              "level": 9,
-              "within": 0.713
-            },
-            {
-              "firstBar": 68,
-              "lastBar": 71,
-              "level": 8,
-              "within": 0.706
-            },
-            {
-              "firstBar": 72,
-              "lastBar": 75,
-              "level": 10,
-              "within": 0.693
-            },
-            {
-              "firstBar": 76,
-              "lastBar": 79,
-              "level": 9,
-              "within": 0.733
-            },
-            {
-              "firstBar": 81,
-              "lastBar": 84,
-              "level": 10,
-              "within": 0.705
-            },
-            {
-              "firstBar": 85,
-              "lastBar": 88,
-              "level": 8,
-              "within": 0.682
-            },
-            {
-              "firstBar": 93,
-              "lastBar": 96,
-              "level": 8,
-              "within": 0.676
-            },
-            {
-              "firstBar": 97,
-              "lastBar": 100,
-              "level": 8,
-              "within": 0.736
-            },
-            {
-              "firstBar": 101,
-              "lastBar": 104,
-              "level": 8,
-              "within": 0.727
-            },
-            {
-              "firstBar": 105,
-              "lastBar": 108,
-              "level": 8,
-              "within": 0.703
-            },
-            {
-              "firstBar": 109,
-              "lastBar": 112,
-              "level": 8,
-              "within": 0.719
-            },
-            {
-              "firstBar": 113,
-              "lastBar": 116,
-              "level": 10,
-              "within": 0.663
-            },
-            {
-              "firstBar": 117,
-              "lastBar": 120,
-              "level": 10,
-              "within": 0.661
-            },
-            {
-              "firstBar": 121,
-              "lastBar": 124,
-              "level": 10,
-              "within": 0.749
-            },
-            {
-              "firstBar": 125,
-              "lastBar": 128,
-              "level": 8,
-              "within": 0.702
-            },
-            {
-              "firstBar": 129,
-              "lastBar": 132,
-              "level": 10,
-              "within": 0.718
-            },
-            {
-              "firstBar": 133,
-              "lastBar": 136,
-              "level": 10,
-              "within": 0.784
-            },
-            {
-              "firstBar": 137,
-              "lastBar": 140,
-              "level": 10,
-              "within": 0.834
-            },
-            {
-              "firstBar": 141,
-              "lastBar": 144,
-              "level": 8,
-              "within": 0.823
-            },
-            {
-              "firstBar": 145,
-              "lastBar": 148,
-              "level": 11,
-              "within": 0.856
-            },
-            {
-              "firstBar": 153,
-              "lastBar": 156,
-              "level": 10,
-              "within": 0.816
-            },
-            {
-              "firstBar": 157,
-              "lastBar": 160,
-              "level": 8,
-              "within": 0.787
-            },
-            {
-              "firstBar": 161,
-              "lastBar": 164,
-              "level": 8,
-              "within": 0.787
-            },
-            {
-              "firstBar": 165,
-              "lastBar": 168,
-              "level": 8,
-              "within": 0.748
-            },
-            {
-              "firstBar": 169,
-              "lastBar": 172,
-              "level": 8,
-              "within": 0.745
-            },
-            {
-              "firstBar": 177,
-              "lastBar": 180,
-              "level": 10,
-              "within": 0.793
-            },
-            {
-              "firstBar": 181,
-              "lastBar": 184,
-              "level": 8,
-              "within": 0.696
-            },
-            {
-              "firstBar": 186,
-              "lastBar": 189,
-              "level": 8,
-              "within": 0.728
-            },
-            {
-              "firstBar": 190,
-              "lastBar": 193,
-              "level": 11,
-              "within": 0.726
-            },
-            {
-              "firstBar": 199,
-              "lastBar": 202,
-              "level": 8,
-              "within": 0.669
-            },
-            {
-              "firstBar": 203,
-              "lastBar": 206,
-              "level": 9,
-              "within": 0.709
-            },
-            {
-              "firstBar": 207,
-              "lastBar": 210,
-              "level": 8,
-              "within": 0.575
-            },
-            {
-              "firstBar": 211,
-              "lastBar": 214,
-              "level": 8,
-              "within": 0.62
-            },
-            {
-              "firstBar": 215,
-              "lastBar": 218,
-              "level": 12,
-              "within": 0.591
-            },
-            {
-              "firstBar": 249,
-              "lastBar": 252,
-              "level": 10,
-              "within": 0.731
-            },
-            {
-              "firstBar": 257,
-              "lastBar": 260,
-              "level": 8,
-              "within": 0.637
-            },
-            {
-              "firstBar": 261,
-              "lastBar": 264,
-              "level": 8,
-              "within": 0.712
-            },
-            {
-              "firstBar": 265,
-              "lastBar": 268,
-              "level": 8,
-              "within": 0.689
-            },
-            {
-              "firstBar": 269,
-              "lastBar": 272,
-              "level": 9,
-              "within": 0.752
-            },
-            {
-              "firstBar": 273,
-              "lastBar": 276,
-              "level": 10,
-              "within": 0.778
-            },
-            {
-              "firstBar": 283,
-              "lastBar": 286,
-              "level": 8,
-              "within": 0.692
-            },
-            {
-              "firstBar": 289,
-              "lastBar": 292,
-              "level": 10,
-              "within": 0.766
-            },
-            {
-              "firstBar": 293,
-              "lastBar": 296,
-              "level": 10,
-              "within": 0.725
-            },
-            {
-              "firstBar": 297,
-              "lastBar": 300,
-              "level": 10,
-              "within": 0.715
-            },
-            {
-              "firstBar": 301,
-              "lastBar": 304,
-              "level": 10,
-              "within": 0.771
-            },
-            {
-              "firstBar": 305,
-              "lastBar": 308,
-              "level": 8,
-              "within": 0.756
-            },
-            {
-              "firstBar": 309,
-              "lastBar": 312,
-              "level": 10,
-              "within": 0.73
-            },
-            {
-              "firstBar": 315,
-              "lastBar": 318,
-              "level": 11,
-              "within": 0.575
-            },
-            {
-              "firstBar": 319,
-              "lastBar": 322,
-              "level": 11,
-              "within": 0.592
-            },
-            {
-              "firstBar": 323,
-              "lastBar": 326,
-              "level": 11,
-              "within": 0.775
-            },
-            {
-              "firstBar": 328,
-              "lastBar": 331,
-              "level": 11,
-              "within": 0.61
-            },
-            {
-              "firstBar": 332,
-              "lastBar": 335,
-              "level": 11,
-              "within": 0.584
-            },
-            {
               "firstBar": 1,
               "lastBar": 8,
               "level": 9,
@@ -26917,210 +26041,1151 @@
               "lastBar": 16,
               "level": 10,
               "within": 0.811
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-02",
+          "title": "Kuriose Geschichte, No. 2",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-02.mei.gz",
+          "level": 11,
+          "typicalLevel": 11,
+          "reasons": "4-tuplets, 2-tuplets",
+          "bars": 22,
+          "excerpts": [
+            {
+              "firstBar": 0,
+              "lastBar": 2,
+              "level": 11,
+              "within": 0.669
+            },
+            {
+              "firstBar": 3,
+              "lastBar": 4,
+              "level": 11,
+              "within": 0.663
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.658
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 7,
+              "within": 0.66
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 11,
+              "within": 0.7
+            },
+            {
+              "firstBar": 15,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.64
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 11,
+              "within": 0.667
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 4,
+              "level": 11,
+              "within": 0.691
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.726
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.695
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 11,
+              "within": 0.717
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 11,
+              "within": 0.739
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 8,
+              "level": 11,
+              "within": 0.742
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 11,
+              "within": 0.775
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-03",
+          "title": "Hasche-Mann, No. 3",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-03.mei.gz",
+          "level": 9,
+          "typicalLevel": 9,
+          "reasons": "leaps of twelfths, leaps of elevenths, a range of 20 notes",
+          "bars": 21,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 9,
+              "within": 0.677
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 7,
+              "within": 0.67
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 9,
+              "within": 0.655
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 9,
+              "within": 0.713
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.707
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 9,
+              "within": 0.762
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 9,
+              "within": 0.716
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 9,
+              "within": 0.777
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-04",
+          "title": "Bittendes Kind, No. 4",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-04.mei.gz",
+          "level": 10,
+          "typicalLevel": 8,
+          "reasons": "leaps of more than a twelfth",
+          "bars": 17,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 7,
+              "within": 0.678
+            },
+            {
+              "firstBar": 3,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.702
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.66
+            },
+            {
+              "firstBar": 7,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.692
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 8,
+              "within": 0.73
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.706
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.693
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 9,
+              "within": 0.733
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.76
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.757
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-05",
+          "title": "Gl\u00FCckes genug, No. 5",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-05.mei.gz",
+          "level": 9,
+          "typicalLevel": 8,
+          "reasons": "90-tick notes",
+          "bars": 19,
+          "excerpts": [
+            {
+              "firstBar": 0,
+              "lastBar": 2,
+              "level": 8,
+              "within": 0.673
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.701
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 8,
+              "within": 0.656
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 8,
+              "within": 0.705
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 4,
+              "level": 9,
+              "within": 0.73
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.743
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.726
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 8,
+              "level": 9,
+              "within": 0.777
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-06",
+          "title": "Wichtige Begebenheit, No. 6",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-06.mei.gz",
+          "level": 11,
+          "typicalLevel": 9,
+          "reasons": "a range of 23 notes",
+          "bars": 26,
+          "excerpts": [
+            {
+              "firstBar": 0,
+              "lastBar": 2,
+              "level": 8,
+              "within": 0.68
+            },
+            {
+              "firstBar": 3,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.662
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.724
+            },
+            {
+              "firstBar": 7,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.621
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 10,
+              "within": 0.588
+            },
+            {
+              "firstBar": 11,
+              "lastBar": 12,
+              "level": 10,
+              "within": 0.63
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 8,
+              "within": 0.625
+            },
+            {
+              "firstBar": 15,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.624
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 8,
+              "within": 0.701
+            },
+            {
+              "firstBar": 20,
+              "lastBar": 21,
+              "level": 8,
+              "within": 0.69
+            },
+            {
+              "firstBar": 22,
+              "lastBar": 23,
+              "level": 8,
+              "within": 0.641
+            },
+            {
+              "firstBar": 24,
+              "lastBar": 25,
+              "level": 8,
+              "within": 0.73
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 4,
+              "level": 9,
+              "within": 0.709
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.719
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 10,
+              "within": 0.642
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.685
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.724
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 9,
+              "within": 0.719
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 8,
+              "level": 11,
+              "within": 0.755
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.732
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.75
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-07",
+          "title": "Tr\u00E4umerei, No. 7",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-07.mei.gz",
+          "level": 11,
+          "typicalLevel": 10,
+          "reasons": "a range of 25 notes",
+          "bars": 24,
+          "excerpts": [
+            {
+              "firstBar": 0,
+              "lastBar": 2,
+              "level": 10,
+              "within": 0.704
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 10,
+              "within": 0.725
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 8,
+              "within": 0.758
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 11,
+              "within": 0.72
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 10,
+              "within": 0.772
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 4,
+              "level": 10,
+              "within": 0.781
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.834
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.823
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 11,
+              "within": 0.856
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.816
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.82
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 11,
+              "within": 0.876
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.815
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-08",
+          "title": "Am Kamin, No. 8",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-08.mei.gz",
+          "level": 10,
+          "typicalLevel": 8,
+          "reasons": "four notes in one hand",
+          "bars": 33,
+          "excerpts": [
+            {
+              "firstBar": 0,
+              "lastBar": 2,
+              "level": 8,
+              "within": 0.733
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.756
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 8,
+              "within": 0.713
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 8,
+              "within": 0.697
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 8,
+              "within": 0.76
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 10,
+              "within": 0.748
+            },
+            {
+              "firstBar": 24,
+              "lastBar": 25,
+              "level": 8,
+              "within": 0.61
+            },
+            {
+              "firstBar": 29,
+              "lastBar": 30,
+              "level": 7,
+              "within": 0.622
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.769
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.784
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.738
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.732
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.791
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.785
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 28,
+              "level": 8,
+              "within": 0.713
+            },
+            {
+              "firstBar": 29,
+              "lastBar": 32,
+              "level": 8,
+              "within": 0.728
+            },
+            {
+              "firstBar": 0,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.776
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.747
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.868
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 32,
+              "level": 9,
+              "within": 0.771
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-09",
+          "title": "Ritter vom Steckenpferd, No. 9",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-09.mei.gz",
+          "level": 9,
+          "typicalLevel": 8,
+          "reasons": "a range of 18 notes, a range of 19 notes, a range of 20 notes",
+          "bars": 25,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 8,
+              "within": 0.589
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 8,
+              "within": 0.592
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 9,
+              "within": 0.677
+            },
+            {
+              "firstBar": 15,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.676
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 8,
+              "within": 0.529
+            },
+            {
+              "firstBar": 19,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.617
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 8,
+              "within": 0.624
+            },
+            {
+              "firstBar": 23,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.614
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.612
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.669
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 9,
+              "within": 0.709
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.575
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.62
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.591
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 9,
+              "within": 0.725
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.615
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-10",
+          "title": "Fast zu ernst, No. 10",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-10.mei.gz",
+          "level": 12,
+          "typicalLevel": 12,
+          "reasons": "2/8",
+          "bars": 32,
+          "excerpts": []
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-11",
+          "title": "F\u00FCrchtenmachen, No. 11",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-11.mei.gz",
+          "level": 10,
+          "typicalLevel": 8,
+          "reasons": "four notes in one hand, a range of 22 notes",
+          "bars": 34,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 10,
+              "within": 0.718
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 8,
+              "within": 0.623
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 8,
+              "within": 0.666
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 8,
+              "within": 0.653
+            },
+            {
+              "firstBar": 19,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.691
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 8,
+              "within": 0.693
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 26,
+              "level": 8,
+              "within": 0.599
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 10,
+              "within": 0.731
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.637
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.712
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 8,
+              "within": 0.689
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 9,
+              "within": 0.752
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 28,
+              "level": 10,
+              "within": 0.778
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 10,
+              "within": 0.748
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.753
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 9,
+              "within": 0.795
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 32,
+              "level": 10,
+              "within": 0.805
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-12",
+          "title": "Kind im Einschlummern, No. 12",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-12.mei.gz",
+          "level": 10,
+          "typicalLevel": 10,
+          "reasons": "four notes in one hand, leaps of more than a twelfth, a range of 21 notes",
+          "bars": 32,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 8,
+              "within": 0.679
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 8,
+              "within": 0.682
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 10,
+              "within": 0.708
+            },
+            {
+              "firstBar": 11,
+              "lastBar": 12,
+              "level": 8,
+              "within": 0.636
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 14,
+              "level": 10,
+              "within": 0.734
+            },
+            {
+              "firstBar": 15,
+              "lastBar": 16,
+              "level": 8,
+              "within": 0.646
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 18,
+              "level": 10,
+              "within": 0.71
+            },
+            {
+              "firstBar": 19,
+              "lastBar": 20,
+              "level": 10,
+              "within": 0.704
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 8,
+              "within": 0.696
+            },
+            {
+              "firstBar": 23,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.712
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 26,
+              "level": 8,
+              "within": 0.681
+            },
+            {
+              "firstBar": 29,
+              "lastBar": 30,
+              "level": 10,
+              "within": 0.719
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 8,
+              "within": 0.692
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.696
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 10,
+              "within": 0.722
+            },
+            {
+              "firstBar": 13,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.73
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 20,
+              "level": 10,
+              "within": 0.755
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.706
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 28,
+              "level": 8,
+              "within": 0.713
+            },
+            {
+              "firstBar": 29,
+              "lastBar": 32,
+              "level": 10,
+              "within": 0.735
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.697
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 10,
+              "within": 0.728
+            },
+            {
+              "firstBar": 17,
+              "lastBar": 24,
+              "level": 10,
+              "within": 0.788
+            },
+            {
+              "firstBar": 25,
+              "lastBar": 32,
+              "level": 10,
+              "within": 0.761
+            }
+          ]
+        },
+        {
+          "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-13",
+          "title": "Der Dichter spricht, No. 13",
+          "mei": "pieces/pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-13.mei.gz",
+          "level": 11,
+          "typicalLevel": 11,
+          "reasons": "5-tuplets, 2-tuplets, 30-tick notes",
+          "bars": 25,
+          "excerpts": [
+            {
+              "firstBar": 1,
+              "lastBar": 2,
+              "level": 7,
+              "within": 0.444
+            },
+            {
+              "firstBar": 3,
+              "lastBar": 4,
+              "level": 11,
+              "within": 0.568
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 6,
+              "level": 11,
+              "within": 0.575
+            },
+            {
+              "firstBar": 7,
+              "lastBar": 8,
+              "level": 8,
+              "within": 0.497
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 10,
+              "level": 10,
+              "within": 0.663
+            },
+            {
+              "firstBar": 11,
+              "lastBar": 12,
+              "level": 11,
+              "within": 0.756
+            },
+            {
+              "firstBar": 14,
+              "lastBar": 15,
+              "level": 11,
+              "within": 0.59
+            },
+            {
+              "firstBar": 18,
+              "lastBar": 19,
+              "level": 11,
+              "within": 0.567
+            },
+            {
+              "firstBar": 21,
+              "lastBar": 22,
+              "level": 8,
+              "within": 0.469
+            },
+            {
+              "firstBar": 23,
+              "lastBar": 24,
+              "level": 8,
+              "within": 0.395
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 4,
+              "level": 11,
+              "within": 0.575
+            },
+            {
+              "firstBar": 5,
+              "lastBar": 8,
+              "level": 11,
+              "within": 0.592
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 12,
+              "level": 11,
+              "within": 0.775
+            },
+            {
+              "firstBar": 14,
+              "lastBar": 17,
+              "level": 11,
+              "within": 0.61
+            },
+            {
+              "firstBar": 18,
+              "lastBar": 21,
+              "level": 11,
+              "within": 0.584
+            },
+            {
+              "firstBar": 1,
+              "lastBar": 8,
+              "level": 11,
+              "within": 0.64
+            },
+            {
+              "firstBar": 9,
+              "lastBar": 16,
+              "level": 11,
+              "within": 0.756
             },
             {
               "firstBar": 17,
               "lastBar": 24,
               "level": 11,
-              "within": 0.82
-            },
-            {
-              "firstBar": 25,
-              "lastBar": 32,
-              "level": 11,
-              "within": 0.742
-            },
-            {
-              "firstBar": 33,
-              "lastBar": 40,
-              "level": 11,
-              "within": 0.775
-            },
-            {
-              "firstBar": 41,
-              "lastBar": 48,
-              "level": 11,
-              "within": 0.775
-            },
-            {
-              "firstBar": 49,
-              "lastBar": 56,
-              "level": 9,
-              "within": 0.726
-            },
-            {
-              "firstBar": 57,
-              "lastBar": 64,
-              "level": 9,
-              "within": 0.774
-            },
-            {
-              "firstBar": 65,
-              "lastBar": 72,
-              "level": 10,
-              "within": 0.745
-            },
-            {
-              "firstBar": 73,
-              "lastBar": 80,
-              "level": 10,
-              "within": 0.778
-            },
-            {
-              "firstBar": 81,
-              "lastBar": 88,
-              "level": 11,
-              "within": 0.751
-            },
-            {
-              "firstBar": 93,
-              "lastBar": 100,
-              "level": 9,
-              "within": 0.761
-            },
-            {
-              "firstBar": 101,
-              "lastBar": 108,
-              "level": 9,
-              "within": 0.753
-            },
-            {
-              "firstBar": 109,
-              "lastBar": 116,
-              "level": 10,
-              "within": 0.747
-            },
-            {
-              "firstBar": 117,
-              "lastBar": 124,
-              "level": 11,
-              "within": 0.773
-            },
-            {
-              "firstBar": 125,
-              "lastBar": 132,
-              "level": 10,
-              "within": 0.74
-            },
-            {
-              "firstBar": 133,
-              "lastBar": 140,
-              "level": 10,
-              "within": 0.822
-            },
-            {
-              "firstBar": 141,
-              "lastBar": 148,
-              "level": 11,
-              "within": 0.876
-            },
-            {
-              "firstBar": 149,
-              "lastBar": 156,
-              "level": 10,
-              "within": 0.815
-            },
-            {
-              "firstBar": 157,
-              "lastBar": 164,
-              "level": 8,
-              "within": 0.783
-            },
-            {
-              "firstBar": 165,
-              "lastBar": 172,
-              "level": 8,
-              "within": 0.759
-            },
-            {
-              "firstBar": 177,
-              "lastBar": 184,
-              "level": 10,
-              "within": 0.795
-            },
-            {
-              "firstBar": 186,
-              "lastBar": 193,
-              "level": 11,
-              "within": 0.806
-            },
-            {
-              "firstBar": 199,
-              "lastBar": 206,
-              "level": 9,
-              "within": 0.725
-            },
-            {
-              "firstBar": 207,
-              "lastBar": 214,
-              "level": 8,
-              "within": 0.615
-            },
-            {
-              "firstBar": 215,
-              "lastBar": 222,
-              "level": 12,
-              "within": 0.711
-            },
-            {
-              "firstBar": 249,
-              "lastBar": 256,
-              "level": 10,
-              "within": 0.748
-            },
-            {
-              "firstBar": 257,
-              "lastBar": 264,
-              "level": 10,
-              "within": 0.753
-            },
-            {
-              "firstBar": 265,
-              "lastBar": 272,
-              "level": 9,
-              "within": 0.795
-            },
-            {
-              "firstBar": 273,
-              "lastBar": 280,
-              "level": 10,
-              "within": 0.805
-            },
-            {
-              "firstBar": 283,
-              "lastBar": 290,
-              "level": 8,
-              "within": 0.697
-            },
-            {
-              "firstBar": 292,
-              "lastBar": 299,
-              "level": 10,
-              "within": 0.735
-            },
-            {
-              "firstBar": 301,
-              "lastBar": 308,
-              "level": 10,
-              "within": 0.808
-            },
-            {
-              "firstBar": 309,
-              "lastBar": 316,
-              "level": 10,
-              "within": 0.797
-            },
-            {
-              "firstBar": 317,
-              "lastBar": 324,
-              "level": 11,
-              "within": 0.701
-            },
-            {
-              "firstBar": 325,
-              "lastBar": 332,
-              "level": 11,
-              "within": 0.758
+              "within": 0.594
             }
           ]
         }

@@ -154,9 +154,12 @@ a PDF plays out; this is what came of it.
   to play along with, PDFs, or your imports. Before the levels, **Working on** has the pieces played in the last month (eight
   at most), the latest first, each with when it was last played and how that run went. The collection comes prepared, so its first opening only stores it: the Library tool
   engraves, grades and cuts each MusicXML piece when the bundle is built, and a collection engraved as one score (Chopin's
-  Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), each starting with
-  the key, metre and clefs in force there, so no piece is the whole collection to open or engrave. An import is read and graded
-  on the tablet, away from the screen's thread.
+  Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), or where each of
+  its pieces starts with its own key or metre and a metronome mark (Kinderszenen, whose pieces end at repeats as often as at
+  final barlines, each by its name: "Träumerei, No. 7"), each starting with the key, metre and clefs in force there, so no piece
+  is the whole collection to open or engrave. Tempo changes a score keeps only for playback (bare numbers, which MuseScore hides)
+  are left out, from the bundle and from pieces stored before, since they'd print on the music. An import is read and graded on
+  the tablet, away from the screen's thread.
 - **A local collection**: more music for this tablet alone, never in the repo, whose terms allow personal, non-commercial use
   but not a place in a public repo. The Library tool builds it on the PC (`-- local`): Craig Sapp's Humdrum editions (Mozart's,
   Haydn's and Scarlatti's sonatas, Joplin's rags, Bach's 370 chorales on a grand staff) and the DCML's research corpora as

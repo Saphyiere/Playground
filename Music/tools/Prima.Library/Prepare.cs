@@ -16,6 +16,17 @@ namespace Prima.Library;
 /// </summary>
 internal static class Prepare
 {
+    // The pieces of a collection with names of their own, in their order, for its parts' titles. Tchaikovsky's Op. 39 isn't here:
+    // its order differs between editions.
+    private static readonly Dictionary<string, string[]> PartNames = new()
+    {
+        ["Kinderszenen Op. 15"] =
+        [
+            "Von fremden Ländern und Menschen", "Kuriose Geschichte", "Hasche-Mann", "Bittendes Kind", "Glückes genug", "Wichtige Begebenheit",
+            "Träumerei", "Am Kamin", "Ritter vom Steckenpferd", "Fast zu ernst", "Fürchtenmachen", "Kind im Einschlummern", "Der Dichter spricht",
+        ],
+    };
+
     public static async Task<List<BundledPiece>> Run(IReadOnlyList<BundledPiece> pieces, string root, string output, string? modules = null)
     {
         var engraved = Directory.CreateTempSubdirectory("prima-mei");
@@ -62,11 +73,15 @@ internal static class Prepare
                     continue;
                 }
 
-                var parts = Collections.Split(await File.ReadAllTextAsync(raw));
+                // A score's hidden playback tempos (bare numbers) are left out: Verovio would print them on the music.
+                var parts = Collections.Split(MeiReader.WithoutBareTempos(await File.ReadAllTextAsync(raw)));
                 var made = new List<PreparedPiece>();
+                var names = PartNames.GetValueOrDefault(piece.Work) is { } known && known.Length == parts.Count ? known : null;
                 for (var i = 0; i < parts.Count; i++)
                 {
-                    var (id, title) = parts.Count == 1 ? (piece.Id, piece.Title) : ($"{piece.Id}-{i + 1:00}", $"{piece.Title}, No. {i + 1}");
+                    // A part with a name of its own goes by it ("Träumerei, No. 7"), the work being shown beside it.
+                    var name = names is null ? piece.Title : names[i];
+                    var (id, title) = parts.Count == 1 ? (piece.Id, piece.Title) : ($"{piece.Id}-{i + 1:00}", $"{name}, No. {i + 1}");
                     var score = MeiReader.Read(parts[i]);
                     if (score.Expected().Count == 0) continue;
 

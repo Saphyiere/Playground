@@ -158,6 +158,22 @@ public static class MeiReader
         return document.ToString(SaveOptions.DisableFormatting);
     }
 
+    /// <summary>
+    /// The MEI without its bare tempo numbers: tempo changes a score keeps for playback (MuseScore's hidden ones, for its
+    /// ritardandos), which Verovio would print on the music as numbers. A tempo with words or a note in it is printed, and stays.
+    /// </summary>
+    public static string WithoutBareTempos(string mei)
+    {
+        if (!mei.Contains("<tempo", StringComparison.Ordinal)) return mei;
+
+        var document = XDocument.Parse(mei);
+        var bare = document.Descendants(Mei + "tempo").Where(t => t.Value.Trim() is { Length: > 0 } text && text.All(c => char.IsAsciiDigit(c) || c is '.' or ',')).ToList();
+        if (bare.Count == 0) return mei;
+
+        bare.Remove();
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
     private static string Id(string? reference) => reference?.TrimStart('#') ?? "";
 
     private static int? Ppq(XElement? def) => (int?)def?.Attribute("ppq") ?? (int?)def?.Descendants(Mei + "staffDef").FirstOrDefault()?.Attribute("ppq");
