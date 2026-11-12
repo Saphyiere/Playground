@@ -154,6 +154,7 @@ function draw(element, state) {
     // Fingering is printed over the top staff, and a mark's words (the name of a wrong key) go over the fingering: a deeper
     // top margin leaves them room there, over their own note.
     const fingered = /<fing[\s>]/.test(state.music);
+    const previous = state.loaded;
     state.loaded = {
         font: options.font,
         scale: 100,
@@ -171,9 +172,16 @@ function draw(element, state) {
         svgViewBox: true,
         svgHtml5: true,
     };
-    tk.setOptions(state.loaded);
-    load(tk, state, state.music);
-    state.pages = tk.getPageCount();
+    // Another page of music laid out already (a page turn): only that page is drawn, the toolkit keeping the layout it has.
+    // Anything else (other music or bars, another size or option, or the toolkit given another sheet's) is laid out afresh.
+    const laid = state.tk.current === state.number && state.laidOut === state.music && state.laidBars === options.measures;
+    const turned = laid && JSON.stringify(previous) === JSON.stringify(state.loaded);
+    if (!turned) {
+        tk.setOptions(state.loaded);
+        load(tk, state, state.music);
+        state.pages = tk.getPageCount();
+    }
+    [state.laidOut, state.laidBars] = [state.music, options.measures];
     music.innerHTML = tk.renderToSVG(Math.min(options.page ?? 1, state.pages));
     // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own. Not a whole
     // piece's ("scroll"): its bars differ too much for a line of each to hold as many, and the full ones would be squeezed. Its
@@ -185,8 +193,9 @@ function draw(element, state) {
         load(tk, state, withSystemBreaks(state.music, Math.ceil(bars / systems.length), firstMeasure(options)));
         state.pages = tk.getPageCount();
         music.innerHTML = tk.renderToSVG(1);
+        state.laidOut = null;
     }
-    state.timemap = tk.renderToTimemap({ includeMeasures: true });
+    if (!turned) state.timemap = tk.renderToTimemap({ includeMeasures: true });
     // New paper: what was drawn over the old one goes, and so does what was found on it (each id's place, the music's words).
     state.overlay.replaceChildren();
     state.line.hidden = true;
@@ -613,30 +622,34 @@ export function showMarks(element, marks) {
     for (const mark of marks) drawMark(element, state, mark);
 }
 
-// Marks notes during a run, as each is judged: a note marked again (a slip put right) loses its earlier mark.
+// Marks notes during a run, as each is judged: a note marked again (a slip put right) loses its earlier mark. Its colour goes on
+// the marks' layer over the note, not on the note: changing the music had the browser paint all of it again for each note
+// played, which on a long piece was most of what the page did while you played.
 export function markLive(element, marks) {
     const state = sheets.get(element);
     if (!state) return;
-    for (const mark of marks) drawMark(element, state, mark);
+    for (const mark of marks) drawMark(element, state, mark, true);
 }
 
 const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-apart", "mark-heat1", "mark-heat2", "mark-heat3", "mark-picked"];
 
-function drawMark(element, state, mark) {
+function drawMark(element, state, mark, live = false) {
     const note = printedById(element, state).get(mark.id);
     if (!note) return;
-    // What's drawn over the paper for this note (the key played, its name, an arrow, a word), kept so it can be taken off again.
+    // What's drawn over the paper for this note (its colour while playing, the key played, its name, an arrow, a word), kept so
+    // it can be taken off again.
     const mine = state.drawn.get(mark.id) ?? [];
+    state.drawn.set(mark.id, mine);
     // An extra key is drawn beside the note before it, which keeps its own mark, as a note with a word over it does.
     if (mark.kind !== "extra" && mark.kind !== "hint") {
-        note.classList.remove(...markKinds);
+        if (!live) note.classList.remove(...markKinds);
         mine.splice(0).forEach(n => n.remove());
-        note.classList.add(`mark-${mark.kind}`);
+        if (live) mine.push(...tint(state, note, mark.kind));
+        else note.classList.add(`mark-${mark.kind}`);
     }
     // A note with nothing to draw beside it is its colour and no more: nothing on the paper is measured for it.
     const beside = mark.kind === "hint" || mark.kind === "early" || mark.kind === "late" || mark.q != null || ((mark.kind === "wrong" || mark.kind === "extra") && mark.played);
     if (!beside) return;
-    state.drawn.set(mark.id, mine);
     const box = element.getBoundingClientRect();
     const overlay = state.overlay;
     const head = note.querySelector(".notehead") ?? note;
@@ -670,15 +683,97 @@ function drawMark(element, state, mark) {
     if (mark.kind === "early" || mark.kind === "late") mine.push(label(element, state, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id));
 }
 
+// A note's colour for a mark while playing, on the marks' layer: what the mark colours (the whole note when it's right or wrong,
+// its head otherwise) drawn again there in its colour, each shape worked out where it lies on the layer. Shapes moved into place
+// by a transform would each have the browser sort out the page's layers again, which costs as much as painting the music did.
+function tint(state, note, kind) {
+    const toLayer = state.overlay.getScreenCTM().inverse();
+    const group = document.createElementNS(svgNs, "g");
+    group.setAttribute("class", `sheet-tint tint-${kind}`);
+    const parts = kind === "right" || kind === "wrong" ? [note] : [...note.querySelectorAll(".notehead")];
+    for (const shape of parts.flatMap(part => [...part.querySelectorAll("use, path, ellipse")])) {
+        const at = toLayer.multiply(shape.getScreenCTM());
+        const scale = Math.sqrt(Math.abs(at.a * at.d - at.b * at.c));
+        if (shape.localName === "ellipse") {
+            const e = group.appendChild(document.createElementNS(svgNs, "ellipse"));
+            const [cx, cy] = [shape.cx.baseVal.value, shape.cy.baseVal.value];
+            e.setAttribute("cx", at.a * cx + at.c * cy + at.e);
+            e.setAttribute("cy", at.b * cx + at.d * cy + at.f);
+            e.setAttribute("rx", shape.rx.baseVal.value * Math.abs(at.a));
+            e.setAttribute("ry", shape.ry.baseVal.value * Math.abs(at.d));
+            continue;
+        }
+        // A glyph is drawn from the music's own outlines (a use of one, by its id); a line (a stem) is stroked.
+        const glyph = shape.localName === "use" ? document.getElementById((shape.getAttribute("href") ?? shape.getAttribute("xlink:href") ?? "").slice(1)) : null;
+        for (const path of glyph ? [...glyph.querySelectorAll("path")] : shape.localName === "path" ? [shape] : []) {
+            const own = glyph ? path.transform.baseVal.consolidate()?.matrix : null;
+            const p = group.appendChild(document.createElementNS(svgNs, "path"));
+            p.setAttribute("d", moved(path.getAttribute("d") ?? "", own ? at.multiply(own) : at));
+            if (glyph) p.style.strokeWidth = `${28 * scale}px`;
+            else Object.assign(p.style, { fill: "none", stroke: "currentColor", strokeWidth: `${(parseFloat(path.getAttribute("stroke-width")) || 1) * scale}px` });
+        }
+    }
+    return [state.overlay.appendChild(group)];
+}
+
+// An outline's path data moved by a matrix: each point worked out afresh, every command made absolute (M, L, C, Q, Z).
+function moved(d, m) {
+    const tokens = d.match(/[a-df-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? [];
+    const out = [];
+    const to = (x, y) => `${(m.a * x + m.c * y + m.e).toFixed(2)} ${(m.b * x + m.d * y + m.f).toFixed(2)}`;
+    let [i, command, x, y, startX, startY, before] = [0, "M", 0, 0, 0, 0, null];
+    const next = () => parseFloat(tokens[i++]);
+    while (i < tokens.length) {
+        if (/[a-z]/i.test(tokens[i])) command = tokens[i++];
+        const kind = command.toUpperCase();
+        const [ox, oy] = command === kind ? [0, 0] : [x, y];
+        // The control point a smooth curve mirrors: the last curve's second, or the point itself.
+        const mirrored = before ? [2 * x - before[0], 2 * y - before[1]] : [x, y];
+        let control = null;
+        if (kind === "M") {
+            [x, y] = [ox + next(), oy + next()];
+            [startX, startY] = [x, y];
+            out.push(`M${to(x, y)}`);
+            command = command === kind ? "L" : "l";
+        } else if (kind === "L") {
+            [x, y] = [ox + next(), oy + next()];
+            out.push(`L${to(x, y)}`);
+        } else if (kind === "H") {
+            x = ox + next();
+            out.push(`L${to(x, y)}`);
+        } else if (kind === "V") {
+            y = oy + next();
+            out.push(`L${to(x, y)}`);
+        } else if (kind === "C" || kind === "S") {
+            const first = kind === "C" ? [ox + next(), oy + next()] : mirrored;
+            control = [ox + next(), oy + next()];
+            [x, y] = [ox + next(), oy + next()];
+            out.push(`C${to(...first)} ${to(...control)} ${to(x, y)}`);
+        } else if (kind === "Q" || kind === "T") {
+            control = kind === "Q" ? [ox + next(), oy + next()] : mirrored;
+            [x, y] = [ox + next(), oy + next()];
+            out.push(`Q${to(...control)} ${to(x, y)}`);
+        } else if (kind === "Z") {
+            [x, y] = [startX, startY];
+            out.push("Z");
+        } else {
+            // An arc isn't in a music font's outlines: what's moved so far is kept.
+            break;
+        }
+        before = control;
+    }
+    return out.join("");
+}
+
+// An oval the size of a note head, leaning as one does, at (cx, cy): two arcs that lean by their own angle, since a shape turned
+// by a transform has the browser sort out the page's layers again.
 function ghost(id, cx, cy, headWidth, space, kind = "sheet-ghost") {
-    const g = document.createElementNS(svgNs, "ellipse");
+    const g = document.createElementNS(svgNs, "path");
     g.setAttribute("class", kind);
     g.dataset.for = id;
-    g.setAttribute("cx", cx);
-    g.setAttribute("cy", cy);
-    g.setAttribute("rx", headWidth * 0.5);
-    g.setAttribute("ry", space * 0.42);
-    g.setAttribute("transform", `rotate(-20 ${cx} ${cy})`);
+    const [rx, ry, lean] = [headWidth * 0.5, space * 0.42, -20];
+    const [dx, dy] = [rx * Math.cos(lean * Math.PI / 180), rx * Math.sin(lean * Math.PI / 180)];
+    g.setAttribute("d", `M${cx - dx} ${cy - dy}A${rx} ${ry} ${lean} 1 0 ${cx + dx} ${cy + dy}A${rx} ${ry} ${lean} 1 0 ${cx - dx} ${cy - dy}Z`);
     return g;
 }
 
@@ -703,7 +798,7 @@ export function clearMarks(element) {
 
 function clearDrawnMarks(element, state) {
     element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove(...markKinds));
-    state.overlay.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow, .sheet-hint").forEach(n => n.remove());
+    state.overlay.querySelectorAll(".sheet-tint, .sheet-ghost, .sheet-label, .sheet-arrow, .sheet-hint").forEach(n => n.remove());
     state.drawn = new Map();
 }
 

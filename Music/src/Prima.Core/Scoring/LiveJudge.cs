@@ -83,7 +83,9 @@ public sealed class LiveJudge
     public LiveMark? Play(int midi, long timeNs)
     {
         var t = timeNs - offsetNs;
-        var near = open.Select(s => (Slot: s, Error: t - TimeOf(s))).Where(n => Math.Abs(n.Error) <= windowNs || Rolling(n.Slot, t)).ToList();
+        // The notes still open are in time order, so those near are among the first: none after one due a window from now.
+        var soon = open.TakeWhile(s => TimeOf(s) - t <= windowNs);
+        var near = soon.Select(s => (Slot: s, Error: t - TimeOf(s))).Where(n => Math.Abs(n.Error) <= windowNs || Rolling(n.Slot, t)).ToList();
         if (near.Count == 0) return null;
 
         var right = near.Where(n => n.Slot.Note.Midi == midi).OrderBy(n => Math.Abs(n.Error)).FirstOrDefault();
@@ -123,7 +125,7 @@ public sealed class LiveJudge
     /// <summary>The notes whose window has closed by <paramref name="nowNs"/> with nothing played for them (wrong ones are already marked).</summary>
     public IReadOnlyList<LiveMark> Due(long nowNs)
     {
-        var closed = open.Where(s => nowNs - offsetNs > TimeOf(s) + windowNs && !Rolling(s, nowNs - offsetNs)).ToList();
+        var closed = open.TakeWhile(s => nowNs - offsetNs > TimeOf(s) + windowNs).Where(s => !Rolling(s, nowNs - offsetNs)).ToList();
         foreach (var slot in closed) open.Remove(slot);
         return [.. closed.Where(s => s.WrongKey is null).Select(s => new LiveMark(s.Note.Id, LiveKind.Missed, null, 0))];
     }

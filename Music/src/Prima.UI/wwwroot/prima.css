@@ -1651,6 +1651,8 @@ a.mu-btn {
     fill: currentColor;
 }
 
+/* What's drawn over the music (the marks), on a layer of its own, so marking a note while playing paints that layer and not
+   the music. */
 .sheet-overlay {
     position: absolute;
     inset: 0;
@@ -1658,6 +1660,7 @@ a.mu-btn {
     height: 100%;
     overflow: visible;
     pointer-events: none;
+    will-change: transform;
 }
 
 /* The cursor: a line on a layer of its own, a pixel high at the sheet's corner, moved to its place and stretched to its
@@ -1708,6 +1711,28 @@ a.mu-btn {
 .sheet-music .mark-early .notehead g,
 .sheet-music .mark-late .notehead g,
 .sheet-music .mark-apart .notehead g {
+    fill: var(--mark-timing);
+}
+
+/* A note's colour while playing, laid over it (as the marks after the run colour the note itself). */
+.tint-right {
+    fill: var(--mark-right);
+    color: var(--mark-right);
+}
+
+.tint-wrong {
+    fill: var(--mark-meant);
+    color: var(--mark-meant);
+}
+
+.tint-missed {
+    fill: var(--sheet);
+    stroke: var(--mark-meant);
+}
+
+.tint-early,
+.tint-late,
+.tint-apart {
     fill: var(--mark-timing);
 }
 
