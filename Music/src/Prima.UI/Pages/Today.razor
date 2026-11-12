@@ -94,6 +94,10 @@
         {
             <p class="control-note">@DaySummary()</p>
         }
+        else if (piecesToday is not null)
+        {
+            <p class="control-note">@piecesToday</p>
+        }
     </div>
 }
 
@@ -109,6 +113,8 @@
     private string nextMei = "";
     private string? nextMeasures;
     private List<AttemptRecord> todayPassages = [];
+    // The pieces played today, in words: each with its runs and how the last went. Null with none.
+    private string? piecesToday;
     private bool pausing;
     private int pauseLeft;
     private Timer? pauseTimer;
@@ -129,6 +135,14 @@
         todayMinutes = day?.Minutes ?? 0;
         streak = Streak.Compute(days.Select(d => new PracticeDayRecord(d.Day, d.Minutes, d.ShortDone)), Day0);
         todayPassages = (await Store.GetAttemptsAsync(Day0, "passage")).Where(a => a.Day == Day0).ToList();
+        var played = (await Store.GetPieceRunsAsync()).Where(r => r.Run.Day == Day0).GroupBy(r => r.Piece).Select(g => (Id: g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToList();
+        var said = new List<string>();
+        foreach (var (id, done) in played.OrderByDescending(p => p.Done!.Last.At).Take(2))
+        {
+            said.Add($"{(await Store.GetPieceAsync(id))?.Title ?? "A piece"}: {done!.Runs} {(done.Runs == 1 ? "run" : "runs")}, the last {PieceWords.Short(done.Last)}.");
+        }
+        if (played.Count > 2) said.Add($"And {played.Count - 2} more {(played.Count == 3 ? "piece" : "pieces")}.");
+        piecesToday = said.Count == 0 ? null : string.Join(" ", said);
         plan = day?.Plan is { } json ? System.Text.Json.JsonSerializer.Deserialize<DayPlan>(json, PrimaStore.Json) : null;
         if (plan is null)
         {
@@ -230,7 +244,7 @@
         var passages = todayPassages.Count;
         var inTime = todayPassages.Where(a => a.Headline is not null).Select(a => a.Headline!.Value).DefaultIfEmpty().Average();
         var tomorrow = DailyPlan.Build(Day0.AddDays(1), Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
-        return $"Done for today: {todayMinutes:0} minutes, {passages} {(passages == 1 ? "passage" : "passages")} read{(passages > 0 ? $" at {(inTime) * 100:0}% in time" : "")}. Tomorrow starts with the {tomorrow.ScaleKey.Name} scale.";
+        return $"Done for today: {todayMinutes:0} minutes, {passages} {(passages == 1 ? "passage" : "passages")} read{(passages > 0 ? $" at {(inTime) * 100:0}% in time" : "")}. {(piecesToday is null ? "" : piecesToday + " ")}Tomorrow starts with the {tomorrow.ScaleKey.Name} scale.";
     }
 
     public void Dispose() => pauseTimer?.Dispose();

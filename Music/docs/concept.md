@@ -53,7 +53,8 @@ What to do now. The day's plan as five steps (below), with the next one ready to
 days that still counts; this week's minutes and days; the streak; and the practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
-every step is done, a line sums up the day.
+every step is done, a line sums up the day. The pieces played today are in it, each with its runs and how the last went, and
+show as a line of their own before the plan is done.
 
 The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
 calibration or straight to Today.
@@ -149,7 +150,8 @@ a PDF plays out; this is what came of it.
 - **The collection**: about 240 public-domain and openly licensed pieces, chosen by named works published before 1931: 133
   MuseScore users' engravings through PDMX, as MusicXML, and 104 PDFs with their MIDI from the Mutopia Project. Each is credited
   as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near yours, those
-  to play along with, PDFs, or your imports. The collection comes prepared, so its first opening only stores it: the Library tool
+  to play along with, PDFs, or your imports. Before the levels, **Working on** has the pieces played in the last month (eight
+  at most), the latest first, each with when it was last played and how that run went. The collection comes prepared, so its first opening only stores it: the Library tool
   engraves, grades and cuts each MusicXML piece when the bundle is built, and a collection engraved as one score (Chopin's
   Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), each starting with
   the key, metre and clefs in force there, so no piece is the whole collection to open or engrave. An import is read and graded
@@ -172,7 +174,11 @@ a PDF plays out; this is what came of it.
   and **Full screen**, which leaves only the bar and the music, the tablet's own bars hidden too, in either orientation; the
   same key, or leaving the piece, brings everything back. A piece fits the screen, only its music scrolling: between runs with
   About this piece under it, and after a run with the run's summary there instead; while a run plays the music has that space
-  too. A notation piece shows whole in
+  too. About this piece starts with what's been done on it, from the runs kept: when it was last played, how that run was
+  played and how it went; then how often it's been played through In time (from its start to its end, not stopped), with the
+  last time and the best; and its runs, the days they were on, and the first. A run of fewer than eight notes is a false
+  start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
+  bar it was to start from, or its loop. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
   the piece opens in Pages again the next time). As pages: two systems at a time in landscape, the whole page
   in portrait under a slim bar. They turn by a swipe, a page turner's or a keyboard's arrow keys, the soft and sostenuto pedals
@@ -191,7 +197,9 @@ a PDF plays out; this is what came of it.
   strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
   for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
   then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a
-  run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to its start). **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to
+  its start): it's the same go, moved, so what was played before it isn't judged or kept as a run of its own, and its time
+  carries on. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
@@ -275,7 +283,9 @@ to other patterns; for now they're built-in five-finger figures.
 ### You
 
 Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
-early gains is normal. The profile it's headed with (name, which clefs you drill, daily goal, the practice cue) is set in
+early gains is normal. First, **Pieces**: the Library's pieces you've played, the latest first (twelve at most), each with its
+runs, the days it was played on, when it was last played, how the last run was played and went, and the best of the times it
+was played through In time. The profile it's headed with (name, which clefs you drill, daily goal, the practice cue) is set in
 Settings.
 
 ### Settings
@@ -606,7 +616,9 @@ Everything lives in one SQLite file on the tablet.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
   others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
-  bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. Imported
+  bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation
+  piece keeps where it was left too: its page, the bar it was to start from, its loop's last bar, and the first bar on the
+  screen. Imported
   files, and a local collection's PDFs and MIDI, sit beside the data file.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took

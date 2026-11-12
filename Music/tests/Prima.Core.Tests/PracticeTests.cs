@@ -359,3 +359,56 @@ public class GeographyTests
         Assert.All(targets, m => Assert.InRange(Math.Abs(new Key(0).Spell(m).Diatonic - middleC), 5, 8));
     }
 }
+
+public class PieceHistoryTests
+{
+    private static readonly DateOnly Monday = new(2026, 11, 9);
+
+    // A run In time from the piece's start, played to its end, on a day at a minute: its tempo and how much was right in time.
+    private static PieceRun Run(int day, int minute, double tempo, double rightInTime, int notes = 95, int from = 1, bool stopped = false, bool inTime = true)
+    {
+        var date = Monday.AddDays(day);
+        return new PieceRun(new DateTimeOffset(date.ToDateTime(new TimeOnly(19, minute)), TimeSpan.Zero), date, inTime, inTime ? tempo : null, "both", from, stopped, stopped ? 9 : null, (int)(notes * rightInTime), notes, inTime ? rightInTime : null);
+    }
+
+    [Fact]
+    public void APiecesRunsSayHowOftenAndTheLastOne()
+    {
+        var history = PieceHistory.Of([Run(0, 10, 60, 0.7), Run(0, 20, 60, 0.8), Run(2, 5, 72, 0.9, from: 13, stopped: true)])!;
+
+        Assert.Equal((3, 2, Monday), (history.Runs, history.Days, history.Since));
+        Assert.Equal((Monday.AddDays(2), 13, true), (history.Last.Day, history.Last.From, history.Last.Stopped));
+    }
+
+    [Fact]
+    public void PlayedThroughIsFromTheStartToTheEndInTime()
+    {
+        // From a later bar, round a loop until stopped, and in Wait for me aren't the piece played through.
+        var history = PieceHistory.Of([Run(0, 10, 60, 0.7), Run(0, 20, 60, 0.5, from: 13, stopped: true), Run(1, 10, 60, 0.6, stopped: true), Run(1, 20, 0, 0.95, inTime: false), Run(2, 10, 72, 0.8)])!;
+
+        Assert.Equal(2, history.Throughs);
+        Assert.Equal((72, 0.8), (history.LastThrough!.Tempo, history.LastThrough.RightInTime));
+        Assert.Equal(history.LastThrough, history.BestThrough);
+        // A pickup's bar is 0: a piece that starts on one is played through from there.
+        Assert.True(Run(0, 0, 60, 1, from: 0).Through);
+    }
+
+    [Fact]
+    public void TheBestTimeThroughIsTheMostRightInTimeAndOfTwoAsGoodTheFaster()
+    {
+        var history = PieceHistory.Of([Run(0, 10, 60, 0.9), Run(1, 10, 84, 0.9), Run(2, 10, 96, 0.7)])!;
+
+        Assert.Equal(84, history.BestThrough!.Tempo);
+        Assert.Equal(96, history.LastThrough!.Tempo);
+    }
+
+    [Fact]
+    public void AFalseStartIsNotARun()
+    {
+        // Fewer than eight notes reached: a start that came to nothing. Only false starts, and there's no history yet.
+        Assert.Null(PieceHistory.Of([Run(0, 10, 60, 1, notes: 7), Run(0, 11, 60, 0.5, notes: 3)]));
+        var history = PieceHistory.Of([Run(0, 10, 60, 1, notes: 7), Run(0, 12, 60, 0.75, notes: 8)])!;
+
+        Assert.Equal((1, 8), (history.Runs, history.Last.Notes));
+    }
+}

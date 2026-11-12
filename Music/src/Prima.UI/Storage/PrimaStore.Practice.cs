@@ -129,6 +129,32 @@ public sealed partial class PrimaStore
     });
 
     /// <summary>
+    /// The runs kept on pieces, oldest first, each with its piece: one piece's, or every piece's. Read without the keys played,
+    /// which what's shown of a piece's history has no use for.
+    /// </summary>
+    public Task<List<(string Piece, PieceRun Run)>> GetPieceRunsAsync(string? piece = null) => RunAsync(async c =>
+    {
+        var rows = await c.QueryAsync<(string SetId, string At, string Day, string? Variant, double? Tempo, string Measures)>(
+            "SELECT SetId, At, Day, Variant, Tempo, Measures FROM Attempt WHERE Kind = 'piece' AND SetId IS NOT NULL AND (@piece IS NULL OR SetId = @piece) ORDER BY At", new { piece });
+        return rows.Select(r =>
+        {
+            // The measures as a run kept them: In time's or Wait for me's, with where it started and whether it was stopped.
+            using var kept = JsonDocument.Parse(r.Measures);
+            var measures = kept.RootElement;
+            int Count(string name) => measures.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : 0;
+            var inTime = r.Variant == "in time";
+            var right = inTime ? Count("right") : Count("rightFirstTime");
+            var notes = inTime ? right + Count("wrong") + Count("missed") : Count("notes");
+            var hands = measures.TryGetProperty("hands", out var hand) ? hand.GetString() ?? "both" : "both";
+            var from = measures.TryGetProperty("from", out _) ? Count("from") : 1;
+            var stopped = measures.TryGetProperty("stopped", out var early) && early.ValueKind == JsonValueKind.True;
+            var share = inTime && measures.TryGetProperty("inTime", out var accuracy) && accuracy.ValueKind == JsonValueKind.Number ? accuracy.GetDouble() : (double?)null;
+            var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), inTime, r.Tempo, hands, from, stopped, measures.TryGetProperty("bar", out _) ? Count("bar") : null, right, notes, share);
+            return (r.SetId, run);
+        }).ToList();
+    });
+
+    /// <summary>
     /// What's been done: the attempts of one kind counted for each thing played (each exercise), and those of the other kinds
     /// given each counted whole (a drill, whichever scale was played in it).
     /// </summary>

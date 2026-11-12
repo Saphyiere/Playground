@@ -13,6 +13,7 @@
 @using System.Xml.Linq
 @using Prima.UI.Glossary
 @using Prima.Core.Library
+@using Prima.Core.Practice
 @using Prima.Core.Scoring
 
 <PageTitle>@(piece?.Title ?? "Piece") · Prima</PageTitle>
@@ -232,6 +233,23 @@ else
         <section class="settings-section piece-about" aria-labelledby="about-heading">
             <h2 id="about-heading" class="section-title">About this piece</h2>
             <ul class="summary-words">
+                @* What's been done on it, from the runs kept: the last one, then how often it's been played through and played at all. *@
+                @if (history is { } done)
+                {
+                    var today = DateOnly.FromDateTime(DateTime.Now);
+                    <li>Last played @PieceWords.When(done.Last.Day, today): @PieceWords.How(done.Last), @PieceWords.Went(done.Last).</li>
+                    @if (done.Runs > 1)
+                    {
+                        var through = done switch
+                        {
+                            { LastThrough: { } last, BestThrough: { } best } when last != best => $"Played through {done.Throughs} times In time: {PieceWords.Short(last)} the last time, {PieceWords.Short(best)} at best. ",
+                            { LastThrough: { } last, Throughs: > 1 } => $"Played through {done.Throughs} times In time, the last the best: {PieceWords.Short(last)}. ",
+                            { LastThrough: { } last } => $"Played through once In time: {PieceWords.Short(last)}. ",
+                            _ => "",
+                        };
+                        <li>@through@done.Runs runs on @done.Days @(done.Days == 1 ? "day" : "days"), the first @PieceWords.When(done.Since, today).</li>
+                    }
+                }
                 @if (piece.Reasons is { Length: > 0 } reasons)
                 {
                     <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
@@ -296,6 +314,13 @@ else
     private ElementReference strip;
     private IJSObjectReference? bars;
     private string? shownChoice;
+    // What's been done on the piece, from its runs kept.
+    private PieceHistory? history;
+    // The first bar on the screen, as bars.js tells it: where the piece opens the next time. And whether it's been put back there.
+    private int? seen;
+    private bool placed;
+    // A run going back a bar, or to a tapped one: the same go, so its time carries on.
+    private bool restarting;
     private View view = View.Pages;
     private int page = 1;
     private int pages = 1;
@@ -405,6 +430,7 @@ else
                 view = stored.GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
                 handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
                 StartAt(FirstBar);
+                history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
             }
         }
 
@@ -412,6 +438,14 @@ else
         {
             page = (int)saved.GetValueOrDefault("page", 1);
             y = saved.GetValueOrDefault("y", 0);
+            // A notation piece opens where it was left: the bar it was to start from, or its loop, and the line that was at the
+            // top of the screen (bars.js puts that back once the music is drawn).
+            if (saved.TryGetValue("from", out var start) && barStarts.ContainsKey((int)start))
+            {
+                loopTo = saved.TryGetValue("to", out var last) ? Math.Min((int)last, LastBar) : null;
+                StartAt((int)start);
+            }
+            seen = saved.TryGetValue("bar", out var top) ? (int)top : null;
         }
         await Store.SetPieceAsync(Id);
     }
@@ -454,7 +488,19 @@ else
 
         shownChoice = choice;
         var ids = MeasureIds().Take(score.Bars.Count).ToArray();
-        await bars.InvokeVoidAsync("show", frame, strip, self, new { from, to = loopTo, lit, playing, explain, firstBar = FirstBar, ids });
+        // The first time, with the bar that was at the top of the screen when the piece was left, to be put back there.
+        var at = placed ? null : seen;
+        placed = true;
+        await bars.InvokeVoidAsync("show", frame, strip, self, new { from, to = loopTo, lit, playing, explain, firstBar = FirstBar, ids, at });
+        await SavePosition();
+    }
+
+    // The first bar on the screen, once the music has stayed where it is a moment: kept as where the piece was left.
+    [JSInvokable]
+    public async Task Seen(int bar)
+    {
+        seen = bar;
+        await SavePosition();
     }
 
     private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
@@ -582,7 +628,16 @@ else
     }
 
 
-    private Task SavePosition() => Store.SetPieceAsync(Id, position: JsonSerializer.Serialize(new Dictionary<string, double> { ["page"] = page, ["y"] = y }));
+    // Where the piece is: a PDF's page and how far down it; a notation piece's page, the bar it's to start from, its loop's
+    // last bar, and the first bar on the screen.
+    private Task SavePosition()
+    {
+        var place = new Dictionary<string, double> { ["page"] = page, ["y"] = y };
+        if (score is not null) place["from"] = from;
+        if (loopTo is { } to) place["to"] = to;
+        if (seen is { } bar) place["bar"] = bar;
+        return Store.SetPieceAsync(Id, position: JsonSerializer.Serialize(place));
+    }
 
     // ——— Playing a notation piece ———
 
@@ -645,10 +700,12 @@ else
     {
         if (play is null) return;
 
-        var listening = play.Listening;
-        await play.Stop();
         StartAt(bar);
-        await (listening ? play.Listen(music) : play.Start(music));
+        if (music is null) return;
+
+        restarting = true;
+        await play.Restart(music);
+        restarting = false;
     }
 
     private string HandsKey => $"Library.Hands.{Id}";
@@ -735,7 +792,7 @@ else
     // The run plays in the scrolling view, a line at a time: for the run, so a piece kept in Pages opens in Pages the next time.
     private async Task Starting()
     {
-        (playing, outcome, started, options, explain, explained) = (true, null, DateTime.Now, false, false, null);
+        (playing, outcome, started, options, explain, explained) = (true, null, restarting ? started : DateTime.Now, false, false, null);
         if (view == View.Scroll) return;
 
         repainted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -758,6 +815,7 @@ else
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 })), null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
         await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
+        history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
     }
 
     // ——— A PDF piece ———

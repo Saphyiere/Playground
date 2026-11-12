@@ -244,6 +244,19 @@
     /// </summary>
     public Task Listen(PlayMusic? with = null) => Run(with, listen: true);
 
+    /// <summary>
+    /// Starts again with other music (the piece from another bar) in place of the run going, which ends there with nothing of
+    /// it judged, marked or kept: it's the same go at the piece, moved. Listen stays Listen.
+    /// </summary>
+    public async Task Restart(PlayMusic with)
+    {
+        var listen = Listening;
+        session?.Stop();
+        if (wait is not null) Registry.DrillAnswer = null;
+        wait = null;
+        await Run(with, listen);
+    }
+
     private async Task ListenNeeds()
     {
         listenNeeds = Keyboard.Name is null ? "Listen plays it on your piano: plug in your keyboard."

@@ -10,7 +10,8 @@ const playIcon = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="t
 const loopIcon = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M15.5 7A6 6 0 0 0 4.3 8.6M4.5 13A6 6 0 0 0 15.7 11.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 3.5V7.5H12M4 16.5V12.5H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const endIcon = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
-// The choice, from .NET: { from, to (null for no loop), lit, playing, explain, firstBar, ids (every bar's MEI id, in order) }.
+// The choice, from .NET: { from, to (null for no loop), lit, playing, explain, firstBar, ids (every bar's MEI id, in order), and
+// the first time `at`: the bar that was first on the screen when the piece was left, whose line is put back at the top }.
 export function show(frame, strip, dotnet, choice) {
     if (!(frame instanceof Element)) return;
     let state = pieces.get(frame);
@@ -29,6 +30,7 @@ export function show(frame, strip, dotnet, choice) {
         state.cellsKey = null;
     }
     state.choice = { ...choice, ids };
+    if (choice.at != null) state.at = choice.at;
     state.geo = null;
     if (state.strip !== strip) bindStrip(state, strip);
     watchMusic(state);
@@ -44,6 +46,7 @@ export function forget(frame) {
         state.painted?.disconnect();
         cancelAnimationFrame(state.queued);
         cancelAnimationFrame(state.scrolling);
+        clearTimeout(state.telling);
         pieces.delete(state.frame);
     }
 }
@@ -72,6 +75,14 @@ function queue(state, all) {
 }
 
 function drawAll(state) {
+    // The piece opens where it was left: once its bars are drawn, the line of the bar that was first on the screen goes back
+    // to the top of the frame.
+    const { sheet, list } = drawn(state);
+    if (state.at != null && list.length > 0) {
+        const bar = list.find(b => b.n === state.at);
+        if (bar) state.frame.scrollTop = Math.max(0, sheet.offsetTop + bar.top - 24);
+        state.at = null;
+    }
     drawMarks(state);
     drawStrip(state);
 }
@@ -330,6 +341,12 @@ function drawWindow(state, list, box) {
     if (!list) ({ list, box } = drawn(state));
     const w = s.querySelector(".bar-window");
     const seen = onScreen(state, list, box);
+    // Where the music is in its frame is told to .NET once it has stayed there a moment: it's where the piece opens next time.
+    if (seen && seen[0] !== state.top && state.at == null) {
+        state.top = seen[0];
+        clearTimeout(state.telling);
+        state.telling = setTimeout(() => state.dotnet?.invokeMethodAsync("Seen", seen[0]).catch(() => { }), 600);
+    }
     if (!w) return;
     w.hidden = !seen;
     if (seen) {

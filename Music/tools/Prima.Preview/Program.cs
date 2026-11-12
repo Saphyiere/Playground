@@ -281,7 +281,34 @@ static class Seeds
         await store.SaveTrackAsync("drill:chords", new DrillTrack(2, 0.84, 0.84, today.AddDays(-4)));
         await store.SaveTrackAsync("drill:keys", new DrillTrack(4, 0.95, 0.95, today.AddDays(-1)));
         await store.SaveTrackAsync("drill:ledger", new DrillTrack(1, 0.78, 0.78, today.AddDays(-6)));
+        // Pieces from the Library, worked on over the last fortnight: a sonatina read in Wait for me, played through at a rising
+        // tempo and looped at its hard bars, and another piece tried twice.
+        const string sonatina = "pdmx-QmVK4gcjHfrLd24KVX82mzzNM9ACraY2rgb5QewMDRRurt";
+        const string elise = "pdmx-QmdXWkWbF5xQQnBwYR2LFiiSDjY7kWswUocDNAwKbeviFe";
+        async Task PieceRun(string piece, int daysAgo, int minute, double? tempo, int right, int notes, double share, int from = 1, int? stoppedAt = null, string hands = "both")
+        {
+            var day = today.AddDays(-daysAgo);
+            object measures = tempo is null
+                ? new { rightFirstTime = right, notes, wrongKeys = notes - right, apart = 0, seconds = notes * 0.9, from, stopped = stoppedAt is not null, bar = stoppedAt ?? 16, hands }
+                : new { inTime = share, right, wrong = (notes - right + 1) / 2, missed = (notes - right) / 2, extra = 0, keptGoing = true, holds = right / 2, letGoEarly = 2, from, stopped = stoppedAt is not null, bar = stoppedAt ?? 16, hands };
+            var variant = tempo is null ? "wait" : "in time";
+            await store.AddAttemptAsync(new AttemptRecord(0, day.ToDateTime(new TimeOnly(19, minute)), day, "piece", variant, piece, 5, tempo, null, null, "[]", null, JsonSerializer.Serialize(measures), right / (double)notes, right == notes, null));
+        }
+        await PieceRun(elise, 12, 30, 60, 610, 933, 0.61);
+        await PieceRun(elise, 10, 30, 60, 702, 933, 0.72);
+        await PieceRun(sonatina, 7, 40, null, 64, 69, 0, hands: "right");
+        await PieceRun(sonatina, 6, 40, 60, 71, 95, 0.71);
+        await PieceRun(sonatina, 4, 42, 60, 52, 69, 0.66, from: 13, stoppedAt: 15);
+        await PieceRun(sonatina, 4, 46, 60, 83, 92, 0.86, from: 13, stoppedAt: 16);
+        await PieceRun(sonatina, 2, 40, 72, 80, 95, 0.82);
+        await PieceRun(sonatina, 1, 40, 84, 88, 95, 0.91);
+        await PieceRun(sonatina, 1, 44, 84, 40, 46, 0.83, from: 13, stoppedAt: 16);
+
         if (scenario is not ("today" or "summary")) return;
+
+        // Today: the sonatina again, from bar 9 and then through.
+        await PieceRun(sonatina, 0, 5, 84, 41, 46, 0.87, from: 9, stoppedAt: 16);
+        await PieceRun(sonatina, 0, 9, 84, 86, 95, 0.88);
 
         // Today: the scale and the notes done, and one passage read with a bar to fix.
         var start = today.ToDateTime(new TimeOnly(DateTime.Now.Hour < 9 ? 7 : 8, 30));

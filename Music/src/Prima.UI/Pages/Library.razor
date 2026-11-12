@@ -40,6 +40,39 @@
     <p class="section-note">Pieces whose most of it reads at levels @Math.Max(1, reading.Level - 2) to @(reading.Level + 1); you read at @reading.Level. The collection starts around level 5.</p>
 }
 
+@{
+    // A piece's row: its title, a line about it, its level and what it is.
+    RenderFragment<(PieceRecord Piece, string Meta)> row = item => @<li>
+        <a class="piece-row" href="@($"library/{Uri.EscapeDataString(item.Piece.Id)}")">
+            <span class="piece-title">@item.Piece.Title</span>
+            <span class="piece-meta">@item.Meta</span>
+            <span class="piece-level">@(item.Piece.Level is { } l ? (item.Piece.IsPdf && !item.Piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
+            @if (item.Piece.IsPdf || item.Piece.Imported)
+            {
+                <span class="piece-tags">@if (item.Piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (item.Piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (item.Piece.Imported) { <span class="piece-tag">Yours</span> }</span>
+            }
+        </a>
+    </li>;
+    // The pieces played in the last month, the latest first, each with when and how its last run went: before everything else,
+    // while nothing is being looked for.
+    var today = DateOnly.FromDateTime(DateTime.Now);
+    var working = filter != "all" || !string.IsNullOrWhiteSpace(search) ? []
+        : pieces.Where(p => played.TryGetValue(p.Id, out var done) && done.Last.Day >= today.AddDays(-30)).OrderByDescending(p => played[p.Id].Last.At).Take(8).ToList();
+}
+@if (working.Count > 0)
+{
+    <section class="settings-section" aria-labelledby="working-on">
+        <h2 id="working-on" class="section-title">Working on</h2>
+        <ul class="piece-list">
+            @foreach (var piece in working)
+            {
+                var last = played[piece.Id].Last;
+                @row((piece, $"{piece.Composer} · {PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}"))
+            }
+        </ul>
+    </section>
+}
+
 @foreach (var group in Shown().GroupBy(p => p.TypicalLevel ?? p.Level ?? 0).OrderBy(g => g.Key))
 {
     <section class="settings-section" aria-labelledby="@($"level-{group.Key}")">
@@ -47,17 +80,7 @@
         <ul class="piece-list">
             @foreach (var piece in group.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => Numbered.Replace(p.Title, n => n.Value.PadLeft(4, '0')), StringComparer.OrdinalIgnoreCase))
             {
-                <li>
-                    <a class="piece-row" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
-                        <span class="piece-title">@piece.Title</span>
-                        <span class="piece-meta">@Meta(piece)</span>
-                        <span class="piece-level">@(piece.Level is { } l ? (piece.IsPdf && !piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
-                        @if (piece.IsPdf || piece.Imported)
-                        {
-                            <span class="piece-tags">@if (piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (piece.Imported) { <span class="piece-tag">Yours</span> }</span>
-                        }
-                    </a>
-                </li>
+                @row((piece, Meta(piece)))
             }
         </ul>
     </section>
@@ -80,6 +103,8 @@ else if (pieces.Count == 0 && !Prep.Running)
     private static readonly (string Key, string Label)[] Filters = [("all", "Everything"), ("near", "Near my level"), ("notation", "To play along"), ("pdf", "PDFs"), ("mine", "Imported")];
 
     private List<PieceRecord> pieces = [];
+    // What's been done on each piece that has been played, by its id.
+    private Dictionary<string, PieceHistory> played = [];
     private ReadingState? reading;
     private string filter = "all";
     private string? search;
@@ -92,6 +117,7 @@ else if (pieces.Count == 0 && !Prep.Running)
     {
         reading = await Store.GetTrackAsync<ReadingState>("reading");
         pieces = await Store.GetPiecesAsync();
+        played = (await Store.GetPieceRunsAsync()).GroupBy(r => r.Piece).Select(g => (g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToDictionary(p => p.Key, p => p.Done!);
         Prep.Changed += Changed;
         _ = Prep.EnsureAsync();
     }

@@ -11,6 +11,34 @@
 
 <p class="page-note">Progress shows as trends over weeks, not single sessions: mixed practice feels worse at the time and works better later. Timing usually improves fast at first and then levels off; a plateau after early gains is normal, not a sign of anything wrong.</p>
 
+<section class="settings-section" aria-labelledby="pieces-heading">
+    <h2 id="pieces-heading" class="section-title">Pieces</h2>
+    @if (pieceRows.Count == 0)
+    {
+        <p class="section-note">The Library's pieces show here once you've played them.</p>
+    }
+    else
+    {
+        <table class="you-table">
+            <thead><tr><th>Piece</th><th>Runs</th><th>Days</th><th>Last played</th><th>The last run</th><th>Played through, at best</th></tr></thead>
+            <tbody>
+                @foreach (var (id, title, done) in pieceRows)
+                {
+                    <tr>
+                        <td><a href="@($"library/{Uri.EscapeDataString(id)}")">@title</a></td>
+                        <td>@done.Runs</td>
+                        <td>@done.Days</td>
+                        <td>@PieceWords.When(done.Last.Day, Day0)</td>
+                        <td>@PieceWords.How(done.Last): @PieceWords.Went(done.Last)</td>
+                        <td>@(done.BestThrough is { } best ? $"{PieceWords.Short(best)} ({done.Throughs} {(done.Throughs == 1 ? "time" : "times")} through)" : "Not yet")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="section-note">From the runs kept on each piece, the latest played first. A run of fewer than @PieceHistory.MinNotes notes is a false start, and isn't counted.</p>
+    }
+</section>
+
 <section class="settings-section" aria-labelledby="reading-heading">
     <h2 id="reading-heading" class="section-title">Reading</h2>
     <div class="you-grid">
@@ -104,6 +132,7 @@
     private StreakState? streak;
     private IReadOnlyList<double?> weeklyMinutes = [];
     private List<(string Item, string Hands, string Evenness, string Best, string Crossings, string Octaves, string Touch, string Legato, string Sync)> techniqueRows = [];
+    private List<(string Id, string Title, PieceHistory Done)> pieceRows = [];
     private string heatMei = "";
     private Sheet? heatSheet;
     private List<SheetMark> heatMarks = [];
@@ -134,6 +163,10 @@
         weeklyMinutes = [.. Enumerable.Range(0, Weeks).Select(w => FirstWeek.AddDays(7 * w)).Select(week => week < started || started is null ? null : (double?)days.Where(d => WeekStart(d.Day) == week).Sum(d => d.Minutes))];
         BuildTechnique(all, await Store.GetTracksAsync("technique:"));
         BuildHeat();
+        // The pieces played, the latest first, each with its title and what's been done on it.
+        var titles = (await Store.GetPiecesAsync()).ToDictionary(p => p.Id, p => p.Title);
+        pieceRows = [.. (await Store.GetPieceRunsAsync()).GroupBy(r => r.Piece).Select(g => (Id: g.Key, Done: PieceHistory.Of(g.Select(r => r.Run))))
+            .Where(p => p.Done is not null && titles.ContainsKey(p.Id)).OrderByDescending(p => p.Done!.Last.At).Take(12).Select(p => (p.Id, titles[p.Id], p.Done!))];
     }
 
     private static double Measure(AttemptRecord a, string name)
