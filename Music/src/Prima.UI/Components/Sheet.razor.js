@@ -1,5 +1,7 @@
-// The sheet: Verovio engraves the MEI as real printed music, black on paper, and an overlay on top draws the cursor while playing
-// and the marks afterwards, found by each note's id. The engraving itself is never changed. Sizes: a printed piano staff is about
+// The sheet: Verovio engraves the MEI as real printed music, black on paper, and an overlay on top draws the marks, found by
+// each note's id. The cursor is a line of its own over both, moved by a transform: on a long piece, anything redrawn on the
+// music's own layer has the browser go over the whole piece again, which a cursor moving at every frame can't afford. The
+// engraving itself is never changed. Sizes: a printed piano staff is about
 // 7 mm tall, and the 13-inch tablet's long side is about 280 mm, so a millimetre is the screen's long side in CSS pixels / 280.
 
 const svgNs = "http://www.w3.org/2000/svg";
@@ -111,11 +113,11 @@ export function pixelsPerMm() {
 // width changes, and tells .NET when it has painted.
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
-    const state = sheets.get(element) ?? { number: ++sheetCount };
+    const state = sheets.get(element) ?? { number: ++sheetCount, moves: [] };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's). What
     // Verovio is given is the music without its verses.
     if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei) });
-    Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay") });
+    Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay"), line: [...element.children].find(c => c.classList.contains("sheet-cursor")) });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
     draw(element, state);
@@ -187,7 +189,8 @@ function draw(element, state) {
     state.timemap = tk.renderToTimemap({ includeMeasures: true });
     // New paper: what was drawn over the old one goes, and so does what was found on it (each id's place, the music's words).
     state.overlay.replaceChildren();
-    Object.assign(state, { cursor: null, points: null, byId: null, words: null, drawn: new Map() });
+    state.line.hidden = true;
+    Object.assign(state, { points: null, byId: null, words: null, drawn: new Map() });
     if (state.marks) showMarks(element, state.marks);
     requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
 }
@@ -403,6 +406,11 @@ function pathPoints(element, state, path) {
 // pulses with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. Given the run's own path (pathPoints), it
 // keeps to that, through repeats or from wherever the run starts; otherwise it goes from note to note of the sheet's music.
 // Not `shown`, it isn't drawn, but the line being played is still kept in view. A guide only: nothing is scored from it.
+//
+// Its whole way is given to the browser once, as an animation the browser runs by itself: along a system from each moment's
+// place to the next, and at a system's end (or where a repeat or a loop goes back) waiting there until the next moment and then
+// at its place at once. Placed from here at every frame instead, each move has the browser go over the whole piece again, and
+// on a long piece that leaves it no time for the keys being played.
 export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown = true) {
     const state = sheets.get(element);
     if (!state) return;
@@ -411,37 +419,61 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     state.points = points;
     if (points.length === 0) return;
     const bars = windowQuarters ? measures(element, state) : null;
-    const line = document.createElementNS(svgNs, "rect");
-    line.setAttribute("class", "sheet-cursor");
-    line.setAttribute("width", "3");
-    if (!shown) line.style.display = "none";
-    state.overlay.appendChild(line);
-    state.cursor = line;
-    const start = performance.now() + msUntilStart;
-    const beat = performance.now() + (msUntilBeat ?? msUntilStart);
-    const opens = Math.min(points[0].q, startQuarter);
-    let at = 0;
-    let inView = null;
+    const line = state.line;
+    line.hidden = !shown;
+    const now = performance.now();
+    const start = now + msUntilStart;
+    // When a moment of the music is due, on the page's clock, which is the animations' too.
+    const due = q => start + (q - startQuarter) * msPerQuarter;
+    const opens = due(Math.min(points[0].q, startQuarter));
+    const [first, last] = [due(points[0].q), due(points[points.length - 1].q)];
+    const way = [];
+    points.forEach((here, i) => {
+        const offset = last > first ? (due(here.q) - first) / (last - first) : 0;
+        const before = points[i - 1];
+        if (before && (before.end || before.system !== here.system)) way.push({ offset, transform: placed(before) });
+        way.push({ offset, transform: placed(here) });
+    });
+    line.style.opacity = "";
+    line.style.transform = placed(points[0]);
+    if (shown && last > first) {
+        // Until the music's first moment it waits at the first place, and after the last it stays at the last.
+        const move = line.animate(way, { duration: last - first, fill: "both" });
+        move.startTime = first;
+        state.moves.push(move);
+    }
+    if (shown && beatMs > 0 && opens > now) {
+        // The count-in: bright on each click, fading towards the next, from the click before now until the music opens.
+        const click = now + (msUntilBeat ?? msUntilStart);
+        const from = click - Math.ceil((click - now) / beatMs) * beatMs;
+        const pulse = line.animate([{ opacity: 1 }, { opacity: 0.3 }], { duration: beatMs, iterations: (opens - from) / beatMs, easing: "cubic-bezier(0.5, 1, 0.89, 1)" });
+        pulse.startTime = from;
+        state.moves.push(pulse);
+    }
+    // The line being played is kept in view: the first at once, and each one after when its first moment comes. Nothing else
+    // is done from here while the cursor moves, so the page is free for the keys.
+    follow(element, points[0].system);
+    const lines = points.filter((p, i) => i > 0 && p.system !== points[i - 1].system);
+    const onward = () => {
+        const reached = lines.findLastIndex(p => due(p.q) <= performance.now() + 1);
+        if (reached >= 0) follow(element, lines.splice(0, reached + 1)[reached].system);
+        if (lines.length > 0) state.timer = setTimeout(onward, due(lines[0].q) - performance.now());
+    };
+    onward();
+    // Read ahead's covers move with the music at every frame.
+    if (!bars) return;
     const frame = now => {
         const q = startQuarter + (now - start) / msPerQuarter;
-        // Time only goes on, so the place does too.
-        while (at < points.length - 1 && points[at + 1].q <= q) at++;
-        const here = points[at];
-        const next = points[at + 1];
-        const x = next && !here.end && next.system === here.system && q > here.q ? here.x + (next.x - here.x) * (q - here.q) / (next.q - here.q) : here.x;
-        line.setAttribute("x", x);
-        line.setAttribute("y", here.top);
-        line.setAttribute("height", here.bottom - here.top);
-        if (here.system !== inView) follow(element, inView = here.system);
-        // The count-in: bright on each click, fading towards the next.
-        if (q < opens && beatMs > 0) {
-            const phase = (((now - beat) / beatMs) % 1 + 1) % 1;
-            line.style.opacity = String(0.3 + 0.7 * (1 - phase) * (1 - phase));
-        } else line.style.opacity = "";
-        if (bars) for (const bar of bars) bar.cover.style.display = bar.end <= q - 0.05 || bar.start > q + windowQuarters ? "" : "none";
+        for (const bar of bars) bar.cover.style.display = bar.end <= q - 0.05 || bar.start > q + windowQuarters ? "" : "none";
         state.raf = requestAnimationFrame(frame);
     };
     state.raf = requestAnimationFrame(frame);
+}
+
+// The cursor at a place: a line a pixel high at the sheet's corner, moved there and stretched to its system's height, so its
+// place and its height are one transform the browser can animate by itself.
+function placed(point) {
+    return `translate(${point.x}px, ${point.top}px) scaleY(${point.bottom - point.top})`;
 }
 
 // Wait for me's cursor: still, just before a note (the first of the notes waited for), its system kept in view.
@@ -451,19 +483,14 @@ export function cursorAt(element, id) {
     const head = printed?.querySelector(".notehead") ?? printed;
     if (!head) return;
     cancelAnimationFrame(state.raf);
-    if (!state.cursor) {
-        state.cursor = document.createElementNS(svgNs, "rect");
-        state.cursor.setAttribute("class", "sheet-cursor");
-        state.cursor.setAttribute("width", "3");
-        state.overlay.appendChild(state.cursor);
-    }
+    clearTimeout(state.timer);
+    for (const move of state.moves.splice(0)) move.cancel();
     const box = element.getBoundingClientRect();
     const system = head.closest(".system");
     const s = system.getBoundingClientRect();
-    state.cursor.style.opacity = "";
-    state.cursor.setAttribute("x", head.getBoundingClientRect().left - box.left - 6);
-    state.cursor.setAttribute("y", s.top - box.top - 6);
-    state.cursor.setAttribute("height", s.height + 12);
+    state.line.hidden = false;
+    state.line.style.opacity = "";
+    state.line.style.transform = placed({ x: head.getBoundingClientRect().left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6 });
     follow(element, system);
 }
 
@@ -483,9 +510,10 @@ export function cursorStop(element) {
     const state = sheets.get(element);
     if (!state) return;
     cancelAnimationFrame(state.raf);
-    state.cursor?.remove();
-    state.cursor = null;
-    element.querySelectorAll(".sheet-cover").forEach(c => c.remove());
+    clearTimeout(state.timer);
+    for (const move of state.moves.splice(0)) move.cancel();
+    state.line.hidden = true;
+    state.overlay.querySelectorAll(".sheet-cover").forEach(c => c.remove());
 }
 
 // Read ahead: each bar with its span in quarters and a cover the colour of the paper, drawn over it when it's hidden.
@@ -734,6 +762,7 @@ export function dispose(element) {
     const state = sheets.get(element);
     if (!state) return;
     cancelAnimationFrame(state.raf);
+    clearTimeout(state.timer);
     state.observer?.disconnect();
     sheets.delete(element);
 }

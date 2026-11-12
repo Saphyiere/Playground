@@ -1660,13 +1660,24 @@ a.mu-btn {
     pointer-events: none;
 }
 
+/* The cursor: a line on a layer of its own, a pixel high at the sheet's corner, moved to its place and stretched to its
+   system's height by one transform, which the browser animates by itself: it slides over the music without the music being
+   gone over again. */
 .sheet-cursor {
-    fill: var(--accent);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 1px;
+    transform-origin: 0 0;
+    background: var(--accent);
     opacity: 0.85;
+    pointer-events: none;
+    will-change: transform, opacity;
 }
 
 [data-theme="vinyl"] .sheet-cursor {
-    fill: var(--accent-2);
+    background: var(--accent-2);
 }
 
 .sheet-music .mark-right,

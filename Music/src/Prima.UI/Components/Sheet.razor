@@ -3,10 +3,12 @@
 @inject IClock Clock
 @inject PrimaSettings Settings
 
-@* Sheet music, engraved by Verovio from MEI: black on paper in both looks. The cursor and the marks are drawn over it. *@
+@* Sheet music, engraved by Verovio from MEI: black on paper in both looks. The marks are drawn over it, and the cursor is a
+   line of its own over both, so it can move without the music under it being painted again. *@
 <div class="sheet @Class" @ref="element">
     <div class="sheet-music"></div>
     <svg class="sheet-overlay" aria-hidden="true"></svg>
+    <div class="sheet-cursor" aria-hidden="true" hidden></div>
 </div>
 
 @code {
