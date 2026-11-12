@@ -81,7 +81,7 @@ else
             <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="() => playing = false">
                 <Readouts>
                     <p class="piece-bar-title">@piece.Title</p>
-                    <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
+                    <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                     @if (view == View.Pages && !playing)
                     {
                         <div class="mu-readout"><span class="mu-readout-label">Page</span><span class="mu-readout-value">@PlaceText()</span></div>
@@ -673,7 +673,8 @@ else
             var hand = HandName;
             if (loopTo is { } to)
             {
-                var bars = to == from ? $"bar {from}" : $"bars {from}–{to}";
+                // Word joiners keep the bars' numbers together where the key's words take two lines.
+                var bars = to == from ? $"bar {from}" : $"bars {from}\u2060–\u2060{to}";
                 return hand is null ? $"Loop {bars}" : $"Loop {bars}, {hand} hand";
             }
             return $"Play{(hand is null ? "" : $" the {hand} hand")}{(from > FirstBar ? $" from bar {from}" : "")}";

@@ -214,7 +214,9 @@ a PDF plays out; this is what came of it.
   they move a run, still listening. It needs the piano taking notes from the tablet, as play along does: without
   one its key looks off, and a tap on it says what it needs. While it plays, the music
   scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
-  bar shows the headline (**right in time**: the share of the notes played right and not off the beat; or right first time),
+  bar shows the headline (**right in time**: the share of the notes played right and not off the beat; or right first time;
+  in landscape in the level's place, so the keys keep their one row, a long key's words on two lines where they must, and in
+  portrait beside the level),
   every note stays marked, and the summary takes About this piece's place under the music, so how it went is on the screen
   with it, as in full screen: its few lines fit, and its details scroll in the summary's own share of the screen. It
   doesn't move your level.

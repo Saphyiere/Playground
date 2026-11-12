@@ -3246,8 +3246,7 @@ a.mu-btn {
     gap: 8px;
 }
 
-/* Vinyl's keys and switch are wider than Studio's: its bar keeps them closer, so a run's figure fits beside them in landscape
-   with a level and a tempo of any length. */
+/* Vinyl's keys and switch are wider than Studio's: its bar keeps them closer. */
 [data-theme="vinyl"] .piece-bar {
     gap: 16px;
 }
@@ -4088,6 +4087,38 @@ html[data-full] .piece .summary {
 
     .piece-bar .play-mode ~ .mu-btn.mu-primary {
         margin-left: auto;
+    }
+}
+
+/* After a run, its figure leads the piece's bar: in landscape in the level's place (the level is About's too, and back as the
+   next run starts), so the run's keys keep their one row; in portrait beside the level, over the run's controls. Where a row
+   is still short of room, a key's words take two lines. */
+.piece-bar .mu-btn {
+    text-align: center;
+}
+
+@media (orientation: landscape) {
+    .piece-bar .play-result {
+        order: -1;
+    }
+
+    .piece-bar:has(.play-result) .piece-level {
+        display: none;
+    }
+}
+
+@media (orientation: portrait) {
+    .piece-bar .play-result {
+        order: 1;
+    }
+
+    .piece-bar .piece-actions {
+        order: 2;
+    }
+
+    .piece-bar .play-bar-break,
+    .piece-bar .play-bar-break ~ :not(.play-result) {
+        order: 3;
     }
 }
 

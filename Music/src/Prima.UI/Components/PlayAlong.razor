@@ -60,11 +60,11 @@
     {
         @if (ShowResult && last?.InTime is { } timed)
         {
-            <div class="mu-readout @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right in time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
+            <div class="mu-readout play-result @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right in time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
         }
         else if (ShowResult && last?.Wait is { Notes: > 0 } waited)
         {
-            <div class="mu-readout @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
+            <div class="mu-readout play-result @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
         }
         <div class="play-mode" role="radiogroup" aria-label="How it follows you">
             <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.InTime)" @onclick="() => SetMode(PlayMode.InTime)">In time</button>
