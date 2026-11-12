@@ -151,8 +151,10 @@ a PDF plays out; this is what came of it.
 
 - **The collection**: about 240 public-domain and openly licensed pieces, chosen by named works published before 1931: 133
   MuseScore users' engravings through PDMX, as MusicXML, and 104 PDFs with their MIDI from the Mutopia Project. Each is credited
-  as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near yours, those
-  to play along with, PDFs, or your imports. Before the levels, **Working on** has the pieces played in the last month (eight
+  as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near your
+  level, those to play along with, PDFs, or your imports. **Near my level** lists the pieces to play along with whose most reads
+  from your sight-reading level to two above it, since a piece to learn sits above what you read at sight; with none there,
+  the easiest there are. PDFs are left to their own list, since a PDF's level is only about where its collection sits. Before the levels, **Working on** has the pieces played in the last month (eight
   at most), the latest first, each with when it was last played and how that run went. The collection comes prepared, so its first opening only stores it: the Library tool
   engraves, grades and cuts each MusicXML piece when the bundle is built, and a collection engraved as one score (Chopin's
   Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), or where each of

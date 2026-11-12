@@ -35,9 +35,12 @@
     }
     <input class="text-field text-field-short" type="search" placeholder="Title or composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
 </div>
-@if (filter == "near" && reading is not null)
+@if (filter == "near")
 {
-    <p class="section-note">Pieces whose most of it reads at levels @Math.Max(1, reading.Level - 2) to @(reading.Level + 1); you read at @reading.Level. The collection starts around level 5.</p>
+    var (from, to) = NearLevels();
+    var level = (reading ?? ReadingState.Start).Level;
+    var yours = reading is null ? "level 1, where sight-reading starts" : $"your sight-reading level, {level}";
+    <p class="section-note">@(from > level + 2 ? $"Nothing to play along with reads mostly at levels {level} to {level + 2}, up to two above {yours}, so these are the easiest, at level {from}." : $"Pieces to play along with that read mostly at levels {from} to {to}: a piece to learn sits up to two above {yours}.") The PDFs are under PDFs, by level.</p>
 }
 
 @{
@@ -152,14 +155,28 @@ else if (pieces.Count == 0 && !Prep.Running)
         (holding, search) = (false, e.Value?.ToString());
     }
 
-    private IEnumerable<PieceRecord> Shown() => pieces.Where(p => filter switch
+    private IEnumerable<PieceRecord> Shown()
     {
-        "near" => reading is not null && (p.TypicalLevel ?? p.Level) is { } l && l >= reading.Level - 2 && l <= reading.Level + 1,
-        "notation" => !p.IsPdf || p.HasNotes,
-        "pdf" => p.IsPdf,
-        "mine" => p.Imported,
-        _ => true,
-    }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+        var (from, to) = filter == "near" ? NearLevels() : default;
+        return pieces.Where(p => filter switch
+        {
+            "near" => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to,
+            "notation" => p.PlaysAlong,
+            "pdf" => p.IsPdf,
+            "mine" => p.Imported,
+            _ => true,
+        }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Near my level's levels, for the pieces to play along with (a PDF's level is only about where its collection sits): where most
+    // of a piece reads, from your sight-reading level to two above it, since a piece to learn sits above what you read at sight;
+    // with none there, the easiest level above them that has some.
+    private (int From, int To) NearLevels()
+    {
+        var level = (reading ?? ReadingState.Start).Level;
+        var easiest = pieces.Where(p => p.PlaysAlong).Select(p => p.TypicalLevel ?? p.Level ?? 0).Where(l => l >= level).DefaultIfEmpty(level).Min();
+        return easiest > level + 2 ? (easiest, easiest) : (level, level + 2);
+    }
 
     private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
 

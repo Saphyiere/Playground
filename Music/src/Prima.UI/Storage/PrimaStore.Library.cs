@@ -42,6 +42,9 @@ public sealed record PieceRecord(
 
     /// <summary>A PDF whose notes Claude has read, kept as MEI beside it: it plays and is graded as notation, its print a key away.</summary>
     public bool HasNotes { get; init; }
+
+    /// <summary>Notation, or a PDF whose notes are read: it plays along, and its level is graded from its notes.</summary>
+    public bool PlaysAlong => !IsPdf || HasNotes;
 }
 
 /// <summary>
