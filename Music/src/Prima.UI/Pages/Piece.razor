@@ -1054,13 +1054,15 @@ else
         else if (++ticks % 30 == 0) await KeepSession();
     }
 
-    // The session's clock kept as it stands, and the playing time since it was last kept added to the day's minutes.
-    private async Task KeepSession(DateTimeOffset? finished = null)
+    // The session's clock kept as it stands, and the playing time since it was last kept added to the day's minutes. Once it's
+    // finished it stays finished, unless it's carried on from its look back.
+    private async Task KeepSession(DateTimeOffset? finished = null, bool reopen = false)
     {
         if (session is null || clock is null) return;
 
-        session = session with { Playing = clock.Playing, Idle = clock.Idle, Paused = clock.Paused, LastPlayed = clock.LastPlayed, Finished = finished };
-        await Store.SaveSessionAsync(session);
+        var ended = reopen ? null : finished ?? session.Finished;
+        session = session with { Playing = clock.Playing, Idle = clock.Idle, Paused = clock.Paused, LastPlayed = clock.LastPlayed, Finished = ended };
+        await Store.SaveSessionAsync(session, reopen);
         var more = clock.Playing - counted;
         counted = clock.Playing;
         if (more > TimeSpan.Zero) await Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), more.TotalMinutes);
@@ -1112,7 +1114,7 @@ else
     {
         clock?.Resume(DateTimeOffset.Now);
         (stage, covered) = (Stage.Practice, false);
-        await KeepSession();
+        await KeepSession(reopen: true);
         StartAt(from);
     }
 

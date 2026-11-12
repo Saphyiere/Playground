@@ -53,7 +53,7 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
         connection.Open();
-        foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay", "ClaudeCall", "PieceReading" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
+        foreach (var table in new[] { "Setting", "Track", "NoteCard", "NoteAnswer", "Attempt", "PracticeDay", "PracticeSession", "ClaudeCall", "PieceReading" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
         // No PDF read into notes: their excerpts and grades go, and the bundle's levels come back when the Library next opens.
         new SqliteCommand("DELETE FROM Excerpt WHERE Piece IN (SELECT Id FROM Piece WHERE Format = 'pdf'); UPDATE Piece SET Mei = NULL, Reasons = NULL WHERE Format = 'pdf'", connection).ExecuteNonQuery();
     }

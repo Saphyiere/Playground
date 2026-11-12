@@ -207,10 +207,13 @@ public sealed partial class PrimaStore
     public Task<long> StartSessionAsync(string piece, string way, DateTimeOffset at) => RunAsync(c => c.ExecuteScalarAsync<long>(
         "INSERT INTO PracticeSession (Piece, Started, LastPlayed, Way) VALUES (@piece, @at, @at, @way); SELECT last_insert_rowid();", new { piece, at = Iso(at), way }));
 
-    /// <summary>Keeps a session's clock as it stands, and whether and when it finished.</summary>
-    public Task SaveSessionAsync(PracticeSession s) => RunAsync(c => c.ExecuteAsync(
-        "UPDATE PracticeSession SET Playing = @playing, Idle = @idle, Paused = @paused, LastPlayed = @lastPlayed, Way = @Way, Finished = @finished WHERE Id = @Id",
-        new { s.Id, playing = s.Playing.TotalSeconds, idle = s.Idle.TotalSeconds, paused = s.Paused ? 1 : 0, lastPlayed = Iso(s.LastPlayed), s.Way, finished = s.Finished is { } at ? Iso(at) : null }));
+    /// <summary>
+    /// Keeps a session's clock as it stands, and whether and when it finished. A finished session stays as it was finished: only
+    /// carrying it on (<paramref name="reopen"/>) opens it again, so a save that comes late (a clock's tick as it finishes) can't.
+    /// </summary>
+    public Task SaveSessionAsync(PracticeSession s, bool reopen = false) => RunAsync(c => c.ExecuteAsync(
+        "UPDATE PracticeSession SET Playing = @playing, Idle = @idle, Paused = @paused, LastPlayed = @lastPlayed, Way = @Way, Finished = @finished WHERE Id = @Id AND (Finished IS NULL OR @reopen)",
+        new { s.Id, playing = s.Playing.TotalSeconds, idle = s.Idle.TotalSeconds, paused = s.Paused ? 1 : 0, lastPlayed = Iso(s.LastPlayed), s.Way, finished = s.Finished is { } at ? Iso(at) : null, reopen }));
 
     /// <summary>A piece's sessions, oldest first.</summary>
     public Task<List<PracticeSession>> GetSessionsAsync(string piece) => RunAsync(async c =>
