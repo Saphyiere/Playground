@@ -62,6 +62,15 @@ public sealed class PlaySession : IDisposable
         get { lock (played) return [.. played]; }
     }
 
+    /// <summary>
+    /// The keys played so far while the run goes on, those still down too (as held until now): for scoring a part of it that's
+    /// over, a loop's pass, before the run is.
+    /// </summary>
+    public IReadOnlyList<PlayedNote> PlayedSoFar(long nowNs)
+    {
+        lock (played) return [.. played, .. held.Select(h => new PlayedNote(h.Key, h.Value.On, nowNs, h.Value.Velocity) { HeldToEnd = true })];
+    }
+
     /// <summary>When the damper pedal was down during the run, from and to: a key let go while it's down sounds on.</summary>
     public IReadOnlyList<(long DownNs, long UpNs)> Damper
     {

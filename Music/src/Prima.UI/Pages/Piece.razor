@@ -646,9 +646,9 @@ else
     private int LastBar => score?.Bars[^1].Number ?? 1;
 
     // From a bar to the end, through the repeats as they're played; or in a loop, its bars again and again (fifty times: until
-    // stopped). The run counts from that bar's downbeat, or from bar 1's for the opening pickup, which comes in the count-in's
-    // last beats. Bars are numbered in order, so a bar's index is its number on from the first's. Play along gives the piano the
-    // other hand's notes.
+    // stopped), each time round a pass the play bar scores. The run counts from that bar's downbeat, or from bar 1's for the
+    // opening pickup, which comes in the count-in's last beats. Bars are numbered in order, so a bar's index is its number on
+    // from the first's. Play along gives the piano the other hand's notes.
     private void StartAt(int bar)
     {
         if (score is null || !barStarts.TryGetValue(bar, out var start)) return;
@@ -663,7 +663,7 @@ else
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
         var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
         var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Length))).ToList();
-        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other, Order = order };
+        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
     }
 
     private string StartLabel
@@ -809,9 +809,11 @@ else
 
         var today = DateOnly.FromDateTime(DateTime.Now);
         var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
+        // Round a loop, its last bar and each pass, and the run's figures are its last pass's.
+        var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime }));
         object measures = how.InTime is { } r
-            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" };
+            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" };
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
         await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 })), null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
         await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);

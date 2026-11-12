@@ -391,6 +391,8 @@ public class PieceHistoryTests
         Assert.Equal(history.LastThrough, history.BestThrough);
         // A pickup's bar is 0: a piece that starts on one is played through from there.
         Assert.True(Run(0, 0, 60, 1, from: 0).Through);
+        // Round a loop from the first bar, every time round played with no stop, isn't either.
+        Assert.False((Run(0, 0, 60, 1) with { To = 4 }).Through);
     }
 
     [Fact]
@@ -410,5 +412,15 @@ public class PieceHistoryTests
         var history = PieceHistory.Of([Run(0, 10, 60, 1, notes: 7), Run(0, 12, 60, 0.75, notes: 8)])!;
 
         Assert.Equal((1, 8), (history.Runs, history.Last.Notes));
+    }
+
+    [Fact]
+    public void ALoopOfAFewNotesIsARunByAllItsPasses()
+    {
+        // One bar of four notes, five times round: twenty notes reached, though its figures are the last pass's four.
+        var loop = Run(0, 10, 60, 1, notes: 4, from: 13, stopped: true) with { To = 13, Passes = [.. Enumerable.Repeat(new PiecePass(3, 4, 0.75), 4), new PiecePass(4, 4, 1)] };
+
+        Assert.Equal(20, loop.Reached);
+        Assert.Equal(1, PieceHistory.Of([loop])!.Runs);
     }
 }

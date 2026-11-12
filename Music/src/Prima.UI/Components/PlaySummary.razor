@@ -1,3 +1,4 @@
+@using Prima.Core.Practice
 @using Prima.Core.Scoring
 @using NoteOutcome = Prima.Core.Scoring.Outcome
 @implements IAsyncDisposable
@@ -12,7 +13,7 @@
    its turn's length in --turn; PlaySummary.razor.js gives the turns and the stylesheet draws them), and what fell short comes
    last in each: the notes that weren't right, the timing that was off, the notes let go early; the bars come in from the one
    with the most to fix. Wait for me: the notes right first time, the wrong keys, the chords played a key at a time, and the
-   pace. The screen's own words follow. *@
+   pace. Round a loop, a line gives each pass, and the rest is the last pass's. The screen's own words follow. *@
 @if (Outcome?.InTime is { } timed)
 {
     <div class="sum">
@@ -39,7 +40,7 @@
             <div @key="run" @ref="detailsElement" id="sum-details" class="sum-details @(staged ? "staged" : "")">
                 <div class="sum-panels">
                     <section class="mu-screen sum-panel sum-stage notes @(timed.Right == timed.Expected ? "clean" : "")" aria-label="Notes" style="--turn: @(timed.Right == timed.Expected ? 700 : 1300)ms">
-                        <div class="sum-head"><span class="mu-readout-label">Notes right</span><span class="mu-readout-label">@timed.Right of @timed.Expected@(Outcome.Stopped && StoppedAt is { } at ? $", to {at}" : "")</span></div>
+                        <div class="sum-head"><span class="mu-readout-label">Notes right</span><span class="mu-readout-label">@timed.Right of @timed.Expected@(Outcome is { Stopped: true, Passes.Count: 0 } && StoppedAt is { } at ? $", to {at}" : "")</span></div>
                         <span class="sum-figure">@Percent(timed.Right, timed.Expected)</span>
                         <div class="sum-bar" role="img" aria-label="@($"Of {timed.Expected} notes, {timed.Right} right and {timed.Expected - timed.Right} not")">
                             <span class="good" style="flex: @timed.Right 1 0"></span>
@@ -303,7 +304,11 @@ else if (Outcome?.Wait is { } waited)
 @if (Outcome?.Wait is { } wait)
 {
     <ul class="summary-words">
-        <li>@(wait.Notes == 0 ? "Nothing played yet." : $"{wait.RightFirstTime} of {wait.Notes} notes right first time{(Outcome.Stopped && StoppedAt is { } where ? $", up to {where}" : "")}. A note with a slip stays grey, with the key you played beside it in red.")</li>
+        @if (Outcome.Loop is { } round && Outcome.Passes.Count > 0)
+        {
+            <li>@PassesSaid(round, Outcome.Passes)</li>
+        }
+        <li>@(wait.Notes == 0 ? "Nothing played yet." : $"{wait.RightFirstTime} of {wait.Notes} notes right first time{(Outcome is { Stopped: true, Passes.Count: 0 } && StoppedAt is { } where ? $", up to {where}" : "")}. A note with a slip stays grey, with the key you played beside it in red.")</li>
         @if (wait.Apart > 0)
         {
             <li>@Count(wait.Apart, "chord") @(wait.Apart == 1 ? "was" : "were") played a key at a time first: @(wait.Apart == 1 ? "it stays" : "they stay") amber. Notes written together, in one hand or both, go down together; a chord marked to be rolled, in one roll.</li>
@@ -580,9 +585,11 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
         var inTime = timed.Off == 0 ? $"Every {ofRight}note in time." : $"{Percent(timed.Right - timed.Off, timed.Right)} of the {ofRight}notes in time.";
         quick =
         [
-            (timed.Right < timed.Expected, "Notes", notesShort + (Outcome.Stopped && StoppedAt is { } at ? $" Stopped at {at}." : "")),
+            (timed.Right < timed.Expected, "Notes", notesShort + (Outcome is { Stopped: true, Passes.Count: 0 } && StoppedAt is { } at ? $" Stopped at {at}." : "")),
             (!steady, "Timing", right.Count == 0 ? timingSaid : $"{inTime} {timingSaid}"),
         ];
+        // Round a loop, its passes come first: down from the first to the last is something to work on.
+        if (Outcome is { Loop: { } round, Passes: { Count: > 0 } passes }) quick.Insert(0, (passes[^1].RightInTime < passes[0].RightInTime, "Passes", PassesSaid(round, passes)));
         if (timed.LetGoEarly > 0) quick.Add((true, "Held", $"{Count(timed.LetGoEarly, "note")} let go early, in {Listed(earlyBars)}."));
         foreach (var about in expression.Where(e => e.Bad).GroupBy(e => e.About))
         {
@@ -644,6 +651,21 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     private static string Share(int count, int peak) => $"{count * 100.0 / peak:0.#}%";
 
     private static string Count(int n, string thing) => $"{n} {thing}{(n == 1 ? "" : "s")}";
+
+    // A loop's passes in a line: each one's headline (In time the share right in time, Wait for me the notes right first time), or
+    // past a dozen the first, the best and the last.
+    private static string PassesSaid((int From, int To) loop, IReadOnlyList<PiecePass> passes)
+    {
+        var bars = loop.From == loop.To ? $"bar {loop.From}" : $"bars {loop.From} to {loop.To}";
+        if (passes.Count == 1) return $"One pass of {bars}.";
+
+        var inTime = passes[0].RightInTime is not null;
+        string Said(PiecePass p) => inTime ? $"{p.RightInTime * 100:0}%" : $"{p.Right}";
+        var best = passes.MaxBy(p => inTime ? p.RightInTime : p.Right)!;
+        var each = passes.Count <= 12 ? $"{string.Join(", ", passes.SkipLast(1).Select(Said))} and {Said(passes[^1])}" : $"{Said(passes[0])} the first, {Said(best)} at best and {Said(passes[^1])} the last";
+        var of = inTime ? "" : $" of {passes[^1].Notes}";
+        return $"{passes.Count} passes of {bars}, right {(inTime ? "in time" : "first time")}: {each}{of}. The rest is the last pass.";
+    }
 
     // A bar's mean lean in the timing lane: up for late, down for early, half the lane (48px) at 15% of a beat.
     private static string Lean(double? error, bool late) => error is { } e && (late ? e > 0 : e < 0) ? $"{Math.Min(48, Math.Abs(e) / 15 * 48):0.#}px" : "0px";

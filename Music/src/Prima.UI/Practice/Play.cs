@@ -1,5 +1,6 @@
 using Prima.Core.Generation;
 using Prima.Core.Music;
+using Prima.Core.Practice;
 using Prima.Core.Scoring;
 
 namespace Prima.UI.Practice;
@@ -28,6 +29,9 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// every bar, once through.
     /// </summary>
     public IReadOnlyList<int>? Order { get; init; }
+
+    /// <summary>A loop: the run is its first this-many bars again and again, each time round a pass. Null when it isn't one.</summary>
+    public int? LoopBars { get; init; }
 
     public int BeatTicks => Score.Meter.BeatTicks;
 
@@ -77,6 +81,15 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
 /// </summary>
 public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResult? Wait, IReadOnlyList<PlayedNote> Played, bool Stopped, int Bar)
 {
+    /// <summary>Round a loop, its first and last bars by number.</summary>
+    public (int From, int To)? Loop { get; init; }
+
+    /// <summary>
+    /// Round a loop, each time round that was played to its end, in order. The run's result is then the last one's, in either
+    /// mode: how the loop stood when it was left.
+    /// </summary>
+    public IReadOnlyList<PiecePass> Passes { get; init; } = [];
+
     /// <summary>In time: when a beat of the music sounded on the click's clock (beat 0 is bar 1's downbeat), for keeping a take.</summary>
     public Func<double, long>? TimeAt { get; init; }
 }

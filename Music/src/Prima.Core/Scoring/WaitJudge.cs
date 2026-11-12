@@ -55,9 +55,9 @@ public sealed class WaitJudge
     private readonly Dictionary<int, long> struck = [];
     private readonly HashSet<int> apart = [];
     private readonly List<long> stepNs = [];
-    private int wrongKeys;
-    private long? firstNs;
-    private long lastNs;
+    // When keys went down while each step was waited for, the first and the last, and the step each wrong key came at.
+    private readonly Dictionary<int, (long First, long Last)> keyed = [];
+    private readonly List<int> wrongAt = [];
 
     public WaitJudge(IEnumerable<ExpectedNote> notes, IReadOnlySet<string>? ornamented = null, IReadOnlySet<string>? rolled = null)
     {
@@ -85,8 +85,7 @@ public sealed class WaitJudge
     {
         if (Done) return ([], false);
 
-        firstNs ??= timeNs;
-        lastNs = timeNs;
+        keyed[Step] = keyed.TryGetValue(Step, out var was) ? (was.First, timeNs) : (timeNs, timeNs);
         var step = steps[Step];
         if (step.Any(n => n.Midi == midi))
         {
@@ -115,7 +114,7 @@ public sealed class WaitJudge
         var ornament = step.Concat(Step > 0 && !step.Any(n => played.Contains(n.Id)) ? steps[Step - 1] : []).Any(n => ornamented.Contains(n.Id) && Math.Abs(n.Midi - midi) <= 2);
         if (ornament) return ([], false);
 
-        wrongKeys++;
+        wrongAt.Add(Step);
         // The note meant: the nearest still to be found, or of a chord all found and waiting to be played together, the nearest.
         var open = step.Where(n => !played.Contains(n.Id)).ToList();
         var meant = (open.Count > 0 ? open : step).MinBy(n => Math.Abs(n.Midi - midi))!;
@@ -127,11 +126,23 @@ public sealed class WaitJudge
     /// The notes reached: those played, and one with a slip that wasn't put right before the run stopped. Right first time are
     /// those with no slip, in no chord that was played a key at a time first.
     /// </summary>
-    public WaitResult Result()
+    public WaitResult Result() => Stretch(long.MinValue, long.MaxValue);
+
+    /// <summary>
+    /// How a stretch of the music went, from a tick up to another (one time round a loop), counted as <see cref="Result"/> counts
+    /// the whole run: its notes, the keys played while its steps were waited for, and the time from the first of those keys to
+    /// the last.
+    /// </summary>
+    public WaitResult Stretch(long fromTick, long toTick)
     {
-        var parted = apart.SelectMany(at => steps[at]).Select(n => n.Id).ToHashSet();
-        var rightFirstTime = played.Count(id => !slipped.Contains(id) && !parted.Contains(id));
-        var seconds = firstNs is { } first ? (lastNs - first) / 1e9 : 0;
-        return new(played.Union(slipped).Count(), steps.Sum(s => s.Count), rightFirstTime, wrongKeys, seconds) { Apart = apart.Count, StepNs = [.. stepNs] };
+        var inside = Enumerable.Range(0, steps.Count).Where(s => steps[s][0].Tick >= fromTick && steps[s][0].Tick < toTick).ToHashSet();
+        var notes = inside.SelectMany(s => steps[s]).ToList();
+        var parted = apart.Where(inside.Contains).SelectMany(s => steps[s]).Select(n => n.Id).ToHashSet();
+        var reached = notes.Count(n => played.Contains(n.Id) || slipped.Contains(n.Id));
+        var right = notes.Count(n => played.Contains(n.Id) && !slipped.Contains(n.Id) && !parted.Contains(n.Id));
+        var keys = keyed.Where(k => inside.Contains(k.Key)).Select(k => k.Value).ToList();
+        var seconds = keys.Count == 0 ? 0 : (keys.Max(k => k.Last) - keys.Min(k => k.First)) / 1e9;
+        var (wrong, chords) = (wrongAt.Count(inside.Contains), apart.Count(inside.Contains));
+        return new(reached, notes.Count, right, wrong, seconds) { Apart = chords, StepNs = [.. stepNs.Where((_, s) => inside.Contains(s))] };
     }
 }

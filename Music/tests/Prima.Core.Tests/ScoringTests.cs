@@ -472,6 +472,24 @@ public class ScoringTests
     }
 
     [Fact]
+    public void WaitForMeCountsAStretchOfTheMusicByItself()
+    {
+        // Two bars round a loop, twice: C D | E, with a slip on the D the first time and none the second.
+        ExpectedNote[] notes = [new("a", 60, 1, 1, 0, 480, null), new("b", 62, 1, 1, 480, 480, null), new("c", 64, 2, 1, 960, 480, null),
+            new("a~2", 60, 1, 1, 1440, 480, null), new("b~2", 62, 1, 1, 1920, 480, null), new("c~2", 64, 2, 1, 2400, 480, null)];
+        var judge = new WaitJudge(notes);
+        foreach (var (key, at) in new[] { (60, 0), (61, 400), (62, 800), (64, 1200), (60, 1600), (62, 2000) }) judge.Play(key, at * Ms);
+
+        // The first time round: all three reached, two right first time, the slip its one wrong key, 1.2 s from its first key to
+        // its last. The second, so far: two of its three reached, both right, the time from its first key to its last.
+        var (first, second, run) = (judge.Stretch(0, 1440), judge.Stretch(1440, 2880), judge.Result());
+        Assert.Equal((3, 3, 2, 1, 1.2), (first.Notes, first.Total, first.RightFirstTime, first.WrongKeys, first.Seconds));
+        Assert.Equal((2, 3, 2, 0, 0.4), (second.Notes, second.Total, second.RightFirstTime, second.WrongKeys, second.Seconds));
+        Assert.Equal([1200 * Ms], first.StepNs.Skip(2));
+        Assert.Equal((5, 6, 4, 1, 2.0), (run.Notes, run.Total, run.RightFirstTime, run.WrongKeys, run.Seconds));
+    }
+
+    [Fact]
     public void WaitForMeKeepsWhenEachMomentOfTheMusicWasPlayed()
     {
         // Hands together: C in each hand, then D in each, then E in each, the hands landing 10 ms apart, half a second a note.

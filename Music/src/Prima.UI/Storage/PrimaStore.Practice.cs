@@ -149,7 +149,14 @@ public sealed partial class PrimaStore
             var from = measures.TryGetProperty("from", out _) ? Count("from") : 1;
             var stopped = measures.TryGetProperty("stopped", out var early) && early.ValueKind == JsonValueKind.True;
             var share = inTime && measures.TryGetProperty("inTime", out var accuracy) && accuracy.ValueKind == JsonValueKind.Number ? accuracy.GetDouble() : (double?)null;
-            var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), inTime, r.Tempo, hands, from, stopped, measures.TryGetProperty("bar", out _) ? Count("bar") : null, right, notes, share);
+            var bar = measures.TryGetProperty("bar", out var at) && at.ValueKind == JsonValueKind.Number ? at.GetInt32() : (int?)null;
+            // Round a loop: its last bar, and each pass played to its end.
+            var to = measures.TryGetProperty("to", out var last) && last.ValueKind == JsonValueKind.Number ? last.GetInt32() : (int?)null;
+            List<PiecePass> passes = measures.TryGetProperty("passes", out var each) && each.ValueKind == JsonValueKind.Array
+                ? [.. each.EnumerateArray().Select(p => new PiecePass(p.GetProperty("right").GetInt32(), p.GetProperty("notes").GetInt32(), p.TryGetProperty("inTime", out var timed) && timed.ValueKind == JsonValueKind.Number ? timed.GetDouble() : null))]
+                : [];
+            var day = DateOnly.Parse(r.Day, CultureInfo.InvariantCulture);
+            var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), day, inTime, r.Tempo, hands, from, stopped, bar, right, notes, share) { To = to, Passes = passes };
             return (r.SetId, run);
         }).ToList();
     });

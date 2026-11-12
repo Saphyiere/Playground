@@ -15,21 +15,42 @@ public static class PieceWords
         _ => $"on {day.ToString("d MMMM", CultureInfo.InvariantCulture)}",
     };
 
-    /// <summary>How a run was played: "In time at 84, right hand, from bar 13, stopped at bar 16".</summary>
+    /// <summary>How a run was played: "In time at 84, right hand, from bar 13, stopped at bar 16", or "Wait for me, looping bars 13–16".</summary>
     public static string How(PieceRun run)
     {
         var mode = run.InTime ? $"In time at {run.Tempo:0}" : "Wait for me";
         var hand = run.Hands is "right" or "left" ? $", {run.Hands} hand" : "";
+        if (run.To is { } to) return $"{mode}{hand}, looping {Bars(run.From, to)}";
+
         var from = run.From > 1 ? $", from bar {run.From}" : "";
         var stopped = run.Stopped && run.Bar is { } bar ? $", stopped at bar {bar}" : "";
         return mode + hand + from + stopped;
     }
 
-    /// <summary>How a run went: "88 of 95 right, 91% right in time", or "22 of 23 right first time".</summary>
-    public static string Went(PieceRun run) => run.InTime ? $"{run.Right} of {run.Notes} right, {Share(run)} right in time" : $"{run.Right} of {run.Notes} right first time";
+    /// <summary>
+    /// How a run went: "88 of 95 right, 91% right in time", or "22 of 23 right first time". Round a loop, how its passes went, from
+    /// the first to the last: "5 passes, right in time from 70% to 90%".
+    /// </summary>
+    public static string Went(PieceRun run)
+    {
+        var went = run.InTime ? $"{run.Right} of {run.Notes} right, {Share(run)} right in time" : $"{run.Right} of {run.Notes} right first time";
+        return run.Passes switch
+        {
+            [var first, .., var last] when run.InTime => $"{run.Passes.Count} passes, right in time from {first.RightInTime * 100:0}% to {last.RightInTime * 100:0}%",
+            [var first, .., var last] => $"{run.Passes.Count} passes, right first time from {first.Right} to {last.Right} of {last.Notes}",
+            [_] => $"one pass, {went}",
+            _ => went,
+        };
+    }
 
-    /// <summary>A run in a few words, for a list: "91% right in time at 84", or "22 of 23 right first time".</summary>
-    public static string Short(PieceRun run) => run.InTime ? $"{Share(run)} right in time at {run.Tempo:0}" : $"{run.Right} of {run.Notes} right first time";
+    /// <summary>A run in a few words, for a list: "91% right in time at 84", "22 of 23 right first time, looping bars 13–16".</summary>
+    public static string Short(PieceRun run)
+    {
+        var went = run.InTime ? $"{Share(run)} right in time at {run.Tempo:0}" : $"{run.Right} of {run.Notes} right first time";
+        return run.To is { } to ? $"{went}, looping {Bars(run.From, to)}" : went;
+    }
 
     private static string Share(PieceRun run) => $"{(run.RightInTime ?? 0) * 100:0}%";
+
+    private static string Bars(int from, int to) => from == to ? $"bar {from}" : $"bars {from}–{to}";
 }

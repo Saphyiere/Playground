@@ -5,6 +5,7 @@
 @inject IClock Clock
 @inject Click Click
 @inject SessionRegistry Registry
+@using Prima.Core.Practice
 @using Prima.Core.Scoring
 
 @*
@@ -33,6 +34,21 @@
             <div class="mu-readout"><span class="mu-readout-label">@(listening ? "Listening" : "Tempo")</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
         <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
+        @* Round a loop, the time round being played, and as each begins how the one before went, up or down on the one before
+           that: In time the share right in time, Wait for me the notes right first time. Nothing stops for it, and nothing
+           moves: it's in the bar. *@
+        @if (loop is not null && !listening)
+        {
+            <div class="mu-readout"><span class="mu-readout-label">Pass</span><span class="mu-readout-value">@(passes.Count + 1)</span></div>
+            @if (passes.Count > 0)
+            {
+                var (done, before) = (passes[^1], passes.Count > 1 ? passes[^2] : null);
+                var (now, then) = done.RightInTime is { } share ? (share, before?.RightInTime) : (done.Right, before?.Right);
+                var way = then is null || then == now ? "" : now > then ? " ↑" : " ↓";
+                var low = done.RightInTime is { } inTime ? inTime < 0.8 : done.Right < done.Notes * 0.9;
+                <div class="mu-readout @(low ? "miss" : "")"><span class="mu-readout-label">Last pass</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
+            }
+        }
         @if (OnBack.HasDelegate)
         {
             <button type="button" class="mu-btn" aria-label="Back a bar" @onclick="() => OnBack.InvokeAsync(bar)">‹ Bar</button>
@@ -97,7 +113,6 @@
         }
     }
 </section>
-
 @code {
     /// <summary>The screen, for keeping its mode: "library", "sight-read", "scales"…</summary>
     [Parameter, EditorRequired] public string Name { get; set; } = "";
@@ -173,6 +188,14 @@
     private readonly List<PlayedNote> heard = [];
     // The note with "together" over it: the top of a chord played a key at a time, in Wait for me.
     private string? hinted;
+    // Round a loop: its first and last bars by number, the tick its first time round starts at and how many ticks each lasts, and
+    // the passes played to their end so far.
+    private (int From, int To)? loop;
+    private long passFrom;
+    private long passTicks;
+    private readonly List<PiecePass> passes = [];
+    // Wait for me's marks as the last pass played to its end left them, for the summary.
+    private List<SheetMark> passMarks = [];
 
     private string ModeKey => $"Play.Mode.{Name}";
 
@@ -292,6 +315,15 @@
         await sheet.ClearMarks();
         var first = music.Notes.MinBy(n => n.Tick)!;
         bar = first.Bar;
+        // Every bar the run plays and when, a bar with nothing to play too: the bar the readout names, and the cursor's path.
+        var bars = music.Score.BarTimes(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)]);
+        passes.Clear();
+        (loop, passMarks) = (null, []);
+        if (music.LoopBars is { } count && !listen)
+        {
+            loop = (music.Score.Bars[bars[0].Index].Number, music.Score.Bars[bars[count - 1].Index].Number);
+            (passFrom, passTicks) = (bars[0].Start, bars.Take(count).Sum(b => b.Length));
+        }
 
         if (Mode == PlayMode.WaitForMe && !listen)
         {
@@ -309,8 +341,6 @@
         // any piano part, expects nothing, and hears the click only in the count-in.
         var from = music.FromTick / (double)music.BeatTicks;
         double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
-        // Every bar the run plays and when, a bar with nothing to play too: the bar the readout names, and the cursor's path.
-        var bars = music.Score.BarTimes(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)]);
         bar = music.Score.Bars[bars[0].Index].Number;
         var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
         IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. timed, .. music.PianoPart ?? []] : music.PianoPart;
@@ -335,6 +365,13 @@
                 StateHasChanged();
             }
             if (live is not null) await Draw(live.Due(now));
+            // Round a loop, a time round is scored once the next has begun and a late key for its last note has had its chance.
+            var next = passFrom + (passes.Count + 1) * passTicks;
+            if (loop is null || live is null || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
+
+            var pass = Pass(music, run, passes.Count, expression: false);
+            passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy));
+            StateHasChanged();
         }), null, 100, 100);
         StateHasChanged();
         // The cursor once the click's beat times are set: waiting where the music starts through the count-in, then with the beat
@@ -393,6 +430,22 @@
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
             Markings.Of(music.Score, due), range);
+        // Round a loop, each time round played to its end is a pass, scored by itself: one whose last note is among those that
+        // count. Any the run hadn't scored yet are now, any it scored after the last key was played go, and the run's result is
+        // the last pass's, which is how the loop stood when it was left. Stopped in its first time round, the result is what was
+        // played of that.
+        if (loop is not null && due.Count > 0)
+        {
+            var (reached, lastOfFirst) = (due.Max(n => n.Tick), music.Notes.Where(n => n.Tick < passFrom + passTicks).Max(n => n.Tick));
+            var whole = reached < lastOfFirst ? 0 : (int)((reached - lastOfFirst) / passTicks) + 1;
+            passes.RemoveRange(Math.Min(whole, passes.Count), Math.Max(0, passes.Count - whole));
+            while (passes.Count < whole)
+            {
+                var pass = Pass(music, run, passes.Count, expression: false);
+                passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy));
+            }
+            if (whole > 0) result = Pass(music, run, whole - 1, expression: true);
+        }
         if (result is not null && sheet is not null)
         {
             await sheet.ShowMarks(result.Notes.Select(n => n.Outcome switch
@@ -403,9 +456,25 @@
                 _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
             }));
         }
-        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from) };
+        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from), Loop = loop, Passes = [.. passes] };
         StateHasChanged();
         await OnFinished.InvokeAsync(last);
+    }
+
+    // One time round a loop scored by itself: its notes against the keys played for them, those still down too. Its keys start
+    // half a window before its first note, as any passage's do, and end half a window before the next time round's first, so
+    // the next one's first keys aren't extra here. With its expression, for the summary; without, for the bar while the loop
+    // goes on.
+    private PassageResult Pass(PlayMusic music, PlaySession run, int index, bool expression)
+    {
+        var (from, beatNs, start) = (music.FromTick / (double)music.BeatTicks, 60e9 / Tempo, passFrom + index * passTicks);
+        var notes = music.Notes.Where(n => n.Tick >= start && n.Tick < start + passTicks).ToList();
+        var nextFirst = run.TimeAt((notes.Min(n => n.Tick) + passTicks) / (double)music.BeatTicks - from);
+        var until = nextFirst - Grading.WindowNs(beatNs) / 2 + Settings.TimingOffsetMs * 1e6;
+        var keys = run.PlayedSoFar(Clock.NowNs).Where(p => p.OnNs < until).ToList();
+        (int, int)? range = expression && Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
+        return PassageScorer.Score(notes, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, keys, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
+            expression ? Markings.Of(music.Score, notes) : null, range);
     }
 
     // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down together.
@@ -431,6 +500,15 @@
                 hinted = word;
             }
             if (!moved) return;
+            // Round a loop, a step in the next time round means the one before it was played to its end: a pass, its marks as they
+            // stand all its own.
+            while (loop is not null && (judge.Done || judge.Current[0].Tick >= passFrom + (passes.Count + 1) * passTicks))
+            {
+                var pass = judge.Stretch(passFrom + passes.Count * passTicks, passFrom + (passes.Count + 1) * passTicks);
+                passes.Add(new PiecePass(pass.RightFirstTime, pass.Notes, null));
+                passMarks = [.. drawn.Values];
+                if (judge.Done) break;
+            }
             if (judge.Done)
             {
                 await EndWait(false);
@@ -449,13 +527,17 @@
 
         wait = null;
         Registry.DrillAnswer = null;
+        // Round a loop, the run is its last time round played to its end, with that pass's marks, as In time's is. Stopped in its
+        // first time round, it's what was played of that.
+        long? lastPass = loop is not null && passes.Count > 0 ? passFrom + (passes.Count - 1) * passTicks : null;
         if (SheetOf() is { } sheet)
         {
             await sheet.StopCursor();
             // Kept as the summary's, so they stay through a redraw.
-            await sheet.ShowMarks(drawn.Values);
+            await sheet.ShowMarks(lastPass is null ? [.. drawn.Values] : passMarks);
         }
-        last = new PlayOutcome(PlayMode.WaitForMe, null, judge.Result(), [.. heard], stopped, bar);
+        var result = lastPass is { } start ? judge.Stretch(start, start + passTicks) : judge.Result();
+        last = new PlayOutcome(PlayMode.WaitForMe, null, result, [.. heard], stopped, bar) { Loop = loop, Passes = [.. passes] };
         StateHasChanged();
         await OnFinished.InvokeAsync(last);
     }

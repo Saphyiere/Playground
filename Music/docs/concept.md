@@ -175,9 +175,10 @@ a PDF plays out; this is what came of it.
   same key, or leaving the piece, brings everything back. A piece fits the screen, only its music scrolling: between runs with
   About this piece under it, and after a run with the run's summary there instead; while a run plays the music has that space
   too. About this piece starts with what's been done on it, from the runs kept: when it was last played, how that run was
-  played and how it went; then how often it's been played through In time (from its start to its end, not stopped), with the
-  last time and the best; and its runs, the days they were on, and the first. A run of fewer than eight notes is a false
-  start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
+  played and how it went (round a loop, its bars, its passes and how they went from the first to the last); then how often
+  it's been played through In time (from its start to its end, not round a loop or stopped), with the last time and the
+  best; and its runs, the days they were on, and the first. A run that reached fewer than eight notes, round a loop all its
+  passes together, is a false start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
   bar it was to start from, or its loop. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
   the piece opens in Pages again the next time). As pages: two systems at a time in landscape, the whole page
@@ -193,7 +194,14 @@ a PDF plays out; this is what came of it.
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
   with it; a note played twice keeps the mark of the latest time. Loop plays bars again and again until you stop: on the tab
   it loops that bar, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or
-  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. **The
+  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. Each time
+  round is a **pass**, scored by itself: the bar counts them, and as each begins shows how the one before went (In time the
+  share right in time, Wait for me the notes right first time), with ↑ or ↓ on the one before; nothing stops for it. In time
+  a pass is scored once the next has begun and a late key for its last note has had its chance, on the keys played for it:
+  from half a window before its first note to half a window before the next pass's first, so the next one's first keys
+  aren't extra in it. Wait for me counts a pass once a step of the next is played. Stopped, the run is its last pass played
+  to its end, with that pass's marks (a pass whose last note was due after the last key played isn't one; stopped in the
+  first, the run is what was played of it), and it's kept with the loop's bars and every pass. **The
   strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
   for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
   then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a
@@ -383,8 +391,9 @@ its bars: the **notes** (how many were right, what the others were, and the bars
 or was off the beat); then a line only for what there is to work on: notes
 **held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with the
 most to fix, where a wrong or missed note counts as three of anything else (a note off the beat or let go early, a marking
-not played as asked, the pedal). On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar**
-starts the next run at it. **Show details** opens the rest under them, brought into view (and stays open next time if you
+not played as asked, the pedal). Round a loop, a line comes first with each pass's figure (In time the share right in time,
+Wait for me the notes right first time; past a dozen passes, the first, the best and the last), and the rest is the last
+pass's. On a piece, **Loop bars** loops the four bars of that bar's phrase and **Play from bar** starts the next run at it. **Show details** opens the rest under them, brought into view (and stays open next time if you
 leave it so): three panels, side by side:
 
 - **Notes right**: the share right, a bar of right and not, and the ones that weren't as slips put right (hatched), wrong
@@ -612,7 +621,8 @@ Everything lives in one SQLite file on the tablet.
 - **Sessions**: each day's practice, its steps and minutes.
 - **Attempts**: one per passage, rhythm, technique or exercise run, keeping its settings (the level's step, the key it was in and the key it
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
-  passage can be made again (one spot does) and a result recomputed if the scoring changes.
+  passage can be made again (one spot does) and a result recomputed if the scoring changes. A piece's run keeps the bar it
+  started from, whether it was stopped and where, the hand, and round a loop its last bar and each pass's figures.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
   others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
