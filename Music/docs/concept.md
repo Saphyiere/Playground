@@ -199,9 +199,9 @@ a PDF plays out; this is what came of it.
   share right in time, Wait for me the notes right first time), with ↑ or ↓ on the one before; nothing stops for it. In time
   a pass is scored once the next has begun and a late key for its last note has had its chance, on the keys played for it:
   from half a window before its first note to half a window before the next pass's first, so the next one's first keys
-  aren't extra in it. Wait for me counts a pass once a step of the next is played. Stopped, the run is its last pass played
-  to its end, with that pass's marks (a pass whose last note was due after the last key played isn't one; stopped in the
-  first, the run is what was played of it), and it's kept with the loop's bars and every pass. **The
+  aren't extra in it. Wait for me counts a pass once a step of the next is played. Stopped, or left to run its course, the
+  run is its last pass played to its end, with that pass's marks (a pass whose last note was due after the last key played
+  isn't one; stopped in the first, the run is what was played of it), and it's kept with the loop's bars and every pass. **The
   strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
   for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
   then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a

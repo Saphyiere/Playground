@@ -422,10 +422,11 @@
         var from = music.FromTick / (double)music.BeatTicks;
         var beatNs = 60e9 / Tempo;
         // Stopped early, only the notes due by the last key played count, and none after the stop. What was due between that key
-        // and Stop wasn't played wrong: the hands had left the keys to press it. With no key played, nothing counts.
+        // and Stop wasn't played wrong: the hands had left the keys to press it. With no key played, nothing counts. A loop left
+        // to run its course is the same: its times round after the last key weren't played.
         var lastKey = run.Played.Count == 0 ? long.MinValue : (long)(run.Played.Max(p => p.OnNs) - Settings.TimingOffsetMs * 1e6 + Grading.WindowNs(beatNs));
-        var until = stoppedNs is { } at ? Math.Min(at, lastKey) : long.MaxValue;
-        var due = stoppedNs is null ? music.Notes : music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
+        var until = stoppedNs is { } at ? Math.Min(at, lastKey) : loop is not null ? lastKey : long.MaxValue;
+        var due = until == long.MaxValue ? music.Notes : music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
         // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
