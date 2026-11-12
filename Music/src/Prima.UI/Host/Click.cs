@@ -46,7 +46,7 @@ public sealed class Click(IClick speaker, IKeyboard keyboard, IClock clock, Prim
         if (current is null || Plan is null) return -1;
 
         var since = clock.NowNs - current.BeatTime(0);
-        return since < 0 ? -1 : (int)(since / Plan.BeatNs);
+        return since < 0 ? -1 : (int)Plan.BeatAt(since);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public sealed class Click(IClick speaker, IKeyboard keyboard, IClock clock, Prim
             keyboard.Silence();
         }
 
-        public long BeatTime(int beat) => startNs + beat * (plan?.BeatNs ?? 0);
+        public long BeatTime(int beat) => startNs + (long)Math.Round(plan?.Offset(beat) ?? 0);
 
         private void SendAhead()
         {

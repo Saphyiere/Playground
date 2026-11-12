@@ -405,13 +405,15 @@ function pathPoints(element, state, path) {
 // `startQuarter` of the music (later than 0 after a pickup). Until the music's first moment (the count-in) it waits there and
 // pulses with the click: a beat every `beatMs`, one of them `msUntilBeat` from now. Given the run's own path (pathPoints), it
 // keeps to that, through repeats or from wherever the run starts; otherwise it goes from note to note of the sheet's music.
-// Not `shown`, it isn't drawn, but the line being played is still kept in view. A guide only: nothing is scored from it.
+// Not `shown`, it isn't drawn, but the line being played is still kept in view. A guide only: nothing is scored from it. Given
+// `beats`, for music whose tempo changes ([a beat's quarter, ms after that click `msUntilBeat` from now] for each of the run's
+// beats, and the last one's end), a moment is due by those, in place of every quarter taking `msPerQuarter`.
 //
 // Its whole way is given to the browser once, as an animation the browser runs by itself: along a system from each moment's
 // place to the next, and at a system's end (or where a repeat or a loop goes back) waiting there until the next moment and then
 // at its place at once. Placed from here at every frame instead, each move has the browser go over the whole piece again, and
 // on a long piece that leaves it no time for the keys being played.
-export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown = true) {
+export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown = true, beats = null) {
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
@@ -423,8 +425,10 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     line.hidden = !shown;
     const now = performance.now();
     const start = now + msUntilStart;
-    // When a moment of the music is due, on the page's clock, which is the animations' too.
-    const due = q => start + (q - startQuarter) * msPerQuarter;
+    // When a moment of the music is due, on the page's clock, which is the animations' too; and the moment due at a time.
+    const zero = now + msUntilBeat;
+    const due = beats ? q => zero + along(beats, q, 0, 1) : q => start + (q - startQuarter) * msPerQuarter;
+    const moment = beats ? t => along(beats, t - zero, 1, 0) : t => startQuarter + (t - start) / msPerQuarter;
     const opens = due(Math.min(points[0].q, startQuarter));
     const [first, last] = [due(points[0].q), due(points[points.length - 1].q)];
     const way = [];
@@ -463,11 +467,20 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     // Read ahead's covers move with the music at every frame.
     if (!bars) return;
     const frame = now => {
-        const q = startQuarter + (now - start) / msPerQuarter;
+        const q = moment(now);
         for (const bar of bars) bar.cover.style.display = bar.end <= q - 0.05 || bar.start > q + windowQuarters ? "" : "none";
         state.raf = requestAnimationFrame(frame);
     };
     state.raf = requestAnimationFrame(frame);
+}
+
+// Along a line through points ([x, y] pairs, in order of both), the y at an x (`from` and `to` say which of the pair is which),
+// carried on as the first or last stretch goes before and after them.
+function along(points, x, from, to) {
+    let i = 1;
+    while (i < points.length - 1 && points[i][from] < x) i++;
+    const [a, b] = [points[i - 1], points[i]];
+    return b[from] === a[from] ? a[to] : a[to] + (x - a[from]) * (b[to] - a[to]) / (b[from] - a[from]);
 }
 
 // The cursor at a place: a line a pixel high at the sheet's corner, moved there and stretched to its system's height, so its

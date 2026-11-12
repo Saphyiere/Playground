@@ -196,6 +196,8 @@
     private readonly List<PiecePass> passes = [];
     // Wait for me's marks as the last pass played to its end left them, for the summary.
     private List<SheetMark> passMarks = [];
+    // In time: whether the run goes anywhere at a tempo other than the one set (where its score marks another).
+    private bool otherTempo;
 
     private string ModeKey => $"Play.Mode.{Name}";
 
@@ -350,11 +352,19 @@
             if (run.Phase == Phase.Done) await Ended(run);
             else StateHasChanged();
         });
-        var plan = new ClickPlan(Tempo, music.Score.Meter.Beats, Math.Max(1, Settings.CountInBars), listen ? ClickStage.CountInOnly : ClickStage.Throughout);
+        // The click's beats are the music's own: each bar's by its metre, each as long as the score's tempo there says, the tempo
+        // set being the one it mostly goes at. The count-in has the first bar's metre and tempo.
+        var beats = music.Score.RunBeats(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)], music.FromTick, Tempo);
+        var opening = music.Score.WithSignatures().ElementAt(bars.First(b => b.Start >= music.FromTick).Index).Meter;
+        var countInNs = beats[0].Ns / (beats[0].Beats * music.BeatTicks) * opening.BeatTicks;
+        var stage = listen ? ClickStage.CountInOnly : ClickStage.Throughout;
+        var plan = new ClickPlan(60e9 / countInNs, opening.Beats, Math.Max(1, Settings.CountInBars), stage) { Music = beats };
+        otherTempo = beats.Any(b => Math.Abs(b.Ns / b.Beats - 60e9 / Tempo) > 1e3);
         run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano, Settings.TimingOffsetMs);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
-        var live = listen ? null : new LiveJudge(music.Notes, b => run.TimeAt(b - from), music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
-        if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, at) is { } mark ? [mark] : []));
+        var (timeAt, heardAt) = Judged(run, music);
+        var live = listen ? null : new LiveJudge(music.Notes, timeAt, music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
+        if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, heardAt(at)) is { } mark ? [mark] : []));
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
             var now = Clock.NowNs;
@@ -364,7 +374,7 @@
                 bar = at;
                 StateHasChanged();
             }
-            if (live is not null) await Draw(live.Due(now));
+            if (live is not null) await Draw(live.Due(heardAt(now)));
             // Round a loop, a time round is scored once the next has begun and a late key for its last note has had its chance.
             var next = passFrom + (passes.Count + 1) * passTicks;
             if (loop is null || live is null || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
@@ -386,7 +396,22 @@
             _ => Array.Empty<(int, string, double)>(),
         }));
         var path = new CursorPath([.. bars.Select(b => (b.Index, music.QuarterOf(b.Start), b.Length / (double)Ticks.Quarter))], [.. printed]);
-        await sheet.StartCursor(run.MsUntil(Beat(first)), 60_000 / Tempo * Ticks.Quarter / music.BeatTicks, music.QuarterOf(first.Tick), 60_000 / Tempo, run.MsUntil(0), music.ReadAheadQuarters, path, Settings.Cursor);
+        // Where the tempo isn't the one set, the cursor keeps to the beats: each one's quarter, and when it's due after the run's
+        // beat 0, and the last one's end.
+        List<(double Quarter, double Ms)>? times = null;
+        if (otherTempo)
+        {
+            times = [];
+            var ms = 0.0;
+            foreach (var b in beats)
+            {
+                times.Add((music.QuarterOf(music.FromTick + (long)Math.Round(b.At * music.BeatTicks)), ms));
+                ms += b.Ns / 1e6;
+            }
+            times.Add((music.QuarterOf(music.FromTick + (long)Math.Round((beats[^1].At + beats[^1].Beats) * music.BeatTicks)), ms));
+        }
+        var msPerQuarter = 60_000 / Tempo * Ticks.Quarter / music.BeatTicks;
+        await sheet.StartCursor(run.MsUntil(Beat(first)), msPerQuarter, music.QuarterOf(first.Tick), plan.BeatNs / 1e6, run.MsUntil(0), music.ReadAheadQuarters, path, Settings.Cursor, times);
     }
 
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
@@ -429,7 +454,10 @@
         var due = until == long.MaxValue ? music.Notes : music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
         // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
-        var result = due.Count == 0 ? null : PassageScorer.Score(due, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, run.Played, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
+        var (timeAt, heardAt) = Judged(run, music);
+        var played = run.Played.Select(p => p with { OnNs = heardAt(p.OnNs), OffNs = heardAt(p.OffNs) }).ToList();
+        var damper = run.Damper.Select(d => (heardAt(d.DownNs), heardAt(d.UpNs))).ToList();
+        var result = due.Count == 0 ? null : PassageScorer.Score(due, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, played, Settings.TimingOffsetMs, music.Ornamented, damper,
             Markings.Of(music.Score, due), range, music.Rolled);
         // Round a loop, each time round played to its end is a pass, scored by itself: one whose last note is among those that
         // count. Any the run hadn't scored yet are now, any it scored after the last key was played go, and the run's result is
@@ -472,10 +500,28 @@
         var notes = music.Notes.Where(n => n.Tick >= start && n.Tick < start + passTicks).ToList();
         var nextFirst = run.TimeAt((notes.Min(n => n.Tick) + passTicks) / (double)music.BeatTicks - from);
         var until = nextFirst - Grading.WindowNs(beatNs) / 2 + Settings.TimingOffsetMs * 1e6;
-        var keys = run.PlayedSoFar(Clock.NowNs).Where(p => p.OnNs < until).ToList();
+        var (timeAt, heardAt) = Judged(run, music);
+        var played = run.PlayedSoFar(Clock.NowNs).Where(p => p.OnNs < until);
+        var keys = played.Select(p => p with { OnNs = heardAt(p.OnNs), OffNs = heardAt(p.OffNs) }).ToList();
+        var damper = run.Damper.Select(d => (heardAt(d.DownNs), heardAt(d.UpNs))).ToList();
         (int, int)? range = expression && Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
-        return PassageScorer.Score(notes, b => run.TimeAt(b - from), music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, keys, Settings.TimingOffsetMs, music.Ornamented, run.Damper,
+        return PassageScorer.Score(notes, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, keys, Settings.TimingOffsetMs, music.Ornamented, damper,
             expression ? Markings.Of(music.Score, notes) : null, range, music.Rolled);
+    }
+
+    // When the music's moments were due and when a key came, as a run is judged: the click's, or where the score marks a tempo
+    // other than the one set, as though the run went at that one throughout, each moment, the music's and the keys', moved to where
+    // it'd be at that tempo. So a note's timing is a share of the beat it was played in, and a beat's window one of it, whatever
+    // the tempo there.
+    private (Func<double, long> TimeAt, Func<long, long> HeardAt) Judged(PlaySession run, PlayMusic music)
+    {
+        var from = music.FromTick / (double)music.BeatTicks;
+        if (!otherTempo) return (b => run.TimeAt(b - from), t => t);
+
+        var (beatNs, offsetNs) = (60e9 / Tempo, (long)(Settings.TimingOffsetMs * 1e6));
+        Func<double, long> timeAt = b => run.TimeAt(0) + (long)((b - from) * beatNs);
+        Func<long, long> heardAt = t => run.TimeAt(0) + (long)(run.MusicBeatAt(t - offsetNs) * beatNs) + offsetNs;
+        return (timeAt, heardAt);
     }
 
     // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down together.

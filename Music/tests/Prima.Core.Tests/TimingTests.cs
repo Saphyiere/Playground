@@ -112,6 +112,21 @@ public class TimingTests
         Assert.False(throughout.Accent(7));
     }
 
+    [Fact]
+    public void AClickWithTheMusicsOwnBeatsCountsInEvenlyThenKeepsToThem()
+    {
+        // A count-in of three 1 s beats, then the music's: a bar of 1 s, 2 s and 1 s beats, the last of them on into the run's end.
+        var plan = new ClickPlan(60, 3) { Music = [new(0, 1, 1e9, true), new(1, 1, 2e9, false), new(2, 1, 1e9, false)] };
+
+        Assert.Equal([0, 1e9, 2e9, 3e9, 4e9, 6e9, 7e9, 8e9], Enumerable.Range(0, 8).Select(plan.Offset));
+        Assert.Equal(4.5, plan.BeatAt(5e9));
+        Assert.Equal(1.5, plan.BeatAt(1.5e9));
+        // A moment of the music in the beat it falls in: half way through its second beat, or half a beat into the count-in's last.
+        Assert.Equal(4.5, plan.BeatOf(1.5));
+        Assert.Equal(2.5, plan.BeatOf(-0.5));
+        Assert.Equal([true, false, false, true, false, false], Enumerable.Range(0, 6).Select(plan.Accent));
+    }
+
     [Theory]
     [InlineData(21, "A0")]
     [InlineData(60, "C4")]

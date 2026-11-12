@@ -1,3 +1,5 @@
+using Prima.Core.Timing;
+
 namespace Prima.Core.Music;
 
 public enum Clef
@@ -84,6 +86,12 @@ public sealed record Bar(int Number, IReadOnlyList<Voice> Voices)
 
     /// <summary>In a first or second ending: the times through the repeat that play the bar (none: every time).</summary>
     public IReadOnlyList<int> Endings { get; init; } = [];
+
+    /// <summary>
+    /// The tempo marks in it, in order: ticks into the bar, and the tempo each sets, in quarter notes a minute (a printed ♩. = 60 is
+    /// 90). In time follows them, in proportion to the tempo set (<see cref="Score.RunBeats"/>).
+    /// </summary>
+    public IReadOnlyList<(int Start, double PerMinute)> Tempos { get; init; } = [];
 
     public string Id => $"m{Number}";
 }
@@ -311,6 +319,91 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     }
 
     /// <summary>
+    /// The tempo marks in written order: each bar's place in <see cref="Bars"/>, the tick it's at, from the start of the beat it's in
+    /// (a click changes from one beat to the next), and its quarter notes a minute; of two on one beat, the later.
+    /// </summary>
+    public IReadOnlyList<(int Index, long Tick, double PerMinute)> TempoChanges()
+    {
+        var changes = new List<(int Index, long Tick, double PerMinute)>();
+        var index = 0;
+        foreach (var (bar, _, meter) in WithSignatures())
+        {
+            foreach (var (start, perMinute) in bar.Tempos)
+            {
+                var tick = start / meter.BeatTicks * (long)meter.BeatTicks;
+                if (changes.Count > 0 && changes[^1].Index == index && changes[^1].Tick == tick) changes[^1] = (index, tick, perMinute);
+                else changes.Add((index, tick, perMinute));
+            }
+            index++;
+        }
+        return changes;
+    }
+
+    /// <summary>
+    /// The tempo the score goes at most, in quarter notes a minute: the one in force over the most of its ticks (before its first
+    /// mark, the first), the first of equals. Null when it marks none.
+    /// </summary>
+    public double? MainTempo()
+    {
+        var changes = TempoChanges();
+        if (changes.Count == 0) return null;
+
+        var ticks = new Dictionary<double, long>();
+        var (next, current) = (0, changes[0].PerMinute);
+        var index = 0;
+        foreach (var (bar, _, meter) in WithSignatures())
+        {
+            var at = 0L;
+            for (; next < changes.Count && changes[next].Index == index; next++)
+            {
+                ticks[current] = ticks.GetValueOrDefault(current) + changes[next].Tick - at;
+                (at, current) = (changes[next].Tick, changes[next].PerMinute);
+            }
+            ticks[current] = ticks.GetValueOrDefault(current) + (bar.Length ?? meter.BarTicks) - at;
+            index++;
+        }
+        return ticks.MaxBy(t => t.Value).Key;
+    }
+
+    /// <summary>
+    /// The beats of a run through bars in an order (<see cref="PlayOrder"/>'s, or a loop's) from <paramref name="fromTick"/>, its beat
+    /// 0, on: each bar's by the metre in force there, the first of a bar accented, each as long as the tempo there says. An upbeat
+    /// (a short bar opening the music, or making a whole bar with the one before it, as after a repeat sign) has its beats counted
+    /// back from the next downbeat, and none accented. That's <paramref name="beatsPerMinute"/> of the first metre's beats where the
+    /// score goes at its main tempo (<see cref="MainTempo"/>), and in proportion where it marks another: ♩ = 60 where it mostly goes
+    /// at ♩ = 120 is half as fast. A bar played again has its own tempo again. Where a beat is and how many it lasts are in the
+    /// run's beats, the first metre's, from its beat 0.
+    /// </summary>
+    public IReadOnlyList<ClickBeat> RunBeats(IReadOnlyList<int> order, long fromTick, double beatsPerMinute)
+    {
+        var meters = WithSignatures().Select(w => w.Meter).ToList();
+        var lengths = WithSignatures().Select(w => (long)(w.Bar.Length ?? w.Meter.BarTicks)).ToList();
+        var changes = TempoChanges();
+        var main = MainTempo();
+        var tickNs = 60e9 / (beatsPerMinute * Meter.BeatTicks);
+        var beats = new List<ClickBeat>();
+        foreach (var (index, start, length) in BarTimes(order))
+        {
+            var beat = meters[index].BeatTicks;
+            // An upbeat's first beat is what's left of one; any other bar's last is.
+            var upbeat = Bars[index].Length is { } part && (index == 0 || lengths[index - 1] + part == meters[index].BarTicks);
+            var phase = upbeat ? length % beat : 0;
+            for (var s = phase > 0 ? phase - beat : 0L; s < length; s += beat)
+            {
+                var (from, to) = (Math.Max(0, s), Math.Min(length, s + beat));
+                if (start + from < fromTick) continue;
+
+                // The tempo in force: the last mark at or before the beat, or before the first, the first.
+                var inForce = changes.LastOrDefault(c => c.Index < index || c.Index == index && c.Tick <= from, changes.FirstOrDefault());
+                var ns = (to - from) * tickNs * (main is { } m ? m / inForce.PerMinute : 1);
+                var at = (start + from - fromTick) / (double)Meter.BeatTicks;
+                beats.Add(new ClickBeat(at, (to - from) / (double)Meter.BeatTicks, ns, s == 0 && !upbeat));
+            }
+        }
+        return beats;
+    }
+
+    /// <summary>
     /// Bars <paramref name="first"/> to <paramref name="last"/> as music of their own, keeping their numbers as a printed excerpt
     /// does: the key, metre and clefs in force at the first bar, ties into and out of it dropped so their notes are played, and the
     /// marks on it, with spans that run in or out cut at its edges.
@@ -330,7 +423,7 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
             var inForce = clefs.TryGetValue(v.Staff, out var clef) ? clef : v.Staff == 1 ? Clef.Treble : Clef.Bass;
             if (i == 0 && v.Layer == 1 && !RhythmOnly && inForce != (v.Staff == 1 ? Clef.Treble : Clef.Bass) && events.FirstOrDefault() is not ClefChange { Start: 0 }) events.Insert(0, new ClefChange(0, inForce));
             return v with { Events = events };
-        })]) { Length = s.Bar.Length, NewKey = i == 0 ? null : s.Bar.NewKey, NewMeter = i == 0 ? null : s.Bar.NewMeter }).ToList();
+        })]) { Length = s.Bar.Length, NewKey = i == 0 ? null : s.Bar.NewKey, NewMeter = i == 0 ? null : s.Bar.NewMeter, Tempos = s.Bar.Tempos }).ToList();
 
         // Where every note (and each of a chord's tones) is: its bar, its start, its staff, and its event's id.
         var places = new Dictionary<string, (int Bar, int Start, int Staff, string Id)>();

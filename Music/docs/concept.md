@@ -105,7 +105,14 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and a summary after (see [The summary](#the-summary) and
-  [How a passage is scored](#how-a-passage-is-scored)).
+  [How a passage is scored](#how-a-passage-is-scored)). In a Library piece the click follows the music: each bar's beats are
+  its metre's, the first clicked higher (a change from 6/8 to 2/4 goes from dotted quarters to quarters, the eighth kept), and
+  an upbeat (a short bar opening the music, or making a whole bar with the one before it, as after a repeat sign) is counted
+  back from the next downbeat, none of it higher. Where the music marks a tempo (a metronome mark, or a word like "a tempo"
+  or "Più lento" with the tempo the file plays it at), the click goes at it in proportion to the tempo you set, which is the
+  one the piece mostly goes at: at 72 where it mostly goes at ♩ = 120, a bar marked ♩ = 60 goes at 36, and a written-out
+  ritardando slows a beat at a time. A bar played again has its own tempo again, and the count-in has the first bar's metre
+  and tempo. The cursor keeps to the same beats, and a note's timing is judged as a share of the beat it was played in.
 - **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played. Notes written
   together, a chord in one hand or both hands at once, go down **together**: in any order, the first key to the last within
   0.15 of a second. Played a key at a time, which finds the chord but doesn't play it, its notes turn amber, "together" shows

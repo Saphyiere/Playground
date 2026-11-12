@@ -83,7 +83,19 @@ public static class MeiReader
             var endings = Regex.Matches(endingName, @"\d+").Select(m => int.Parse(m.Value, CultureInfo.InvariantCulture)).ToList();
             var repeatStart = left is "rptstart" or "rptboth" || startsNext;
             var repeatEnd = right is "rptend" or "rptboth";
-            var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter };
+            // Its tempo marks: where (tstamp, the metre's beats from 1), and the tempo in quarter notes a minute: the metronome mark
+            // printed (♩. = 60 is 90), or else what the file plays it at (a word's, like "a tempo"), if a piece could go at that.
+            var tempos = new List<(int Start, double PerMinute)>();
+            foreach (var mark in element.Elements(Mei + "tempo"))
+            {
+                var beats = ((double?)mark.Attribute("tstamp") ?? 1) - 1;
+                var start = Math.Clamp((int)Math.Round(beats * Ticks.Whole / meter.Unit), 0, Math.Max(0, length - 1));
+                var dotted = 2 - Math.Pow(0.5, (int?)mark.Attribute("mm.dots") ?? 0);
+                var printed = (double?)mark.Attribute("mm") * 4 / (double?)mark.Attribute("mm.unit") * dotted;
+                if ((printed ?? (double?)mark.Attribute("midi.bpm")) is { } perMinute and >= 20 and <= 300) tempos.Add((start, perMinute));
+            }
+            var tempoMarks = tempos.OrderBy(t => t.Start).ToList();
+            var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter, Tempos = tempoMarks };
             controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn" or "arpeg").Select(e => (bars.Count, e)));
             meters.Add(meter);
             bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });

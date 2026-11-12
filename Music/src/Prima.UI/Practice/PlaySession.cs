@@ -107,15 +107,34 @@ public sealed class PlaySession : IDisposable
         watch = new Timer(_ => Tick(), null, 20, 20);
     }
 
-    /// <summary>When a beat of the music sounds, on the system clock: interpolated between the click's own beat times.</summary>
+    /// <summary>
+    /// When a moment of the music sounds, on the system clock: <paramref name="musicBeat"/> in the run's beats from its beat 0,
+    /// interpolated between the click's own times for the beat it falls in and the next, whatever the tempo and metre there.
+    /// </summary>
     public long TimeAt(double musicBeat)
     {
         if (Plan is null) return 0;
 
-        var beat = Plan.FirstMusicBeat + musicBeat;
+        var beat = Plan.BeatOf(musicBeat);
         var whole = (int)Math.Floor(beat);
         var (from, to) = (BeatTime(whole), BeatTime(whole + 1));
         return from + (long)((to - from) * (beat - whole));
+    }
+
+    /// <summary>The moment of the music sounding at <paramref name="ns"/> on the system clock, in the run's beats: <see cref="TimeAt"/> turned round.</summary>
+    public double MusicBeatAt(long ns)
+    {
+        if (Plan is null) return 0;
+
+        // The click's beat it falls in, from its beat 0: the plan's beats are the click's, to within the audio clock's few parts in
+        // a million.
+        var beat = Plan.BeatAt(ns - BeatTime(0));
+        var music = Plan.Music;
+        if (music is not { Count: > 0 }) return beat - Plan.FirstMusicBeat;
+
+        var index = (int)Math.Floor(beat) - Plan.FirstMusicBeat;
+        var place = Math.Clamp(index, 0, music.Count - 1);
+        return music[place].At + (beat - Plan.FirstMusicBeat - place) * music[place].Beats;
     }
 
     // The click's beat times while it runs; once the run ends, the ones it had, kept so the result can be worked out.
@@ -146,7 +165,7 @@ public sealed class PlaySession : IDisposable
         watch?.Dispose();
         watch = null;
         lock (pianoToCome) pianoToCome.Clear();
-        if (Plan is not null) beatTimes = [.. Enumerable.Range(0, Plan.FirstMusicBeat + (int)Math.Ceiling(endBeat) + 4).Select(click.BeatTime)];
+        if (Plan is not null) beatTimes = [.. Enumerable.Range(0, (int)Math.Ceiling(Plan.BeatOf(endBeat)) + 4).Select(click.BeatTime)];
         click.Stop();
         keyboard.Silence();
         var now = clock.NowNs;

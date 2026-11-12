@@ -432,6 +432,80 @@ public class MusicTests
         Assert.Equal(expected, MeiReader.Read(Repeats).PlayOrder(from));
     }
 
+    // Bar 1 in 3/4 at ♩ = 120 (with "Moderato", which the file plays at a tempo no piece goes at), bar 2 slowing to ♩. = 40 from
+    // its second beat, then 2/4 and "a tempo", whose 120 is only what the file plays it at, and a bar with no mark.
+    private const string Tempos = """
+        <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+        <scoreDef meter.count="3" meter.unit="4" key.sig="0"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/></staffGrp></scoreDef>
+        <section>
+        <measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="4" dur="2" dots="1"/></layer></staff>
+        <tempo tstamp="1" midi.bpm="989">Moderato</tempo><tempo tstamp="1" mm="120" mm.unit="4" midi.bpm="120">♩ = 120</tempo></measure>
+        <measure n="2"><staff n="1"><layer n="1"><note xml:id="b" pname="d" oct="4" dur="2" dots="1"/></layer></staff>
+        <tempo tstamp="2.5" mm="40" mm.unit="4" mm.dots="1" midi.bpm="60">♩. = 40</tempo></measure>
+        <scoreDef meter.count="2" meter.unit="4"/>
+        <measure n="3"><staff n="1"><layer n="1"><note xml:id="c" pname="e" oct="4" dur="2"/></layer></staff><tempo tstamp="1" midi.bpm="120">a tempo</tempo></measure>
+        <measure n="4"><staff n="1"><layer n="1"><note xml:id="d" pname="f" oct="4" dur="2"/></layer></staff></measure>
+        </section></score></mdiv></body></music></mei>
+        """;
+
+    [Fact]
+    public void ABarsTempoMarksAreReadAsQuarterNotesAMinute()
+    {
+        var score = MeiReader.Read(Tempos);
+
+        Assert.Equal([[(0, 120.0)], [(720, 60.0)], [(0, 120.0)], []], score.Bars.Select(b => b.Tempos));
+        // A click changes tempo from one beat to the next, so a mark counts from the start of its beat.
+        Assert.Equal([(0, 0L, 120.0), (1, 480L, 60.0), (2, 0L, 120.0)], score.TempoChanges());
+        Assert.Equal(120, score.MainTempo());
+    }
+
+    [Fact]
+    public void ARunsBeatsFollowTheMetreAndTheTempoMarkedInProportionToTheOneSet()
+    {
+        var score = MeiReader.Read(Tempos);
+
+        // At 60 quarters a minute where the score goes at its main ♩ = 120: half as fast where it marks ♩. = 40 (60 quarters).
+        var beats = score.RunBeats([0, 1, 2, 3], 0, 60);
+
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], beats.Select(b => b.At));
+        Assert.Equal([1, 1, 1, 1, 2, 2, 1, 1, 1, 1], beats.Select(b => Math.Round(b.Ns / 1e9, 6)));
+        Assert.Equal([true, false, false, true, false, false, true, false, true, false], beats.Select(b => b.Accent));
+        // From bar 4, the tempo in force is the last marked before it, as written.
+        Assert.Equal([1, 1], score.RunBeats([3], score.BarStarts().ElementAt(3).Start, 60).Select(b => Math.Round(b.Ns / 1e9, 6)));
+        // A score that marks no tempo goes at the one set throughout.
+        var plain = MeiReader.Read(Repeats);
+        Assert.Null(plain.MainTempo());
+        Assert.All(plain.RunBeats(plain.PlayOrder(), 0, 120), b => Assert.Equal(0.5e9, b.Ns, 1));
+    }
+
+    [Fact]
+    public void AfterAChangeOfMetreTheClickCountsTheNewMetresBeatsWithTheEighthKept()
+    {
+        var score = new Score(new Key(0), new Meter(6, 8), [new Bar(1, []), new Bar(2, []) { NewMeter = new Meter(2, 4) }]);
+
+        // 6/8's beat is a dotted quarter, at 60 a minute; 2/4's a quarter, two thirds as long.
+        var beats = score.RunBeats([0, 1], 0, 60);
+
+        Assert.Equal([1, 1, 0.666667, 0.666667], beats.Select(b => Math.Round(b.Beats, 6)));
+        Assert.Equal([1, 1, 0.666667, 0.666667], beats.Select(b => Math.Round(b.Ns / 1e9, 6)));
+        Assert.Equal([true, false, true, false], beats.Select(b => b.Accent));
+    }
+
+    [Fact]
+    public void AnUpbeatAfterAShortBarIsCountedBackFromTheNextDownbeat()
+    {
+        // 3/4 with a one-beat pickup, a bar cut to 2/4 before a repeat, and a one-beat upbeat after it making the whole bar.
+        var score = new Score(new Key(0), new Meter(3, 4), [new Bar(0, []) { Length = Ticks.Quarter }, new Bar(1, []), new Bar(2, []) { NewMeter = new Meter(2, 4) },
+            new Bar(3, []) { NewMeter = new Meter(3, 4), Length = Ticks.Quarter }, new Bar(4, [])]);
+
+        var beats = score.RunBeats([0, 1, 2, 3, 4], 0, 60);
+
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8], beats.Select(b => b.At));
+        Assert.Equal([true, false, false, true, false, false, true, false, false], beats.Select(b => b.Accent));
+        // From the pickup, it's in the count-in.
+        Assert.Equal(9, beats.Count);
+    }
+
     [Fact]
     public void Music_without_repeats_plays_as_written()
     {

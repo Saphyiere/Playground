@@ -114,14 +114,17 @@
     /// <paramref name="startQuarter"/> of the music. Until the music starts it waits there, pulsing with the click's beats: one
     /// every <paramref name="beatMs"/>, one of them <paramref name="msUntilBeat"/> from now. It keeps to the run's
     /// <paramref name="path"/> when it's given one. Not <paramref name="shown"/>, it isn't drawn, but the line being played is
-    /// still kept in view.
+    /// still kept in view. Given the run's beats' <paramref name="times"/> (each one's quarter, and when it's due in ms after the
+    /// beat <paramref name="msUntilBeat"/> from now), for music whose tempo changes, it keeps to those instead.
     /// </summary>
-    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null, CursorPath? path = null, bool shown = true)
+    public async Task StartCursor(double msUntilStart, double msPerQuarter, double startQuarter, double beatMs, double msUntilBeat, double? readAheadQuarters = null, CursorPath? path = null, bool shown = true,
+        IReadOnlyList<(double Quarter, double Ms)>? times = null)
     {
         if (module is null) return;
 
         var way = path is null ? null : new { bars = path.Bars.Select(b => new object[] { b.Index, b.Quarter, b.Quarters }), events = path.Printed.Select(e => new object[] { e.Index, e.Id, e.Quarter }) };
-        await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, way, shown);
+        var beats = times?.Select(t => new[] { t.Quarter, t.Ms });
+        await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, way, shown, beats);
     }
 
     /// <summary>Read ahead's look: only the opening view of <paramref name="quarters"/> shows.</summary>

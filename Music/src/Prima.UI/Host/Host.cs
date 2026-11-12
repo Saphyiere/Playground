@@ -93,17 +93,17 @@ public sealed class NoKeyboard : IKeyboard
 public sealed class GridClick(IClock clock) : IClick
 {
     private long startNs;
-    private long beatNs;
+    private ClickPlan? plan;
 
     public bool Running { get; private set; }
 
     public bool Approximate => false;
 
-    public void Start(ClickPlan plan, ClickSoundKind sound, double volume) => (startNs, beatNs, Running) = (clock.NowNs + Click.LeadNs, plan.BeatNs, true);
+    public void Start(ClickPlan plan, ClickSoundKind sound, double volume) => (startNs, this.plan, Running) = (clock.NowNs + Click.LeadNs, plan, true);
 
     public void Stop() => Running = false;
 
-    public long BeatTime(int beat) => startNs + beat * beatNs;
+    public long BeatTime(int beat) => startNs + (long)Math.Round(plan?.Offset(beat) ?? 0);
 }
 
 /// <summary>Files outside the app: backing the database up somewhere, and picking a file (a backup to restore, music to import).</summary>

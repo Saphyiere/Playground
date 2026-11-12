@@ -71,19 +71,18 @@ public sealed class AndroidClick : IClick
         lock (gate) return stampFrame < 0 ? startedNs + frame * 1_000_000_000L / Rate : AudioClock.TimeOf(frame, stampFrame, stampNs, Rate);
     }
 
-    private long FrameOf(int beat) => firstFrame + (long)System.Math.Round(beat * Rate * 60.0 / (plan?.Bpm ?? 60));
+    private long FrameOf(int beat) => firstFrame + (long)System.Math.Round((plan?.Offset(beat) ?? 0) * Rate / 1e9);
 
     private void Write(AudioTrack output)
     {
         var buffer = new float[Chunk];
         var written = 0L;
         var nextPoll = 0L;
-        var beatFrames = Rate * 60.0 / plan!.Bpm;
         while (running)
         {
             System.Array.Clear(buffer);
             // Every click that overlaps this chunk: from the beat that may still be ringing to the last that starts in it.
-            var from = (int)System.Math.Max(0, System.Math.Floor((written - accent.Length - firstFrame) / beatFrames));
+            var from = (int)System.Math.Max(0, System.Math.Floor(plan!.BeatAt((written - accent.Length - firstFrame) * 1e9 / Rate)));
             for (var beat = from; FrameOf(beat) < written + Chunk; beat++)
             {
                 if (!plan.Sounds(beat)) continue;
