@@ -44,6 +44,10 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string SummaryDetailsKey = "Summary.Details";
     private const string CursorKey = "Play.Cursor";
     private const string LiveMarksKey = "Play.LiveMarks";
+    private const string AfterRunKey = "Practice.AfterRun";
+    private const string PassFigureKey = "Practice.PassFigure";
+    private const string PassWaitsKey = "Practice.PassWaits";
+    private const string RunAgainKey = "Practice.RunAgain";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -88,6 +92,10 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.SummaryDetails = saved.GetValueOrDefault(SummaryDetailsKey) == "true";
         settings.Cursor = saved.GetValueOrDefault(CursorKey) != "false";
         settings.LiveMarks = saved.GetValueOrDefault(LiveMarksKey) != "false";
+        settings.AfterRun = saved.GetValueOrDefault(AfterRunKey) ?? defaults.AfterRun;
+        settings.PassFigure = saved.GetValueOrDefault(PassFigureKey) != "false";
+        settings.PassWaits = saved.GetValueOrDefault(PassWaitsKey) == "true";
+        settings.RunAgain = saved.GetValueOrDefault(RunAgainKey) == "true";
     }
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
@@ -119,6 +127,10 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (SummaryDetailsKey, settings.SummaryDetails ? "true" : "false"),
             (CursorKey, settings.Cursor ? "true" : "false"),
             (LiveMarksKey, settings.LiveMarks ? "true" : "false"),
+            (AfterRunKey, settings.AfterRun),
+            (PassFigureKey, settings.PassFigure ? "true" : "false"),
+            (PassWaitsKey, settings.PassWaits ? "true" : "false"),
+            (RunAgainKey, settings.RunAgain ? "true" : "false"),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)

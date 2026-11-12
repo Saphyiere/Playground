@@ -5119,3 +5119,579 @@ html[data-full] .piece .summary {
         grid-area: words;
     }
 }
+
+/* ——— Practice and Play ——— */
+
+/* A piece's front: its level, and Practice and Play, large. */
+.piece-front-bar .piece-key {
+    min-width: 168px;
+    min-height: 56px;
+    font-size: 18px;
+}
+
+/* What a piece's front, Play and the in-depth review leave off the music: the chosen bar's tab and the loop's handles. */
+.piece-front .bar-marks,
+.piece-play .bar-marks,
+.piece-review .bar-marks,
+.piece-lookback .piece-about,
+.piece-review .piece-about,
+.piece-play .piece-about {
+    display: none;
+}
+
+/* A practice session's clocks, in the piece's head: playing, then idle (quieter), and Finish practice. */
+.practice-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: 20px;
+}
+
+.practice-clock {
+    flex-direction: column;
+    padding: 5px 14px 6px;
+    border-radius: 6px;
+    background: var(--screen);
+    color: var(--on-screen);
+    box-shadow: var(--shadow-bezel);
+}
+
+.practice-clock .mu-readout-value {
+    font-size: 22px;
+    line-height: 26px;
+}
+
+.practice-idle .mu-readout-value {
+    color: var(--on-screen-muted);
+}
+
+[data-theme="vinyl"] .practice-clock {
+    background: var(--surface);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .practice-clock .mu-readout-value {
+    font-size: 28px;
+    line-height: 30px;
+}
+
+/* The session paused: the page covered, a card in its middle asking whether you're still practising. */
+.pause-cover {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: color-mix(in srgb, var(--ground) 82%, transparent);
+    backdrop-filter: blur(3px);
+}
+
+.pause-card {
+    width: min(520px, 100%);
+    gap: 14px;
+}
+
+.pause-title {
+    margin: 0;
+    font-family: var(--mu-name);
+    font-size: 30px;
+    line-height: 34px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .pause-title {
+    font-size: 44px;
+    line-height: 44px;
+    font-weight: 400;
+}
+
+.pause-line {
+    margin: 0;
+    font: var(--sum-lead);
+    color: var(--on-screen);
+}
+
+.pause-keys,
+.look-keys,
+.play-quick-keys,
+.review-keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.look-keys .mu-primary,
+.review-keys > :last-child {
+    margin-left: auto;
+}
+
+/* The session's clocks in the bar's title row are portrait's; landscape has them in the head. */
+.piece-title-row {
+    display: contents;
+}
+
+.piece-title-row .practice-strip {
+    display: none;
+}
+
+/* Play's strip: the piece's name first, its tempo and Start, then Done. */
+.play-strip .piece-bar-title {
+    display: block;
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mu-name);
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .play-strip .piece-bar-title {
+    font-size: 26px;
+    font-weight: 400;
+}
+
+.play-strip .piece-actions {
+    order: 5;
+}
+
+/* The look back: what was practised, each stretch a row with its line of runs or passes, then across the session. */
+.look-back {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.look-stretches.mu-screen {
+    gap: 0;
+    padding: 18px 26px 10px;
+}
+
+.look-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--staff-line);
+}
+
+.look-total {
+    font-family: var(--mu-print);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--on-screen);
+}
+
+.look-total b {
+    font-family: var(--mu-figure);
+    font-size: 20px;
+}
+
+[data-theme="vinyl"] .look-total {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+[data-theme="vinyl"] .look-total b {
+    font-size: 26px;
+    font-weight: 400;
+}
+
+.look-row {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr) 220px 110px;
+    align-items: center;
+    gap: 22px;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--staff-line);
+}
+
+.look-row:last-child {
+    border-bottom: 0;
+}
+
+.look-name,
+.look-figs {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.look-bars {
+    font-family: var(--mu-figure);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .look-bars {
+    font-size: 30px;
+    line-height: 30px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.look-spark {
+    min-width: 0;
+}
+
+.look-line {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    color: var(--chart-good);
+}
+
+.look-line text {
+    font-family: var(--mu-print);
+    font-size: 11px;
+    fill: var(--on-screen-muted);
+    letter-spacing: 0.06em;
+}
+
+.look-line .look-said {
+    fill: var(--on-screen);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.look-step {
+    stroke: var(--staff-line);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+}
+
+.look-best {
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.look-end {
+    fill: var(--screen);
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+[data-theme="vinyl"] .look-end {
+    fill: var(--surface);
+}
+
+.look-fig {
+    font-family: var(--mu-figure);
+    font-size: 18px;
+    line-height: 22px;
+    color: var(--on-screen);
+    white-space: nowrap;
+}
+
+.look-fig b {
+    font-size: 22px;
+}
+
+[data-theme="vinyl"] .look-fig {
+    font-size: 24px;
+    line-height: 26px;
+    letter-spacing: 0.03em;
+}
+
+[data-theme="vinyl"] .look-fig b {
+    font-size: 28px;
+    font-weight: 400;
+}
+
+.look-arrow {
+    color: var(--on-screen-muted);
+    padding: 0 2px;
+}
+
+.look-none {
+    margin: 12px 0;
+    font: var(--sum-lead);
+    color: var(--on-screen);
+}
+
+.look-lines.mu-screen {
+    padding: 16px 26px;
+}
+
+/* The in-depth review, taking the screen: its head and figures, its lines beside its bars, the music of the bar picked under
+   them, and its keys. */
+.deep-review {
+    flex: none;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas: "head head" "lines bars";
+    margin-bottom: 14px;
+}
+
+.review-head.mu-screen {
+    grid-area: head;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    padding: 16px 26px;
+}
+
+.review-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.review-name {
+    font-family: var(--mu-name);
+    font-size: 30px;
+    line-height: 32px;
+    font-weight: 700;
+    color: var(--on-screen);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+[data-theme="vinyl"] .review-name {
+    font-size: 44px;
+    line-height: 42px;
+    font-weight: 400;
+}
+
+.review-figures {
+    display: flex;
+    gap: 34px;
+}
+
+.review-lines-box {
+    grid-area: lines;
+    display: flex;
+}
+
+.review-lines.mu-screen {
+    flex: 1;
+    justify-content: center;
+}
+
+.review-bars.mu-screen {
+    grid-area: bars;
+    padding: 16px 22px;
+    justify-content: center;
+    gap: 10px;
+}
+
+.review-cells,
+.review-nums {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    gap: 3px;
+}
+
+.review-cell {
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.review-cell.picked {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+[data-theme="vinyl"] .review-cell {
+    border-radius: 0;
+}
+
+.review-nums {
+    font-family: var(--mu-print);
+    font-size: 11px;
+    color: var(--on-screen-muted);
+    text-align: center;
+}
+
+.review-nums .picked {
+    color: var(--on-screen);
+    font-weight: 700;
+}
+
+/* A long piece: the whole of it as a thin strip, each bar below marked where it is. */
+.review-whole {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--chart-off);
+}
+
+.review-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 3px;
+    background: var(--chart-bad);
+}
+
+.review-tick.picked {
+    background: var(--accent);
+}
+
+.review-more {
+    align-self: flex-start;
+}
+
+.review-keys {
+    flex: none;
+    margin-top: 14px;
+}
+
+/* The bar picked, outlined on the music. */
+.sheet-outline {
+    fill: color-mix(in srgb, var(--accent) 10%, transparent);
+    stroke: var(--accent);
+    stroke-width: 3px;
+}
+
+[data-theme="vinyl"] .sheet-outline {
+    stroke: var(--accent-2);
+}
+
+/* Play: a slim strip over the music, and its quick review at the bottom. */
+.piece-bar.play-strip {
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.play-quick.mu-screen {
+    flex: none;
+    margin-top: 14px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 22px;
+}
+
+.play-quick-line {
+    margin: 0;
+    font: var(--sum-lead);
+    color: var(--on-screen);
+}
+
+.play-quick-line b {
+    font-family: var(--mu-figure);
+    font-size: 22px;
+}
+
+.play-quick-keys {
+    flex: none;
+}
+
+.play-quick-keys .mu-btn:last-child {
+    margin-left: 0;
+}
+
+@media (orientation: portrait) {
+    .piece-title-row {
+        display: flex;
+        flex: 1 1 100%;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .piece-title-row .piece-bar-title {
+        flex: 1 1 auto;
+    }
+
+    .piece-title-row .practice-strip {
+        display: flex;
+        margin: 0;
+    }
+
+    .piece-title-row .practice-clock {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 8px;
+        padding: 2px 10px;
+        box-shadow: none;
+    }
+
+    .piece-title-row .practice-clock .mu-readout-value {
+        font-size: 18px;
+        line-height: 22px;
+    }
+
+    .piece-title-row .mu-btn {
+        min-height: 38px;
+        height: 38px;
+        padding: 0 14px;
+    }
+
+    /* The look back has the page's head in portrait too: what was practised, and when. */
+    .piece-lookback .reading-head {
+        display: flex;
+    }
+
+    .practice-strip {
+        margin-right: 12px;
+        gap: 8px;
+    }
+
+    .practice-strip .mu-btn {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .look-row {
+        grid-template-columns: minmax(0, 1fr) 200px;
+        grid-template-areas: "name figs" "spark spark" "tempo tempo";
+        row-gap: 8px;
+    }
+
+    .look-name {
+        grid-area: name;
+    }
+
+    .look-spark {
+        grid-area: spark;
+    }
+
+    .look-row > .look-figs:not(.look-tempo) {
+        grid-area: figs;
+    }
+
+    .look-tempo {
+        grid-area: tempo;
+        flex-direction: row;
+        gap: 10px;
+        align-items: baseline;
+    }
+
+    .deep-review {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "head" "lines" "bars";
+    }
+
+    .review-head.mu-screen {
+        flex-wrap: wrap;
+        row-gap: 12px;
+    }
+}

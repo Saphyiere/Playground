@@ -1,0 +1,185 @@
+@using Prima.Core.Practice
+@using Prima.UI.Storage
+
+@* A practice session looked back on, taking the page once it's finished: its time playing and idle; each stretch practised
+   (its bars, the hand and the mode) with its runs, or round a loop its passes, as a line, the first to the last and the best
+   named, and its tempo; the bar that kept going wrong; and how it compares with the session before. Keep practising carries
+   the session on, the in-depth review goes over it, and Done goes back to the piece's front: only taps press them. *@
+<div class="look-back">
+    <section class="mu-screen look-stretches" aria-label="What was practised">
+        <div class="look-head">
+            <span class="mu-readout-label">This session</span>
+            <span class="look-total"><b>@PracticeStrip.Said(Session.Playing)</b> playing · @PracticeStrip.Said(Session.Idle) idle@(Totals())</span>
+        </div>
+        @foreach (var stretch in Review.Stretches)
+        {
+            var values = stretch.Points.Select(p => p.Figure).ToList();
+            var low = Math.Max(0, values.Min() - 0.08);
+            var best = values.IndexOf(values.Max());
+            var xs = values.Select((_, i) => values.Count == 1 ? Width / 2 : 6 + i * (Width - 12) / (values.Count - 1)).ToList();
+            var ys = values.Select(v => 18 + (1 - (v - low) / Math.Max(0.01, 1 - low)) * (Height - 34)).ToList();
+            // Where the tempo changed along it, the new tempo under that point.
+            var steps = stretch.InTime && stretch.Points.Select(p => p.Tempo).Distinct().Count() > 1 ? stretch.Points.Select((p, i) => (i, p.Tempo)).Where(s => s.i == 0 || stretch.Points[s.i - 1].Tempo != s.Tempo).ToList() : [];
+            <div class="look-row">
+                <div class="look-name">
+                    <span class="look-bars">@Name(stretch, true)</span>
+                    <span class="mu-readout-label">@Hands(stretch) · @(stretch.InTime ? "In time" : "Wait for me")</span>
+                    <span class="mu-readout-label">@Count(stretch)</span>
+                </div>
+                <div class="look-spark">
+                    <svg class="look-line" viewBox="0 0 @Width @Height" role="img" aria-label="@($"{values.Count} {(stretch.To is null ? "runs" : "passes")}: {Said(stretch, stretch.First)} the first, {Said(stretch, stretch.Best)} at best, {Said(stretch, stretch.Last)} the last")">
+                        @foreach (var (i, tempo) in steps)
+                        {
+                            <line x1="@xs[i]" x2="@xs[i]" y1="12" y2="@(Height - 12)" class="look-step" />
+                            @Label(xs[i] + 4, Height - 2, "start", null, $"at {tempo:0}")
+                        }
+                        <path d="@string.Join(" ", xs.Select((x, i) => $"{(i == 0 ? "M" : "L")}{x:0.0} {ys[i]:0.0}"))" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                        @foreach (var i in new[] { 0, best, values.Count - 1 }.Distinct())
+                        {
+                            <circle cx="@xs[i]" cy="@ys[i]" r="@(i == best ? 5 : 4)" class="@(i == best ? "look-best" : "look-end")" />
+                        }
+                        @if (values.Count > 1)
+                        {
+                            @Label(xs[best], ys[best] - 9, xs[best] > Width - 60 ? "end" : xs[best] < 60 ? "start" : "middle", "look-said", $"{Said(stretch, stretch.Best)} best")
+                        }
+                    </svg>
+                </div>
+                <div class="look-figs">
+                    <span class="mu-readout-label">@(stretch.InTime ? "Right in time" : "Right first time")@(values.Count > 1 ? ", first → last" : "")</span>
+                    <span class="look-fig">@if (values.Count > 1) { @Said(stretch, stretch.First)<span class="look-arrow"> → </span> }<b>@Said(stretch, stretch.Last)</b></span>
+                </div>
+                <div class="look-figs look-tempo">
+                    @if (stretch.InTime)
+                    {
+                        var (first, last) = (stretch.First.Tempo ?? 0, stretch.Last.Tempo ?? 0);
+                        <span class="mu-readout-label">Tempo</span>
+                        <span class="look-fig">@(first == last ? $"{last:0}" : $"{first:0} → {last:0}")</span>
+                    }
+                    else
+                    {
+                        <span class="mu-readout-label">Best</span>
+                        <span class="look-fig">@Said(stretch, stretch.Best)</span>
+                    }
+                </div>
+            </div>
+        }
+        @if (Review.Stretches.Count == 0)
+        {
+            <p class="look-none">Nothing was played to the end of a run or a pass this time.</p>
+        }
+    </section>
+
+    <div class="sum">
+        <section class="mu-screen sum-quick look-lines" aria-label="Across the session">
+            <p class="sum-point">
+                <span class="sum-key @(Review.Hard is null ? "good" : "bad")" aria-hidden="true"></span><span class="mu-readout-label">Still hard</span>
+                <span>@(Review.Hard is { } hard ? $"Bar {hard.Bar}: something to fix {hard.Times} of the {hard.Of} times it was played, mostly {Kind(hard.Mostly)}." : "No bar went wrong more than once.")</span>
+            </p>
+            @if (Since is { } before && Compared(before.Review) is { Count: > 0 } changes)
+            {
+                <p class="sum-point">
+                    <span class="sum-key good" aria-hidden="true"></span><span class="mu-readout-label">@SinceLabel(before.Day)</span>
+                    <span>@(char.ToUpperInvariant(changes[0][0]) + string.Join("; ", changes)[1..]).</span>
+                </p>
+            }
+        </section>
+    </div>
+
+    <div class="look-keys">
+        <button type="button" class="mu-btn" data-piano="off" @onclick="OnKeep">Keep practising</button>
+        <button type="button" class="mu-btn" data-piano="off" @onclick="OnReview">In-depth review</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="OnDone">Done</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PracticeSession Session { get; set; } = null!;
+
+    [Parameter, EditorRequired] public SessionReview Review { get; set; } = null!;
+
+    /// <summary>The session before this one on the piece, its day and its runs summed up, to compare with.</summary>
+    [Parameter] public (DateOnly Day, SessionReview Review)? Since { get; set; }
+
+    [Parameter] public EventCallback OnKeep { get; set; }
+
+    [Parameter] public EventCallback OnReview { get; set; }
+
+    [Parameter] public EventCallback OnDone { get; set; }
+
+    // The lines' drawing size, which scales to its box.
+    private const double Width = 360;
+    private const double Height = 60;
+
+    // Words on a line's drawing (Razor takes a text element for its own, so it's written out).
+    private static MarkupString Label(double x, double y, string anchor, string? kind, string words) =>
+        new($"<text x=\"{x.ToString("0.0", CultureInfo.InvariantCulture)}\" y=\"{y.ToString("0.0", CultureInfo.InvariantCulture)}\" text-anchor=\"{anchor}\"{(kind is null ? "" : $" class=\"{kind}\"")}>{System.Net.WebUtility.HtmlEncode(words)}</text>");
+
+    // The session in a few figures, after its minutes: its stretches, the passes round its loops and its runs through.
+    private string Totals()
+    {
+        var passes = Review.Stretches.Where(s => s.To is not null).Sum(s => s.Points.Count);
+        var throughs = Review.Stretches.Sum(s => s.Throughs);
+        var parts = new List<string> { Review.Stretches.Count == 1 ? "1 stretch" : $"{Review.Stretches.Count} stretches" };
+        if (passes > 0) parts.Add(passes == 1 ? "1 pass" : $"{passes} passes");
+        if (throughs > 0) parts.Add(throughs == 1 ? "1 run through" : $"{throughs} runs through");
+        return " · " + string.Join(" · ", parts);
+    }
+
+    /// <summary>A stretch's bars: "Bars 13–16", "Bar 7", "From bar 9" or "The whole piece" (lower case in a sentence).</summary>
+    public static string Name(Stretch stretch, bool capital)
+    {
+        var name = stretch.To is { } to ? (to == stretch.From ? $"bar {to}" : $"bars {stretch.From}–{to}") : stretch.From <= 1 ? "the whole piece" : $"from bar {stretch.From}";
+        return capital ? char.ToUpperInvariant(name[0]) + name[1..] : name;
+    }
+
+    private static string Hands(Stretch stretch) => stretch.Hands switch { "right" => "Right hand", "left" => "Left hand", _ => "Both hands" };
+
+    private static string Count(Stretch stretch)
+    {
+        if (stretch.To is not null) return stretch.Points.Count == 1 ? "1 pass" : $"{stretch.Points.Count} passes";
+
+        var stopped = stretch.Runs - stretch.Throughs;
+        if (stretch.Throughs == 0) return stretch.Runs == 1 ? "1 run" : $"{stretch.Runs} runs";
+        return (stretch.Throughs == 1 ? "1 run through" : $"{stretch.Throughs} runs through") + (stopped > 0 ? $", {stopped} stopped" : "");
+    }
+
+    /// <summary>How a run or pass went: "91%" right in time, or "15/17" right first time.</summary>
+    public static string Said(Stretch stretch, StretchPoint point) => stretch.InTime ? $"{point.Figure * 100:0}%" : $"{point.Right}/{point.Notes}";
+
+    private static string Kind(TroubleKind kind) => kind switch
+    {
+        TroubleKind.Wrong => "wrong notes",
+        TroubleKind.Missed => "missed notes",
+        TroubleKind.Off => "notes off the beat",
+        _ => "notes let go early",
+    };
+
+    // What changed since the session before, for each stretch played both times: a faster tempo, or else the best figure.
+    private List<string> Compared(SessionReview before)
+    {
+        var changes = new List<string>();
+        foreach (var now in Review.Stretches)
+        {
+            if (before.Stretches.FirstOrDefault(s => s.Same(now)) is not { } then) continue;
+
+            var name = Name(now, false);
+            var (tempo, earlier) = (now.Points.Max(p => p.Tempo ?? 0), then.Points.Max(p => p.Tempo ?? 0));
+            if (now.InTime && tempo > earlier) changes.Add($"{name} at {tempo:0}, from {earlier:0}");
+            else if (now.InTime) changes.Add($"{name} {Said(now, now.Best)} right in time at best, from {Said(then, then.Best)}");
+            else changes.Add($"{name} {Said(now, now.Best)} right first time at best, from {Said(then, then.Best)}");
+        }
+        return changes;
+    }
+
+    private static string SinceLabel(DateOnly day)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        return (today.DayNumber - day.DayNumber) switch
+        {
+            <= 0 => "Earlier today",
+            1 => "Since yesterday",
+            < 7 => $"Since {day.DayOfWeek}",
+            _ => $"Since {day.ToString("d MMMM", CultureInfo.InvariantCulture)}",
+        };
+    }
+}

@@ -2,6 +2,7 @@ using Prima.Core.Generation;
 using Prima.Core.Music;
 using Prima.Core.Practice;
 using Prima.Core.Scoring;
+using Prima.UI.Components;
 
 namespace Prima.UI.Practice;
 
@@ -92,6 +93,23 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
 
     /// <summary>In time: when a beat of the music sounded on the click's clock (beat 0 is bar 1's downbeat), for keeping a take.</summary>
     public Func<double, long>? TimeAt { get; init; }
+
+    /// <summary>The marks it left on the music, as they show once it's over (round a loop, its last pass's).</summary>
+    public IReadOnlyList<SheetMark> Marks { get; init; } = [];
+}
+
+/// <summary>What went wrong in each bar of a run or a pass that had something wrong.</summary>
+public static class Trouble
+{
+    /// <summary>From its notes' results, In time: wrong, missed, off the beat, let go early.</summary>
+    public static IReadOnlyList<BarTrouble> Of(IEnumerable<NoteResult> notes) => [.. notes.GroupBy(n => n.Bar)
+        .Select(g => new BarTrouble(g.Key, g.Count(n => n.Outcome == Outcome.Wrong), g.Count(n => n.Outcome == Outcome.Missed), g.Count(n => n.Band == Band.Off), g.Count(n => n.LetGoEarly)))
+        .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
+
+    /// <summary>From the marks left on its notes, in Wait for me: wrong, and a chord played a key at a time as off; each note's bar by its id.</summary>
+    public static IReadOnlyList<BarTrouble> Of(IEnumerable<SheetMark> marks, IReadOnlyDictionary<string, int> barOf) => [.. marks.Where(m => barOf.ContainsKey(m.Id)).GroupBy(m => barOf[m.Id])
+        .Select(g => new BarTrouble(g.Key, g.Count(m => m.Kind == "wrong"), g.Count(m => m.Kind == "missed"), g.Count(m => m.Kind is "early" or "late" or "apart"), 0))
+        .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
 }
 
 /// <summary>

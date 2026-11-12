@@ -1,0 +1,33 @@
+@implements IDisposable
+@using Prima.Core.Practice
+
+@* A practice session's clocks, beside the piece's name: the time playing and the time idle, counted each second, and Finish
+   practice, which only a tap presses. It draws itself each second, not the piece under it. *@
+<div class="practice-strip" role="group" aria-label="This practice session">
+    <div class="mu-readout practice-clock"><span class="mu-readout-label">Playing</span><span class="mu-readout-value">@Said(Clock.Playing)</span></div>
+    <div class="mu-readout practice-clock practice-idle"><span class="mu-readout-label">Idle</span><span class="mu-readout-value">@Said(Clock.Idle)</span></div>
+    <button type="button" class="mu-btn" data-piano="off" @onclick="OnFinish">Finish practice</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PracticeClock Clock { get; set; } = null!;
+
+    [Parameter] public EventCallback OnFinish { get; set; }
+
+    /// <summary>Each second, once the clock has counted: for the screen to keep it, and cover itself when it pauses. Not an EventCallback, so the screen isn't drawn again each second.</summary>
+    [Parameter] public Func<Task>? OnTick { get; set; }
+
+    private Timer? timer;
+
+    protected override void OnInitialized() => timer = new Timer(_ => _ = InvokeAsync(async () =>
+    {
+        Clock.Advance(DateTimeOffset.Now);
+        StateHasChanged();
+        if (OnTick is not null) await OnTick();
+    }), null, 1000, 1000);
+
+    /// <summary>A clock's time: "12:34", or past an hour "1:02:34".</summary>
+    public static string Said(TimeSpan time) => time.TotalHours >= 1 ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}" : $"{time.Minutes}:{time.Seconds:00}";
+
+    public void Dispose() => timer?.Dispose();
+}

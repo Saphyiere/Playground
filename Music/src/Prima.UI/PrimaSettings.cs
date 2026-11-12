@@ -75,4 +75,36 @@ public sealed class PrimaSettings
 
     /// <summary>Whether notes are marked as they're played. Off, they're judged all the same, and marked when the run ends.</summary>
     public bool LiveMarks { get; set; } = true;
+
+    /// <summary>
+    /// The ways of practising a piece, each a set of the settings after it, which can then be changed one by one: what shows after a
+    /// run, each pass's figure round a loop, whether a loop waits for you after each pass, and whether a run goes again by itself.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, (string AfterRun, bool PassFigure, bool PassWaits, bool RunAgain)> Ways = new Dictionary<string, (string, bool, bool, bool)>
+    {
+        ["simple"] = ("nothing", false, false, false),
+        ["standard"] = ("summary", true, false, false),
+        ["hands-on"] = ("review", true, true, false),
+    };
+
+    /// <summary>The ways' names, in order, for choosing one.</summary>
+    public static readonly (string Way, string Name)[] WayNames = [("simple", "Simple"), ("standard", "Standard"), ("hands-on", "Hands-on")];
+
+    /// <summary>What shows after a run in Practice: "nothing" (it's ready to go again), "summary" (under the music) or "review" (taking the screen).</summary>
+    public string AfterRun { get; set; } = "summary";
+
+    /// <summary>Round a loop in Practice, each pass's figure in the bar as the next begins.</summary>
+    public bool PassFigure { get; set; } = true;
+
+    /// <summary>Whether a loop in Practice stops after each pass, to look at it and go again, or goes straight on.</summary>
+    public bool PassWaits { get; set; }
+
+    /// <summary>Whether a run in Practice that comes to its end goes again by itself, after its count-in.</summary>
+    public bool RunAgain { get; set; }
+
+    /// <summary>The way of practising the settings make up, or null when they've been changed from all three.</summary>
+    public string? Way => Ways.FirstOrDefault(w => w.Value == (AfterRun, PassFigure, PassWaits, RunAgain)).Key;
+
+    /// <summary>Practising a way: its settings.</summary>
+    public void Practise(string way) => (AfterRun, PassFigure, PassWaits, RunAgain) = Ways[way];
 }

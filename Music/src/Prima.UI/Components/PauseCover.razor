@@ -1,0 +1,22 @@
+@using Prima.Core.Practice
+
+@* A practice session paused, after 15 minutes with nothing played or on coming back to the piece: the page is covered until a
+   tap says whether you're still practising (the piano's buttons press neither key; playing a key carries on too). *@
+<div class="pause-cover" role="dialog" aria-modal="true" aria-labelledby="pause-heading">
+    <section class="mu-screen pause-card">
+        <h2 id="pause-heading" class="pause-title">Still practising?</h2>
+        <p class="pause-line">@PracticeStrip.Said(Clock.Playing) playing and @PracticeStrip.Said(Clock.Idle) idle so far. The clocks are stopped until you carry on.</p>
+        <div class="pause-keys">
+            <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="OnKeep">Keep practising</button>
+            <button type="button" class="mu-btn" data-piano="off" @onclick="OnFinish">Finish practice</button>
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PracticeClock Clock { get; set; } = null!;
+
+    [Parameter] public EventCallback OnKeep { get; set; }
+
+    [Parameter] public EventCallback OnFinish { get; set; }
+}

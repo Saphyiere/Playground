@@ -23,6 +23,13 @@ public sealed record DoneRecord(string Kind, string? SetId, int Times, int Days,
 /// <summary>A practised day: its minutes, the plan made for it, the steps done, and the five-minute plan.</summary>
 public sealed record DayRecord(DateOnly Day, double Minutes, string? Plan, string StepsDone, bool ShortDone);
 
+/// <summary>
+/// A practice session on a piece: when it started, its clock as last kept (playing and idle time, whether it's paused, when
+/// something was last played), the way it was practised ("simple", "standard", "hands-on", or "custom" for a mix of their
+/// settings), and when it finished, if it has.
+/// </summary>
+public sealed record PracticeSession(long Id, string Piece, DateTimeOffset Started, TimeSpan Playing, TimeSpan Idle, bool Paused, DateTimeOffset LastPlayed, string Way, DateTimeOffset? Finished);
+
 public sealed partial class PrimaStore
 {
     private const string PracticeSchema = """
@@ -76,6 +83,18 @@ public sealed partial class PrimaStore
             StepsDone TEXT NOT NULL DEFAULT '',
             ShortDone INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS PracticeSession (
+            Id INTEGER PRIMARY KEY,
+            Piece TEXT NOT NULL,
+            Started TEXT NOT NULL,
+            Playing REAL NOT NULL DEFAULT 0,
+            Idle REAL NOT NULL DEFAULT 0,
+            Paused INTEGER NOT NULL DEFAULT 0,
+            LastPlayed TEXT NOT NULL,
+            Way TEXT NOT NULL,
+            Finished TEXT
+        );
+        CREATE INDEX IF NOT EXISTS SessionByPiece ON PracticeSession (Piece, Started);
         """;
 
     /// <summary>Tuples and records with fields, as JSON.</summary>
@@ -134,8 +153,8 @@ public sealed partial class PrimaStore
     /// </summary>
     public Task<List<(string Piece, PieceRun Run)>> GetPieceRunsAsync(string? piece = null) => RunAsync(async c =>
     {
-        var rows = await c.QueryAsync<(string SetId, string At, string Day, string? Variant, double? Tempo, string Measures)>(
-            "SELECT SetId, At, Day, Variant, Tempo, Measures FROM Attempt WHERE Kind = 'piece' AND SetId IS NOT NULL AND (@piece IS NULL OR SetId = @piece) ORDER BY At", new { piece });
+        var rows = await c.QueryAsync<(long Id, string SetId, string At, string Day, string? Variant, double? Tempo, string Measures)>(
+            "SELECT Id, SetId, At, Day, Variant, Tempo, Measures FROM Attempt WHERE Kind = 'piece' AND SetId IS NOT NULL AND (@piece IS NULL OR SetId = @piece) ORDER BY At", new { piece });
         return rows.Select(r =>
         {
             // The measures as a run kept them: In time's or Wait for me's, with where it started and whether it was stopped.
@@ -150,16 +169,55 @@ public sealed partial class PrimaStore
             var stopped = measures.TryGetProperty("stopped", out var early) && early.ValueKind == JsonValueKind.True;
             var share = inTime && measures.TryGetProperty("inTime", out var accuracy) && accuracy.ValueKind == JsonValueKind.Number ? accuracy.GetDouble() : (double?)null;
             var bar = measures.TryGetProperty("bar", out var at) && at.ValueKind == JsonValueKind.Number ? at.GetInt32() : (int?)null;
-            // Round a loop: its last bar, and each pass played to its end.
+            // Round a loop: its last bar, and each pass played to its end, with what went wrong in each of its bars.
             var to = measures.TryGetProperty("to", out var last) && last.ValueKind == JsonValueKind.Number ? last.GetInt32() : (int?)null;
             List<PiecePass> passes = measures.TryGetProperty("passes", out var each) && each.ValueKind == JsonValueKind.Array
-                ? [.. each.EnumerateArray().Select(p => new PiecePass(p.GetProperty("right").GetInt32(), p.GetProperty("notes").GetInt32(), p.TryGetProperty("inTime", out var timed) && timed.ValueKind == JsonValueKind.Number ? timed.GetDouble() : null))]
+                ? [.. each.EnumerateArray().Select(p => new PiecePass(p.GetProperty("right").GetInt32(), p.GetProperty("notes").GetInt32(), p.TryGetProperty("inTime", out var timed) && timed.ValueKind == JsonValueKind.Number ? timed.GetDouble() : null) { Trouble = TroubleOf(p) })]
                 : [];
+            var session = measures.TryGetProperty("session", out var of) && of.ValueKind == JsonValueKind.Number ? of.GetInt64() : (long?)null;
+            var play = measures.TryGetProperty("play", out var through) && through.ValueKind == JsonValueKind.True;
             var day = DateOnly.Parse(r.Day, CultureInfo.InvariantCulture);
-            var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), day, inTime, r.Tempo, hands, from, stopped, bar, right, notes, share) { To = to, Passes = passes };
+            var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), day, inTime, r.Tempo, hands, from, stopped, bar, right, notes, share)
+            {
+                Id = r.Id, Session = session, Play = play, Trouble = TroubleOf(measures), To = to, Passes = passes,
+            };
             return (r.SetId, run);
         }).ToList();
     });
+
+    // What went wrong in each bar of a run or a pass, as it was kept: [bar, wrong, missed, off the beat, let go early] for each.
+    private static List<BarTrouble> TroubleOf(JsonElement kept) => kept.TryGetProperty("trouble", out var bars) && bars.ValueKind == JsonValueKind.Array
+        ? [.. bars.EnumerateArray().Select(b => new BarTrouble(b[0].GetInt32(), b[1].GetInt32(), b[2].GetInt32(), b[3].GetInt32(), b[4].GetInt32()))]
+        : [];
+
+    /// <summary>The marks a run left on the music, as it kept them, for each run of those asked for that kept them.</summary>
+    public Task<Dictionary<long, string>> GetRunMarksAsync(IReadOnlyCollection<long> runs) => RunAsync(async c =>
+    {
+        var rows = await c.QueryAsync<(long Id, string Measures)>("SELECT Id, Measures FROM Attempt WHERE Id IN @runs", new { runs });
+        var marks = new Dictionary<long, string>();
+        foreach (var (id, measures) in rows)
+        {
+            using var kept = JsonDocument.Parse(measures);
+            if (kept.RootElement.TryGetProperty("marks", out var left)) marks[id] = left.GetRawText();
+        }
+        return marks;
+    });
+
+    /// <summary>Starts a practice session on a piece: its id.</summary>
+    public Task<long> StartSessionAsync(string piece, string way, DateTimeOffset at) => RunAsync(c => c.ExecuteScalarAsync<long>(
+        "INSERT INTO PracticeSession (Piece, Started, LastPlayed, Way) VALUES (@piece, @at, @at, @way); SELECT last_insert_rowid();", new { piece, at = Iso(at), way }));
+
+    /// <summary>Keeps a session's clock as it stands, and whether and when it finished.</summary>
+    public Task SaveSessionAsync(PracticeSession s) => RunAsync(c => c.ExecuteAsync(
+        "UPDATE PracticeSession SET Playing = @playing, Idle = @idle, Paused = @paused, LastPlayed = @lastPlayed, Way = @Way, Finished = @finished WHERE Id = @Id",
+        new { s.Id, playing = s.Playing.TotalSeconds, idle = s.Idle.TotalSeconds, paused = s.Paused ? 1 : 0, lastPlayed = Iso(s.LastPlayed), s.Way, finished = s.Finished is { } at ? Iso(at) : null }));
+
+    /// <summary>A piece's sessions, oldest first.</summary>
+    public Task<List<PracticeSession>> GetSessionsAsync(string piece) => RunAsync(async c =>
+        (await c.QueryAsync<(long Id, string Piece, string Started, double Playing, double Idle, long Paused, string LastPlayed, string Way, string? Finished)>(
+            "SELECT Id, Piece, Started, Playing, Idle, Paused, LastPlayed, Way, Finished FROM PracticeSession WHERE Piece = @piece ORDER BY Started", new { piece }))
+        .Select(r => new PracticeSession(r.Id, r.Piece, DateTimeOffset.Parse(r.Started, CultureInfo.InvariantCulture), TimeSpan.FromSeconds(r.Playing), TimeSpan.FromSeconds(r.Idle), r.Paused == 1,
+            DateTimeOffset.Parse(r.LastPlayed, CultureInfo.InvariantCulture), r.Way, r.Finished is null ? null : DateTimeOffset.Parse(r.Finished, CultureInfo.InvariantCulture))).ToList());
 
     /// <summary>
     /// What's been done: the attempts of one kind counted for each thing played (each exercise), and those of the other kinds
@@ -187,7 +245,7 @@ public sealed partial class PrimaStore
         new { day = Iso(day), step = step + ";", done = shortPlanDone ? 1 : 0 }));
 
     /// <summary>Deletes everything practised, keeping the settings and the Library's pieces: "start over".</summary>
-    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
+    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
 
     /// <summary>The database file, for backing up.</summary>
     public string DatabasePath => databasePath;

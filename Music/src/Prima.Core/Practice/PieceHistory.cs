@@ -7,6 +7,18 @@ namespace Prima.Core.Practice;
 /// </summary>
 public sealed record PieceRun(DateTimeOffset At, DateOnly Day, bool InTime, double? Tempo, string Hands, int From, bool Stopped, int? Bar, int Right, int Notes, double? RightInTime)
 {
+    /// <summary>Its place among the runs kept, to find what else was kept with it (its marks).</summary>
+    public long Id { get; init; }
+
+    /// <summary>The practice session it was played in; none for a play-through from Play, or a run from before there were sessions.</summary>
+    public long? Session { get; init; }
+
+    /// <summary>Played from Play: the piece through, In time, with nothing on the music.</summary>
+    public bool Play { get; init; }
+
+    /// <summary>What went wrong in each bar that had something wrong (round a loop, in its last pass).</summary>
+    public IReadOnlyList<BarTrouble> Trouble { get; init; } = [];
+
     /// <summary>A loop's last bar, when the run went round a loop.</summary>
     public int? To { get; init; }
 
@@ -24,7 +36,21 @@ public sealed record PieceRun(DateTimeOffset At, DateOnly Day, bool InTime, doub
 }
 
 /// <summary>One time round a loop: the notes right (right first time, in Wait for me) of its notes, and In time the share right and in time.</summary>
-public sealed record PiecePass(int Right, int Notes, double? RightInTime);
+public sealed record PiecePass(int Right, int Notes, double? RightInTime)
+{
+    /// <summary>What went wrong in each bar of it that had something wrong.</summary>
+    public IReadOnlyList<BarTrouble> Trouble { get; init; } = [];
+}
+
+/// <summary>
+/// What went wrong in a bar on a run or a pass: notes played wrong, missed, played off the beat (or, in Wait for me, a chord's
+/// keys a key at a time), and let go early.
+/// </summary>
+public sealed record BarTrouble(int Bar, int Wrong, int Missed, int Off, int Early)
+{
+    /// <summary>How much there is to fix, a wrong or missed note counting three times as much as one off the beat or let go early.</summary>
+    public int Weight => 3 * (Wrong + Missed) + Off + Early;
+}
 
 /// <summary>
 /// What's been done on a piece, from its runs: how many and on how many days, since when, the last, and of the times it was

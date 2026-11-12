@@ -11,8 +11,16 @@ export function listenKeys(dotnet) {
         event.preventDefault();
         dotnet.invokeMethodAsync("Turn", forward ? 1 : -1);
     };
+    // The page out of sight (the tablet asleep, the app put away): a practice session pauses.
+    const hidden = () => { if (document.hidden) dotnet.invokeMethodAsync("Hidden"); };
     document.addEventListener("keydown", handler);
-    return { dispose: () => document.removeEventListener("keydown", handler) };
+    document.addEventListener("visibilitychange", hidden);
+    return {
+        dispose: () => {
+            document.removeEventListener("keydown", handler);
+            document.removeEventListener("visibilitychange", hidden);
+        },
+    };
 }
 
 export function scrollToSystemOf(frame, id) {

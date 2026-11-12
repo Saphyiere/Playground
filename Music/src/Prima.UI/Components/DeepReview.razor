@@ -1,0 +1,130 @@
+@using Prima.Core.Practice
+
+@* The in-depth review: a practice session, or one run, gone over at length. Its figures; its lines over every run and pass
+   (the notes, the timing, the notes held, the bar to look at); and its bars shaded by what went wrong, to tap for the bar's
+   music, which the screen shows under it as it was last played there. Up to 24 bars every bar has a cell. A longer piece shows
+   the bars that had something wrong, the most to fix first, up to 16, over a strip of the whole piece with each marked on it;
+   more than that, the rest on asking. *@
+<div class="deep-review">
+    <section class="mu-screen review-head">
+        <div class="review-title"><span class="mu-readout-label">@Kicker</span><span class="review-name">@Title</span></div>
+        <div class="review-figures">
+            @foreach (var (label, value) in Figures)
+            {
+                <div class="mu-readout"><span class="mu-readout-label">@label</span><span class="mu-readout-value">@value</span></div>
+            }
+        </div>
+    </section>
+
+    <div class="sum review-lines-box">
+        <section class="mu-screen sum-quick review-lines" aria-label="How it went">
+            @foreach (var (bad, key, line) in Lines())
+            {
+                <p class="sum-point"><span class="sum-key @(bad ? "bad" : "good")" aria-hidden="true"></span><span class="mu-readout-label">@key</span><span>@line</span></p>
+            }
+        </section>
+    </div>
+
+    @{
+        var whole = Bars.Count <= 24;
+        var troubled = Review.Bars.Values.Where(b => b.Weight > 0).OrderByDescending(b => b.Weight).ThenByDescending(b => b.Wrong + b.Missed).ThenBy(b => b.Bar).Select(b => b.Bar).ToList();
+        var cells = whole ? Bars.ToList() : all ? troubled : [.. troubled.Take(16)];
+    }
+    <section class="mu-screen review-bars" style="--n: @Math.Max(cells.Count, whole ? 1 : 8)" aria-label="Bar by bar">
+        <span class="mu-readout-label">@(whole ? "Bar by bar: shaded by what went wrong · tap one for its music" : troubled.Count == 0 ? "No bar had anything wrong" : "The bars with most to fix first · tap one for its music")</span>
+        @if (!whole)
+        {
+            @* Where they are in the whole piece: a thin strip, each bar shown below marked on it. *@
+            <div class="review-whole" aria-hidden="true">
+                @foreach (var bar in cells)
+                {
+                    <span class="review-tick @(bar == Picked ? "picked" : "")" style="left: @(Math.Max(0, Bars.IndexOf(bar)) * 100.0 / Bars.Count)%; width: @(100.0 / Bars.Count)%"></span>
+                }
+            </div>
+        }
+        <div class="review-cells">
+            @foreach (var bar in cells)
+            {
+                var weight = Review.Bars.GetValueOrDefault(bar)?.Weight ?? 0;
+                <button type="button" class="review-cell @(bar == Picked ? "picked" : "")" style="background: @Fill(weight)" aria-pressed="@(bar == Picked ? "true" : "false")"
+                        aria-label="@($"Bar {bar}: {Detail(Review.Bars.GetValueOrDefault(bar))}")" @onclick="() => OnPick.InvokeAsync(bar)"></button>
+            }
+        </div>
+        <div class="review-nums" aria-hidden="true">
+            @foreach (var bar in cells)
+            {
+                <span class="@(bar == Picked ? "picked" : "")">@bar</span>
+            }
+        </div>
+        @if (!whole && !all && troubled.Count > 16)
+        {
+            <button type="button" class="mu-btn review-more" @onclick="() => all = true">and @(troubled.Count - 16) more</button>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter] public string Kicker { get; set; } = "";
+
+    [Parameter] public string Title { get; set; } = "";
+
+    [Parameter] public IReadOnlyList<(string Label, string Value)> Figures { get; set; } = [];
+
+    [Parameter, EditorRequired] public SessionReview Review { get; set; } = null!;
+
+    /// <summary>The piece's bars by number, in order.</summary>
+    [Parameter] public List<int> Bars { get; set; } = [];
+
+    [Parameter] public int? Picked { get; set; }
+
+    [Parameter] public EventCallback<int> OnPick { get; set; }
+
+    // A long piece's bars with something wrong, all of them, once asked for.
+    private bool all;
+
+    // Shaded as the summary's bars are, by how much there is to fix.
+    private static string Fill(int weight) => weight switch
+    {
+        0 => "var(--chart-off)",
+        <= 3 => "color-mix(in srgb, var(--chart-bad) 38%, var(--chart-off))",
+        <= 6 => "color-mix(in srgb, var(--chart-bad) 68%, var(--chart-off))",
+        _ => "var(--chart-bad)",
+    };
+
+    // What went wrong in a bar: "2 wrong · 1 missed · 3 off the beat · 1 let go early", or nothing.
+    private static string Detail(BarTrouble? bar)
+    {
+        if (bar is null || bar.Weight == 0) return "nothing to fix";
+
+        var parts = new[] { (bar.Wrong, "wrong"), (bar.Missed, "missed"), (bar.Off, "off the beat"), (bar.Early, "let go early") };
+        return string.Join(" · ", parts.Where(p => p.Item1 > 0).Select(p => $"{p.Item1} {p.Item2}"));
+    }
+
+    // The session's lines, over every run and pass: the notes, the timing (In time), the notes let go early, and the bar to look at.
+    private IEnumerable<(bool Bad, string Key, string Line)> Lines()
+    {
+        var bars = Review.Bars.Values.ToList();
+        var (wrong, missed, off) = (bars.Sum(b => b.Wrong), bars.Sum(b => b.Missed), bars.Sum(b => b.Off));
+        var most = bars.Where(b => b.Wrong + b.Missed > 0).OrderByDescending(b => b.Wrong + b.Missed).ThenBy(b => b.Bar).Take(3).Select(b => b.Bar).Order().ToList();
+        var notRight = string.Join(" and ", new[] { wrong > 0 ? $"{wrong} wrong" : null, missed > 0 ? $"{missed} missed" : null }.OfType<string>());
+        yield return (wrong + missed > 0, "Notes", $"{Review.Right} of {Review.Notes} right" + (wrong + missed == 0 ? ": every one." : $": {notRight}, most in {Listed(most)}."));
+        if (Review.RightInTime is { } share)
+        {
+            var timing = off == 0 ? ": nothing more than a tenth of a beat out." : $": {off} {(off == 1 ? "note" : "notes")} more than a tenth of a beat early or late.";
+            yield return (share < 0.8, "Timing", $"{share * 100:0}% right in time{timing}");
+        }
+        if (Review.Early > 0) yield return (true, "Held", $"{Review.Early} {(Review.Early == 1 ? "note" : "notes")} let go early, in {Listed([.. bars.Where(b => b.Early > 0).Select(b => b.Bar)])}.");
+        if (bars.Count > 0)
+        {
+            var worst = bars.OrderByDescending(b => b.Weight).ThenByDescending(b => b.Wrong + b.Missed).ThenBy(b => b.Bar).First();
+            yield return (true, "Look at", $"Bar {worst.Bar} had the most to fix: {Detail(worst)}.");
+        }
+    }
+
+    // Bars listed: "bar 15", "bars 1 and 4", "bars 1, 4 and 15".
+    private static string Listed(IReadOnlyList<int> bars) => bars.Count switch
+    {
+        1 => $"bar {bars[0]}",
+        _ => $"bars {string.Join(", ", bars.Take(bars.Count - 1))} and {bars[^1]}",
+    };
+}

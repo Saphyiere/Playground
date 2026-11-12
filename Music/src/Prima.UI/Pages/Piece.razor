@@ -24,15 +24,20 @@
 }
 else
 {
-    @* It fits the screen, only the music scrolling: between runs with About this piece under the music, and after a run with
-       the run's summary there in About's place, so how it went is on the screen with the music (its details scroll in the
-       summary's own space). While a PDF's notes are being read the page is as long as that needs, and scrolls. *@
-    <div class="piece @(readingNotes ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null ? "piece-summed" : "")">
+    @* It fits the screen, only the music scrolling: between runs with About this piece under the music, and in Practice after a
+       run (the Standard way) with the run's summary there in About's place, so how it went is on the screen with the music (its
+       details scroll in the summary's own space). The look back is as long as it needs, and scrolls; so is the page while a
+       PDF's notes are being read. *@
+    <div class="piece @(readingNotes || stage == Stage.LookBack ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary" ? "piece-summed" : "") @(Pdf ? "" : $"piece-{stage.ToString().ToLowerInvariant()}")">
         <header class="reading-head">
             <div>
                 <p class="page-kicker">@Kicker()</p>
                 <h1 class="page-title">@piece.Title</h1>
             </div>
+            @if (stage == Stage.Practice && clock is not null && !Pdf)
+            {
+                <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
+            }
             <KeyboardLamp />
         </header>
 
@@ -76,11 +81,59 @@ else
                 </div>
             </section>
         }
+        else if (stage == Stage.Front)
+        {
+            @* The piece's front: its level, and Practice or Play, which only a tap starts. *@
+            <section class="reading-bar piece-bar piece-front-bar" aria-label="The piece">
+                <p class="piece-bar-title">@piece.Title</p>
+                <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
+                <div class="piece-actions">
+                    <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="StartPractice">Practice</button>
+                    <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="OpenPlay">Play</button>
+                </div>
+            </section>
+        }
+        else if (stage == Stage.LookBack && session is not null && review is not null)
+        {
+            <LookBack Session="session" Review="review" Since="before" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnDone="Done" />
+        }
+        else if (stage == Stage.Review && review is not null)
+        {
+            <DeepReview Kicker="@ReviewKicker()" Title="@piece.Title" Figures="ReviewFigures()" Review="review" Bars="BarNumbers()" Picked="picked" OnPick="PickBar" />
+        }
+        else if (stage == Stage.Play)
+        {
+            @* Play: the piece through, In time, both hands, with nothing on the music while it plays; a slim strip to set the tempo
+               and start, then where it is and the time. *@
+            <PlayAlong @ref="play" Name="library-play" Music="playMusic" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar play-strip" StartLabel="Start" CanStart="playMusic is { Notes.Count: > 0 }"
+                       Ask="PlayMode.InTime" ShowMode="false" ShowTime="true" Bare="true" OnStarting="Starting" OnFinished="Finished">
+                <Readouts>
+                    <p class="piece-bar-title">@piece.Title · Play</p>
+                    @if (!playing)
+                    {
+                        <div class="piece-actions">
+                            <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
+                        </div>
+                    }
+                </Readouts>
+            </PlayAlong>
+        }
         else
         {
-            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="true" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="() => playing = false">
+            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="@(Settings.AfterRun != "nothing")" ShowPassFigure="Settings.PassFigure" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened">
                 <Readouts>
-                    <p class="piece-bar-title">@piece.Title</p>
+                    @if (clock is not null)
+                    {
+                        @* In portrait the head is hidden: the session's clocks go in the title's row. *@
+                        <div class="piece-title-row">
+                            <p class="piece-bar-title">@piece.Title</p>
+                            <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="piece-bar-title">@piece.Title</p>
+                    }
                     <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                     @if (view == View.Pages && !playing)
                     {
@@ -102,7 +155,7 @@ else
 
         @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
            piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
-        <div class="piece-stage @(readingNotes ? "piece-stage-gone" : "")">
+        <div class="piece-stage @(readingNotes || stage == Stage.LookBack ? "piece-stage-gone" : "")">
             <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
                  data-follow="@(view == View.Scroll && !Pdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
                 @if (Pdf)
@@ -175,6 +228,19 @@ else
                             </div>
                         }
                         <div class="control-row">
+                            <span class="control-label">Practice</span>
+                            @foreach (var (way, name) in PrimaSettings.WayNames)
+                            {
+                                <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Way == way)" @onclick="() => Practise(way)"><span class="mu-led"></span>@name</button>
+                            }
+                        </div>
+                        <div class="control-row">
+                            <span class="control-label">Round a loop</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.PassWaits)" @onclick="() => SetPassWaits(false)"><span class="mu-led"></span>Go straight on</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.PassWaits)" @onclick="() => SetPassWaits(true)"><span class="mu-led"></span>Wait after each pass</button>
+                            <span class="control-note">@(Settings.PassWaits ? "Each pass ends the run, to look at; play it again when you're ready." : "The loop goes round until you stop it.")</span>
+                        </div>
+                        <div class="control-row">
                             <span class="control-label">While playing</span>
                             <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Cursor)" @onclick="() => ShowWhilePlaying(!Settings.Cursor, Settings.LiveMarks)"><span class="mu-led"></span>Cursor</button>
                             <button type="button" class="mu-toggle" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => ShowWhilePlaying(Settings.Cursor, !Settings.LiveMarks)"><span class="mu-led"></span>Marks as you play</button>
@@ -212,7 +278,7 @@ else
             {
                 <p class="explain-hint">What's this? Tap any symbol on the music.</p>
             }
-            else if (loopTo == from && !playing && !options)
+            else if (loopTo == from && !playing && !options && stage == Stage.Practice)
             {
                 <p class="explain-hint">Looping bar @from: tap another bar to loop to it, or drag a handle.</p>
             }
@@ -223,11 +289,43 @@ else
             <ReadNotes Piece="piece" Pdf="pdfBytes" Layout="pdfLayout.Pages" Tempo="tempo" OnBar="b => readingBar = b" OnClose="CloseReading" OnKept="Kept" />
         }
 
-        @if (outcome is not null)
+        @if (outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary")
         {
             <section class="summary" aria-label="How it went">
                 <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" OnBar="StartAt" OnLoop="@(bars => { StartAt(bars.From); SetLoop(bars.To); })" />
             </section>
+        }
+        @if (stage == Stage.Play && played is { InTime: { } result } && !playing)
+        {
+            @* Play's very quick review, at the bottom: the headline and a few words. *@
+            <section class="mu-screen play-quick" aria-label="How it went">
+                <p class="play-quick-line"><b>@($"{result.InTimeAccuracy * 100:0}%") right in time</b> · @result.Right of @result.Expected notes@(result.WorstBar is { } worst ? $" · look at bar {worst}" : "")@(played.Stopped ? $" · stopped at bar {played.Bar}" : "")</p>
+                <div class="play-quick-keys">
+                    <button type="button" class="mu-btn mu-primary" @onclick="PlayAgain">Again</button>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="ReviewPlay">In-depth review</button>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
+                </div>
+            </section>
+        }
+        @if (stage == Stage.Review)
+        {
+            <div class="review-keys">
+                @if (reviewFrom == Stage.LookBack)
+                {
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="BackToLookBack">Back</button>
+                    <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Done">Done</button>
+                }
+                else if (reviewFrom == Stage.Play)
+                {
+                    <button type="button" class="mu-btn mu-primary" @onclick="() => Return(Stage.Play, again: true)">Again</button>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
+                }
+                else
+                {
+                    <button type="button" class="mu-btn mu-primary" @onclick="() => Return(Stage.Practice, again: true)">Again</button>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="() => Return(Stage.Practice, again: false)">Back to practising</button>
+                }
+            </div>
         }
 
         <section class="settings-section piece-about" aria-labelledby="about-heading">
@@ -293,11 +391,45 @@ else
                 </div>
             }
         </section>
+        @if (stage == Stage.Practice && clock is { Paused: true } && !Pdf)
+        {
+            <PauseCover Clock="clock" OnKeep="KeepPractising" OnFinish="FinishPractice" />
+        }
     </div>
 }
 
 @code {
     private enum View { Pages, Scroll }
+
+    // What a notation piece shows: its front (Practice or Play), a practice session, its look back once it's finished, the
+    // in-depth review, or Play. A PDF without its notes read shows its pages, as it always has.
+    private enum Stage { Front, Practice, LookBack, Review, Play }
+
+    private Stage stage = Stage.Front;
+    // The practice session going (or just finished, for its look back), its clock, how much of its playing time the day has,
+    // whether the page is covered for its pause, and the seconds since it was last kept.
+    private PracticeSession? session;
+    private PracticeClock? clock;
+    private TimeSpan counted;
+    private bool covered;
+    private int ticks;
+    // The look back's and the in-depth review's: the runs gone over, summed up, the session before to compare with, the bar picked
+    // and where the review was opened from. A run to start once the page has its play bar again.
+    private SessionReview? review;
+    private List<PieceRun> reviewed = [];
+    private (DateOnly Day, SessionReview Review)? before;
+    private int? picked;
+    private Stage reviewFrom;
+    private bool startAfterRender;
+    // Finish practice pressed while a run plays: the run stops, and the session finishes once it's kept. The marks the runs gone
+    // over in the review left, by run.
+    private bool finishAfterRun;
+    // The run kept last, by its id.
+    private long lastRun;
+    private Dictionary<long, string> marksKept = [];
+    // Play: its music (the whole piece, both hands) and how its run went.
+    private PlayMusic? playMusic;
+    private PlayOutcome? played;
 
     [Parameter] public string Id { get; set; } = "";
 
@@ -431,6 +563,13 @@ else
                 handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
                 StartAt(FirstBar);
                 history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
+                // A session left going is paused, to carry on or finish; one left until another day is finished as of the last
+                // thing played in it, and the piece opens on its front.
+                if ((await Store.GetSessionsAsync(Id)).LastOrDefault(s => s.Finished is null) is { } open)
+                {
+                    if (DateOnly.FromDateTime(open.LastPlayed.LocalDateTime) < DateOnly.FromDateTime(DateTime.Now)) await Store.SaveSessionAsync(open with { Paused = true, Finished = open.LastPlayed });
+                    else (session, clock, counted, covered, stage) = (open, new PracticeClock(DateTimeOffset.Now, open.Playing, open.Idle, paused: true, lastPlayed: open.LastPlayed), open.Playing, true, Stage.Practice);
+                }
             }
         }
 
@@ -479,11 +618,18 @@ else
             Keyboard.Received += Heard;
         }
 
+        if (startAfterRender && play is not null)
+        {
+            startAfterRender = false;
+            await play.Start();
+        }
+
         // The choice, drawn by bars.js on the music and the strip: the bar a run starts at (the first only once it's tapped), or
-        // the loop's first to last. bars.js tells Chose, Looped and Loop of a change made there.
-        if (bars is null || score is null || mei is null || Pdf || readingNotes || frame.Id is null) return;
+        // the loop's first to last, in Practice. bars.js tells Chose, Looped and Loop of a change made there. The strip is a new
+        // one each time Practice comes back to the page (from its front, the look back or a review), and drawn again then.
+        if (bars is null || score is null || mei is null || Pdf || readingNotes || frame.Id is null || stage != Stage.Practice) return;
         var lit = loopTo is not null || from > FirstBar || chosen;
-        var choice = $"{from}|{loopTo}|{lit}|{playing}|{explain}|{mei.Length}";
+        var choice = $"{from}|{loopTo}|{lit}|{playing}|{explain}|{mei.Length}|{strip.Id}";
         if (choice == shownChoice) return;
 
         shownChoice = choice;
@@ -503,7 +649,9 @@ else
         await SavePosition();
     }
 
-    private string Kicker() => string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
+    private string Kicker() => stage == Stage.LookBack && session is not null
+        ? $"Practised · {session.Started.LocalDateTime.ToString("dddd d MMMM", CultureInfo.InvariantCulture)}"
+        : string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
 
     private string LevelText() => piece!.Level is { } level ? (piece.IsPdf && mei is null ? $"~{level}" : $"{level}") : "–";
 
@@ -562,6 +710,9 @@ else
 
     private void Heard(MidiEvent e)
     {
+        // A key played in Practice: playing time, and a pause carried on.
+        if (e.Kind == MidiKind.NoteOn && stage == Stage.Practice && clock is not null) _ = InvokeAsync(() => clock?.Key(DateTimeOffset.Now));
+
         var by = e switch
         {
             { Kind: MidiKind.Control, Data1: MidiEvent.Soft, Data2: >= 64 } => 1,
@@ -657,7 +808,8 @@ else
         if (loopTo is { } to) loopTo = Math.Max(to, bar);
         var first = bar - FirstBar;
         var loop = loopTo is { } last ? Enumerable.Range(first, last - bar + 1).ToList() : null;
-        IReadOnlyList<int> order = loop is null ? score.PlayOrder(first) : [.. Enumerable.Repeat(loop, 50).SelectMany(r => r)];
+        var passes = stage == Stage.Practice && Settings.PassWaits ? 1 : 50;
+        IReadOnlyList<int> order = loop is null ? score.PlayOrder(first) : [.. Enumerable.Repeat(loop, passes).SelectMany(r => r)];
         var notes = score.Performed(order);
         var beatZero = Math.Max(0, start);
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
@@ -730,6 +882,12 @@ else
     [JSInvokable]
     public async Task Chose(int bar)
     {
+        if (stage == Stage.Review)
+        {
+            await PickBar(bar);
+            return;
+        }
+        if (stage != Stage.Practice) return;
         if (playing)
         {
             await Restart(bar);
@@ -798,6 +956,8 @@ else
     private async Task Starting()
     {
         (playing, outcome, started, options, explain, explained) = (true, null, restarting ? started : DateTime.Now, false, false, null);
+        if (stage == Stage.Practice) clock?.RunStarted(DateTimeOffset.Now);
+        if (stage == Stage.Play) played = null;
         if (view == View.Scroll) return;
 
         repainted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -809,20 +969,304 @@ else
     private async Task Finished(PlayOutcome how)
     {
         (playing, outcome) = (false, how);
+        if (stage == Stage.Practice) clock?.RunEnded(DateTimeOffset.Now);
+        if (stage == Stage.Play) played = how;
         // Stopped before a key that could be judged (in the count-in, or with nothing played): there's no run to keep.
-        if (how is { InTime: null, Wait: null or { Notes: 0 } }) return;
+        var kept = how is not { InTime: null, Wait: null or { Notes: 0 } };
+        if (kept) await Keep(how);
+        if (stage != Stage.Practice) return;
 
+        // Practice: finishing once the run's kept, if that's what stopped it; then what shows after a run, as Settings say, and
+        // whether it goes again by itself.
+        if (finishAfterRun)
+        {
+            finishAfterRun = false;
+            await FinishPractice();
+        }
+        else if (Settings.AfterRun == "review" && kept)
+        {
+            reviewed = [.. (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).Where(r => r.Id == lastRun)];
+            review = SessionReview.Of(reviewed, LastBar);
+            await OpenReview(Stage.Practice);
+        }
+        else if (Settings.AfterRun == "nothing")
+        {
+            outcome = null;
+            if (!Settings.LiveMarks && sheet is not null) await sheet.ClearMarks();
+        }
+        if (stage == Stage.Practice && Settings.RunAgain && !how.Stopped) startAfterRender = true;
+    }
+
+    // A run kept: how it went, the practice session it was played in (or that it was Play's), what went wrong in each bar (and
+    // in each pass round a loop), and the marks it left on the music, for the look back and the in-depth review.
+    private async Task Keep(PlayOutcome how)
+    {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
         // Round a loop, its last bar and each pass, and the run's figures are its last pass's.
-        var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime }));
+        var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime, trouble = Kept(p.Trouble) }));
+        var trouble = Kept(how.InTime is { } judged ? Trouble.Of(judged.Notes) : Trouble.Of(how.Marks, expected.ToDictionary(n => n.Id, n => n.Bar)));
+        var (practised, fromPlay) = (stage == Stage.Practice ? session?.Id : null, stage == Stage.Play ? true : (bool?)null);
+        var marks = new { right = how.Marks.Where(m => m.Kind == "right").Select(m => m.Id), other = how.Marks.Where(m => m.Kind != "right").Select(m => new object?[] { m.Id, m.Kind, m.Played, m.Steps, m.Written }) };
         object measures = how.InTime is { } r
-            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands = HandName ?? "both" };
+            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from = RunFrom(), to, passes, stopped = how.Stopped, bar = how.Bar, hands = RunHands(), session = practised, play = fromPlay, trouble, marks }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from = RunFrom(), to, passes, stopped = how.Stopped, bar = how.Bar, hands = RunHands(), session = practised, play = fromPlay, trouble, marks };
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 })), null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
-        await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
+        var keys = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
+        lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, keys, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
+        // Practice's minutes are its clock's, counted as it goes; Play's are its run's.
+        if (stage != Stage.Practice) await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
         history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
+    }
+
+    // Play's run is the whole piece, both hands, whatever bar and hand Practice has chosen.
+    private int RunFrom() => stage == Stage.Play ? FirstBar : from;
+
+    private string RunHands() => stage == Stage.Play ? "both" : HandName ?? "both";
+
+    // What went wrong in each bar, as it's kept: [bar, wrong, missed, off the beat, let go early].
+    private static IEnumerable<int[]> Kept(IReadOnlyList<BarTrouble> trouble) => trouble.Select(t => new[] { t.Bar, t.Wrong, t.Missed, t.Off, t.Early });
+
+    // ——— A practice session ———
+
+    // Practice: a session starts on the piece, its clock with it, and the page is the piece's with all its tools.
+    private async Task StartPractice()
+    {
+        var now = DateTimeOffset.Now;
+        var way = Settings.Way ?? "custom";
+        var id = await Store.StartSessionAsync(Id, way, now);
+        (session, clock, counted, covered, ticks, stage) = (new PracticeSession(id, Id, now, TimeSpan.Zero, TimeSpan.Zero, false, now, way, null), new PracticeClock(now), TimeSpan.Zero, false, 0, Stage.Practice);
+        StartAt(from);
+    }
+
+    // Each second the strip counts: the session kept every half minute, and the page covered as it pauses (or uncovered as a key
+    // carries it on).
+    private async Task Ticked()
+    {
+        if (clock is null) return;
+
+        if (clock.Paused != covered)
+        {
+            covered = clock.Paused;
+            await KeepSession();
+            StateHasChanged();
+        }
+        else if (++ticks % 30 == 0) await KeepSession();
+    }
+
+    // The session's clock kept as it stands, and the playing time since it was last kept added to the day's minutes.
+    private async Task KeepSession(DateTimeOffset? finished = null)
+    {
+        if (session is null || clock is null) return;
+
+        session = session with { Playing = clock.Playing, Idle = clock.Idle, Paused = clock.Paused, LastPlayed = clock.LastPlayed, Finished = finished };
+        await Store.SaveSessionAsync(session);
+        var more = clock.Playing - counted;
+        counted = clock.Playing;
+        if (more > TimeSpan.Zero) await Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), more.TotalMinutes);
+    }
+
+    // Keep practising, on the pause's cover: the clocks count again from now.
+    private async Task KeepPractising()
+    {
+        clock?.Resume(DateTimeOffset.Now);
+        covered = false;
+        await KeepSession();
+    }
+
+    // Finish practice: the session ends now, or from its pause as of the last thing played, and its look back takes the page. A
+    // run going stops first, and is kept with the session.
+    private async Task FinishPractice()
+    {
+        if (session is null || clock is null) return;
+        if (playing && play is not null)
+        {
+            finishAfterRun = true;
+            await play.Stop();
+            return;
+        }
+
+        var now = DateTimeOffset.Now;
+        var end = clock.Paused ? clock.LastPlayed : now;
+        clock.Pause(now);
+        await KeepSession(end);
+        await ShowLookBack();
+    }
+
+    // The look back: the session's runs summed up, and the session before on the piece that had any, to compare with.
+    private async Task ShowLookBack()
+    {
+        if (session is null) return;
+
+        var runs = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
+        reviewed = [.. runs.Where(r => r.Session == session.Id)];
+        review = SessionReview.Of(reviewed, LastBar);
+        var earlier = (await Store.GetSessionsAsync(Id)).Where(s => s.Id != session.Id && s.Started < session.Started).Select(s => (s.Started, Runs: runs.Where(r => r.Session == s.Id).ToList())).LastOrDefault(s => s.Runs.Count > 0);
+        before = earlier.Runs is { Count: > 0 } theirs ? (DateOnly.FromDateTime(earlier.Started.LocalDateTime), SessionReview.Of(theirs, LastBar)) : null;
+        (stage, outcome, picked) = (Stage.LookBack, null, null);
+        if (fullScreen) await ToggleFullScreen();
+    }
+
+    // Keep practising, from the look back: the same session carries on.
+    private async Task CarryOn()
+    {
+        clock?.Resume(DateTimeOffset.Now);
+        (stage, covered) = (Stage.Practice, false);
+        await KeepSession();
+        StartAt(from);
+    }
+
+    // Done: back to the piece's front, the session over.
+    private async Task Done()
+    {
+        (stage, session, clock, review, reviewed, picked, outcome) = (Stage.Front, null, null, null, [], null, null);
+        if (sheet is not null)
+        {
+            await sheet.ClearMarks();
+            await sheet.Outline(null);
+        }
+        if (fullScreen) await ToggleFullScreen();
+    }
+
+    private async Task BackToLookBack()
+    {
+        (stage, picked) = (Stage.LookBack, null);
+        if (fullScreen) await ToggleFullScreen();
+    }
+
+    // The in-depth review of the runs gone over, taking the screen: the bar with most to fix picked to start with.
+    private async Task OpenReview(Stage from)
+    {
+        (reviewFrom, stage, marksKept) = (from, Stage.Review, await Store.GetRunMarksAsync([.. reviewed.Select(r => r.Id)]));
+        if (!fullScreen) await ToggleFullScreen();
+        StateHasChanged();
+        if (review?.Bars.Values.OrderByDescending(b => b.Weight).ThenBy(b => b.Bar).FirstOrDefault() is { } worst) await PickBar(worst.Bar);
+    }
+
+    // A bar picked in the in-depth review (its cell, or the bar tapped on the music): its music as it was last played there, with
+    // the marks the latest run that played it left on its notes, outlined and in view.
+    private async Task PickBar(int bar)
+    {
+        picked = bar;
+        if (sheet is null) return;
+
+        var inBar = expected.Where(n => n.Bar == bar).Select(n => n.Id).ToHashSet();
+        List<SheetMark> marks = [];
+        foreach (var run in reviewed.OrderByDescending(r => r.At))
+        {
+            if (!marksKept.TryGetValue(run.Id, out var json)) continue;
+
+            using var left = JsonDocument.Parse(json);
+            var right = left.RootElement.GetProperty("right").EnumerateArray().Select(e => e.GetString() ?? "").Where(inBar.Contains).Select(id => new SheetMark(id, "right"));
+            var other = left.RootElement.GetProperty("other").EnumerateArray().Where(e => inBar.Contains(e[0].GetString() ?? ""))
+                .Select(e => new SheetMark(e[0].GetString()!, e[1].GetString()!, e[2].ValueKind == JsonValueKind.String ? e[2].GetString() : null, e[3].GetInt32(), Written: e[4].ValueKind == JsonValueKind.String ? e[4].GetString() : null));
+            marks = [.. right, .. other];
+            if (marks.Count > 0) break;
+        }
+        await sheet.ShowMarks(marks);
+        await sheet.Outline(MeasureOf(bar));
+    }
+
+    private string ReviewKicker() => reviewFrom switch
+    {
+        Stage.LookBack when session is not null => $"Practised · {session.Started.LocalDateTime.ToString("dddd d MMMM", CultureInfo.InvariantCulture)} · {PracticeStrip.Said(session.Playing)} playing",
+        Stage.Play => $"Played through · {DateTime.Now.ToString("dddd d MMMM", CultureInfo.InvariantCulture)} · at {tempo:0}",
+        _ => reviewed is [var run] ? $"{PieceWords.How(run)} · {DateTime.Now.ToString("dddd d MMMM", CultureInfo.InvariantCulture)}" : "",
+    };
+
+    private List<(string, string)> ReviewFigures()
+    {
+        if (review is null) return [];
+
+        List<(string, string)> figures = review.RightInTime is { } share ? [("Right in time", $"{share * 100:0}%")] : [];
+        figures.Add(("Notes right", $"{review.Right}/{review.Notes}"));
+        if (reviewFrom == Stage.LookBack && session is not null) figures.Add(("Playing", PracticeStrip.Said(session.Playing)));
+        return figures;
+    }
+
+    // The piece's bars by number, in order.
+    private List<int> BarNumbers() => score is null ? [] : [.. score.Bars.Select(b => b.Number)];
+
+    // Back from the in-depth review to Play or Practice, and the run again if asked; or else back to practising with the run's
+    // marks on the music again, all of them, not just the bar the review showed last.
+    private async Task Return(Stage to, bool again)
+    {
+        (stage, picked, startAfterRender) = (to, null, again);
+        if (sheet is not null) await sheet.Outline(null);
+        if (to == Stage.Practice && fullScreen) await ToggleFullScreen();
+        if (to == Stage.Practice) StartAt(from);
+        if (to == Stage.Practice && !again && outcome is not null && sheet is not null) await sheet.ShowMarks(outcome.Marks);
+    }
+
+    // The way of practising, or whether a loop waits after each pass, chosen on the piece's Options: kept in Settings, for every piece.
+    private async Task Practise(string way)
+    {
+        Settings.Practise(way);
+        await Store.SaveAsync(Settings);
+        StartAt(from);
+    }
+
+    private async Task SetPassWaits(bool waits)
+    {
+        Settings.PassWaits = waits;
+        await Store.SaveAsync(Settings);
+        StartAt(from);
+    }
+
+    // The page out of sight (the tablet asleep, the app put away): the session pauses, as if the piece had been left.
+    [JSInvokable]
+    public async Task Hidden()
+    {
+        if (clock is null || stage != Stage.Practice || playing) return;
+
+        clock.Pause(DateTimeOffset.Now);
+        covered = true;
+        await KeepSession();
+        StateHasChanged();
+    }
+
+    // Listen ended: its time was playing time.
+    private void Listened()
+    {
+        playing = false;
+        if (stage == Stage.Practice) clock?.RunEnded(DateTimeOffset.Now);
+    }
+
+    // ——— Play ———
+
+    // Play: the piece through from its first bar, both hands, In time, full screen.
+    private async Task OpenPlay()
+    {
+        if (score is null) return;
+
+        var order = score.PlayOrder();
+        playMusic = new PlayMusic(score, score.Performed(order)) { Order = order };
+        (stage, played, outcome) = (Stage.Play, null, null);
+        if (sheet is not null) await sheet.ClearMarks();
+        if (!fullScreen) await ToggleFullScreen();
+    }
+
+    private async Task LeavePlay()
+    {
+        (stage, played, picked) = (Stage.Front, null, null);
+        if (sheet is not null)
+        {
+            await sheet.ClearMarks();
+            await sheet.Outline(null);
+        }
+        if (fullScreen) await ToggleFullScreen();
+    }
+
+    private Task PlayAgain() => play?.Start() ?? Task.CompletedTask;
+
+    // Play's run gone over in the in-depth review.
+    private async Task ReviewPlay()
+    {
+        reviewed = [.. (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).Where(r => r.Id == lastRun && r.Play)];
+        if (reviewed.Count == 0) return;
+
+        review = SessionReview.Of(reviewed, LastBar);
+        await OpenReview(Stage.Play);
     }
 
     // ——— A PDF piece ———
@@ -1050,6 +1494,12 @@ else
     public async ValueTask DisposeAsync()
     {
         Keyboard.Received -= Heard;
+        // Leaving the piece pauses its session, to carry on or finish when it's opened again.
+        if (clock is not null && session is { Finished: null } && stage == Stage.Practice)
+        {
+            clock.Pause(DateTimeOffset.Now);
+            await KeepSession();
+        }
         ticker?.Dispose();
         StopScroll();
         if (hearing) Keyboard.Silence();

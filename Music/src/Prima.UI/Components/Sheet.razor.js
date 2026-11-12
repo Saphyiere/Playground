@@ -789,6 +789,27 @@ function xAt(element, state, q, system) {
     return points[points.length - 1].x;
 }
 
+// A bar outlined on the marks' layer, by its id, and its line brought into view; with no id, the outline goes.
+export function outline(element, id) {
+    const state = sheets.get(element);
+    if (!state) return;
+    state.overlay.querySelector(".sheet-outline")?.remove();
+    const measure = id ? element.querySelector(`.sheet-music .measure[data-id="${id}"]`) : null;
+    if (!measure) return;
+    const box = element.getBoundingClientRect();
+    const staves = [...measure.querySelectorAll(":scope > .staff")].map(s => s.getBoundingClientRect());
+    const r = staves.length > 0 ? staves.reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) })) : measure.getBoundingClientRect();
+    const rect = document.createElementNS(svgNs, "rect");
+    rect.setAttribute("class", "sheet-outline");
+    rect.setAttribute("x", r.left - box.left - 4);
+    rect.setAttribute("y", r.top - box.top - 10);
+    rect.setAttribute("width", r.right - r.left + 8);
+    rect.setAttribute("height", r.bottom - r.top + 20);
+    rect.setAttribute("rx", 6);
+    state.overlay.appendChild(rect);
+    follow(element, measure.closest(".system"));
+}
+
 export function clearMarks(element) {
     const state = sheets.get(element);
     if (!state) return;

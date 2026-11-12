@@ -139,6 +139,12 @@
         if (module is not null) await module.InvokeVoidAsync("cursorAt", element, id);
     }
 
+    /// <summary>A bar outlined, by its MEI id, and brought into view; null takes the outline away.</summary>
+    public async Task Outline(string? measureId)
+    {
+        if (module is not null) await module.InvokeVoidAsync("outline", element, measureId);
+    }
+
     public async Task StopCursor()
     {
         if (module is not null) await module.InvokeVoidAsync("cursorStop", element);

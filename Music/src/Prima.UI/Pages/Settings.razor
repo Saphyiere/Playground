@@ -66,6 +66,31 @@
     </div>
     <p class="section-note">What shows on the music while a run plays In time, in the Library, Sight-read and the drills with a tempo. With the cursor off, the music still scrolls as you play. With the marks off, every note is still judged, and marked when the run ends. Wait for me always shows where it's waiting.</p>
     <div class="control-row">
+        <span class="control-label">Practising a piece</span>
+        @foreach (var (way, name) in PrimaSettings.WayNames)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Way == way)" @onclick="() => Save(() => Options.Practise(way))"><span class="mu-led"></span>@name</button>
+        }
+    </div>
+    <p class="section-note">How much Practice tells you as you go, on a Library piece. Simple says nothing of how it went, to learn a piece in peace: loops, In time, Wait for me and the hands, with the marks on the music (none at all with Marks as you play off). Standard sums each run up under the music, and each pass round a loop in the bar. Hands-on goes over each run on a screen of its own, and a loop waits for you after each pass. Each sets the four below, which you can change one by one; the piece's Options change them too.</p>
+    <div class="control-row">
+        <span class="control-label">After a run</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "nothing")" @onclick='() => Save(() => Options.AfterRun = "nothing")'><span class="mu-led"></span>Nothing</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "summary")" @onclick='() => Save(() => Options.AfterRun = "summary")'><span class="mu-led"></span>Its summary</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "review")" @onclick='() => Save(() => Options.AfterRun = "review")'><span class="mu-led"></span>Its review</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">Round a loop</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.PassFigure)" @onclick="() => Save(() => Options.PassFigure = !Options.PassFigure)"><span class="mu-led"></span>Each pass's figure</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.PassWaits)" @onclick="() => Save(() => Options.PassWaits = !Options.PassWaits)"><span class="mu-led"></span>Wait after each pass</button>
+    </div>
+    <div class="control-row">
+        <span class="control-label">At a run's end</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.RunAgain)" @onclick="() => Save(() => Options.RunAgain = false)"><span class="mu-led"></span>Wait for me</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.RunAgain)" @onclick="() => Save(() => Options.RunAgain = true)"><span class="mu-led"></span>Go again</button>
+    </div>
+    <p class="section-note">Going again, a run that comes to its end starts over after its count-in, until you stop it. A practice session counts its time playing (a run going, or keys played) and idle, and pauses after 15 minutes with nothing played.</p>
+    <div class="control-row">
         <span class="control-label">After a wrong note</span>
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = true)"><span class="mu-led"></span>Say its name</button>
         <button type="button" class="mu-toggle" aria-pressed="@On(!Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = false)"><span class="mu-led"></span>Only show it</button>
