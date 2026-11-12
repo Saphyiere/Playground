@@ -2791,8 +2791,12 @@ a.mu-btn {
     gap: 24px;
 }
 
+/* Today's figures, each as wide as its words, spread across the row: "Right in time, last 3" is wider than a level or the
+   minutes, and an even share of the row cuts it off in Vinyl. */
 .today-foot .mu-readouts {
     flex: 1;
+    grid-template-columns: repeat(3, auto);
+    justify-content: space-between;
 }
 
 .today-step-detail {

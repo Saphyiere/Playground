@@ -59,7 +59,7 @@
         <div class="today-foot">
             <div class="mu-readouts">
                 <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@(reading?.Level ?? 1)</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">In time, last 3</span><span class="mu-readout-value">@RecentInTime()</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Right in time, last 3</span><span class="mu-readout-value">@RecentInTime()</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">Today</span><span class="mu-readout-value">@($"{todayMinutes:0}") min</span></div>
             </div>
             <button type="button" class="mu-play" aria-label="Start the next step" @onclick="StartNext"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
@@ -244,7 +244,7 @@
         var passages = todayPassages.Count;
         var inTime = todayPassages.Where(a => a.Headline is not null).Select(a => a.Headline!.Value).DefaultIfEmpty().Average();
         var tomorrow = DailyPlan.Build(Day0.AddDays(1), Settings.DailyMinutes, reading?.Level ?? 1, Keyboard.CanSend && Settings.SendToPiano);
-        return $"Done for today: {todayMinutes:0} minutes, {passages} {(passages == 1 ? "passage" : "passages")} read{(passages > 0 ? $" at {(inTime) * 100:0}% in time" : "")}. {(piecesToday is null ? "" : piecesToday + " ")}Tomorrow starts with the {tomorrow.ScaleKey.Name} scale.";
+        return $"Done for today: {todayMinutes:0} minutes, {passages} {(passages == 1 ? "passage" : "passages")} read{(passages > 0 ? $" at {(inTime) * 100:0}% right in time" : "")}. {(piecesToday is null ? "" : piecesToday + " ")}Tomorrow starts with the {tomorrow.ScaleKey.Name} scale.";
     }
 
     public void Dispose() => pauseTimer?.Dispose();

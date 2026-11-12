@@ -221,7 +221,9 @@ public class PracticeTests
     {
         var plan = DailyPlan.Build(Today, 20, 5, true);
         Assert.Equal([StepKind.Technique, StepKind.Notes, StepKind.Rhythm, StepKind.Pause, StepKind.SightReading, StepKind.OneSpot], plan.Steps.Select(s => s.Kind));
-        Assert.InRange(plan.Steps.Sum(s => s.Minutes), 19, 22);
+        Assert.Equal(20, plan.Steps.Sum(s => s.Minutes));
+        // Whatever the day's minutes, the plan's add up to them, the pause too.
+        Assert.All(new[] { 10, 15, 25, 30, 45, 60 }, minutes => Assert.Equal(minutes, DailyPlan.Build(Today, minutes, 5, true).Steps.Sum(s => s.Minutes)));
 
         var tomorrow = DailyPlan.Build(Today.AddDays(1), 20, 5, true);
         Assert.NotEqual(plan.ScaleKey, tomorrow.ScaleKey);
@@ -247,6 +249,8 @@ public class PracticeTests
         Assert.Equal(2, streak.FreezesUsed.Count);
         Assert.Equal(Today.AddDays(-3), streak.LastPractised);
         Assert.Equal(2, streak.DaysThisWeek);
+        // This week's minutes are from Monday, as You's weeks are: Monday's 2 and yesterday's 3, not Sunday's 12.
+        Assert.Equal(5, streak.MinutesThisWeek);
         Assert.False(streak.WeekKept);
         Assert.StartsWith("Last practised", streak.BreakNote(Today));
     }

@@ -50,7 +50,8 @@ foot. In Vinyl they're Side A and Side B. In portrait the rail runs along the bo
 ### Today
 
 What to do now. The day's plan as five steps (below), with the next one ready to start; a shorter five-minute plan for busy
-days that still counts; this week's minutes and days; the streak; and the practice cue you set once ("When I sit down after
+days that still counts; this week's minutes (from Monday, as You's weeks are) and its days practised; the streak; and the
+practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
 every step is done, a line sums up the day. The pieces played today are in it, each with its runs and how the last went, and
@@ -569,8 +570,10 @@ About twenty minutes, in this order. The order is a design choice; the evidence 
 | 4. Sight-reading | 7–8 min | Four to six new passages at your level; one of them a variant (read ahead, duet or hear first), a different one each day |
 | 5. One spot, or a piece | 2–3 min | The bar you missed most today, 20% slower, then the four bars around it at their tempo; or a piece from the Library. Then the day's summary |
 
-The five-minute plan is the note review and two passages. The plan mixes scales, rhythms and variants across days instead of
-repeating one block, and doesn't raise the daily minutes sharply from week to week.
+The times are for a twenty-minute day. A longer or shorter one shares out its minutes in the same proportions, in whole
+minutes that add up to the day's, the pause included. The five-minute plan is the note review and two passages. The plan mixes
+scales, rhythms and variants across days instead of repeating one block, and doesn't raise the daily minutes sharply from week
+to week.
 
 ## Progress and the streak
 

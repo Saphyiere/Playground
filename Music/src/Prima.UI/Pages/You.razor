@@ -43,7 +43,7 @@
     <h2 id="reading-heading" class="section-title">Reading</h2>
     <div class="you-grid">
         <div class="mu-screen you-figure"><div class="mu-readout"><span class="mu-readout-label">Reading score</span><span class="mu-readout-value you-hero">@(reading?.Score.ToString("0.0", CultureInfo.InvariantCulture) ?? "–")</span><span class="mu-readout-label">Level @(reading?.Level ?? 1) at @(reading?.Tempo ?? 60) bpm</span></div></div>
-        <Trend Title="In time" Values="@Weekly(passages, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
+        <Trend Title="Right in time" Values="@Weekly(passages, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
         <Trend Title="Correct notes a minute" Values="@Weekly(passages, a => Measure(a, "perMinute"))" Labels="weekLabels" />
         <Trend Title="Passages a week" Values="@WeeklyCount(passages)" Labels="weekLabels" LastIsPartial="true" />
     </div>
@@ -210,7 +210,7 @@
         var plain = month.Where(a => a.Variant is null && pairs.Contains((a.Level, a.Tempo)) && a.Headline is not null).ToList();
         if (ahead.Count == 0 || plain.Count == 0) return null;
 
-        return $"Read ahead against plain reading at the same level and tempo: {(ahead.Average(a => a.Headline!.Value)) * 100:0}% in time against {(plain.Average(a => a.Headline!.Value)) * 100:0}%.";
+        return $"Read ahead against plain reading at the same level and tempo: {(ahead.Average(a => a.Headline!.Value)) * 100:0}% right in time against {(plain.Average(a => a.Headline!.Value)) * 100:0}%.";
     }
 
     private void BuildTechnique(List<AttemptRecord> all, Dictionary<string, string> tracks)

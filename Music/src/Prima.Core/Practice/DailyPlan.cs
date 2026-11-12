@@ -45,18 +45,23 @@ public static class DailyPlan
             return new DayPlan(day, [new PlanStep(StepKind.Notes, 3, "Notes", "The notes due for review"), new PlanStep(StepKind.SightReading, 2, "Sight-reading", "Two new passages")], scaleKey, arpeggioKey, variant, true);
         }
 
-        // The research's split of about twenty minutes, scaled to the daily goal.
-        var scale = Math.Max(10, dailyMinutes) / 20.0;
-        int Minutes(double at20) => Math.Max(1, (int)Math.Round(at20 * scale));
+        // The research's split of twenty minutes, shared out over the day's minutes less the pause in whole minutes that add up
+        // to them: each step its share rounded down, then a minute more for those with the most left over.
+        var total = Math.Max(10, dailyMinutes) - 1;
+        double[] split = [4, 3.5, 2.5, 7.5, 2.5];
+        var shares = split.Select(s => total * s / split.Sum()).ToArray();
+        var minutes = shares.Select(s => (int)s).ToArray();
+        var fullest = Enumerable.Range(0, shares.Length).OrderByDescending(i => shares[i] - minutes[i]);
+        foreach (var i in fullest.Take(total - minutes.Sum())) minutes[i]++;
         var variantName = variant switch { Variant.ReadAhead => "read ahead", Variant.Duet => "duet", _ => "hear first" };
         return new DayPlan(day,
         [
-            new PlanStep(StepKind.Technique, Minutes(4), "Technique", $"{scaleKey.Name} scale and {arpeggioKey.Name} arpeggio, three to five runs each"),
-            new PlanStep(StepKind.Notes, Minutes(3.5), "Notes", "The notes due for review, and new ones after a good day"),
-            new PlanStep(StepKind.Rhythm, Minutes(2.5), "Rhythm", "Three or four rhythms; the click fades on later tries"),
+            new PlanStep(StepKind.Technique, minutes[0], "Technique", $"{scaleKey.Name} scale and {arpeggioKey.Name} arpeggio, three to five runs each"),
+            new PlanStep(StepKind.Notes, minutes[1], "Notes", "The notes due for review, and new ones after a good day"),
+            new PlanStep(StepKind.Rhythm, minutes[2], "Rhythm", "Three or four rhythms; the click fades on later tries"),
             new PlanStep(StepKind.Pause, 1, "Pause", "Stand up, shake out your hands, look away"),
-            new PlanStep(StepKind.SightReading, Minutes(7.5), "Sight-reading", $"Four to six new passages, one of them {variantName}"),
-            new PlanStep(StepKind.OneSpot, Minutes(2.5), "One spot", "The bar you missed most today, slower, then its line"),
+            new PlanStep(StepKind.SightReading, minutes[3], "Sight-reading", $"Four to six new passages, one of them {variantName}"),
+            new PlanStep(StepKind.OneSpot, minutes[4], "One spot", "The bar you missed most today, slower, then its line"),
         ], scaleKey, arpeggioKey, variant, false);
     }
 
@@ -67,7 +72,10 @@ public static class DailyPlan
 /// <summary>A practised day: its minutes, and whether the five-minute plan was finished.</summary>
 public sealed record PracticeDayRecord(DateOnly Day, double Minutes, bool ShortPlanDone);
 
-/// <summary>The streak and the week, worked out from the practised days.</summary>
+/// <summary>
+/// The streak and the week, worked out from the practised days: the days practised of the last seven, and the minutes this week,
+/// from Monday, as You's weeks are.
+/// </summary>
 public sealed record StreakState(int Days, int FreezesBanked, IReadOnlyList<DateOnly> FreezesUsed, int DaysThisWeek, bool WeekKept, double MinutesThisWeek, DateOnly? LastPractised)
 {
     /// <summary>A break said plainly, never as a failure: "Last practised Tuesday."</summary>
@@ -89,7 +97,8 @@ public static class Streak
         var practised = days.Where(d => d.Minutes >= MinutesForADay || d.ShortPlanDone).Select(d => d.Day).ToHashSet();
         var all = days.ToList();
         var week = Enumerable.Range(0, 7).Select(i => today.AddDays(-i)).ToList();
-        var minutes = all.Where(d => week.Contains(d.Day)).Sum(d => d.Minutes);
+        var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        var minutes = all.Where(d => d.Day >= monday && d.Day <= today).Sum(d => d.Minutes);
         var daysThisWeek = week.Count(practised.Contains);
         if (practised.Count == 0) return new StreakState(0, 0, [], daysThisWeek, daysThisWeek >= 5, minutes, null);
 
