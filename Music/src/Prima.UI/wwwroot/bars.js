@@ -35,15 +35,17 @@ export function show(frame, strip, dotnet, choice) {
     drawAll(state);
 }
 
+// A piece is forgotten as its page goes. By then its frame has usually left the page already, where it can't be named any more
+// (it comes here as nothing): so every frame that's off the page is forgotten, and none is kept with all its music.
 export function forget(frame) {
-    const state = pieces.get(frame);
-    if (!state) return;
-    frame.removeEventListener("scroll", state.onScroll);
-    state.resized.disconnect();
-    state.painted?.disconnect();
-    cancelAnimationFrame(state.queued);
-    cancelAnimationFrame(state.scrolling);
-    pieces.delete(frame);
+    for (const state of [...pieces.values()].filter(s => s.frame === frame || !s.frame.isConnected)) {
+        state.frame.removeEventListener("scroll", state.onScroll);
+        state.resized.disconnect();
+        state.painted?.disconnect();
+        cancelAnimationFrame(state.queued);
+        cancelAnimationFrame(state.scrolling);
+        pieces.delete(state.frame);
+    }
 }
 
 // The music drawn again (another width, another page): everything with it.

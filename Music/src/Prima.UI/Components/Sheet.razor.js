@@ -4,6 +4,7 @@
 
 const svgNs = "http://www.w3.org/2000/svg";
 const sheets = new WeakMap();
+let sheetCount = 0;
 let toolkitPromise;
 
 // Verovio's toolkit, loaded once: a 7 MB script with WebAssembly inside. Called at start so the first sheet doesn't wait.
@@ -110,11 +111,11 @@ export function pixelsPerMm() {
 // width changes, and tells .NET when it has painted.
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
-    const state = sheets.get(element) ?? {};
+    const state = sheets.get(element) ?? { number: ++sheetCount };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's). What
     // Verovio is given is the music without its verses.
     if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei) });
-    Object.assign(state, { mei, options, dotnet, tk });
+    Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay") });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
     draw(element, state);
@@ -184,10 +185,9 @@ function draw(element, state) {
         music.innerHTML = tk.renderToSVG(1);
     }
     state.timemap = tk.renderToTimemap({ includeMeasures: true });
-    const overlay = element.querySelector(".sheet-overlay");
-    overlay.replaceChildren();
-    state.cursor = null;
-    state.points = null;
+    // New paper: what was drawn over the old one goes, and so does what was found on it (each id's place, the music's words).
+    state.overlay.replaceChildren();
+    Object.assign(state, { cursor: null, points: null, byId: null, words: null, drawn: new Map() });
     if (state.marks) showMarks(element, state.marks);
     requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
 }
@@ -200,7 +200,8 @@ function load(tk, state, mei) {
         tk.select({ measureRange: state.options.measures });
         tk.redoLayout();
     }
-    tk.current = state;
+    // Whose music it has, by the sheet's number: the toolkit outlives every sheet, and mustn't keep one that has gone.
+    tk.current = state.number;
 }
 
 function firstMeasure(options) {
@@ -233,9 +234,19 @@ function withSystemBreaks(mei, perSystem, from = 0) {
 
 // The toolkit is shared by every sheet: before asking it about this sheet's music, make sure it's this sheet's that's loaded.
 function ensureLoaded(state) {
-    if (state.tk.current === state) return;
+    if (state.tk.current === state.number) return;
     state.tk.setOptions(state.loaded);
     load(state.tk, state, state.music);
+}
+
+// Everything printed that has an id (a note, a rest, a bar), by that id: listed once for the music as it's drawn. Looking one up
+// in the page itself walks the whole piece, which a long piece pays for at every mark and every step of the cursor.
+function printedById(element, state) {
+    if (!state.byId) {
+        state.byId = new Map();
+        for (const printed of element.querySelectorAll(".sheet-music [data-id]")) if (!state.byId.has(printed.dataset.id)) state.byId.set(printed.dataset.id, printed);
+    }
+    return state.byId;
 }
 
 // The page a note is on (1 for the first), or 0 if it isn't in the music.
@@ -248,7 +259,10 @@ export function pageOf(element, id) {
 
 // Which of these notes are on the page showing.
 export function onPage(element, ids) {
-    return ids.filter(id => element.querySelector(`.sheet-music [data-id="${id}"]`));
+    const state = sheets.get(element);
+    if (!state) return [];
+    const byId = printedById(element, state);
+    return ids.filter(id => byId.has(id));
 }
 
 // The bar whose space a point is in: between its bar lines, and from a little over its top staff to a little under its lowest.
@@ -266,13 +280,15 @@ function measureAt(element, x, y) {
 // end, the barline closing its last bar at the time that bar ends.
 function positions(element, state) {
     const box = element.getBoundingClientRect();
+    const byId = printedById(element, state);
     const onsets = state.options.onsets;
     const points = [];
     // Onsets given by .NET take its place: a stretch of a real piece, where Verovio's time map is the whole piece's. (A run's
     // cursor has the run's own path instead: pathPoints.)
     if (onsets) {
         for (const [id, q] of onsets) {
-            const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
+            const printed = byId.get(id);
+            const head = printed?.querySelector(".notehead") ?? printed;
             if (!head) continue;
             const system = head.closest(".system");
             const h = head.getBoundingClientRect();
@@ -281,9 +297,10 @@ function positions(element, state) {
         }
     } else {
         for (const entry of state.timemap) {
-            const id = (entry.on ?? []).find(i => element.querySelector(`.sheet-music [data-id="${i}"] .notehead, .sheet-music .rest[data-id="${i}"]`));
-            if (!id) continue;
-            const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
+            // The first of the moment's notes that's on this page with a head to stand at, or a rest.
+            const printed = (entry.on ?? []).map(i => byId.get(i)).find(e => e && (e.classList.contains("rest") || e.querySelector(".notehead")));
+            if (!printed) continue;
+            const head = printed.querySelector(".notehead") ?? printed;
             const system = head.closest(".system");
             const h = head.getBoundingClientRect();
             const s = system.getBoundingClientRect();
@@ -322,7 +339,7 @@ function positions(element, state) {
 // going round), the bar ends at its closing bar line as its time does, and the next starts at once where its music does.
 function pathPoints(element, state, path) {
     const box = element.getBoundingClientRect();
-    const byId = new Map([...element.querySelectorAll(".sheet-music [data-id]")].map(e => [e.dataset.id, e]));
+    const byId = printedById(element, state);
     const drawn = [...element.querySelectorAll(".sheet-music .measure")];
     // Each bar on the paper: its measure, and the place of each moment in it (the leftmost of what's printed then).
     const places = new Map();
@@ -394,12 +411,11 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     state.points = points;
     if (points.length === 0) return;
     const bars = windowQuarters ? measures(element, state) : null;
-    const overlay = element.querySelector(".sheet-overlay");
     const line = document.createElementNS(svgNs, "rect");
     line.setAttribute("class", "sheet-cursor");
     line.setAttribute("width", "3");
     if (!shown) line.style.display = "none";
-    overlay.appendChild(line);
+    state.overlay.appendChild(line);
     state.cursor = line;
     const start = performance.now() + msUntilStart;
     const beat = performance.now() + (msUntilBeat ?? msUntilStart);
@@ -431,14 +447,15 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
 // Wait for me's cursor: still, just before a note (the first of the notes waited for), its system kept in view.
 export function cursorAt(element, id) {
     const state = sheets.get(element);
-    const head = element.querySelector(`.sheet-music [data-id="${id}"] .notehead`) ?? element.querySelector(`.sheet-music [data-id="${id}"]`);
-    if (!state || !head) return;
+    const printed = state && printedById(element, state).get(id);
+    const head = printed?.querySelector(".notehead") ?? printed;
+    if (!head) return;
     cancelAnimationFrame(state.raf);
     if (!state.cursor) {
         state.cursor = document.createElementNS(svgNs, "rect");
         state.cursor.setAttribute("class", "sheet-cursor");
         state.cursor.setAttribute("width", "3");
-        element.querySelector(".sheet-overlay").appendChild(state.cursor);
+        state.overlay.appendChild(state.cursor);
     }
     const box = element.getBoundingClientRect();
     const system = head.closest(".system");
@@ -474,11 +491,11 @@ export function cursorStop(element) {
 // Read ahead: each bar with its span in quarters and a cover the colour of the paper, drawn over it when it's hidden.
 function measures(element, state) {
     const box = element.getBoundingClientRect();
-    const overlay = element.querySelector(".sheet-overlay");
+    const byId = printedById(element, state);
     const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, start: e.qstamp }));
     const last = Math.max(...state.timemap.map(e => e.qstamp));
     return starts.map((m, i) => {
-        const g = element.querySelector(`.sheet-music [data-id="${m.id}"]`);
+        const g = byId.get(m.id);
         if (!g) return null;
         const r = g.getBoundingClientRect();
         const cover = document.createElementNS(svgNs, "rect");
@@ -488,7 +505,7 @@ function measures(element, state) {
         cover.setAttribute("width", r.width + 1);
         cover.setAttribute("height", r.height + 16);
         cover.style.display = "none";
-        overlay.appendChild(cover);
+        state.overlay.appendChild(cover);
         return { start: m.start, end: starts[i + 1]?.start ?? last + 4, cover };
     }).filter(Boolean);
 }
@@ -551,7 +568,7 @@ export function showMarks(element, marks) {
     const state = sheets.get(element);
     if (!state) return;
     state.marks = marks;
-    clearDrawnMarks(element);
+    clearDrawnMarks(element, state);
     for (const mark of marks) drawMark(element, state, mark);
 }
 
@@ -565,16 +582,22 @@ export function markLive(element, marks) {
 const markKinds = ["mark-right", "mark-wrong", "mark-missed", "mark-early", "mark-late", "mark-apart", "mark-heat1", "mark-heat2", "mark-heat3", "mark-picked"];
 
 function drawMark(element, state, mark) {
-    const note = element.querySelector(`.sheet-music [data-id="${mark.id}"]`);
+    const note = printedById(element, state).get(mark.id);
     if (!note) return;
+    // What's drawn over the paper for this note (the key played, its name, an arrow, a word), kept so it can be taken off again.
+    const mine = state.drawn.get(mark.id) ?? [];
     // An extra key is drawn beside the note before it, which keeps its own mark, as a note with a word over it does.
     if (mark.kind !== "extra" && mark.kind !== "hint") {
         note.classList.remove(...markKinds);
-        element.querySelectorAll(`.sheet-overlay [data-for="${mark.id}"]`).forEach(n => n.remove());
+        mine.splice(0).forEach(n => n.remove());
         note.classList.add(`mark-${mark.kind}`);
     }
+    // A note with nothing to draw beside it is its colour and no more: nothing on the paper is measured for it.
+    const beside = mark.kind === "hint" || mark.kind === "early" || mark.kind === "late" || mark.q != null || ((mark.kind === "wrong" || mark.kind === "extra") && mark.played);
+    if (!beside) return;
+    state.drawn.set(mark.id, mine);
     const box = element.getBoundingClientRect();
-    const overlay = element.querySelector(".sheet-overlay");
+    const overlay = state.overlay;
     const head = note.querySelector(".notehead") ?? note;
     const h = head.getBoundingClientRect();
     const cx = h.left - box.left + h.width / 2;
@@ -584,8 +607,8 @@ function drawMark(element, state, mark) {
     const above = Math.min((note.closest(".staff")?.getBoundingClientRect().top ?? h.top) - box.top, h.top - box.top) - 6;
     // A word over the note ("together", over a chord played a key at a time); with no word, the one there goes.
     if (mark.kind === "hint") {
-        overlay.querySelectorAll(`.sheet-hint[data-for="${mark.id}"]`).forEach(n => n.remove());
-        if (mark.played) label(overlay, mark.played, cx, above, "sheet-hint", mark.id);
+        for (const word of mine.filter(n => n.classList.contains("sheet-hint"))) mine.splice(mine.indexOf(word), 1)[0].remove();
+        if (mark.played) mine.push(label(element, state, mark.played, cx, above, "sheet-hint", mark.id));
         return;
     }
     // The key played: a red head beside the note, that many positions away, named in red above it. A wrong note's written name
@@ -593,16 +616,17 @@ function drawMark(element, state, mark) {
     if ((mark.kind === "wrong" || mark.kind === "extra") && mark.played) {
         const gy = cy - mark.steps * space / 2;
         const gx = cx + h.width * 1.3;
-        overlay.appendChild(ghost(mark.id, gx, gy, h.width, space, "sheet-ghost sheet-played"));
+        mine.push(overlay.appendChild(ghost(mark.id, gx, gy, h.width, space, "sheet-ghost sheet-played")));
         const y = Math.min(above, gy - space - 6);
-        if (mark.kind === "wrong" && mark.written) label(overlay, [[mark.written, "sheet-meant"], [mark.played, "sheet-heard"]], (cx + gx) / 2, y, "sheet-label", mark.id);
-        else label(overlay, mark.played, gx, y, "sheet-label", mark.id);
+        mine.push(mark.kind === "wrong" && mark.written
+            ? label(element, state, [[mark.written, "sheet-meant"], [mark.played, "sheet-heard"]], (cx + gx) / 2, y, "sheet-label", mark.id)
+            : label(element, state, mark.played, gx, y, "sheet-label", mark.id));
     }
     // Where it was played, when that's given: a ring on the note's line at that moment's place along the system (on a green note
     // too, when it was a little off).
     const at = mark.q == null ? null : xAt(element, state, mark.q, note.closest(".system"));
-    if (at != null && Math.abs(at - cx) > h.width * 0.6) overlay.appendChild(ghost(mark.id, at, cy, h.width, space, "sheet-ghost sheet-when"));
-    if (mark.kind === "early" || mark.kind === "late") label(overlay, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id);
+    if (at != null && Math.abs(at - cx) > h.width * 0.6) mine.push(overlay.appendChild(ghost(mark.id, at, cy, h.width, space, "sheet-ghost sheet-when")));
+    if (mark.kind === "early" || mark.kind === "late") mine.push(label(element, state, mark.kind === "early" ? "←" : "→", cx, above, "sheet-arrow", mark.id));
 }
 
 function ghost(id, cx, cy, headWidth, space, kind = "sheet-ghost") {
@@ -619,7 +643,8 @@ function ghost(id, cx, cy, headWidth, space, kind = "sheet-ghost") {
 
 // Where a moment of the music falls along a system, in px from the sheet's left: between the onsets around it.
 function xAt(element, state, q, system) {
-    const points = (state.points ?? positions(element, state)).filter(p => p.system === system);
+    state.points ??= positions(element, state);
+    const points = state.points.filter(p => p.system === system);
     if (points.length === 0) return null;
     if (q <= points[0].q) return points[0].x - (points.length > 1 ? (points[1].x - points[0].x) * (points[0].q - q) / Math.max(0.01, points[1].q - points[0].q) : 0);
     for (let i = 0; i < points.length - 1; i++) {
@@ -632,17 +657,19 @@ export function clearMarks(element) {
     const state = sheets.get(element);
     if (!state) return;
     state.marks = null;
-    clearDrawnMarks(element);
+    clearDrawnMarks(element, state);
 }
 
-function clearDrawnMarks(element) {
+function clearDrawnMarks(element, state) {
     element.querySelectorAll(".sheet-music [class*='mark-']").forEach(n => n.classList.remove(...markKinds));
-    element.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow, .sheet-hint").forEach(n => n.remove());
+    state.overlay.querySelectorAll(".sheet-ghost, .sheet-label, .sheet-arrow, .sheet-hint").forEach(n => n.remove());
+    state.drawn = new Map();
 }
 
 // Words centred at x with their baseline at y, moved up clear of any already there (neighbouring notes' marks): a string, or
-// parts side by side in their own colours ([["F4", "sheet-meant"], ["G4", "sheet-heard"]]), which move together.
-function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
+// parts side by side in their own colours ([["F4", "sheet-meant"], ["G4", "sheet-heard"]]), which move together. Returns them.
+function label(element, state, text, x, y, kind = "sheet-label", forId = null) {
+    const overlay = state.overlay;
     const t = document.createElementNS(svgNs, "text");
     t.setAttribute("class", kind);
     if (forId) t.dataset.for = forId;
@@ -658,29 +685,43 @@ function label(overlay, text, x, y, kind = "sheet-label", forId = null) {
         t.appendChild(s);
     });
     overlay.appendChild(t);
-    // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering).
-    const sheet = overlay.closest(".sheet").getBoundingClientRect();
-    const printed = [...overlay.closest(".sheet").querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
-    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint")].filter(o => o !== t).map(o => o.getBBox()), ...printed];
+    // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering),
+    // which are found once for the music as it's drawn.
+    if (!state.words) {
+        const sheet = element.getBoundingClientRect();
+        state.words = [...element.querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+    }
+    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint")].filter(o => o !== t).map(o => o.box), ...state.words];
+    // The words are measured once and their box moved with them: measuring again after each move, and against every other
+    // word on the piece, is what a long, rough run would pay most for.
+    const measured = t.getBBox();
+    const b = { x: measured.x, y: measured.y, width: measured.width, height: measured.height };
     // Side by side counts as in the way unless there's a little space between, so neighbours' names don't run together.
-    const inWay = () => {
-        const b = t.getBBox();
-        return others.find(r => r.x < b.x + b.width + 4 && b.x < r.x + r.width + 4 && r.y < b.y + b.height && b.y < r.y + r.height);
-    };
+    const beside = r => r.x < b.x + b.width + 4 && b.x < r.x + r.width + 4;
+    const inWay = among => among.find(r => beside(r) && r.y < b.y + b.height && b.y < r.y + r.height);
+    // Moving up, only what's over or under them can be in the way.
+    const column = others.filter(beside);
     for (let tries = 0; tries < others.length; tries++) {
-        const hit = inWay();
+        const hit = inWay(column);
         if (!hit) break;
-        const b = t.getBBox();
-        t.setAttribute("y", Number(t.getAttribute("y")) - (b.y + b.height - hit.y) - 2);
+        const up = b.y + b.height - hit.y + 2;
+        t.setAttribute("y", Number(t.getAttribute("y")) - up);
+        b.y -= up;
     }
     // Never above the paper; with no room above, beside the name in the way instead.
-    const top = t.getBBox().y;
-    if (top < 1) t.setAttribute("y", Number(t.getAttribute("y")) - top + 1);
-    for (let tries = 0; tries < others.length; tries++) {
-        const hit = inWay();
-        if (!hit) break;
-        t.setAttribute("x", Number(t.getAttribute("x")) + hit.x + hit.width + 4 - t.getBBox().x);
+    if (b.y < 1) {
+        t.setAttribute("y", Number(t.getAttribute("y")) - b.y + 1);
+        b.y = 1;
     }
+    for (let tries = 0; tries < others.length; tries++) {
+        const hit = inWay(tries === 0 ? column : others);
+        if (!hit) break;
+        const along = hit.x + hit.width + 4 - b.x;
+        t.setAttribute("x", Number(t.getAttribute("x")) + along);
+        b.x += along;
+    }
+    t.box = b;
+    return t;
 }
 
 // The distance between a staff's lines, in px, from its five line paths.
