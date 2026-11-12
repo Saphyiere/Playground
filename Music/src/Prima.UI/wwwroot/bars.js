@@ -69,7 +69,10 @@ function queue(state, all) {
     state.queued = requestAnimationFrame(() => {
         state.queued = 0;
         if (state.all) drawAll(state);
-        else drawWindow(state);
+        else {
+            drawWindow(state);
+            placeTab(state);
+        }
         state.all = false;
     });
 }
@@ -198,12 +201,13 @@ function drawMarks(state) {
     }));
     const first = all[0], last = all[all.length - 1];
     tab.hidden = !(first && first.first === from) || d?.kind === "strip";
+    state.tabAt = tab.hidden ? null : first;
     if (!tab.hidden) {
         tab.querySelector(".bar-tab-label").innerHTML = to == null ? `${playIcon}From bar ${from}` : `${loopIcon}Loop ${to === from ? `bar ${from}` : `bars ${from}–${to}`}`;
         const key = tab.querySelector(".bar-tab-key");
         key.innerHTML = to == null ? `${loopIcon}Loop` : endIcon;
         key.setAttribute("aria-label", to == null ? `Loop bar ${from}` : "End the loop");
-        place(tab, Math.min(Math.max(first.left, 4), sheet.clientWidth - tab.offsetWidth - 4), Math.max(first.top - tab.offsetHeight - 6, 4));
+        placeTab(state);
     }
     // Kept on the paper: a loop that starts or ends a line has its handle just inside it.
     const inside = x => Math.min(Math.max(x, 20), sheet.clientWidth - 20);
@@ -211,6 +215,18 @@ function drawMarks(state) {
     end.hidden = to == null || !(last && last.last === to);
     if (!start.hidden) place(start, inside(first.left), (first.top + first.bottom) / 2);
     if (!end.hidden) place(end, inside(last.right), (last.top + last.bottom) / 2);
+}
+
+// The chosen bar's tab over the bar, or under its line where the frame's top edge (or the paper's) would cut it off: placed
+// again as the music scrolls.
+function placeTab(state) {
+    const sheet = state.frame.querySelector(".sheet");
+    const tab = sheet?.querySelector(":scope > .bar-marks > .bar-tab");
+    const at = state.tabAt;
+    if (!tab || tab.hidden || !at) return;
+    const top = Math.max(0, state.frame.getBoundingClientRect().top - sheet.getBoundingClientRect().top);
+    const over = at.top - tab.offsetHeight - 6;
+    place(tab, Math.min(Math.max(at.left, 4), sheet.clientWidth - tab.offsetWidth - 4), over >= top + 4 ? over : at.bottom + 6);
 }
 
 function bubble(state, text, x, y) {
