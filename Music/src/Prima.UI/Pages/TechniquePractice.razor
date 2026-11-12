@@ -1,6 +1,7 @@
 @page "/drills/scales"
 @page "/drills/arpeggios"
 @page "/drills/independence"
+@implements IDisposable
 @inject PrimaStore Store
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
@@ -64,15 +65,36 @@
     <p class="control-note">Runs @runs of @TechniqueState.RunsPerSet. Stop if anything hurts.</p>
 </section>
 
-<PlayAlong Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(runs < TechniqueState.RunsPerSet)" OnStarting="Starting" OnFinished="Finished">
+<PlayAlong @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(runs < TechniqueState.RunsPerSet)" Ask="@(FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnFinished="Finished">
     <Readouts>
         <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     </Readouts>
 </PlayAlong>
 
-@if (state.Tempo is null && result is null && outcome is null)
+@if (FirstRun)
 {
     <p class="page-note">First, play it once in Wait for me, at your own speed and without the click. The In time runs then start a little slower than that, which is how speed is built.</p>
+}
+@if (!playing && (runs >= 3 || (From == "today" && Key == "scales")))
+{
+    @* The way on. From Today the scale leads to the arpeggio, at any time (so coming back to the step doesn't mean the scale
+       again), and the arpeggio back to the day once it's had its three runs; from anywhere else, three runs lead back to the
+       drills. With all five played the way on is the orange key, and another set is offered beside it. *@
+    var set = runs >= TechniqueState.RunsPerSet;
+    <div class="control-row">
+        @if (From == "today" && Key == "scales")
+        {
+            <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : null)" href="drills/arpeggios?from=today">Next: the arpeggio</a>
+        }
+        else
+        {
+            <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : null)" href="@(From == "today" ? "" : "drills")">Done</a>
+        }
+        @if (set)
+        {
+            <button type="button" class="mu-btn" @onclick="() => runs = 0">Another set</button>
+        }
+    </div>
 }
 
 <div class="sheet-frame">
@@ -114,6 +136,12 @@ else if (outcome?.Wait is not null)
 
     private string Title => Key switch { "arpeggios" => "Arpeggios", "independence" => "Finger independence", _ => "Scales" };
 
+    /// <summary>Where the screen was opened from: "today" for the day's Technique step, which is the scale and then the arpeggio.</summary>
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+
+    // What it has no tempo for yet and hasn't been run: its first run is in Wait for me, which the bar is set to.
+    private bool FirstRun => state.Tempo is null && result is null && outcome is null;
+
     private TechniqueChoice choice = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueChoice today = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueItem? item;
@@ -126,6 +154,8 @@ else if (outcome?.Wait is not null)
     private Sheet? sheet;
     private bool playing;
     private int runs;
+    // The scale, arpeggio or pattern showing, by the address's last part.
+    private string? opened;
     private int level = 1;
     private DateTime started;
     private double? noiseFloor;
@@ -153,7 +183,25 @@ else if (outcome?.Wait is not null)
     {
         level = (await Store.GetTrackAsync<ReadingState>("reading"))?.Level ?? 1;
         noiseFloor = Keyboard.Sensing.JitterMs;
-        started = DateTime.Now;
+        Nav.LocationChanged += Moved;
+        await Open();
+    }
+
+    // The address going from one of this screen's to another (Today's scale to its arpeggio) keeps the screen: it opens the new one.
+    private void Moved(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(async () =>
+    {
+        if (Key == opened || Key is not ("scales" or "arpeggios" or "independence")) return;
+
+        await Open();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Nav.LocationChanged -= Moved;
+
+    // What the address names, as last chosen or else today's, with its runs to play.
+    private async Task Open()
+    {
+        (opened, runs, started) = (Key, 0, DateTime.Now);
         var plan = DailyPlan.Build(Today, Settings.DailyMinutes, level, false);
         var pattern = (await Store.GetTrackAsync<DrillTrack>("drill:independence") ?? DrillTrack.Start).Step;
         today = TechniqueChoice.Today(Key, plan.ScaleKey, plan.ArpeggioKey, level, pattern, Today);
@@ -214,7 +262,8 @@ else if (outcome?.Wait is not null)
         }
         await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
         started = DateTime.Now;
-        if (runs >= 3) await Store.MarkStepAsync(Today, StepKind.Technique);
+        // From Today the step is the scale and then the arpeggio: it's done with the arpeggio's runs, not the scale's.
+        if (runs >= 3 && !(From == "today" && Key == "scales")) await Store.MarkStepAsync(Today, StepKind.Technique);
     }
 
     // In time: evenness from the keys played, each note marked as the scorer lined it up (replacing the play bar's marks), and

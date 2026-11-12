@@ -467,8 +467,12 @@ order (C, A minor, G, F, D …), a minor scale harmonic or melodic, one to four 
 the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
 tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
 comfortable speed the In time runs start a little under (the pace from one moment of the music to the next, so the two keys
-of a moment played hands together count once); the tempo can also be set with − and +. Wait for me runs are practice
-for the notes: they count towards the set's five runs and the day, not towards evenness or the tempo.
+of a moment played hands together count once), and the bar is set to Wait for me for that run; the tempo can also be set
+with − and +. Wait for me runs are practice for the notes: they count towards the set's five runs and the day, not towards
+evenness or the tempo. A set is five runs. After three, the way on shows under the bar: **Done**, back to the drills (or to
+Today, from there); with all five played Run goes off, the way on is the orange key, and **Another set** is beside it. From
+Today the day's Technique step is the scale and then the arpeggio: the scale's screen has **Next: the arpeggio** from the
+start, and the step is done with the arpeggio's third run, not the scale's.
 
 ## Exercises
 

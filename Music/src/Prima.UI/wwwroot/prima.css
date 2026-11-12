@@ -384,8 +384,9 @@ body {
 }
 
 /* The piano's buttons: while it's plugged in, a button the C♯ or D♯ above middle C presses wears the key's name, and a press from the
-   piano shows as a tap would. With no button marked for go, the screen's primary button is the one it presses. */
-[data-piano-keys] :is([data-piano="go"], [data-piano="again"])::after,
+   piano shows as a tap would. With no button marked for go, the screen's primary button is the one it presses. A button that
+   can't be pressed wears no name: the key goes to the next one marked. */
+[data-piano-keys] :is([data-piano="go"], [data-piano="again"]):not(:disabled)::after,
 [data-piano-keys]:not(:has([data-piano="go"])) :is(.mu-btn.mu-primary, .mu-play):not([data-piano])::after {
     flex: none;
     padding: 0 5px;
@@ -399,12 +400,12 @@ body {
     opacity: 0.7;
 }
 
-[data-piano-keys] [data-piano="go"]::after,
+[data-piano-keys] [data-piano="go"]:not(:disabled)::after,
 [data-piano-keys]:not(:has([data-piano="go"])) :is(.mu-btn.mu-primary, .mu-play):not([data-piano])::after {
     content: "C♯4";
 }
 
-[data-piano-keys] [data-piano="again"]::after {
+[data-piano-keys] [data-piano="again"]:not(:disabled)::after {
     content: "D♯4";
 }
 

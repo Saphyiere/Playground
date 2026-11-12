@@ -73,8 +73,9 @@
         }
         @if (ShowStart)
         {
-            @* A run is played on the piano: with none plugged in the key looks off, and a tap says so under the bar. *@
-            <button type="button" class="mu-btn mu-primary @(Keyboard.Name is null ? "mu-btn-off" : "")" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+            @* The key looks off when there's nothing it can start (no music yet, a set all played), and with no piano plugged in,
+               when a tap says so under the bar: a run is played on the piano. *@
+            <button type="button" class="mu-btn mu-primary @(CanStart && Keyboard.Name is not null ? "" : "mu-btn-off")" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
         }
         @if (ShowListen)
         {
@@ -145,6 +146,12 @@
     /// <summary>When Listen ends, played through or stopped; it has no outcome.</summary>
     [Parameter] public EventCallback OnListened { get; set; }
 
+    /// <summary>
+    /// A mode the screen asks for now (a scale's first run is in Wait for me): the bar is set to it while it's asked, and goes
+    /// back to the screen's own when it no longer is. The mode can still be changed on the bar.
+    /// </summary>
+    [Parameter] public PlayMode? Ask { get; set; }
+
     public PlayMode Mode { get; private set; }
 
     public bool Running => session?.Phase is Phase.CountIn or Phase.Playing || wait is not null;
@@ -169,6 +176,10 @@
 
     private string ModeKey => $"Play.Mode.{Name}";
 
+    // The screen's own mode, as kept, and what was last asked for in its place.
+    private PlayMode? kept;
+    private PlayMode? asked;
+
     private bool tempoOpen;
     // What Listen needs, said under it when it's tapped without a piano that takes notes.
     private string? listenNeeds;
@@ -186,7 +197,16 @@
     {
         Keyboard.Received += Heard;
         Keyboard.Changed += Plugged;
-        Mode = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
+        kept = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
+        (asked, Mode) = (Ask, Ask ?? kept.Value);
+        await ModeChanged.InvokeAsync(Mode);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (kept is not { } own || Ask == asked) return;
+
+        (asked, Mode) = (Ask, Ask ?? own);
         await ModeChanged.InvokeAsync(Mode);
     }
 
@@ -207,7 +227,7 @@
 
     private async Task SetMode(PlayMode mode)
     {
-        Mode = mode;
+        (Mode, kept) = (mode, mode);
         await Store.SetSettingAsync(ModeKey, mode == PlayMode.WaitForMe ? "wait" : "time");
         await ModeChanged.InvokeAsync(mode);
     }
