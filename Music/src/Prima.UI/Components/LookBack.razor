@@ -3,8 +3,9 @@
 
 @* A practice session looked back on, taking the page once it's finished: its time playing and idle; each stretch practised
    (its bars, the hand and the mode) with its runs, or round a loop its passes, as a line, the first to the last and the best
-   named, and its tempo; the bar that kept going wrong; and how it compares with the session before. Keep practising carries
-   the session on, the in-depth review goes over it, and Done goes back to the piece's front: only taps press them. *@
+   named, and its tempo; the bar still hard at the end, and the bar put right; and how it compares with the session before.
+   Keep practising carries the session on, Practise the bar still hard carries it on round that bar, the in-depth review goes
+   over it, and Done goes back to the piece's front: only taps press them. *@
 <div class="look-back">
     <section class="mu-screen look-stretches" aria-label="What was practised">
         <div class="look-head">
@@ -73,8 +74,15 @@
         <section class="mu-screen sum-quick look-lines" aria-label="Across the session">
             <p class="sum-point">
                 <span class="sum-key @(Review.Hard is null ? "good" : "bad")" aria-hidden="true"></span><span class="mu-readout-label">Still hard</span>
-                <span>@(Review.Hard is { } hard ? $"Bar {hard.Bar}: something to fix {hard.Times} of the {hard.Of} times it was played, mostly {Kind(hard.Mostly)}." : "No bar went wrong more than once.")</span>
+                <span>@(Review.Hard is { } hard ? $"{Capital(PieceWords.Bar(hard.Bar))}: something to fix {hard.Times} of the {hard.Of} times it was played, and still at the end: {PieceWords.Trouble(hard.Last)}." : "Every bar was clean by the end.")</span>
             </p>
+            @if (Review.Fixed is { } put)
+            {
+                <p class="sum-point">
+                    <span class="sum-key good" aria-hidden="true"></span><span class="mu-readout-label">Fixed</span>
+                    <span>@($"{Capital(PieceWords.Bar(put.Bar))}: {PieceWords.Trouble(put.First)} at first, nothing in its last {(put.Clean == 1 ? "time" : $"{put.Clean} times")}.")</span>
+                </p>
+            }
             @if (Since is { } before && Compared(before.Review) is { Count: > 0 } changes)
             {
                 <p class="sum-point">
@@ -88,6 +96,10 @@
     <div class="look-keys">
         <button type="button" class="mu-btn" data-piano="off" @onclick="OnKeep">Keep practising</button>
         <button type="button" class="mu-btn" data-piano="off" @onclick="OnReview">In-depth review</button>
+        @if (Review.Hard is { } still)
+        {
+            <button type="button" class="mu-btn" data-piano="off" @onclick="() => OnPractise.InvokeAsync(still.Bar)">Practise @PieceWords.Bar(still.Bar)</button>
+        }
         <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="OnDone">Done</button>
     </div>
 </div>
@@ -103,6 +115,9 @@
     [Parameter] public EventCallback OnKeep { get; set; }
 
     [Parameter] public EventCallback OnReview { get; set; }
+
+    /// <summary>Practise a bar: the session carried on, looping it.</summary>
+    [Parameter] public EventCallback<int> OnPractise { get; set; }
 
     [Parameter] public EventCallback OnDone { get; set; }
 
@@ -128,9 +143,12 @@
     /// <summary>A stretch's bars: "Bars 13–16", "Bar 7", "From bar 9" or "The whole piece" (lower case in a sentence).</summary>
     public static string Name(Stretch stretch, bool capital)
     {
-        var name = stretch.To is { } to ? (to == stretch.From ? $"bar {to}" : $"bars {stretch.From}–{to}") : stretch.From <= 1 ? "the whole piece" : $"from bar {stretch.From}";
-        return capital ? char.ToUpperInvariant(name[0]) + name[1..] : name;
+        var name = stretch.To is { } to ? PieceWords.Bars(stretch.From, to) : stretch.From <= 1 ? "the whole piece" : $"from bar {stretch.From}";
+        return capital ? Capital(name) : name;
     }
+
+    /// <summary>Words starting a sentence: "the upbeat" as "The upbeat".</summary>
+    public static string Capital(string words) => char.ToUpperInvariant(words[0]) + words[1..];
 
     private static string Hands(Stretch stretch) => stretch.Hands switch { "right" => "Right hand", "left" => "Left hand", _ => "Both hands" };
 
@@ -145,14 +163,6 @@
 
     /// <summary>How a run or pass went: "91%" right in time, or "15/17" right first time.</summary>
     public static string Said(Stretch stretch, StretchPoint point) => stretch.InTime ? $"{point.Figure * 100:0}%" : $"{point.Right}/{point.Notes}";
-
-    private static string Kind(TroubleKind kind) => kind switch
-    {
-        TroubleKind.Wrong => "wrong notes",
-        TroubleKind.Missed => "missed notes",
-        TroubleKind.Off => "notes off the beat",
-        _ => "notes let go early",
-    };
 
     // What changed since the session before, for each stretch played both times: a faster tempo, or else the best figure.
     private List<string> Compared(SessionReview before)

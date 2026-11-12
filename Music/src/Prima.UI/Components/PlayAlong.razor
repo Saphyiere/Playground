@@ -40,13 +40,15 @@
         }
         @* Round a loop, the time round being played, and (unless it's not wanted) as each begins how the one before went, up or
            down on the one before that: In time the share right in time, Wait for me the notes right first time. Nothing stops for
-           it, and nothing moves: it's in the bar. *@
+           it, and nothing moves: it's in the bar. A loop that waits after each pass counts on from its passes before this run,
+           those played in this mode. *@
         @if (loop is not null && !listening)
         {
-            <div class="mu-readout"><span class="mu-readout-label">Pass</span><span class="mu-readout-value">@(passes.Count + 1)</span></div>
-            @if (passes.Count > 0 && ShowPassFigure)
+            List<PiecePass> all = [.. EarlierPasses.Where(p => (p.RightInTime is null) == (Mode == PlayMode.WaitForMe)), .. passes];
+            <div class="mu-readout"><span class="mu-readout-label">Pass</span><span class="mu-readout-value">@(all.Count + 1)</span></div>
+            @if (all.Count > 0 && ShowPassFigure)
             {
-                var (done, before) = (passes[^1], passes.Count > 1 ? passes[^2] : null);
+                var (done, before) = (all[^1], all.Count > 1 ? all[^2] : null);
                 var (now, then) = done.RightInTime is { } share ? (share, before?.RightInTime) : (done.Right, before?.Right);
                 var way = then is null || then == now ? "" : now > then ? " ↑" : " ↓";
                 var low = done.RightInTime is { } inTime ? inTime < 0.8 : done.Right < done.Notes * 0.9;
@@ -170,6 +172,9 @@
 
     /// <summary>Round a loop, the last pass's figure in the bar beside the pass being played.</summary>
     [Parameter] public bool ShowPassFigure { get; set; } = true;
+
+    /// <summary>Round a loop that waits after each pass (a run a pass), the passes before this run's, for the pass count and the last figure.</summary>
+    [Parameter] public IReadOnlyList<PiecePass> EarlierPasses { get; set; } = [];
 
     /// <summary>The time since the music started, in the bar while a run plays.</summary>
     [Parameter] public bool ShowTime { get; set; }

@@ -17,13 +17,16 @@
     /// <summary>Each second, once the clock has counted: for the screen to keep it, and cover itself when it pauses. Not an EventCallback, so the screen isn't drawn again each second.</summary>
     [Parameter] public Func<Task>? OnTick { get; set; }
 
+    /// <summary>Whether this strip counts the clock; a second strip for another layout (portrait's) only shows it, so it counts once a second.</summary>
+    [Parameter] public bool Counts { get; set; } = true;
+
     private Timer? timer;
 
     protected override void OnInitialized() => timer = new Timer(_ => _ = InvokeAsync(async () =>
     {
-        Clock.Advance(DateTimeOffset.Now);
+        if (Counts) Clock.Advance(DateTimeOffset.Now);
         StateHasChanged();
-        if (OnTick is not null) await OnTick();
+        if (Counts && OnTick is not null) await OnTick();
     }), null, 1000, 1000);
 
     /// <summary>A clock's time: "12:34", or past an hour "1:02:34".</summary>

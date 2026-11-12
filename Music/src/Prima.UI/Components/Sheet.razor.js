@@ -113,16 +113,19 @@ export function pixelsPerMm() {
 // width changes, and tells .NET when it has painted.
 export async function render(element, mei, options, dotnet) {
     const tk = await toolkit();
-    const state = sheets.get(element) ?? { number: ++sheetCount, moves: [] };
-    // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's). What
-    // Verovio is given is the music without its verses.
-    if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei) });
+    const state = sheets.get(element) ?? { number: ++sheetCount, moves: [], kept: new Map() };
+    // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's), and so
+    // do the drawings kept of it. What Verovio is given is the music without its verses.
+    if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei), kept: new Map() });
     Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay"), line: [...element.children].find(c => c.classList.contains("sheet-cursor")) });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
     draw(element, state);
     if (!state.observer) {
         state.observer = new ResizeObserver(() => {
+            // Hidden (a screen over the music, as the look back is): nothing to draw for nobody to see. When it shows again at the
+            // size it had, there's nothing to draw then either.
+            if (element.clientWidth === 0) return;
             if (Math.abs(element.clientWidth - state.width) > 1 || (state.options.layout === "page" && Math.abs(element.clientHeight - state.height) > 1)) draw(element, state);
         });
         state.observer.observe(element);
@@ -172,6 +175,23 @@ function draw(element, state) {
         svgViewBox: true,
         svgHtml5: true,
     };
+    // The whole piece at a size it was drawn at before (out of full screen, or the tablet turned back): the drawing kept then
+    // goes back on the paper, rather than the piece being laid out and drawn again, which on a long piece takes seconds. The
+    // last three sizes' drawings are kept.
+    const key = options.layout === "scroll" ? JSON.stringify([state.loaded, options.measures ?? null, options.page ?? 1]) : null;
+    const kept = key ? state.kept.get(key) : null;
+    if (kept) {
+        state.kept.delete(key);
+        state.kept.set(key, kept);
+        music.replaceChildren(...kept.drawing);
+        music.querySelectorAll("[class*='mark-']").forEach(n => n.classList.remove(...markKinds));
+        // The engraver still has the size laid out last: anything asked of it, or drawn next, lays this one out first.
+        if (tk.current === state.number) tk.current = 0;
+        Object.assign(state, { pages: kept.pages, timemap: kept.timemap, laidOut: null });
+        finish(element, state);
+        return;
+    }
+
     // Another page of music laid out already (a page turn): only that page is drawn, the toolkit keeping the layout it has.
     // Anything else (other music or bars, another size or option, or the toolkit given another sheet's) is laid out afresh.
     const laid = state.tk.current === state.number && state.laidOut === state.music && state.laidBars === options.measures;
@@ -196,7 +216,16 @@ function draw(element, state) {
         state.laidOut = null;
     }
     if (!turned) state.timemap = tk.renderToTimemap({ includeMeasures: true });
-    // New paper: what was drawn over the old one goes, and so does what was found on it (each id's place, the music's words).
+    if (key) {
+        state.kept.set(key, { drawing: [...music.childNodes], pages: state.pages, timemap: state.timemap });
+        if (state.kept.size > 3) state.kept.delete(state.kept.keys().next().value);
+    }
+    finish(element, state);
+}
+
+// New paper, drawn or put back: what was drawn over the old one goes, and so does what was found on it (each id's place, the
+// music's words); the marks go on again, and .NET hears once it's painted.
+function finish(element, state) {
     state.overlay.replaceChildren();
     state.line.hidden = true;
     Object.assign(state, { points: null, byId: null, words: null, drawn: new Map() });

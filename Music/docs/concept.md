@@ -258,30 +258,47 @@ a PDF plays out; this is what came of it.
   **Back to practising**, which leaves every mark the run left on the music; and its loops wait for you after each pass.
   Whether a loop waits is a setting of its own in every way (**Round a loop** on the Options: **Go straight on**, to drill a
   riff over and over, or **Wait after each pass**, for a breather to look at it): waiting, each pass is a run of its own,
-  ended and kept as one, and the next starts with its key or the go key. So is whether a run that comes to its end starts
-  over by itself, after its count-in, until you stop it (**At a run's end**: Wait for me or Go again). Whichever way, every run
-  and every pass is kept, so the look back has them all.
+  ended and kept as one, and the next starts with its key or the go key, but the loop still counts on: the bar says the pass
+  and how the last went, ↑ or ↓, and the summary lists every pass so far, as long as it's the same loop, hand and mode (in
+  Hands-on the review heads with the pass and how far it's come since pass 1). So is whether a run that comes to its end
+  starts over by itself, after its count-in, until you stop it (**At a run's end**: Wait for me or Go again). Whichever way,
+  every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
+  loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
 - **The look back**, once a session is finished, takes the page: the session's playing and idle time, its stretches, passes
   and runs through; each stretch practised (its bars: the whole piece, from a bar, or round a loop; the hand; In time or Wait
   for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its first and last figures,
-  and its tempo, a step on the line where it changed; **Still hard**, the bar that went wrong in the most runs and passes, at
-  least twice, in how many of the times it was played and mostly how; and how the stretches played both times compare with
-  the session before on the piece (**Earlier today**, **Since yesterday**, **Since Tuesday**…): a faster tempo, or else the
-  best figure. **Keep practising** carries the session on, **In-depth review** goes over it, and **Done** goes back to the
+  and its tempo, a step on the line where it changed; **Still hard**, the bar with most still to fix at the end, and
+  **Fixed**, the bar put right; and how the stretches played both times compare with the session before on the piece
+  (**Earlier today**, **Since yesterday**, **Since Tuesday**…): a faster tempo, or else the best figure. A bar's standing comes
+  from the runs and passes that played it, in order: the last third of them (the last time, at least) is how it stands now,
+  the first third how it started. Still hard is the bar with most to fix in its last times, a wrong or missed note weighing
+  three times anything else (a note off the beat or let go early, a slip put right, a chord not together), and says what
+  went wrong then: one read-through names its worst bar. Fixed is the bar with most to fix at first, played three times or
+  more, that was clean in its last times. **Keep practising** carries the session on, **Practise bar N** carries it on
+  looping the bar still hard (with a bar either side), **In-depth review** goes over it, and **Done** goes back to the
   piece's front. Only taps press them.
-- **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen: its figures (right in
-  time, notes right, the time playing); its lines over every run and pass (the notes, the timing, the notes let go early, the
-  bar with most to fix); and its bars shaded by what went wrong, a wrong or missed note weighing three times a note off the
-  beat or let go early. A tap on a bar's cell, or on the bar on the music, outlines it there with the marks the latest run that
-  played it left on its notes; it opens on the bar with most to fix. Up to 24 bars every bar has a cell. A longer piece shows
+- **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
+  with where it ended, not its average: its last stretch first → last ("Bars 13–16, first → last: 70% → 96%"), that
+  stretch's tempo, and the time playing; one run's are its right in time and notes right. Its lines go over every run and
+  pass: the notes (wrong, missed, slips put right and chord notes not together each named, and "every one" only when every
+  note was right), the timing (only the timing: the notes more than a tenth of a beat out, and where), the notes let go early, and
+  **Look at** and **Fixed**, the look back's Still hard and Fixed. Its bars are shaded by what went wrong against the bar with
+  the most, so the worst is darkest whatever the session. A tap on a bar's cell, or on the bar on the music, outlines it there
+  with the marks the latest run that played it left on its notes; it opens on the bar still hard (or else the bar put right),
+  and **Practise bar N** loops the bar picked, as from the look back. Up to 24 bars every bar has a cell. A longer piece shows
   the bars that had something wrong, the most to fix first, up to 16, over a thin strip of the whole piece with each marked on
-  it, and **and 9 more** shows the rest.
+  it, and **and 9 more** shows the rest. The pickup before bar 1 is "the upbeat" in its words, as it has no number on the strip.
 - **Play** is the piece played through, In time with the click, both hands, from its first bar to its end, full screen: the
   music, and a slim strip with the piece's name, the tempo (tap it to change it) and **Start** (or the piano's go key), so the
   tempo can be set first; then the bar, the time and Stop. Nothing is on the music while it plays, whatever the settings say:
   no cursor and no marks. Once it's over every note is marked, and a line at the bottom says how it went (**93% right in
-  time** · 88 of 95 notes · look at bar 1), with **Again**, **In-depth review** and **Done**. A play-through is kept as a run,
-  counted in About's played through and its best, and its minutes are the day's.
+  time** · 88 of 95 notes · look at bar 1), with **Again**, **Practise bar 1** (Practice, a session started looping that bar
+  with a bar either side), **In-depth review** and **Done**; the strip at the top keeps only the tempo then. A play-through is
+  kept as a run, counted in About's played through and its best, and its minutes are the day's.
+- **Screens over the music don't draw it again.** The look back, the in-depth review and Play cover the music or take it full
+  screen; the music isn't drawn while it's hidden, and the last three sizes it was drawn at are kept, so coming back, leaving
+  full screen or turning the tablet back puts the drawing back rather than laying out the piece again (seconds, on a long
+  piece on the tablet). The first time it goes full screen it's drawn at that size once.
 - **A PDF** turns by the same means, and by a tap on the page's outer thirds. Portrait shows a whole page, and by default a half-page turn first shows the next page's
   top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
@@ -697,7 +714,8 @@ Everything lives in one SQLite file on the tablet.
   passage can be made again (one spot does) and a result recomputed if the scoring changes. A piece's run keeps the bar it
   started from, whether it was stopped and where, the hand, and round a loop its last bar and each pass's figures; the
   practice session it was played in, or that it was Play's; what went wrong in each bar (wrong, missed, off the beat, let go
-  early), for the run and for each pass; and the marks it left on the music, for the in-depth review.
+  early, slips put right, chords not together), for the run and for each pass; and the marks it left on the music, for the
+  in-depth review.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
   others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their

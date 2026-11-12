@@ -43,13 +43,17 @@ public sealed record PiecePass(int Right, int Notes, double? RightInTime)
 }
 
 /// <summary>
-/// What went wrong in a bar on a run or a pass: notes played wrong, missed, played off the beat (or, in Wait for me, a chord's
-/// keys a key at a time), and let go early.
+/// What went wrong in a bar on a run or a pass: notes played wrong (and not put right at once), missed, played off the beat, let
+/// go early, wrong but put right with the next key (a slip), and in Wait for me chords played a key at a time.
 /// </summary>
-public sealed record BarTrouble(int Bar, int Wrong, int Missed, int Off, int Early)
+public sealed record BarTrouble(int Bar, int Wrong, int Missed, int Off, int Early, int Slips = 0, int Apart = 0)
 {
-    /// <summary>How much there is to fix, a wrong or missed note counting three times as much as one off the beat or let go early.</summary>
-    public int Weight => 3 * (Wrong + Missed) + Off + Early;
+    /// <summary>How much there is to fix, a wrong or missed note counting three times as much as anything else.</summary>
+    public int Weight => 3 * (Wrong + Missed) + Off + Early + Slips + Apart;
+
+    /// <summary>What went wrong in the same bar on two runs or passes, together.</summary>
+    public static BarTrouble operator +(BarTrouble a, BarTrouble b) =>
+        new(a.Bar, a.Wrong + b.Wrong, a.Missed + b.Missed, a.Off + b.Off, a.Early + b.Early, a.Slips + b.Slips, a.Apart + b.Apart);
 }
 
 /// <summary>

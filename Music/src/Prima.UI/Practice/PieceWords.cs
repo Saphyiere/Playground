@@ -23,7 +23,7 @@ public static class PieceWords
         if (run.To is { } to) return $"{mode}{hand}, looping {Bars(run.From, to)}";
 
         var from = run.From > 1 ? $", from bar {run.From}" : "";
-        var stopped = run.Stopped && run.Bar is { } bar ? $", stopped at bar {bar}" : "";
+        var stopped = run.Stopped && run.Bar is { } bar ? $", stopped at {Bar(bar)}" : "";
         return mode + hand + from + stopped;
     }
 
@@ -50,7 +50,25 @@ public static class PieceWords
         return run.To is { } to ? $"{went}, looping {Bars(run.From, to)}" : went;
     }
 
-    private static string Share(PieceRun run) => $"{(run.RightInTime ?? 0) * 100:0}%";
+    /// <summary>
+    /// What went wrong in a bar, in words: "2 wrong, 1 slip put right, 3 let go early", or with nothing wrong "nothing to fix".
+    /// </summary>
+    public static string Trouble(BarTrouble bar)
+    {
+        var parts = new[]
+        {
+            (bar.Wrong, "wrong", "wrong"), (bar.Missed, "missed", "missed"), (bar.Slips, "slip put right", "slips put right"),
+            (bar.Apart, "chord note not together", "chord notes not together"), (bar.Off, "off the beat", "off the beat"), (bar.Early, "let go early", "let go early"),
+        };
+        var said = parts.Where(p => p.Item1 > 0).Select(p => $"{p.Item1} {(p.Item1 == 1 ? p.Item2 : p.Item3)}").ToList();
+        return said.Count == 0 ? "nothing to fix" : string.Join(", ", said);
+    }
 
-    private static string Bars(int from, int to) => from == to ? $"bar {from}" : $"bars {from}–{to}";
+    /// <summary>A bar in words: "bar 7", or the pickup before bar 1, "the upbeat".</summary>
+    public static string Bar(int n) => n == 0 ? "the upbeat" : $"bar {n}";
+
+    /// <summary>Bars in words: "bar 7", "bars 13–16", or from the pickup, "the upbeat to bar 4".</summary>
+    public static string Bars(int from, int to) => from == to ? Bar(from) : from == 0 ? $"the upbeat to bar {to}" : $"bars {from}–{to}";
+
+    private static string Share(PieceRun run) => $"{(run.RightInTime ?? 0) * 100:0}%";
 }

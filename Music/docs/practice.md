@@ -52,7 +52,9 @@ which Settings lets you change one by one (the piece's Options have the ways and
   go key presses it) and **Back to practising**, which goes back with all of the run's marks on the music.
 - **Round a loop** is a setting of its own in every way: **Go straight on**, to drill a riff over and over, or **Wait after
   each pass**, for a breather to look at what happened. Waiting, each pass is a run of its own, ended and kept as one (in
-  Hands-on, its review takes the screen), and the next starts with the loop's key, the go key or Again.
+  Hands-on, its review takes the screen), and the next starts with the loop's key, the go key or Again; the loop still counts
+  on, its pass and how the last went in the bar and every pass so far in the summary (in Hands-on, at the review's head), while
+  it's the same loop, hand and mode (round 2's reviews).
 - **At a run's end** is too: **Wait for me**, or **Go again**, where a run that comes to its end starts over after its
   count-in, until you stop it. Every way starts on waiting.
 - **The marks on the music** (while you play, and afterwards) and **the cursor** stay settings of their own, as before.
@@ -64,17 +66,23 @@ which Settings lets you change one by one (the piece's Options have the ways and
 - As on the canvas, taking the page: the session's playing and idle time, its stretches, passes and runs through; each
   stretch you practised (its bars, the hand and the mode) with its runs, or round a loop its passes, as a line, the best
   named and its first and last figures beside it, and its tempo (a step on the line where it changed); **Still hard**, the bar
-  that went wrong in the most runs and passes, at least twice; and how the stretches played both times compare with the
-  session before on the piece that had any (**Earlier today**, **Since yesterday**…): a faster tempo, or else the best figure.
-- Keys: **Keep practising** (the session goes on), **In-depth review** beside it, and **Done** (back to the piece's front).
+  with most to fix in the last third of the times it was played (a wrong or missed note weighing three times anything else),
+  and **Fixed**, the bar that was worst at first and clean at the end; and how the stretches played both times compare with
+  the session before on the piece that had any (**Earlier today**, **Since yesterday**…): a faster tempo, or else the best
+  figure. Still hard used to count the runs a bar went wrong in, which named a bar with one note let go early every time over
+  a bar that was a mess and got fixed; the reviews of round 2 found the look back and the review naming different bars.
+- Keys: **Keep practising** (the session goes on), **In-depth review** beside it, **Practise bar N** (the session carried on,
+  looping the bar still hard with a bar either side), and **Done** (back to the piece's front).
 - No "next time" line: it suggests, and the instructor work is on hold.
 
 ## The in-depth review
 
-- The session as a whole, taking the screen as on the canvas: its figures; its lines (notes, timing, held, the bar to look
-  at) over every run and pass; the bars shaded by what went wrong (a wrong or missed note weighing three times one off the
-  beat or let go early); and the music of the bar you tap, outlined, marked as the latest run that played it left it. It
-  opens on the bar with most to fix. **Back** returns to the look back, **Done** to the front.
+- The session as a whole, taking the screen as on the canvas: its figures, led by where it ended (its last stretch, first →
+  last, and that stretch's tempo), not the session's average; its lines (notes, timing, held, Look at and Fixed, by the look
+  back's rule) over every run and pass, slips put right and Wait for me's chord notes not together named apart from wrong notes;
+  the bars shaded by what went wrong against the worst bar; and the music of the bar you tap, outlined, marked as the latest
+  run that played it left it. It opens on the bar still hard. **Back** returns to the look back, **Practise bar N** loops the
+  bar picked, **Done** goes to the front.
 - **A long piece**: up to 24 bars every bar has its cell. Past that, only the bars that had something wrong, the most to fix
   first, up to 16, each with its number, and over them a thin strip of the whole piece with each of them marked on it, so
   you can see where they are. More than 16 with something wrong: the 16 with the most, and "and 9 more" to show them all.
@@ -84,12 +92,13 @@ which Settings lets you change one by one (the piece's Options have the ways and
 
 - **Play** opens the piece full screen, the page and nothing else: a slim strip at the top with the piece's name, the tempo
   (tap it to change it), **Start** and **Done**, so the tempo can be set first. Start, or the piano's go key, counts in; the
-  strip then says the bar and the time, with Stop.
+  strip then says the bar and the time, with Stop; at the end it keeps only the tempo, the quick review having the keys.
 - No cursor and no marks while it plays, whatever the settings say. It's In time, with the click, from the first bar to the
   end, both hands, whatever bar and hand Practice had. Following you without a click is the advanced reviewer's ask, on hold
   with the other seats.
 - **At the end** (or Stop): every note marked on the music, and a very quick review at the bottom: the headline and a few
-  words, like "93% right in time · 88 of 95 notes · look at bar 1", with **Again**, **In-depth review** and **Done**.
+  words, like "93% right in time · 88 of 95 notes · look at bar 1", with **Again**, **Practise bar 1** (Practice started,
+  looping that bar with a bar either side), **In-depth review** and **Done**.
 - A play-through is kept as a run, and counts in About's "played through" and its best.
 
 ## How it's built

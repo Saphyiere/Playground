@@ -185,9 +185,11 @@ public sealed partial class PrimaStore
         }).ToList();
     });
 
-    // What went wrong in each bar of a run or a pass, as it was kept: [bar, wrong, missed, off the beat, let go early] for each.
+    // What went wrong in each bar of a run or a pass, as it was kept: [bar, wrong, missed, off the beat, let go early, slips put
+    // right, chord notes not together] for each (the last two kept since 13 November).
     private static List<BarTrouble> TroubleOf(JsonElement kept) => kept.TryGetProperty("trouble", out var bars) && bars.ValueKind == JsonValueKind.Array
-        ? [.. bars.EnumerateArray().Select(b => new BarTrouble(b[0].GetInt32(), b[1].GetInt32(), b[2].GetInt32(), b[3].GetInt32(), b[4].GetInt32()))]
+        ? [.. bars.EnumerateArray().Select(b => new BarTrouble(b[0].GetInt32(), b[1].GetInt32(), b[2].GetInt32(), b[3].GetInt32(), b[4].GetInt32(),
+            b.GetArrayLength() > 5 ? b[5].GetInt32() : 0, b.GetArrayLength() > 6 ? b[6].GetInt32() : 0))]
         : [];
 
     /// <summary>The marks a run left on the music, as it kept them, for each run of those asked for that kept them.</summary>

@@ -101,14 +101,23 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
 /// <summary>What went wrong in each bar of a run or a pass that had something wrong.</summary>
 public static class Trouble
 {
-    /// <summary>From its notes' results, In time: wrong, missed, off the beat, let go early.</summary>
+    /// <summary>From its notes' results, In time: wrong (and not put right at once), missed, off the beat, let go early, and slips put right.</summary>
     public static IReadOnlyList<BarTrouble> Of(IEnumerable<NoteResult> notes) => [.. notes.GroupBy(n => n.Bar)
-        .Select(g => new BarTrouble(g.Key, g.Count(n => n.Outcome == Outcome.Wrong), g.Count(n => n.Outcome == Outcome.Missed), g.Count(n => n.Band == Band.Off), g.Count(n => n.LetGoEarly)))
+        .Select(g =>
+        {
+            var (wrong, missed) = (g.Count(n => n.Outcome == Outcome.Wrong && !n.Corrected), g.Count(n => n.Outcome == Outcome.Missed));
+            var (off, early, slips) = (g.Count(n => n.Band == Band.Off), g.Count(n => n.LetGoEarly), g.Count(n => n.Corrected));
+            return new BarTrouble(g.Key, wrong, missed, off, early, slips);
+        })
         .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
 
-    /// <summary>From the marks left on its notes, in Wait for me: wrong, and a chord played a key at a time as off; each note's bar by its id.</summary>
+    /// <summary>From the marks left on its notes, in Wait for me: wrong, and a chord played a key at a time; each note's bar by its id.</summary>
     public static IReadOnlyList<BarTrouble> Of(IEnumerable<SheetMark> marks, IReadOnlyDictionary<string, int> barOf) => [.. marks.Where(m => barOf.ContainsKey(m.Id)).GroupBy(m => barOf[m.Id])
-        .Select(g => new BarTrouble(g.Key, g.Count(m => m.Kind == "wrong"), g.Count(m => m.Kind == "missed"), g.Count(m => m.Kind is "early" or "late" or "apart"), 0))
+        .Select(g =>
+        {
+            var (wrong, missed, apart) = (g.Count(m => m.Kind == "wrong"), g.Count(m => m.Kind == "missed"), g.Count(m => m.Kind == "apart"));
+            return new BarTrouble(g.Key, wrong, missed, g.Count(m => m.Kind is "early" or "late"), 0, Apart: apart);
+        })
         .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
 }
 

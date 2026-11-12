@@ -34,8 +34,10 @@ public class SessionReviewTests
         Assert.Equal((2, 2), (review.Stretches[2].Runs, review.Stretches[2].Throughs));
         Assert.Equal([0.79, 0.88], review.Stretches[2].Points.Select(p => p.Figure));
 
-        // Bar 15 went wrong in two passes and a run through, of the three passes and two runs that played it, mostly wrong notes.
-        Assert.Equal(new StillHard(15, 3, 5, TroubleKind.Wrong), review.Hard);
+        // Bar 15 went wrong in two passes and a run through, of the three passes and two runs that played it, but not the last
+        // time: it was put right. Nothing was still wrong at the end.
+        Assert.Null(review.Hard);
+        Assert.Equal(new FixedBar(15, new BarTrouble(15, 1, 0, 0, 0), 1), review.Fixed);
         Assert.Equal(new BarTrouble(15, 2, 1, 0, 2), review.Bars[15]);
         Assert.Equal((18 + 21 + 23 + 15 + 80 + 88, 23 * 3 + 17 + 95 * 2), (review.Right, review.Notes));
         Assert.Equal((0.70 + 0.85 + 1.0) * 23 + (0.79 + 0.88) * 95, review.RightInTime!.Value * (23 * 3 + 95 * 2), 6);
@@ -43,11 +45,46 @@ public class SessionReviewTests
     }
 
     [Fact]
-    public void ABarWrongOnceIsntStillHard()
+    public void OneRunsBarWithMostToFixIsStillHard()
     {
-        var review = SessionReview.Of([Run(1, true, 1, null, 90, 95, 0.9) with { Trouble = [new BarTrouble(4, 1, 0, 0, 0)] }], 16);
+        var review = SessionReview.Of([Run(1, true, 1, null, 90, 95, 0.9) with { Trouble = [new BarTrouble(4, 1, 0, 0, 0), new BarTrouble(9, 0, 0, 2, 0)] }], 16);
 
-        Assert.Null(review.Hard);
+        Assert.Equal(new StillHard(4, 1, 1, TroubleKind.Wrong, new BarTrouble(4, 1, 0, 0, 0)), review.Hard);
+        Assert.Null(review.Fixed);
         Assert.Single(review.Stretches);
+    }
+
+    [Fact]
+    public void ABarPutRightIsFixedAndTheBarStillWrongAtTheEndIsStillHard()
+    {
+        // Six passes of bars 1-4: bar 3 wrong twice at first, then clean; bar 2 has a note let go early every time.
+        var early2 = new BarTrouble(2, 0, 0, 0, 1);
+        var wrong3 = new BarTrouble(3, 2, 0, 0, 0);
+        PiecePass[] passes = [Pass(18, 0.7, early2, wrong3), Pass(19, 0.75, early2, wrong3), Pass(22, 0.9, early2), Pass(22, 0.95, early2), Pass(23, 0.96, early2), Pass(23, 0.96, early2)];
+        var review = SessionReview.Of([Run(1, true, 1, 4, 23, 23, 1.0, passes)], 16);
+
+        Assert.Equal(new StillHard(2, 6, 6, TroubleKind.Early, new BarTrouble(2, 0, 0, 0, 2)), review.Hard);
+        Assert.Equal(new FixedBar(3, new BarTrouble(3, 4, 0, 0, 0), 2), review.Fixed);
+    }
+
+    [Fact]
+    public void AWrongNoteAtTheEndWeighsMoreThanNotesLetGoEarly()
+    {
+        var review = SessionReview.Of([Run(1, true, 1, null, 90, 95, 0.9) with { Trouble = [new BarTrouble(1, 0, 0, 0, 2), new BarTrouble(7, 1, 0, 0, 0)] }], 16);
+
+        Assert.Equal(7, review.Hard!.Bar);
+    }
+
+    [Fact]
+    public void SlipsAndChordsNotTogetherAreCountedApartFromWrongNotes()
+    {
+        var waited = Run(1, false, 1, null, 20, 24, null) with { Trouble = [new BarTrouble(5, 1, 0, 0, 0, Apart: 3)] };
+        var timed = Run(2, true, 1, null, 90, 95, 0.9) with { Trouble = [new BarTrouble(5, 0, 0, 1, 0, Slips: 2)] };
+
+        var review = SessionReview.Of([waited, timed], 16);
+
+        Assert.Equal(new BarTrouble(5, 1, 0, 1, 0, 2, 3), review.Bars[5]);
+        Assert.Equal(3 * 1 + 1 + 2 + 3, review.Bars[5].Weight);
+        Assert.Equal(TroubleKind.Slips, review.Hard!.Mostly);
     }
 }

@@ -420,6 +420,18 @@ function pressStrip(state, e) {
     state.strip.addEventListener("pointercancel", done);
 }
 
+// After a run, its bars (a loop's, or the bar it had most to fix) brought into view if any is off the screen, as the summary under
+// the music can leave them: the first one's line just under the top, so a loop over two lines shows both, with room for the
+// names of wrong notes over the staff.
+export function reveal(frame, from, to) {
+    const state = pieces.get(frame);
+    if (!state) return;
+    const { sheet, list } = drawn(state), f = state.frame;
+    const first = list.find(x => x.n === from), last = list.find(x => x.n === to) ?? first;
+    if (!first || (sheet.offsetTop + first.top - 36 >= f.scrollTop && sheet.offsetTop + last.bottom <= f.scrollTop + f.clientHeight)) return;
+    f.scrollTo({ top: Math.max(0, sheet.offsetTop + first.top - 36), behavior: "smooth" });
+}
+
 // A bar on a scrolling music brought into view, its line a quarter of the way down (a page turns from .NET instead).
 function bringIntoView(state, n) {
     const { sheet, list } = drawn(state), b = list.find(x => x.n === n), f = state.frame;

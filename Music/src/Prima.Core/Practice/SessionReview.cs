@@ -23,8 +23,14 @@ public sealed record Stretch(int From, int? To, string Hands, bool InTime, IRead
 /// </summary>
 public sealed record StretchPoint(DateTimeOffset At, double Figure, int Right, int Notes, double? Tempo);
 
-/// <summary>A bar that kept going wrong: in how many of the runs and passes that played it, and what went wrong most there.</summary>
-public sealed record StillHard(int Bar, int Times, int Of, TroubleKind Mostly);
+/// <summary>
+/// The bar with most still to fix at the end: in how many of the runs and passes that played it something went wrong, what went
+/// wrong most in its last times played, and all that went wrong then.
+/// </summary>
+public sealed record StillHard(int Bar, int Times, int Of, TroubleKind Mostly, BarTrouble Last);
+
+/// <summary>A bar that went wrong at first and not in its last times played: what went wrong its first times, and how many of the last were clean.</summary>
+public sealed record FixedBar(int Bar, BarTrouble First, int Clean);
 
 public enum TroubleKind
 {
@@ -32,14 +38,16 @@ public enum TroubleKind
     Missed,
     Off,
     Early,
+    Slips,
+    Apart,
 }
 
 /// <summary>
-/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bar that kept going wrong, what went
-/// wrong in each bar over every run and pass, the notes right of those played, the share right in time of those played In time,
-/// and the notes let go early. Round a loop each pass counts, not the run.
+/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bar with most still to fix at the end
+/// and the bar put right, what went wrong in each bar over every run and pass, the notes right of those played, the share right in
+/// time of those played In time, and the notes let go early. Round a loop each pass counts, not the run.
 /// </summary>
-public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? Hard, IReadOnlyDictionary<int, BarTrouble> Bars, int Right, int Notes, double? RightInTime, int Early)
+public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? Hard, FixedBar? Fixed, IReadOnlyDictionary<int, BarTrouble> Bars, int Right, int Notes, double? RightInTime, int Early)
 {
     /// <summary>Its runs summed up, the piece's last bar being <paramref name="lastBar"/>; a run or pass with no notes reached isn't a point.</summary>
     public static SessionReview Of(IEnumerable<PieceRun> runs, int lastBar)
@@ -58,25 +66,38 @@ public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? 
         }).ToList();
 
         var bars = new Dictionary<int, BarTrouble>();
-        foreach (var t in units.SelectMany(u => u.Trouble))
-        {
-            var had = bars.GetValueOrDefault(t.Bar) ?? new BarTrouble(t.Bar, 0, 0, 0, 0);
-            bars[t.Bar] = new BarTrouble(t.Bar, had.Wrong + t.Wrong, had.Missed + t.Missed, had.Off + t.Off, had.Early + t.Early);
-        }
+        foreach (var t in units.SelectMany(u => u.Trouble)) bars[t.Bar] = bars.TryGetValue(t.Bar, out var had) ? had + t : t;
 
-        // The bar that went wrong in the most runs and passes, at least twice: of as many, the one played least, then the earlier.
-        var hard = bars.Keys.Select(bar =>
+        // Each bar that had something wrong, with every run and pass that played it, in order: what went wrong its first third
+        // of those times is how it started, its last third (the last time, at least) how it stands now. A wrong or missed note
+        // weighs three times anything else, the same rule the in-depth review shades its bars by.
+        var standing = bars.Keys.Select(bar =>
         {
-            var times = units.Count(u => u.Trouble.Any(t => t.Bar == bar && t.Weight > 0));
-            var of = units.Count(u => u.Run.From <= bar && bar <= u.Last);
-            var sums = bars[bar];
-            TroubleKind[] kinds = [TroubleKind.Wrong, TroubleKind.Missed, TroubleKind.Off, TroubleKind.Early];
-            int[] counts = [sums.Wrong, sums.Missed, sums.Off, sums.Early];
-            return new StillHard(bar, times, Math.Max(of, times), kinds[Array.IndexOf(counts, counts.Max())]);
-        }).Where(h => h.Times >= 2).OrderByDescending(h => h.Times).ThenBy(h => h.Of).ThenBy(h => h.Bar).FirstOrDefault();
+            var plays = units.Where(u => (u.Run.From <= bar && bar <= u.Last) || u.Trouble.Any(t => t.Bar == bar)).ToList();
+            var third = Math.Max(1, plays.Count / 3);
+            var none = new BarTrouble(bar, 0, 0, 0, 0);
+            var first = plays.Take(third).SelectMany(u => u.Trouble.Where(t => t.Bar == bar)).Aggregate(none, (a, b) => a + b);
+            var last = plays.Skip(plays.Count - third).SelectMany(u => u.Trouble.Where(t => t.Bar == bar)).Aggregate(none, (a, b) => a + b);
+            var times = plays.Count(u => u.Trouble.Any(t => t.Bar == bar && t.Weight > 0));
+            return (Bar: bar, Plays: plays.Count, Times: times, Third: third, First: first, Last: last);
+        }).ToList();
+
+        // Still hard: the bar with most to fix in its last times, wrong and missed notes first, then the earlier bar. Fixed: the
+        // bar with most to fix at first, played three times or more, that was clean in its last times.
+        var stillWrong = standing.Where(s => s.Last.Weight > 0);
+        var still = stillWrong.OrderByDescending(s => s.Last.Weight).ThenByDescending(s => s.Last.Wrong + s.Last.Missed).ThenBy(s => s.Bar).ToList();
+        StillHard? hard = null;
+        if (still is [var top, ..])
+        {
+            TroubleKind[] kinds = [TroubleKind.Wrong, TroubleKind.Missed, TroubleKind.Off, TroubleKind.Early, TroubleKind.Slips, TroubleKind.Apart];
+            int[] counts = [top.Last.Wrong, top.Last.Missed, top.Last.Off, top.Last.Early, top.Last.Slips, top.Last.Apart];
+            hard = new StillHard(top.Bar, top.Times, top.Plays, kinds[Array.IndexOf(counts, counts.Max())], top.Last);
+        }
+        var putRight = standing.Where(s => s.Plays >= 3 && s.Last.Weight == 0 && s.First.Weight >= 3).OrderByDescending(s => s.First.Weight).ThenBy(s => s.Bar).ToList();
+        FixedBar? fixedBar = putRight is [var best, ..] ? new FixedBar(best.Bar, best.First, best.Third) : null;
 
         var timed = units.Where(u => u.Run.InTime && u.RightInTime is not null).ToList();
         double? inTime = timed.Sum(u => u.Notes) is > 0 and var played ? timed.Sum(u => u.RightInTime!.Value * u.Notes) / played : null;
-        return new(stretches, hard, bars, units.Sum(u => u.Right), units.Sum(u => u.Notes), inTime, bars.Values.Sum(b => b.Early));
+        return new(stretches, hard, fixedBar, bars, units.Sum(u => u.Right), units.Sum(u => u.Notes), inTime, bars.Values.Sum(b => b.Early));
     }
 }

@@ -656,7 +656,7 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
     // past a dozen the first, the best and the last.
     private static string PassesSaid((int From, int To) loop, IReadOnlyList<PiecePass> passes)
     {
-        var bars = loop.From == loop.To ? $"bar {loop.From}" : $"bars {loop.From} to {loop.To}";
+        var bars = BarsOf(loop.From, loop.To);
         if (passes.Count == 1) return $"One pass of {bars}.";
 
         var inTime = passes[0].RightInTime is not null;
@@ -708,7 +708,8 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
 
     private static string Bars((int From, int To) stretch) => BarsOf(stretch.From, stretch.To);
 
-    private static string BarsOf(int from, int to) => from == to ? $"bar {from}" : $"bars {from} to {to}";
+    // A stretch of bars in words: "bar 3", "bars 3 to 7", or from the pickup, "the upbeat to bar 2".
+    private static string BarsOf(int from, int to) => from == to ? PieceWords.Bar(from) : from == 0 ? $"the upbeat to bar {to}" : $"bars {from} to {to}";
 
     // Bars named: "bar 3", "bars 3 and 7", "bars 3, 7, 8 and 11 more".
     private static string Listed(IReadOnlyList<int> numbers) => numbers.Count switch
