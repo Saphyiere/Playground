@@ -1,6 +1,6 @@
 // Choosing where a piece plays. .NET keeps the choice (the bar a run starts at, and a loop's last bar) and says what it is
 // (show); this draws it and does the dragging, so a drag never waits on .NET, which is told once it ends:
-// - on the music: the chosen bar or the loop lit, with a tab over it (Loop on a bar, × on a loop), and on a loop a handle at
+// - on the music: the chosen bar or the loop lit, with a tab over it (Loop on a bar, × on a loop, Clear for either), and on a loop a handle at
 //   each end to drag, onto other lines too, the bar under the finger named;
 // - under the piece's bar: the strip, a cell a bar, the bars on screen boxed: tap a cell to start there, drag along it to loop.
 
@@ -169,7 +169,8 @@ function marksLayer(state, sheet) {
     let layer = sheet.querySelector(":scope > .bar-marks");
     if (layer) return layer;
     layer = make("div", "bar-marks", '<div class="bar-bands"></div>'
-        + '<div class="bar-tab" hidden><span class="bar-tab-label"></span><button type="button" class="mu-btn bar-tab-key"></button></div>'
+        + '<div class="bar-tab" hidden><span class="bar-tab-label"></span><button type="button" class="mu-btn bar-tab-key"></button>'
+        + '<button type="button" class="mu-btn bar-tab-clear" data-piano="off" aria-label="Clear selection">Clear</button></div>'
         + '<div class="bar-handle" data-end="from" aria-hidden="true" hidden></div><div class="bar-handle" data-end="to" aria-hidden="true" hidden></div>'
         + '<div class="bar-bubble" hidden></div>');
     sheet.appendChild(layer);
@@ -178,6 +179,10 @@ function marksLayer(state, sheet) {
     layer.querySelector(".bar-tab-key").addEventListener("click", e => {
         e.currentTarget.blur();
         state.dotnet.invokeMethodAsync("Loop", state.choice.to == null).catch(() => { });
+    });
+    layer.querySelector(".bar-tab-clear").addEventListener("click", e => {
+        e.currentTarget.blur();
+        state.dotnet.invokeMethodAsync("ClearSelection").catch(() => { });
     });
     for (const h of layer.querySelectorAll(".bar-handle")) h.addEventListener("pointerdown", e => dragHandle(state, e, h));
     return layer;

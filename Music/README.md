@@ -9,6 +9,7 @@ no accounts, no cloud.
 - How it's built, part by part: [docs/plan.md](docs/plan.md)
 - The evidence behind it: [docs/research.md](docs/research.md), and for the Library, [docs/library.md](docs/library.md)
 - The research behind the Exercises tab, and what it proposes to build next: [docs/exercises.md](docs/exercises.md)
+- Optional local OMR verification and companion-app packaging idea: [docs/local-omr-plugin-idea.md](docs/local-omr-plugin-idea.md)
 
 ## Layout
 

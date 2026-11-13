@@ -206,7 +206,9 @@ a PDF plays out; this is what came of it.
   on the music never turns: it's for the bars.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
   In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it: it's lit and outlined
-  (the first bar too; a scroll is never a tap), with a tab over it saying where the run starts, and **Loop**. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
+  (the first bar too; a scroll is never a tap), with a tab over it saying where the run starts, **Loop**, and **Clear**. Clear
+  removes the selected start or loop and its highlight, returning the next run to the beginning without changing the visible
+  page or scroll position. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
   keys over the run's controls, Play at the end. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:

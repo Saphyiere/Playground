@@ -1003,6 +1003,17 @@ else
         StateHasChanged();
     }
 
+    // Clear the selected start/loop without changing the visible page or scrolling away from the music being read.
+    [JSInvokable]
+    public void ClearSelection()
+    {
+        if (playing || stage != Stage.Practice) return;
+        chosen = false;
+        loopTo = null;
+        StartAt(FirstBar);
+        StateHasChanged();
+    }
+
     // The piece's bars by their MEI ids, in order (the bars are numbered in order too), for taps on the sheet and for bars.js.
     private List<string> MeasureIds()
     {

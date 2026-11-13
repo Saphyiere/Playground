@@ -78,6 +78,7 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public List<bool> Fullscreen { get; } = [];
     public List<(ElementReference Element, string? Id)> Outlines { get; } = [];
     public List<ElementReference> ShownPdfs { get; } = [];
+    public List<JsonElement> BarChoices { get; } = [];
     public Exception? CutError { get; set; }
     public int Cuts { get; private set; }
     public Prima.UI.Components.PdfPages.SystemCut[]? CutResult { get; set; }
@@ -95,6 +96,7 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
         if (identifier == "fullScreen") Fullscreen.Add((bool)args![0]!);
         if (identifier == "outline") Outlines.Add(((ElementReference)args![0]!, (string?)args[1]));
         if (identifier == "show" && args?.Length == 7) ShownPdfs.Add((ElementReference)args[0]!);
+        if (identifier == "show" && args?.Length == 4) BarChoices.Add(JsonSerializer.SerializeToElement(args[3]));
         if (identifier == "cut")
         {
             Cuts++;
