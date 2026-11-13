@@ -528,8 +528,8 @@ public class ReadNotesTests
             .Add(c => c.Layout, [new List<PageSystem> { new(10, 200, 4) }]));
         await ConfirmBoundaries(view);
         await view.InvokeAsync(() => view.Find("[data-action=convert-start]").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
-        view.WaitForElement("[data-action=keep-reading]");
         await host.ConversionHost.Execution!;
+        view.WaitForElement("[data-action=keep-reading]");
         await view.InvokeAsync(() => view.Find("[data-action=select-review-bar][data-bar='1']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
         view.WaitForElement("[data-action=recheck-bar]");
         var before = await host.Store.GetReadingAsync(piece.Id);
@@ -541,10 +541,10 @@ public class ReadNotesTests
         Assert.NotNull(view.Find(".pdfread-review-controls [data-action=confirm-recheck]"));
         Assert.Equal(calls, host.Claude.Calls);
         await view.InvokeAsync(() => view.Find("[data-action=confirm-recheck]").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        await host.ConversionHost.Execution!;
         view.WaitForElement("[data-action=apply-proposal]:not([disabled])");
         Assert.NotNull(view.Find("[data-cost-kind=recheck][data-cost-unknown=true]"));
         Assert.NotNull(view.Find("[data-cost-kind=reading][data-cost-unknown=false]"));
-        await host.ConversionHost.Execution!;
         var recheck = await host.Jobs.LatestAsync(piece.Id);
         Assert.True(recheck!.IsRecheck);
         Assert.Single(recheck.TargetBarIds!);
@@ -559,7 +559,7 @@ public class ReadNotesTests
         var score = MeiReader.Read(draft.Mei);
         Assert.Contains(score.Expected(), n => n.Bar == 1 && n.Midi == 84);
         Assert.Contains(score.Expected(), n => n.Bar == 2 && n.Midi == 60);
-        Assert.NotNull(view.Find("[data-action=apply-proposal][disabled]"));
+        Assert.NotNull(view.WaitForElement("[data-action=apply-proposal][disabled]"));
         Assert.Equal(calls + 1, host.Claude.Calls);
     }
 
