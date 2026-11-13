@@ -4,7 +4,7 @@ namespace Prima.Core.Transcription;
 
 /// <summary>Reads one system of printed piano music, from its image, into a <see cref="SystemReading"/>.</summary>
 /// <param name="png">The system, cut from its page.</param>
-public sealed class ReadSystem(byte[] png) : AssistTask<SystemToRead, SystemReading>
+public sealed class ReadSystem(byte[] png, InferenceSettings? settings = null) : AssistTask<SystemToRead, SystemReading>(settings)
 {
     public override string Name => "prima.read-system";
 
@@ -72,7 +72,7 @@ public sealed class ReadSystem(byte[] png) : AssistTask<SystemToRead, SystemRead
 /// </summary>
 /// <param name="print">The system, cut from its page.</param>
 /// <param name="engraving">The reading of it, engraved by Verovio.</param>
-public sealed class CompareSystem(byte[] print, byte[] engraving) : AssistTask<SystemToCompare, SystemComparison>
+public sealed class CompareSystem(byte[] print, byte[] engraving, InferenceSettings? settings = null) : AssistTask<SystemToCompare, SystemComparison>(settings)
 {
     public override string Name => "prima.compare-system";
 
@@ -111,9 +111,10 @@ public sealed class CompareSystem(byte[] print, byte[] engraving) : AssistTask<S
 
     public override IReadOnlyList<string> Check(SystemToCompare input, SystemComparison answer)
     {
+        if (answer.Corrected is null || answer.Corrected.Any(c => c is null)) return ["The comparison has missing corrected bars."];
         var indexes = input.Reading.Bars.Select(b => b.Index).ToHashSet();
         var strangers = answer.Corrected.Where(c => !indexes.Contains(c.Index)).Select(c => $"The reading has no bar {c.Index}: give a corrected bar the index it had.");
-        var corrected = input.Reading with { Bars = [.. input.Reading.Bars.Select(b => answer.Corrected.FirstOrDefault(c => c.Index == b.Index) ?? b)] };
+        var corrected = input.Reading with { Bars = [.. input.Reading.Bars.Select(b => answer.Corrected.FirstOrDefault(c => c.Index == b.Index) ?? b)], Doubts = answer.Doubts };
         return [.. strangers, .. ReadingChecks.Problems(corrected, input.First)];
     }
 }

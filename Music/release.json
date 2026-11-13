@@ -1,7 +1,7 @@
 {
   "name": "Prima",
   "tag": "prima",
-  "tests": ["Music/tests/Prima.Core.Tests"],
+  "tests": ["Music/tests/Prima.Core.Tests", "Music/tests/Prima.UI.Tests"],
   "builds": [
     { "project": "Music/src/Prima.Tablet/Prima.Tablet.csproj", "asset": "prima.apk", "runtimes": ["android-arm64"] }
   ],

@@ -60,13 +60,17 @@ else
                 </button>
             </text>;
         }
-        @if (readingNotes && readingBar)
+        @if (readingNotes)
         {
         }
         else if (Pdf)
         {
             <section class="reading-bar piece-bar" aria-label="The piece">
                 <p class="piece-bar-title">@piece.Title</p>
+                @if (pdfBytes is not null)
+                {
+                    <button type="button" class="mu-btn mu-primary piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
+                }
                 <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">@(view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
@@ -260,15 +264,6 @@ else
                         </div>
                         <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop on its tab loops it: then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or drag a handle, or drag along the strip for a loop over those bars; × ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it (While playing turns either off). Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
-                    @if (piece.IsPdf && mei is null && pdfBytes is not null)
-                    {
-                        <div class="options-rule"></div>
-                        <div class="control-row control-row-top">
-                            <span class="control-label">Notes</span>
-                            <button type="button" class="mu-btn mu-primary" @onclick="ReadTheNotes">Read the notes…</button>
-                            <p class="control-note">Claude reads the printed notes into notation. Then this piece works like the rest of the Library: Wait for me, marks on the music, Listen, loops and a real level.</p>
-                        </div>
-                    }
                     <div class="control-row">
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
                     </div>
@@ -290,7 +285,23 @@ else
 
         @if (readingNotes && pdfBytes is not null)
         {
-            <ReadNotes Piece="piece" Pdf="pdfBytes" Layout="pdfLayout.Pages" Tempo="tempo" OnBar="b => readingBar = b" OnClose="CloseReading" OnKept="Kept" />
+            <ErrorBoundary @ref="readingBoundary">
+                <ChildContent>
+                    <ReadNotes Piece="piece" Pdf="pdfBytes" Layout="pdfLayout.Pages" Tempo="tempo" OnClose="CloseReading" OnKept="Kept" />
+                </ChildContent>
+                <ErrorContent>
+                    <div class="pdfread-error pdfread-banner" role="alert">
+                        <div>
+                            <h3><span class="pdfread-lamp fail"></span>Couldn't open the note reader</h3>
+                            <p>The PDF and any saved reading are still in the Library. Try opening the reader again, or return to the piece.</p>
+                        </div>
+                        <div class="pdfread-actions">
+                            <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="() => readingBoundary?.Recover()">Try again</button>
+                            <button type="button" class="mu-btn" data-action="back-to-sheet" data-piano="off" @onclick="CloseReading">Back to sheet music</button>
+                        </div>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         }
 
         @if (outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary")
@@ -392,7 +403,7 @@ else
                 <div class="control-row">
                     @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
                     {
-                        <button type="button" class="mu-btn" @onclick="ReadTheNotes">Read the notes again…</button>
+                        <button type="button" class="mu-btn" data-piano="off" @onclick="ReadTheNotes">Convert PDF again</button>
                     }
                     @if (piece.Origin == "bundle")
                     {
@@ -457,6 +468,9 @@ else
 
     [Parameter] public string Id { get; set; } = "";
 
+    [Parameter, SupplyParameterFromQuery(Name = "conversion")] public int? Conversion { get; set; }
+    private bool openedFromNotification;
+
     private PieceRecord? piece;
     private bool missing;
     private string? mei;
@@ -503,6 +517,7 @@ else
     private PlayAlong? play;
     private bool options;
     private bool fullScreen;
+    private ErrorBoundary? readingBoundary;
     private int? loopTo;
     private bool playAlong;
     // What's this: on, the symbol tapped last (its entry, and for a note which note it is), and the MEI read for it.
@@ -523,10 +538,10 @@ else
 
     private PdfLayoutState pdfLayout = new([], 4, 72);
 
-    // Reading the notes with Claude, in the music's place: whether it has the bar (while it reads and is reviewed), and the piece's
-    // reading, waiting to be reviewed or kept. A PDF whose notes are read shows them as notation, and Print shows the PDF again.
+    // Converting the PDF in the music's place, and the piece's saved reading. A PDF whose notes are read shows them as notation,
+    // and Print shows the PDF again.
     private bool readingNotes;
-    private bool readingBar;
+    private bool redrawPdf;
     private PieceReading? reading;
     private bool print;
 
@@ -566,9 +581,8 @@ else
             if (piece.Layout is { } json) pdfLayout = JsonSerializer.Deserialize<PdfLayoutState>(json, PrimaStore.Json) ?? pdfLayout;
             else if (midi is not null) pdfLayout = pdfLayout with { BeatsPerBar = midi.BeatsPerBar, Bpm = Math.Round(midi.Bpm) };
             tempo = piece.Tempo ?? pdfLayout.Bpm;
-            // A reading waiting to be reviewed opens at once.
+            // Keep the PDF visible on arrival; the conversion button reopens any saved draft.
             reading = await Store.GetReadingAsync(Id);
-            readingNotes = reading is { Kept: null };
         }
 
         {
@@ -613,6 +627,16 @@ else
         await Store.SetPieceAsync(Id);
     }
 
+    protected override void OnParametersSet()
+    {
+        if (Conversion != 1) openedFromNotification = false;
+        else if (!openedFromNotification && piece?.IsPdf == true && pdfBytes is not null)
+        {
+            openedFromNotification = true;
+            ReadTheNotes();
+        }
+    }
+
     // A bundled file, or one imported into the Library's folder.
     private async Task<byte[]?> ReadFile(string? file)
     {
@@ -640,6 +664,18 @@ else
             self = DotNetObjectReference.Create(this);
             keys = await turns.InvokeAsync<IJSObjectReference>("listenKeys", self);
             Keyboard.Received += Heard;
+            if (stage == Stage.Practice && !fullScreen)
+            {
+                await ToggleFullScreen();
+                StateHasChanged();
+            }
+        }
+
+        // Closing the reader restores a stage that was display:none. Measure and draw only after that visible DOM is rendered.
+        if (redrawPdf && !readingNotes && Pdf && pdf is not null && ratios.Count > 0)
+        {
+            redrawPdf = false;
+            await ShowPdf();
         }
 
         if (startAfterRender && play is not null)
@@ -688,10 +724,15 @@ else
 
     private void ReadTheNotes() => (readingNotes, options, explain) = (true, false, false);
 
-    private void CloseReading() => (readingNotes, readingBar, options) = (false, false, piece!.IsPdf && mei is null);
+    private void CloseReading()
+    {
+        (readingNotes, options) = (false, false);
+        redrawPdf = Pdf;
+        if (Conversion == 1) Nav.NavigateTo(Nav.GetUriWithQueryParameter("conversion", (int?)null), replace: true);
+    }
 
     // Kept: the piece now has its notation, so it opens again as one.
-    private void Kept() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+    private void Kept() => Nav.NavigateTo(Nav.GetUriWithQueryParameter("conversion", (int?)null), forceLoad: true);
 
     // A PDF read into notes: the print, as pages to turn, or the notation in the view it had.
     private async Task TogglePrint()
@@ -1075,6 +1116,7 @@ else
         var id = await Store.StartSessionAsync(Id, way, now);
         (session, clock, counted, covered, ticks, stage) = (new PracticeSession(id, Id, now, TimeSpan.Zero, TimeSpan.Zero, false, now, way, null), new PracticeClock(now), TimeSpan.Zero, false, 0, Stage.Practice);
         StartAt(from);
+        if (!fullScreen) await ToggleFullScreen();
     }
 
     // Each second the strip counts: the session kept every half minute, and the page covered as it pauses (or uncovered as a key
@@ -1154,6 +1196,7 @@ else
         (stage, covered) = (Stage.Practice, false);
         await KeepSession(reopen: true);
         StartAt(from);
+        if (!fullScreen) await ToggleFullScreen();
     }
 
     // Done: back to the piece's front, the session over.
@@ -1250,7 +1293,7 @@ else
     {
         (stage, picked, startAfterRender) = (to, null, again);
         if (sheet is not null) await sheet.Outline(null);
-        if (to == Stage.Practice && fullScreen) await ToggleFullScreen();
+        if (to == Stage.Practice && !fullScreen) await ToggleFullScreen();
         if (to == Stage.Practice) StartAt(from);
         if (to == Stage.Practice && !again && outcome is not null && sheet is not null) await sheet.ShowMarks(outcome.Marks);
     }
@@ -1264,7 +1307,6 @@ else
             await sheet.ClearMarks();
             await sheet.Outline(null);
         }
-        if (fullScreen) await ToggleFullScreen();
         (from, loopTo, picked, played, outcome) = (Math.Max(FirstBar, bar - 1), Math.Min(LastBar, bar + 1), null, null, null);
         if (session is not null) await CarryOn();
         else await StartPractice();
@@ -1378,9 +1420,11 @@ else
 
     private async Task ShowPdf()
     {
-        if (pdf is null || ratios.Count == 0) return;
+        if (pdf is null || ratios.Count == 0 || readingNotes) return;
+        if (turns is null) { redrawPdf = true; return; }
 
         await Measure();
+        if (readingNotes || frameWidth <= 0 || frameHeight <= 0) return;
         var fit = view == View.Pages && frameHeight >= frameWidth / ratios.Min();
         var portraitFit = view == View.Pages && frameWidth < frameHeight;
         drawnWidth = await pdf.PageWidth(portraitFit || fit);

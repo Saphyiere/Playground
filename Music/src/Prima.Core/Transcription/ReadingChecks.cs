@@ -40,6 +40,24 @@ public static class ReadingChecks
     /// <summary>The problems with a system's reading; none when it's sound. The piece's first system may start with a pickup.</summary>
     public static IReadOnlyList<string> Problems(SystemReading reading, bool first)
     {
+        // Nullable annotations don't reject null items inside a JSON array. Check the shape before following any ties.
+        if (reading.Bars is null || reading.Doubts is null || reading.Doubts.Any(d => d is null)) return ["The reading has missing bars or doubts."];
+        foreach (var bar in reading.Bars)
+        {
+            if (bar?.Staves is null) return ["The reading has a missing bar or staff list."];
+            foreach (var staff in bar.Staves)
+            {
+                if (staff?.Voices is null) return ["The reading has a missing staff or voice list."];
+                foreach (var voice in staff.Voices)
+                {
+                    if (voice?.Events is null) return ["The reading has a missing voice or event list."];
+                    foreach (var e in voice.Events)
+                    {
+                        if (e?.Pitches is null || e.Marks is null || e.Pitches.Any(p => p is null)) return ["The reading has a missing event, pitch or mark list."];
+                    }
+                }
+            }
+        }
         if (reading.Bars.Count == 0) return ["No bars were read: read every bar of the system."];
         var problems = new List<string>();
         static string Beats(int ticks) => (ticks / (double)Ticks.Quarter).ToString("0.##", CultureInfo.InvariantCulture);
@@ -75,6 +93,8 @@ public static class ReadingChecks
                         if (e.Dots is < 0 or > 2) problems.Add($"{at}: event {i + 1} has {e.Dots} dots; give 0, 1 or 2.");
                         if (e.Ottava is < -1 or > 2) problems.Add($"{at}: event {i + 1}'s ottava is {e.Ottava}; give 1 (8va), 2 (15ma), -1 (8vb) or 0.");
                         if (e.Tuplet is 1 or < 0 or > 9) problems.Add($"{at}: event {i + 1}'s tuplet is {e.Tuplet}; give the number printed over the group, or 0.");
+                        var tied = e.Pitches.Where(p => p.Tie).Select(p => (p.Step, p.Octave)).ToList();
+                        if (tied.Distinct().Count() != tied.Count) problems.Add($"{at}: event {i + 1} repeats a tied pitch; give each tied pitch once.");
                         foreach (var p in e.Pitches)
                         {
                             var sounding = new Spelled(p.Step, Alter(p.Accidental), p.Octave + e.Ottava);

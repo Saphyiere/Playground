@@ -16,13 +16,14 @@ no accounts, no cloud.
 Prima.slnx                The solution. Open it in Visual Studio.
 build/Prima.Build/        Solution items: this folder's and the repo's top-level files and docs.
 src/
-  Prima.Core/             The music, the generator, scoring and practice logic, and reading a PDF into notation with Claude
+  Prima.Core/             The music, the generator, scoring and practice logic, and provider-neutral PDF notation contracts
                           (Transcription/). No UI; tested.
   Prima.UI/               The screens, the look (wwwroot/prima.css and its fonts) and the store (SQLite).
   Prima.Tablet/           The Android app: hosts the screens in a web view, and talks to the piano.
 tools/Prima.Library/      Builds the Library's bundle of public-domain music into artifacts/library (below).
 tools/Prima.Preview/      The screens in a browser against sample data, for checking them from the cloud.
 tests/Prima.Core.Tests/   Tests for the Core. One reads a printed system with Claude, when PLAYGROUND_CLAUDE_KEY holds a key.
+tests/Prima.UI.Tests/     Component, persistence and conversion-lifecycle tests, with a stand-in inference provider.
 docs/                     How it works, the plan and the research.
 library/                  The Library's music (MusicXML, PDF and MIDI) and its manifest, packed into the app.
 ```
@@ -84,6 +85,37 @@ Imports on the tablet (**Import files**, one or several at once): MusicXML (`.mu
 bundles a song's files. A PDF picked or zipped with a MIDI file of the same name takes that MIDI too, to be heard on the piano
 and scrolled at its tempo. The local collection's zip is recognised by its manifest. For MuseScore files or Humdrum, export
 MusicXML on the PC first.
+
+## PDF conversion and review
+
+The PDF toolbar opens **Convert to notation**. Confirm the proposed bar boundaries across both staves before starting;
+dividers can be moved, added or removed. The final conversion action remains inside the form, separate from the toolbar's
+Back action. Conversion and review controls do not respond to the piano-key shortcuts.
+
+The tablet owns a durable conversion job. Leaving the reader or switching apps detaches the view; only **Cancel** cancels
+the job. Android hosts active work in a foreground service, and the native renderer does not depend on a visible WebView.
+Completed readings and renderings are checkpointed independently. Process termination or an execution deadline becomes
+**Interrupted**, with an explicit resume action. An interrupted request may already have been charged; the app does not
+pretend its response can be retrieved using an ordinary provider message ID.
+
+Requests own small ranges of complete source bars. An output-limit response splits only its unfinished range; a single bar
+that still exceeds the limit needs attention. Request and output-token allowances are finite and scale with the source;
+an exhausted allowance requires an explicit additional request. The first adapter remains Anthropic, while job execution,
+review, rendering and correction contracts use `IInferenceProvider` and explicit model settings.
+
+Every mapped bar can be selected, marked correct, flagged, edited or rechecked. Rechecks save a proposed change for explicit
+acceptance. Accepted bars must be reopened before editing, and stale proposals cannot replace newer work. A new full
+conversion has a separate review session. Review history and undo retain written notation independently of its rendered
+appearance. The original system-wide automatic comparison is not part of the new job pipeline: it made the measured
+Sweden baseline worse, so a completed model comparison is not treated as evidence of correctness.
+
+Printed octave lines retain their written pitches separately from sounding playback. Deterministic notation checks flag
+unresolved ties/slurs/hairpins/pedal and marks that cannot retain their original anchor. These findings are shown separately
+from model doubts and user flags; a valid continuation across saved chunks is not flagged merely because it crosses a chunk.
+
+See [the implementation plan](docs/pdf-conversion-redesign-plan.md), [the Sweden accuracy baseline](docs/sweden-accuracy-baseline.md),
+and [the Android rendering proof](tools/Prima.RenderingProof/README.md). Full source music and device evidence stay under
+ignored `artifacts/` rather than in the repository. The offline evaluator is `tools/Prima.Accuracy`.
 
 ## Putting it on the tablet
 
@@ -170,7 +202,7 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
   scroll the next line into view in time?
 - In portrait, a PDF's half-page turns, and **Scroll at the tempo**: is a line at a time the right pace?
 - Whether 7 mm staves read comfortably from the music stand (Settings → Notation changes the size).
-- With Claude's key on, a PDF's **Options › Read the notes…**: are the systems boxed right on the page, does the reading finish
+- With Claude's key on, a PDF's **Convert to notation** toolbar button: are the systems boxed right on the page, does the reading finish
   in about the time it says, and does each system's reading match its print? Keep it, play it, and press **Print** for the PDF.
 
 ## The looks

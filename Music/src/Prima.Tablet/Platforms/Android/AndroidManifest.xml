@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- Prima still runs on API 24/25; its optional background renderer checks API 26 before loading this library. -->
+    <uses-sdk android:targetSdkVersion="36" tools:overrideLibrary="androidx.javascriptengine" />
     <!-- Android's backups leave out the Claude key's secure storage (Resources/xml): it's encrypted to this tablet, so a restored
          copy couldn't be read, and the key goes on again by hand. -->
-    <application android:allowBackup="true" android:fullBackupContent="@xml/auto_backup_rules" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
+    <application android:allowBackup="true" android:fullBackupContent="@xml/auto_backup_rules" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true">
+        <service android:name="com.saphyiere.prima.ConversionService" android:exported="false" android:foregroundServiceType="dataSync" android:stopWithTask="false" />
+    </application>
     <!-- Asking Claude. Debug builds add it on their own; the installed Release copy needs it said. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- User-started, tablet-owned PDF conversion; notifications may be declined without blocking the job. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The piano over USB MIDI. Android's MidiManager needs no permission for it. -->
     <uses-feature android:name="android.software.midi" android:required="true" />
 </manifest>

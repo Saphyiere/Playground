@@ -240,7 +240,9 @@ a PDF plays out; this is what came of it.
   every note stays marked, and (practising the Standard way) the summary takes About this piece's place under the music, so
   how it went is on the screen with it, as in full screen: its few lines fit, and its details scroll in the summary's own
   share of the screen. It doesn't move your level.
-- **Practice** starts a practice session on the piece, and the page is the piece with all its tools, as above. Two clocks sit
+- **Practice** starts a practice session on the piece in full screen, hiding the navigation and Android system bars. Returning
+  to Practice from a review or reopening an unfinished session also enters full screen. The full-screen button can still
+  bring the surrounding controls back; finishing the session restores them for the look back. Outside full screen, two clocks sit
   beside the piece's name: **Playing**, the time a run or Listen is going or you're playing the piano yourself with the music
   stopped (going over a bar on your own: a key in the last ten seconds counts), and **Idle**, the rest of the session: looking
   at the music, working out a fingering, a drink of water. **Finish practice**, beside them, ends the session (a run going
@@ -304,31 +306,46 @@ a PDF plays out; this is what came of it.
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
   × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can
   also play (**Hear it on the piano**).
-- **Reading a PDF's notes**, with Claude (Options › Notes › **Read the notes…**, with your key in Settings › Claude). First
-  what it will cost: the page with the systems Prima found boxed (each is sent to Anthropic as a picture), the pages (all, or from
-  one to another), the systems, the cost range ($0.15–0.60 a system) and the time (about 2½ minutes a round: the first system
-  alone, since its time signature is printed only there, then four at a time). **Start reading** cuts each system from the page,
-  drawn 2,576 px wide and cut at the widest white between systems, and each goes through three steps, shown as lamps on its
-  row: Claude reads what's printed; Prima checks that every bar's beats add up and engraves the reading; Claude sets the
-  engraving beside the print and corrects the bars that differ, leaving those it still can't be sure of in doubt. The bar shows
-  the systems read, what's been spent, the time and about how long is left; **Cancel** stops at once, and what's been spent stays
-  spent. Then each system's print over its reading, engraved at the same width: a bar in doubt is tinted on both, with Claude's
-  note on it; **Listen from bar** has the piano play the reading from there; **Read again** reads the system once more ($0.15–0.60,
-  about 2½ minutes, its cost and time added to the reading's), taking what you tell Claude you see there, in your own words, as
-  something to check against the print.
-  The reading waits on the piece, to come back to, until it's kept or thrown away. A key that's turned down, used-up credit, the
-  workspace's spend limit, no connection or a busy Claude stops what's left, keeping what's read, and says what to do (Settings for
-  the key, the Claude Console for credit or the limit, or a few minutes' wait); the systems not read can be read again, and **Keep**
-  waits until every system has been. A first system that can't be read (Claude has 64,000 tokens for a system, thinking
-  included) holds up the rest, since they're read with the time signature only it prints: they wait unsent, with no **Read
-  again** of their own, and reading the first again carries on with them. Reading again stops what's left just as reading does. Until then a bar is named by its place in its system, since a missing system would shift
-  the numbers. Kept, the reading is the piece's notation, graded and cut into
-  excerpts like an import: it plays like any notation piece, with a **Print** key on its bar that shows the PDF again, as before,
-  and lights while it does. About this piece says when its notes were read, what it cost and any bars left in doubt, with **Read
-  the notes again…**. Claude reads the notes, chords, rests, ties, grace notes, tuplets, clef changes, 8va, repeats and endings;
-  staccato, accents and tenuto; slurs, dynamics, hairpins and the pedal, which the expression judges then use; and the fingering,
-  shown on the notation. Notes under an 8va line are kept at the pitch they sound, without the line. Clean engraved PDFs read
-  well; scans less so.
+- **Converting a PDF's notes** starts from the orange **Convert to notation** button on the PDF's main toolbar. The PDF opens
+  normally even when it has a saved conversion; the button reopens its progress or review. The toolbar then shows **Back to
+  sheet music**, while **Convert to notation** moves into the form below, requiring a separate tap before a paid request.
+  Conversion and correction controls never respond to the piano's shortcut keys. Image-only PDFs are read from their pixels,
+  including light-gray staff lines; no connected keyboard or selectable PDF text is needed. Empty staff detection is retried,
+  and a page with no detected music explains why conversion is unavailable without making an API call.
+  First choose the pages and check the proposed bar boundaries. Each box must cover one complete bar across both staves;
+  dividers can be moved, added or removed before confirming the whole set. Confirmation saves exact page coordinates and
+  stable bar identities against these PDF bytes and this boundary revision. The selected provider and explicit model are
+  recorded with the job; the conversion workflow does not depend on a particular provider or model. The form shows the batch
+  count and request/output-token allowances, rather than promising a fixed price or duration.
+  Conversion is a durable job on the tablet. It reads complete-bar batches, normally at most four bars and 12,000 output
+  tokens per request, checks the notation and engraves it using rendering owned by the job. Received readings, completed
+  batches and their artifacts are saved as work progresses. An output-limit failure splits only the affected batch; observed
+  output size can also reduce later batches. A single bar that still exceeds the limit pauses for attention. Completed
+  batches are not sent again, and an exhausted allowance requires explicit permission for one additional request.
+  **Back to sheet music** closes the reader and restores the PDF with Options closed; it does not cancel conversion. The
+  Android foreground service keeps work running when another screen is opened or the display sleeps, and a notification
+  returns to the same piece when attention or review is needed. **Cancel** is the explicit stop action. If Android or a
+  connection interruption prevents completion, saved work remains and the job can be resumed; a request whose outcome is
+  uncertain requires acknowledgement before it is sent again because the provider may already have billed it. Key, credit,
+  spending-limit, connection and preparation failures appear as local, actionable errors. A failed review-draft save offers
+  **Save reading** without another model request. Cost readouts distinguish the known subtotal from unpriced or uncertain
+  charges; a recheck's cost is shown separately from the original reading.
+  Review shows each printed system with its interactive engraving beneath it. Every generated bar is selectable, and only the
+  selected bar is outlined at its actual rendered position, including when the notation wraps. The matching source box is
+  shown only for a confirmed association; a legacy reading needs explicit confirmation of its correspondence as well as
+  matching per-system counts. Model doubts, personal flags and deterministic **Notation checks** remain separate. The last
+  identify unresolved ties, slurs, hairpins or pedal marks and dropped or reanchored marks, with their bar, staff, voice and
+  event; they are recomputed from the stored notation after edits and reopening. An empty model-doubt list is not a verified
+  match to the print. **Listen from bar** plays the current reading on the piano.
+  A bar can be marked correct, flagged with an observation, or edited directly. Accepted bars must be reopened before they
+  can be changed. **Recheck this bar** requires a separate confirmation and sends only that bar with its context and the
+  owner's observation. Its result is a proposal: it changes no notation until explicitly accepted, and a proposal for an
+  older review revision cannot overwrite newer edits. Review history and undo are saved; a new full conversion starts a fresh
+  review session while preserving the earlier session. **Keep** uses the current reviewed notation, graded and cut into
+  excerpts like an import, with **Print** returning to the original PDF and **Convert PDF again** available from About.
+  Notes, chords, rests, ties, grace notes, tuplets, clef changes, repeats, endings, articulation, fingering, dynamics and
+  expression marks are retained where supported. Written 8va, 15ma and 8vb notation keeps its written pitches and octave
+  markings while playback keeps the sounding pitches. The result still needs checking against the source before use.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.

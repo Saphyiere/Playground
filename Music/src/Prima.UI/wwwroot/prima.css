@@ -3275,6 +3275,12 @@ a.mu-btn {
     gap: 8px;
 }
 
+/* Conversion leads the PDF toolbar; Back replaces it when the conversion form is open. */
+.piece-bar > [data-action="convert-pdf"],
+.piece-bar > [data-action="back-to-sheet"] {
+    margin-left: 0;
+}
+
 /* Vinyl's keys and switch are wider than Studio's: its bar keeps them closer. */
 [data-theme="vinyl"] .piece-bar {
     gap: 16px;
@@ -4773,6 +4779,11 @@ html[data-full] .piece .summary {
     min-width: 0;
 }
 
+.pdfread-review-controls {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
 .pdfread-pair .pdfread-label {
     display: flex;
     justify-content: space-between;
@@ -4793,26 +4804,99 @@ html[data-full] .piece .summary {
     height: auto;
 }
 
-.pdfread-tint {
-    position: absolute;
-    box-sizing: border-box;
-    border: 2px solid var(--pdfread-tint-edge);
-    border-radius: 3px;
-    background: var(--pdfread-tint);
+.pdfread-bars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
 }
 
-.pdfread-tint > span {
+.pdfread-source,
+.pdfread-source-system {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pdfread-source-system {
+    padding: 16px 18px;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--pdfread-panel-shadow);
+}
+
+.pdfread-source-paper {
+    padding-top: 24px;
+}
+
+.pdfread-source-number {
     position: absolute;
-    top: -2px;
-    right: -2px;
-    padding: 1px 6px;
+    top: 3px;
+    transform: translateX(-50%);
+    color: var(--sheet-ink);
+    font: 12px var(--font-mono);
+    pointer-events: none;
+}
+
+.pdfread-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    transform: translateX(-50%);
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: ew-resize;
+}
+
+.pdfread-divider::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 15px;
+    width: 2px;
+    background: var(--pdfread-tint-edge);
+}
+
+.pdfread-divider[aria-pressed="true"]::after {
+    width: 4px;
+    background: var(--accent);
+}
+
+.pdfread-divider:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.pdfread-boundary-controls {
+    flex-wrap: wrap;
+}
+
+.pdfread-source > .mu-toggle {
+    height: auto;
+    min-height: 48px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.pdfread-issue-count {
+    min-width: 18px;
+    padding: 1px 4px;
+    border-radius: 3px;
     background: var(--pdfread-tag);
     color: var(--on-pdfread-tag);
     font-family: var(--font-mono);
     font-size: 11px;
     line-height: 15px;
     font-weight: 700;
-    white-space: nowrap;
+    text-align: center;
+}
+
+.pdfread-notation-count {
+    background: transparent;
+    color: var(--on-button);
+    box-shadow: inset 0 0 0 1px currentColor;
 }
 
 .pdfread-side {

@@ -1,0 +1,54 @@
+@implements IDisposable
+@inject ConversionJobs Jobs
+@inject PrimaStore Store
+@using Prima.Core.Transcription
+
+@foreach (var job in recent.Values.Where(j => j.State is ConversionState.Ready or ConversionState.Paused or ConversionState.Interrupted)
+    .Where(j => dismissed.GetValueOrDefault(j.Id) != j.Revision).OrderByDescending(j => j.Updated).Take(3))
+{
+    <section class="mu-screen" role="status" aria-live="polite" data-conversion-notice="@job.Id">
+        <div class="mu-screen-head">
+            <span>@job.Title · @(job.State == ConversionState.Ready ? "Ready to review" : job.State == ConversionState.Interrupted ? "Conversion interrupted" : "Conversion needs attention")</span>
+        </div>
+        <div class="control-row">
+            <a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(job.Piece)}?conversion=1")">Open conversion</a>
+            <button type="button" class="mu-btn" data-piano="off" data-action="dismiss-conversion" @onclick="() => Dismiss(job)">Dismiss</button>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly Dictionary<string, ConversionJob> recent = [];
+    private readonly Dictionary<string, int> dismissed = [];
+    private bool disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Jobs.Changed += Changed;
+        var settings = await Store.GetSettingsAsync();
+        foreach (var job in await Jobs.RecentAsync())
+        {
+            if (!recent.TryGetValue(job.Piece, out var newer) || newer.Updated <= job.Updated) recent[job.Piece] = job;
+            if (int.TryParse(settings.GetValueOrDefault("Conversion.Notice." + job.Id), out var revision)) dismissed[job.Id] = revision;
+        }
+    }
+
+    private void Changed(ConversionJob job)
+    {
+        if (disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (disposed || recent.TryGetValue(job.Piece, out var newer) && newer.Updated > job.Updated) return;
+            recent[job.Piece] = job;
+            StateHasChanged();
+        });
+    }
+
+    private async Task Dismiss(ConversionJob job)
+    {
+        dismissed[job.Id] = job.Revision;
+        await Store.SetSettingAsync("Conversion.Notice." + job.Id, job.Revision.ToString(CultureInfo.InvariantCulture));
+    }
+
+    public void Dispose() { disposed = true; Jobs.Changed -= Changed; }
+}

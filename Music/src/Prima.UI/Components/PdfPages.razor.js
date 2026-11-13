@@ -6,25 +6,44 @@ import * as pdfjs from "../pdfjs/pdf.min.mjs";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("../pdfjs/pdf.worker.min.mjs", import.meta.url).href;
 
 const views = new WeakMap();
+const documents = new Map();
+// Thin staff lines in image-only PDFs can render as light gray at 900 px. Keep them in the profile and the system cuts.
+const inkThreshold = 3 * 240;
 
 // Opens the document; the number of pages and each page's height for its width, as width ÷ height.
-export async function open(element, bytes) {
-    close(element);
-    const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false }).promise;
-    const ratios = [];
-    for (let n = 1; n <= doc.numPages; n++) {
-        const page = await doc.getPage(n);
-        const v = page.getViewport({ scale: 1 });
-        ratios.push(v.width / v.height);
+export async function open(element, bytes, ownerId) {
+    if (!element?.isConnected) return null;
+    close(element, ownerId);
+    const view = { element, ownerId, task: pdfjs.getDocument({ data: bytes, isEvalSupported: false }), doc: null, ratios: [], canvases: new Map(), urls: new Set(), y: 0, closed: false };
+    views.set(element, view);
+    if (ownerId) documents.set(ownerId, view);
+    try {
+        const doc = await view.task.promise;
+        for (let n = 1; n <= doc.numPages; n++) {
+            if (view.closed || !element.isConnected) {
+                if (views.get(element) === view) close(element);
+                return null;
+            }
+            const page = await doc.getPage(n);
+            const v = page.getViewport({ scale: 1 });
+            view.ratios.push(v.width / v.height);
+        }
+        if (view.closed || !element.isConnected) {
+            if (views.get(element) === view) close(element);
+            return null;
+        }
+        view.doc = doc;
+        return { pages: doc.numPages, ratios: view.ratios };
+    } catch (error) {
+        if (view.closed) return null;
+        throw error;
     }
-    views.set(element, { doc, ratios, canvases: new Map(), y: 0 });
-    return { pages: doc.numPages, ratios };
 }
 
 // A page's rows, for finding its systems: each row's share of dark pixels, drawn small (900 px wide) to be quick.
 export async function profile(element, n) {
     const view = views.get(element);
-    if (!view) return [];
+    if (!view?.doc) return [];
     const page = await view.doc.getPage(n);
     const base = page.getViewport({ scale: 1 });
     const viewport = page.getViewport({ scale: 900 / base.width });
@@ -35,13 +54,14 @@ export async function profile(element, n) {
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context, viewport }).promise;
+    if (view.closed) return [];
     const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const rows = [];
     for (let y = 0; y < canvas.height; y++) {
         let dark = 0;
         for (let x = 0; x < canvas.width; x++) {
             const i = (y * canvas.width + x) * 4;
-            if (data[i] + data[i + 1] + data[i + 2] < 384) dark++;
+            if (data[i] + data[i + 1] + data[i + 2] < inkThreshold) dark++;
         }
         rows.push(dark / canvas.width);
     }
@@ -51,27 +71,29 @@ export async function profile(element, n) {
 // A page drawn small, for showing which of its systems will be read: a URL to show it by.
 export async function thumbnail(element, n, width) {
     const view = views.get(element);
-    if (!view) return null;
+    if (!view?.doc) return null;
     const canvas = await drawn(view, n, width);
+    if (view.closed) return null;
     const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-    return URL.createObjectURL(blob);
+    return imageUrl(view, blob);
 }
 
 // A page's systems cut out as pictures for Claude to read: the page drawn up to 2,576 px wide (the largest image Claude takes
 // without shrinking it), each system cropped to the ink across it. `systems` are the systems found (their tops and bottoms in px at
 // 900 wide, halfway between staves); each cut moves to the widest band of white between two systems, so the notes high above or
 // low below a staff stay with their own system, and a page's first and last move out to white paper. With each, a URL to show it
-// by, and its barlines as shares of its width: columns dark all the way from its top staff line to its bottom one.
+// by, its exact normalized page rectangle, and proposed barlines in page coordinates. PDF rotation is included in the viewport.
 export async function cut(element, n, systems) {
     const view = views.get(element);
-    if (!view || systems.length === 0) return [];
+    if (!view?.doc || systems.length === 0) return [];
     const canvas = await drawn(view, n, 2576);
+    if (view.closed) return [];
     const context = canvas.getContext("2d", { willReadFrequently: true });
     const width = canvas.width, height = canvas.height;
     const data = context.getImageData(0, 0, width, height).data;
     const dark = (x, y) => {
         const i = (y * width + x) * 4;
-        return data[i] + data[i + 1] + data[i + 2] < 384;
+        return data[i] + data[i + 1] + data[i + 2] < inkThreshold;
     };
     const ink = new Int32Array(height);
     for (let y = 0; y < height; y++) {
@@ -130,35 +152,86 @@ export async function cut(element, n, systems) {
         const pad = Math.round(width * 0.01);
         left = Math.max(0, Math.min(left, width - 1) - pad);
         right = Math.min(width, Math.max(right, left) + pad + 1);
-        const bars = [];
         const own = lines[i];
-        if (own.length >= 2) {
-            const first = own[0], last = own[own.length - 1];
-            let run = null;
-            for (let x = left; x < right; x++) {
-                let through = true;
-                for (let y = first; y <= last && through; y++) through = dark(x, y) || dark(x, Math.min(height - 1, y + 1));
-                if (through) run = run ? [run[0], x] : [x, x];
-                else if (run) {
-                    bars.push(((run[0] + run[1]) / 2 - left) / (right - left));
-                    run = null;
-                }
-            }
-            if (run) bars.push(((run[0] + run[1]) / 2 - left) / (right - left));
-        }
+        const bars = barlineCandidates((x, y) => {
+            const pixel = (y * width + x) * 4;
+            const r = data[pixel], g = data[pixel + 1], b = data[pixel + 2];
+            // A colored playback cursor or annotation can cross both staves without being a printed barline.
+            return r + g + b < inkThreshold && Math.max(r, g, b) - Math.min(r, g, b) < 40;
+        }, own, width, left, right);
         const out = document.createElement("canvas");
         out.width = Math.max(1, right - left);
         out.height = bottom - top;
         out.getContext("2d").drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height);
         const blob = await new Promise(resolve => out.toBlob(resolve, "image/png"));
-        cuts.push({ png: new Uint8Array(await blob.arrayBuffer()), url: URL.createObjectURL(blob), bars });
+        const bounds = { x: left / width, y: top / height, width: (right - left) / width, height: (bottom - top) / height };
+        const png = new Uint8Array(await blob.arrayBuffer());
+        const url = imageUrl(view, blob);
+        if (url === null) return [];
+        cuts.push({ png, url, bars, bounds });
     }
     return cuts;
+}
+
+// Proposals only: a barline must cross each five-line staff at the same x. The blank gap between piano staves is not ink.
+// Group thick staff rows first, and merge nearby double-bar strokes using staff spacing, never a percentage of page width.
+function barlineCandidates(dark, rows, width, left, right) {
+    const runs = [];
+    for (const y of rows) {
+        if (runs.length && y === runs[runs.length - 1][1] + 1) runs[runs.length - 1][1] = y;
+        else runs.push([y, y]);
+    }
+    const lines = runs.map(([a, b]) => Math.round((a + b) / 2));
+    if (!lines.length || lines.length % 5 !== 0) return [];
+    const staves = [];
+    for (let i = 0; i < lines.length; i += 5) {
+        const staff = lines.slice(i, i + 5);
+        const gaps = staff.slice(1).map((y, n) => y - staff[n]);
+        const gap = gaps.reduce((sum, n) => sum + n, 0) / 4;
+        if (gap < 2 || gaps.some(n => Math.abs(n - gap) > gap * 0.25)) return [];
+        staves.push({ top: staff[0], bottom: staff[4], gap });
+    }
+    const strokes = [];
+    let start = null;
+    for (let x = left; x <= right; x++) {
+        let through = x < right;
+        for (const staff of staves) {
+            for (let y = staff.top; y <= staff.bottom && through; y++) through = dark(x, y) || dark(x, y + 1);
+        }
+        if (through && start === null) start = x;
+        if (!through && start !== null) {
+            strokes.push((start + x - 1) / 2);
+            start = null;
+        }
+    }
+    const connected = strokes.filter(x => {
+        x = Math.round(x);
+        for (let y = staves[0].top; y <= staves[staves.length - 1].bottom; y++) if (!dark(x, y) && !dark(x, y + 1)) return false;
+        return true;
+    });
+    // When the print consistently joins the staves, isolated signature/accidental strokes are not boundary proposals.
+    const candidates = staves.length > 1 && connected.length >= 2 ? connected : strokes;
+    const merge = Math.min(...staves.map(s => s.gap)) * 0.9;
+    const groups = [];
+    for (const x of candidates) {
+        const group = groups[groups.length - 1];
+        if (group && x - group[group.length - 1] <= merge) group.push(x);
+        else groups.push([x]);
+    }
+    return groups.map(group => group.reduce((sum, x) => sum + x, 0) / group.length / width);
 }
 
 // Lets go of pictures made for showing (thumbnail, cut, the sheet's engrave).
 export function release(urls) {
     for (const url of urls ?? []) URL.revokeObjectURL(url);
+}
+
+// Each document owns its preview URLs, including requests that finish while its screen is closing.
+function imageUrl(view, blob) {
+    if (view.closed) return null;
+    const url = URL.createObjectURL(blob);
+    view.urls.add(url);
+    return url;
 }
 
 // A page drawn on white, `width` px wide, on a canvas of its own.
@@ -187,7 +260,7 @@ export function pageWidth(element, fit) {
 // (a page number), the page before is covered down to `split` px, and that page's top shows there down to `shown` px.
 export async function show(element, y, ms, fit, half, split, shown) {
     const view = views.get(element);
-    if (!view) return;
+    if (!view?.doc || element.clientWidth <= 0 || element.clientHeight <= 0) return;
     const strip = element.querySelector(".pdf-strip");
     const width = pageWidth(element, fit);
     strip.style.width = `${width}px`;
@@ -212,7 +285,10 @@ export async function show(element, y, ms, fit, half, split, shown) {
         if (tops[i] + heights[i] > y - viewHeight && tops[i] < y + 2 * viewHeight) wanted.add(i + 1);
     }
     if (half) wanted.add(half);
-    for (const n of wanted) await draw(view, strip, n, width);
+    for (const n of wanted) {
+        await draw(view, strip, n, width);
+        if (view.closed || views.get(element) !== view || !element.isConnected) return;
+    }
     // Only the pages in sight stay drawn.
     for (const [n, canvas] of view.canvases) {
         if (!wanted.has(n)) {
@@ -248,22 +324,29 @@ export async function show(element, y, ms, fit, half, split, shown) {
 }
 
 async function draw(view, strip, n, width) {
-    if (view.canvases.has(n)) return;
-    const page = await view.doc.getPage(n);
-    const base = page.getViewport({ scale: 1 });
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    const viewport = page.getViewport({ scale: width / base.width * dpr });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${viewport.height / dpr}px`;
-    view.canvases.set(n, canvas);
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: context, viewport }).promise;
-    strip.querySelector(`[data-page="${n}"]`)?.appendChild(canvas);
+    if (view.closed || view.canvases.has(n)) return;
+    let canvas;
+    try {
+        const page = await view.doc.getPage(n);
+        if (view.closed) return;
+        const base = page.getViewport({ scale: 1 });
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        const viewport = page.getViewport({ scale: width / base.width * dpr });
+        canvas = document.createElement("canvas");
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${viewport.height / dpr}px`;
+        view.canvases.set(n, canvas);
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (!view.closed) strip.querySelector(`[data-page="${n}"]`)?.appendChild(canvas);
+    } catch (error) {
+        if (view.canvases.get(n) === canvas) view.canvases.delete(n);
+        if (!view.closed) throw error;
+    }
 }
 
 // The system being played, while scrolling: a pale band across it.
@@ -279,9 +362,13 @@ export function band(element, top, bottom) {
 }
 
 // pdf.js 6 lets a document go through the task that loaded it; a failure there mustn't stop the page closing.
-export function close(element) {
-    const view = views.get(element);
+export function close(element, ownerId) {
+    const view = views.get(element) ?? documents.get(ownerId);
     if (!view) return;
-    views.delete(element);
-    Promise.resolve(view.doc.loadingTask?.destroy()).catch(() => {});
+    view.closed = true;
+    views.delete(view.element ?? element);
+    if (view.ownerId && documents.get(view.ownerId) === view) documents.delete(view.ownerId);
+    for (const url of view.urls) URL.revokeObjectURL(url);
+    view.urls.clear();
+    Promise.resolve(view.task.destroy()).catch(() => {});
 }

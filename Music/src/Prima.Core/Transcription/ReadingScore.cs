@@ -11,7 +11,7 @@ namespace Prima.Core.Transcription;
 /// whatever the voice, as printed music has it), ties and 8va lines turn them into the pitches that sound.</item>
 /// <item>Ties are joined across barlines and systems, and a tie that lands nowhere is dropped.</item>
 /// <item>A short first bar is a pickup, bar 0.</item>
-/// <item>Notes under an 8va line keep the pitch they sound, so they're engraved an octave above the print, without the line.</item>
+/// <item>Notes under octave lines retain both their written octave and the pitch they sound.</item>
 /// <item>A grace note keeps its printed value as its length, which <see cref="MeiWriter"/> writes; it isn't played, so it takes no
 /// time from the bar.</item>
 /// <item>Fingering goes on its notes. Slurs, dynamics, hairpins, cresc. and dim., and pedal marks become the score's
@@ -123,6 +123,7 @@ public static class ReadingScore
                                 TieToNext = p.Tie && !e.Grace,
                                 TiedFromPrevious = continues,
                                 Finger = p.Finger is >= 1 and <= 5 ? p.Finger : null,
+                                Ottava = e.Ottava,
                             });
                         }
 
@@ -236,6 +237,25 @@ public static class ReadingScore
     {
         XNamespace ns = "http://www.music-encoding.org/ns/mei";
         var mei = XDocument.Parse(MeiWriter.Write(score));
+        // A source beginning in bass clef must not acquire a treble clef immediately followed by a bass change.
+        // Keep later changes in the music; put only the opening, zero-time change in the staff definition.
+        var opening = mei.Descendants(ns + "measure").FirstOrDefault();
+        if (opening is not null && score.Bars.Count > 0)
+        {
+            foreach (var staff in score.Bars[0].Voices.GroupBy(v => v.Staff))
+            {
+                var clef = staff.SelectMany(v => v.Events).OfType<ClefChange>().FirstOrDefault(c => c.Start == 0);
+                var definition = mei.Descendants(ns + "staffDef").FirstOrDefault(d => (int?)d.Attribute("n") == staff.Key);
+                if (clef is null || definition is null) continue;
+                definition.SetAttributeValue("clef.shape", clef.Clef == Clef.Bass ? "F" : "G");
+                definition.SetAttributeValue("clef.line", clef.Clef == Clef.Bass ? "4" : "2");
+                var written = opening.Elements(ns + "staff").FirstOrDefault(s => (int?)s.Attribute("n") == staff.Key);
+                foreach (var layer in written?.Elements(ns + "layer") ?? [])
+                {
+                    if (layer.Elements().FirstOrDefault() is { } first && first.Name == ns + "clef") first.Remove();
+                }
+            }
+        }
         var measures = mei.Descendants(ns + "measure").ToDictionary(m => (int)m.Attribute("n")!);
         var bars = score.WithSignatures().Select((s, at) => (s.Bar.Number, At: at, s.Meter)).ToDictionary(b => b.Number, b => (b.At, b.Meter));
         string Beat(int bar, long tick) => (1 + tick * (double)bars[bar].Meter.Unit / Ticks.Whole).ToString("0.######", CultureInfo.InvariantCulture);
@@ -247,6 +267,49 @@ public static class ReadingScore
             {
                 foreach (var n in voice.Events.OfType<Notes>()) notes[n.Tones.Count == 1 ? n.Tones[0].Id : n.Id] = (bar.Number, voice.Staff, n.Start);
             }
+        }
+
+        // Tone already separates written and sounding octaves. Collect runs in each voice, then join overlapping runs on
+        // the same staff so parallel voices do not print duplicate octave lines. Endpoints are the first/last affected notes.
+        var octaveSpans = new List<OctaveSpan>();
+        var openOctaves = new Dictionary<(int Staff, int Voice), OctaveSpan>();
+        long position = 0;
+        foreach (var timed in score.WithSignatures())
+        {
+            foreach (var voice in timed.Bar.Voices)
+            {
+                var lane = (voice.Staff, voice.Layer);
+                foreach (var note in voice.Events.OfType<Notes>().OrderBy(n => n.Start))
+                {
+                    var shift = note.Tones[0].Ottava;
+                    if (openOctaves.TryGetValue(lane, out var prior) && prior.Shift != shift)
+                    {
+                        octaveSpans.Add(prior);
+                        openOctaves.Remove(lane);
+                    }
+                    if (shift == 0) continue;
+                    var id = note.Tones.Count == 1 ? note.Tones[0].Id : note.Id;
+                    var end = position + note.Start + (note.Grace ? 0 : note.Length);
+                    openOctaves[lane] = openOctaves.TryGetValue(lane, out prior)
+                        ? prior with { End = end, EndId = id }
+                        : new(voice.Staff, shift, timed.Bar.Number, position + note.Start, end, id, id);
+                }
+            }
+            position += timed.Bar.Length ?? timed.Meter.BarTicks;
+        }
+        octaveSpans.AddRange(openOctaves.Values);
+        foreach (var group in octaveSpans.GroupBy(s => (s.Staff, s.Shift)))
+        {
+            var joined = new List<OctaveSpan>();
+            foreach (var span in group.OrderBy(s => s.Start).ThenBy(s => s.End))
+            {
+                if (joined.Count == 0 || span.Start > joined[^1].End) joined.Add(span);
+                else if (span.End >= joined[^1].End) joined[^1] = joined[^1] with { End = span.End, EndId = span.EndId };
+            }
+            foreach (var span in joined)
+                measures[span.Bar].Add(new XElement(ns + "octave", new XAttribute("staff", span.Staff),
+                    new XAttribute("dis", Math.Abs(span.Shift) == 2 ? "15" : "8"), new XAttribute("dis.place", span.Shift > 0 ? "above" : "below"),
+                    new XAttribute("startid", "#" + span.StartId), new XAttribute("endid", "#" + span.EndId)));
         }
 
         var marks = score.FileMarks;
@@ -284,4 +347,6 @@ public static class ReadingScore
         }
         return mei.ToString(SaveOptions.DisableFormatting);
     }
+
+    private sealed record OctaveSpan(int Staff, int Shift, int Bar, long Start, long End, string StartId, string EndId);
 }

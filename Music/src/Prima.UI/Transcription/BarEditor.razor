@@ -1,0 +1,206 @@
+@using Prima.Core.Transcription
+@using Prima.Core.Music
+
+<section class="pdfread-card" data-editor="bar">
+    <div class="pdfread-pair">
+        @if (preview is not null)
+        {
+            <Sheet Mei="@preview" Layout="line" Measures="@(Context.Count > 0 ? (ContextIndex + 1).ToString(CultureInfo.InvariantCulture) : null)" />
+        }
+        <p class="section-note">Select a note or rest, then change its written pitch or duration. Changes stay here until you save.</p>
+        @foreach (var staff in edited.Staves)
+        {
+            @foreach (var voice in staff.Voices)
+            {
+                <div class="control-row">
+                    <span class="control-label">Staff @staff.Staff · voice @voice.Voice</span>
+                    @for (var i = 0; i < voice.Events.Count; i++)
+                    {
+                        var at = i;
+                        <button type="button" data-piano="off" class="mu-toggle" data-event="@at" data-staff="@staff.Staff" data-voice="@voice.Voice"
+                                aria-pressed="@(selected == (staff.Staff, voice.Voice, at) ? "true" : "false")" @onclick="() => Select(staff.Staff, voice.Voice, at)">
+                            <span class="mu-led"></span>@(voice.Events[at].Kind == ReadKind.Note ? string.Join("/", voice.Events[at].Pitches.Select(PitchText)) : voice.Events[at].Kind.ToString())
+                        </button>
+                    }
+                    <button type="button" data-piano="off" class="mu-btn" data-action="add-event" @onclick="() => AddEvent(staff.Staff, voice.Voice)">Add note</button>
+                </div>
+            }
+        }
+    </div>
+    <div class="pdfread-side">
+        @if (Current is { } current)
+        {
+            <div class="control-row">
+                @foreach (var kind in new[] { ReadKind.Note, ReadKind.Rest, ReadKind.Space, ReadKind.BarRest })
+                {
+                    <button type="button" data-piano="off" class="mu-toggle" data-kind="@kind" aria-pressed="@(current.Kind == kind ? "true" : "false")"
+                            @onclick="() => UpdateEvent(e => e with { Kind = kind, Pitches = kind == ReadKind.Note ? e.Pitches.Count > 0 ? e.Pitches : [new(Step.C, Accidental.None, 4, false, 0)] : [] })"><span class="mu-led"></span>@kind</button>
+                }
+            </div>
+            @for (var i = 0; i < current.Pitches.Count; i++)
+            {
+                var at = i;
+                var pitch = current.Pitches[i];
+                <div class="control-row">
+                    <label>Pitch <input class="text-field text-field-short" data-piano="off" data-pitch="@at" value="@PitchText(pitch)" @onchange="e => SetPitch(at, e.Value?.ToString() ?? string.Empty)" /></label>
+                    <button type="button" class="mu-toggle" data-piano="off" data-action="tie-pitch" aria-pressed="@(pitch.Tie ? "true" : "false")" @onclick="() => UpdateEvent(e => e with { Pitches = e.Pitches.Select((p, n) => n == at ? p with { Tie = !p.Tie } : p).ToArray() })"><span class="mu-led"></span>Tie forward</button>
+                    <button type="button" class="mu-btn" data-piano="off" data-action="remove-pitch" disabled="@(current.Pitches.Count < 2)" @onclick="() => UpdateEvent(e => e with { Pitches = e.Pitches.Where((p, n) => n != at).ToArray() })">Remove pitch</button>
+                </div>
+            }
+            @if (current.Kind == ReadKind.Note)
+            {
+                <button type="button" data-piano="off" class="mu-btn" data-action="add-pitch" @onclick="() => UpdateEvent(e => e with { Pitches = [.. e.Pitches, new(Step.C, Accidental.None, 4, false, 0)] })">Add chord pitch</button>
+            }
+            <div class="control-row">
+                <span class="control-label">Duration</span>
+                @foreach (var value in Enum.GetValues<NoteValue>())
+                {
+                    <button type="button" data-piano="off" class="mu-toggle" data-duration="@value" aria-pressed="@(current.Value == value ? "true" : "false")" @onclick="() => UpdateEvent(e => e with { Value = value })"><span class="mu-led"></span>@value</button>
+                }
+            </div>
+            <div class="control-row">
+                <button type="button" class="mu-btn" data-piano="off" data-action="dots" @onclick="() => UpdateEvent(e => e with { Dots = (e.Dots + 1) % 3 })">Dots: @current.Dots</button>
+                <button type="button" class="mu-btn" data-piano="off" data-action="move-staff" @onclick="() => MoveEvent(selected.Staff == 1 ? 2 : 1, selected.Voice)">Move to staff @(selected.Staff == 1 ? 2 : 1)</button>
+                <button type="button" class="mu-btn" data-piano="off" data-action="move-voice" @onclick="() => MoveEvent(selected.Staff, selected.Voice == 1 ? 2 : 1)">Move to voice @(selected.Voice == 1 ? 2 : 1)</button>
+                <button type="button" class="mu-btn" data-piano="off" data-action="remove-event" @onclick="RemoveEvent">Remove note/rest</button>
+            </div>
+        }
+        @if (error is not null) { <p class="control-note" role="alert">@error</p> }
+        <div class="pdfread-actions">
+            <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="save-bar" disabled="@(error is not null)" @onclick="() => OnSave.InvokeAsync(edited)">Save bar</button>
+            <button type="button" data-piano="off" class="mu-btn" data-action="cancel-bar-edit" @onclick="() => OnCancel.InvokeAsync()">Discard edits</button>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ReadBar Bar { get; set; } = default!;
+    [Parameter] public IReadOnlyList<ReadBar> Context { get; set; } = [];
+    [Parameter] public int ContextIndex { get; set; }
+    [Parameter] public EventCallback<ReadBar> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    private ReadBar edited = default!;
+    private (int Staff, int Voice, int Event) selected;
+    private string? error;
+    private string? preview;
+    private ReadEvent? Current => edited.Staves.FirstOrDefault(s => s.Staff == selected.Staff)?.Voices.FirstOrDefault(v => v.Voice == selected.Voice)?.Events.ElementAtOrDefault(selected.Event);
+
+    protected override void OnInitialized()
+    {
+        edited = Bar;
+        var staff = edited.Staves.First();
+        selected = (staff.Staff, staff.Voices.First().Voice, 0);
+        Preview();
+    }
+
+    private void Select(int staff, int voice, int at) { selected = (staff, voice, at); error = null; }
+
+    private void UpdateEvent(Func<ReadEvent, ReadEvent> update)
+    {
+        edited = edited with { Staves = edited.Staves.Select(s => s.Staff != selected.Staff ? s : s with
+        {
+            Voices = s.Voices.Select(v => v.Voice != selected.Voice ? v : v with { Events = v.Events.Select((e, i) => i == selected.Event ? update(e) : e).ToArray() }).ToArray()
+        }).ToArray() };
+        error = null;
+        Preview();
+    }
+
+    private void AddEvent(int staff, int voice)
+    {
+        var added = new ReadEvent(ReadKind.Note, [new(Step.C, Accidental.None, 4, false, 0)], NoteValue.Quarter, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None);
+        var count = edited.Staves.Single(s => s.Staff == staff).Voices.Single(v => v.Voice == voice).Events.Count;
+        edited = edited with { Staves = edited.Staves.Select(s => s.Staff != staff ? s : s with { Voices = s.Voices.Select(v => v.Voice != voice ? v : v with { Events = [.. v.Events, added] }).ToArray() }).ToArray() };
+        selected = (staff, voice, count);
+        Preview();
+    }
+
+    private void RemoveEvent()
+    {
+        edited = edited with { Staves = edited.Staves.Select(s => s.Staff != selected.Staff ? s : s with { Voices = s.Voices.Select(v => v.Voice != selected.Voice ? v : v with { Events = v.Events.Where((e, i) => i != selected.Event).ToArray() }).ToArray() }).ToArray() };
+        selected.Event = Math.Max(0, selected.Event - 1);
+        Preview();
+    }
+
+    private void MoveEvent(int staff, int voice)
+    {
+        if (Current is not { } moved) return;
+        if (moved.Kind != ReadKind.Note || moved.Grace || moved.Tuplet != 0)
+        {
+            error = "Move supports ordinary notes and chords. Edit grace notes, clef changes and tuplets in their existing voice.";
+            return;
+        }
+        var meterTicks = new Meter(edited.MeterCount, edited.MeterUnit).BarTicks;
+        var barTicks = edited.Staves.SelectMany(s => s.Voices).Max(v => v.Events.Where(e => !e.Grace && e.Kind is not (ReadKind.BarRest or ReadKind.Clef)).Sum(e => ReadingChecks.Length(e) ?? 0));
+        if (barTicks == 0) barTicks = meterTicks;
+        int Length(ReadEvent e) => e.Grace || e.Kind == ReadKind.Clef ? 0 : e.Kind == ReadKind.BarRest ? barTicks : ReadingChecks.Length(e) ?? 0;
+        var original = selected;
+        var source = edited.Staves.Single(s => s.Staff == original.Staff).Voices.Single(v => v.Voice == original.Voice);
+        var start = source.Events.Take(original.Event).Sum(Length);
+        var duration = Length(moved);
+        var target = edited.Staves.Single(s => s.Staff == staff);
+        var lane = target.Voices.FirstOrDefault(v => v.Voice == voice) ?? new ReadVoice(voice, []);
+        var events = lane.Events.ToList();
+        var at = 0;
+        var beat = 0;
+        if (events.Count == 0) events.Add(new(ReadKind.BarRest, [], NoteValue.Quarter, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None));
+        while (at < events.Count && beat + Length(events[at]) <= start) beat += Length(events[at++]);
+        var available = at < events.Count ? (lane.Events.Count == 0 ? barTicks : Length(events[at])) : 0;
+        if (at >= events.Count || events[at].Kind is not (ReadKind.Rest or ReadKind.Space or ReadKind.BarRest) || beat + available < start + duration)
+        {
+            error = "The destination has notes at this beat. Replace them with a rest before moving this note.";
+            return;
+        }
+        var before = Spaces(start - beat);
+        var after = Spaces(beat + available - start - duration);
+        if (before is null || after is null)
+        {
+            error = "This move would split a tuplet or an unsupported rest duration. Edit it in its existing voice.";
+            return;
+        }
+        events = [.. events.Take(at), .. before, moved, .. after, .. events.Skip(at + 1)];
+        lane = lane with { Events = events };
+        edited = edited with { Staves = edited.Staves.Select(s => s with
+        {
+            Voices = s.Voices.Select(v => s.Staff == original.Staff && v.Voice == original.Voice
+                ? v with { Events = v.Events.Select((e, i) => i == original.Event ? e with { Kind = ReadKind.Space, Pitches = [], Marks = [], Ottava = 0 } : e).ToArray() } : v)
+                .Where(v => s.Staff != staff || v.Voice != voice).Concat(s.Staff == staff ? [lane] : []).OrderBy(v => v.Voice).ToArray()
+        }).ToArray() };
+        selected = (staff, voice, at + before.Count);
+        error = null;
+        Preview();
+    }
+
+    private static List<ReadEvent>? Spaces(int ticks)
+    {
+        var spaces = new List<ReadEvent>();
+        foreach (var value in Enum.GetValues<NoteValue>())
+        {
+            var space = new ReadEvent(ReadKind.Space, [], value, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None);
+            var length = ReadingChecks.Length(space)!.Value;
+            while (ticks >= length) { spaces.Add(space); ticks -= length; }
+        }
+        return ticks == 0 ? spaces : null;
+    }
+
+    private void SetPitch(int at, string value)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(value.Trim(), @"^([A-Ga-g])(bb|##|b|#|n)?(-?\d)$");
+        if (!match.Success) { error = "Use a written pitch such as C4, F#4, or Bb3."; return; }
+        var step = Enum.Parse<Step>(match.Groups[1].Value.ToUpperInvariant());
+        var accidental = match.Groups[2].Value switch { "bb" => Accidental.DoubleFlat, "##" => Accidental.DoubleSharp, "b" => Accidental.Flat, "#" => Accidental.Sharp, "n" => Accidental.Natural, _ => Accidental.None };
+        var octave = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+        UpdateEvent(e => e with { Pitches = e.Pitches.Select((p, i) => i == at ? p with { Step = step, Accidental = accidental, Octave = octave } : p).ToArray() });
+    }
+
+    private static string PitchText(ReadPitch pitch) => $"{pitch.Step}{pitch.Accidental switch { Accidental.Sharp => "#", Accidental.Flat => "b", Accidental.Natural => "n", Accidental.DoubleFlat => "bb", Accidental.DoubleSharp => "##", _ => "" }}{pitch.Octave}";
+
+    private void Preview()
+    {
+        try
+        {
+            var bars = Context.Count > 0 ? Context.Select((bar, i) => i == ContextIndex ? edited : bar).ToArray() : [edited];
+            preview = ReadingScore.Mei(ReadingScore.Build([new SystemReading(bars, [])]).Score);
+        }
+        catch (Exception) { preview = null; }
+    }
+}

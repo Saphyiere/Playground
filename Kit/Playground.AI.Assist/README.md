@@ -4,7 +4,8 @@ How the apps ask Claude things: a trainer for the workout app, a practice teache
 library with no UI. [docs/claude-research.md](../../docs/claude-research.md) has the research behind it.
 
 - **Every question is a task:** an input record in, an answer record out, its instructions and its checks.
-- **The reply always parses.** The API holds Claude's reply to a JSON schema made from the answer record (structured outputs).
+- **The reply has a typed shape.** The API is asked for a JSON schema made from the answer record (structured outputs);
+  incomplete or invalid output becomes a failed answer.
 - **The app gets one shape back,** `Answer<T>`. Check `Ok`: when it's true, `Value` is the answer; when it's false, `Summary`
   says why in a sentence for the screen, and `Kind` says what kind of trouble it was (no key, out of credit, offline…).
 
@@ -12,7 +13,7 @@ library with no UI. [docs/claude-research.md](../../docs/claude-research.md) has
 public sealed record Lift([property: Description("One of the owner's exercises, by id.")] int ExerciseId, double Weight, int Reps, string Why);
 public sealed record NextSession(IReadOnlyList<Lift> Lifts);
 
-public sealed class AskTheTrainer : AssistTask<TrainerInput, NextSession>
+public sealed class AskTheTrainer(InferenceSettings? settings = null) : AssistTask<TrainerInput, NextSession>(settings)
 {
     public override string Name => "workout.next-session";
     public override int Version => 1;
@@ -31,9 +32,52 @@ AssistTask.cs     A task: its name and version, instructions, model, effort, tok
 Answer.cs         What comes back: Answer<T> (Ok, Kind, Value, Summary, Notes, Usage), and Reply<T>, the envelope Claude writes.
 AssistSchema.cs   The JSON options records travel with, and the schema made from a record, by the API's rules.
 Claude.cs         IClaude and Claude, which asks; ClaudeModels, the models and their prices.
+Inference.cs      Provider-neutral inference, adapter capabilities, execution settings and response metadata.
 AssistKey.cs      IAssistKeyStore, where a device keeps its key, and getting the key in from a file.
 AssistLog.cs      IAssistLog, where a host keeps its calls, and two simple ones.
 ```
+
+## Provider-neutral execution
+
+Music's transcription coordinator now depends on `IInferenceProvider`. `IClaude` inherits that typed `AskAsync` contract and
+keeps its provider-specific `TestAsync` operation. Existing consumers and preview implementations of `IClaude` continue to
+work. `AddAiAssist` registers the neutral interface as an alias of the registered `IClaude`; it does not create another client,
+and an explicitly registered neutral provider is preserved.
+
+Only the Anthropic adapter is implemented. The interface is not a claim that another provider is available. Adapter
+capabilities describe implemented operations: the Anthropic adapter supports image/PDF input, structured output, streaming,
+and cancellation, but currently exposes neither token counting nor durable request retrieval. Model-specific input/output
+limits are unknown (`null`). Preview/legacy implementations inherit unknown capabilities until they declare their own.
+
+Pass immutable `InferenceSettings` into a task to override its model identifier, effort, output token ceiling, automatic
+validation retry, or permission to use the provider's model fallback:
+
+```csharp
+var settings = new InferenceSettings(Model: selectedModel, Effort: EffortLevel.Medium,
+    MaxOutputTokens: 8000, ValidationRetries: 0, AllowModelFallback: false);
+var task = new AskTheTrainer(settings);
+var execution = task.Execution; // Resolved settings; record these with an attempt before dispatch.
+var answer = await provider.AskAsync(task, input, ct);
+```
+
+Model identifiers are provider-owned strings. `task.Execution` resolves overrides before legacy virtual task defaults, so a
+task can retain its established `Model`, `Effort`, and `MaxTokens` properties. With no overrides, existing behavior is
+unchanged: the task's model, high effort unless overridden, its existing token ceiling, one validation retry, and the existing
+Opus/Sonnet fallback behavior. `ValidationRetries` accepts zero or one; a coordinator can set zero and own bounded repairs
+itself. Transport retries remain the adapter's separate existing policy.
+
+`PdfToNotation` accepts separate optional reading and comparison settings, allowing a future coordinator to pin both stages.
+This boundary change does not add job persistence, chunking, another model, or background execution.
+
+The existing `AnswerKind` and `Usage` contracts remain. After a final provider response, `Answer.Response` adds the provider,
+requested and served model identifiers, returned message ID (`ResponseId`), normalized finish reason, raw finish reason, and
+response text. `OutputLimit` can carry incomplete text while `Answer.Value` stays absent. `Completed` means the provider
+completed its response; it does not mean the task's validation passed. Failures before a complete response leave metadata
+absent, and caller cancellation continues to propagate as cancellation. `ResponseId` is not a durable retrieval handle.
+
+Usage still uses the existing local model price table. For an unlisted model, `Usage.CostKnown` is false and `Cost` contains
+only the priced subtotal; combining usages keeps this uncertainty. No model limits or prices are inferred
+from the new interface.
 
 ## What happens when an app asks
 
@@ -42,14 +86,15 @@ AssistLog.cs      IAssistLog, where a host keeps its calls, and two simple ones.
    `AssistSchema.Json`: camelCase names and enum values, and the same bytes for the same data.
 2. **The answer's shape.** `output_config.format` is the schema of `Reply<TAnswer>`: `status` (answered, needMore or cannot),
    `summary`, `notes` and the task's `answer`.
-3. **Fallbacks.** On Opus and Sonnet, a refused request is answered by another model on the API's side (the
+3. **Fallbacks.** When execution settings permit it, on Opus and Sonnet a refused request is answered by another model on the API's side (the
    `server-side-fallback-2026-07-01` beta). Haiku has no such fallback.
-4. **Reading the reply.** The reply streams, and the SDK puts it back together (`CreateStreaming(...).Aggregate()`): a long
+4. **Reading the reply.** The reply streams through `CreateStreaming(...)`; the client collects typed text events and final
+   usage directly, avoiding the SDK aggregator's enum reflection that fails on Android. A long
    answer, thinking and all, can take longer than a request may wait for a whole reply, and a stream keeps arriving. A task that
    needs more than the 32,000 tokens it gets says so in `MaxTokens` (Prima's reading of a system takes 64,000). A refusal, a
    reply that ran out of tokens, and a reply that doesn't parse are each a kind of their own. `needMore` and `cannot` come back
    with Claude's summary and notes.
-5. **The checks.** An answer that fails the task's checks is asked for once more, with its problems listed. If it fails again,
+5. **The checks.** By default an answer that fails the task's checks is asked for once more, with its problems listed. If it fails again,
    the kind is `CheckFailed`.
 6. **The log.** Every call goes to `IAssistLog`: the task, model, question, reply, tokens, cost and the API's message id.
 7. **When the request fails.** The API's errors become kinds: `KeyRejected`, `OutOfCredit`, `SpendLimit`, `Busy`, `Offline` and

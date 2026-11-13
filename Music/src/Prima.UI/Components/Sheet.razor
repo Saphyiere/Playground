@@ -19,6 +19,8 @@
     private IJSObjectReference? module;
     private DotNetObjectReference<Sheet>? self;
     private string? drawn;
+    private bool disposed;
+    private readonly string ownerId = Guid.NewGuid().ToString("N");
 
     [Parameter, EditorRequired] public string Mei { get; set; } = "";
 
@@ -62,6 +64,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (disposed) return;
         var size = Settings.SheetSize switch { < 0 => 0.85, > 0 => 1.2, _ => 1.0 };
         var key = $"{Mei.Length}|{Mei.GetHashCode()}|{Layout}|{Scale}|{Page}|{Header}|{Measures}|{Settings.MusicFont}|{size}";
         if (key == drawn)
@@ -82,12 +85,21 @@
         (drawn, explained) = (key, Explain);
         try
         {
-            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/Sheet.razor.js");
+            if (module is null)
+            {
+                var imported = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/Sheet.razor.js");
+                if (disposed || drawn != key) { await imported.DisposeAsync(); return; }
+                module = imported;
+            }
+            if (disposed || drawn != key) return;
             self ??= DotNetObjectReference.Create(this);
             var onsets = Onsets?.Select(o => new object[] { o.Id, o.Quarter }).ToArray();
-            await module.InvokeVoidAsync("render", element, Mei, new { layout = Layout, staffMm = StaffMm * size * Scale, font = Settings.MusicFont, page = Page, header = Header, measures = Measures, onsets, explain = Explain }, self);
+            await module.InvokeVoidAsync("render", element, Mei, new { layout = Layout, staffMm = StaffMm * size * Scale, font = Settings.MusicFont, page = Page, header = Header, measures = Measures, onsets, explain = Explain }, self, ownerId);
         }
         catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception e) when (disposed && e is JSException or ObjectDisposedException)
         {
         }
     }
@@ -95,19 +107,20 @@
     [JSInvokable]
     public async Task Painted(int pages)
     {
+        if (disposed) return;
         var at = Clock.NowNs;
         await OnPages.InvokeAsync(pages);
-        await OnPainted.InvokeAsync(at);
+        if (!disposed) await OnPainted.InvokeAsync(at);
     }
 
     [JSInvokable]
-    public Task NoteTapped(string id) => OnNoteTapped.InvokeAsync(id);
+    public Task NoteTapped(string id) => disposed ? Task.CompletedTask : OnNoteTapped.InvokeAsync(id);
 
     [JSInvokable]
-    public Task BarTapped(string id) => OnBarTapped.InvokeAsync(id);
+    public Task BarTapped(string id) => disposed ? Task.CompletedTask : OnBarTapped.InvokeAsync(id);
 
     [JSInvokable]
-    public Task SymbolTapped(string id, string kind, string? within) => OnSymbolTapped.InvokeAsync(new SheetSymbol(id, kind, within));
+    public Task SymbolTapped(string id, string kind, string? within) => disposed ? Task.CompletedTask : OnSymbolTapped.InvokeAsync(new SheetSymbol(id, kind, within));
 
     /// <summary>
     /// Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter
@@ -175,12 +188,16 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (disposed) return;
+        disposed = true;
+        var owned = module;
+        module = null;
         try
         {
-            if (module is not null)
+            if (owned is not null)
             {
-                await module.InvokeVoidAsync("dispose", element);
-                await module.DisposeAsync();
+                try { await owned.InvokeVoidAsync("dispose", element, ownerId); }
+                finally { await owned.DisposeAsync(); }
             }
         }
         catch (Exception e) when (e is JSDisconnectedException or JSException)

@@ -1,0 +1,154 @@
+@using Prima.Core.Transcription
+
+<section class="pdfread-source" aria-label="Confirm PDF bar boundaries">
+    <h2 class="section-title">Check the PDF's bars</h2>
+    <p class="pdfread-words">Each box must contain one complete bar across both staves. Check every system, then confirm them together. Select a divider to move it, add a missing divider, or remove an extra one. Nothing is sent for conversion here.</p>
+    @foreach (var system in systems)
+    {
+        <article class="pdfread-source-system" data-page="@system.Key.Page" data-system="@system.Key.Index">
+            <p class="pdfread-label">Page @system.Key.Page · system @system.Key.Index · @(system.Edges.Count - 1) bars</p>
+            <div class="pdfread-paper pdfread-source-paper">
+                <img src="@system.Cut.Url" alt="@($"Page {system.Key.Page}, system {system.Key.Index}, with proposed bar boundaries")" />
+                @for (var i = 0; i < system.Edges.Count - 1; i++)
+                {
+                    var left = system.Edges[i];
+                    var right = system.Edges[i + 1];
+                    <span class="pdfread-source-number" style="@($"left: {Percent((left + right) / 2)}")">@(i + 1)</span>
+                }
+                @for (var i = 0; i < system.Edges.Count; i++)
+                {
+                    var edge = i;
+                    <button type="button" data-piano="off" class="pdfread-divider" data-boundary="@edge" style="@($"left: {Percent(system.Edges[edge])}")"
+                            aria-label="@($"Select boundary {edge + 1}")" aria-pressed="@(ReferenceEquals(picked, system) && boundary == edge ? "true" : "false")"
+                            @onclick="() => Pick(system, edge)"></button>
+                }
+            </div>
+            @if (ReferenceEquals(picked, system))
+            {
+                var minimum = boundary == 0 ? 0 : system.Edges[boundary - 1] + Gap;
+                var maximum = boundary == system.Edges.Count - 1 ? 1 : system.Edges[boundary + 1] - Gap;
+                <div class="control-row pdfread-boundary-controls">
+                    <span class="control-label">Boundary @(boundary + 1)</span>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-left" aria-label="Move boundary left" @onclick="() => Move(system.Edges[boundary] - 0.002)">←</button>
+                    <input type="range" data-piano="off" class="control-range" min="@minimum.ToString(CultureInfo.InvariantCulture)" max="@maximum.ToString(CultureInfo.InvariantCulture)" step="0.001"
+                           value="@system.Edges[boundary].ToString(CultureInfo.InvariantCulture)" aria-label="Boundary position" @oninput="e => Move(double.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-right" aria-label="Move boundary right" @onclick="() => Move(system.Edges[boundary] + 0.002)">→</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-add" disabled="@(boundary == system.Edges.Count - 1 || maximum - system.Edges[boundary] < Gap * 2)" @onclick="Add">Add divider after</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-remove" disabled="@(boundary == 0 || boundary == system.Edges.Count - 1)" @onclick="Remove">Remove divider</button>
+                </div>
+            }
+        </article>
+    }
+    @if (ReadingCounts is not null)
+    {
+        <p class="pdfread-words">The PDF has @systems.Sum(s => s.Edges.Count - 1) boxes; the current reading has @ReadingCounts.Values.Sum() bars. Matching counts alone do not prove they correspond.</p>
+        <button type="button" data-piano="off" class="mu-toggle" data-action="confirm-reading-map" disabled="@(!CountsMatch)" aria-pressed="@(mapReading && CountsMatch ? "true" : "false")" @onclick="() => mapReading = !mapReading">
+            <span class="mu-led"></span>I checked that every box matches the current reading's bar, in order
+        </button>
+    }
+    <div class="pdfread-actions">
+        <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="confirm-source" disabled="@(saving || systems.Count == 0 || systems.Any(s => !s.Cut.Bounds.IsValid))" @onclick="Confirm">Confirm @systems.Sum(s => s.Edges.Count - 1) PDF bars</button>
+        <button type="button" data-piano="off" class="mu-btn" data-action="cancel-source" disabled="@saving" @onclick="() => OnCancel.InvokeAsync()">Cancel changes</button>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string SourceHash { get; set; } = "";
+    [Parameter, EditorRequired] public IReadOnlyDictionary<(int Page, int Index), PdfPages.SystemCut> Cuts { get; set; } = new Dictionary<(int, int), PdfPages.SystemCut>();
+    [Parameter] public ConversionSource? Source { get; set; }
+    [Parameter] public IReadOnlyDictionary<(int Page, int Index), int>? ReadingCounts { get; set; }
+    [Parameter] public EventCallback<(ConversionSource Source, bool MapReading)> OnConfirmed { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private const double Gap = 0.003;
+    private readonly List<EditableSystem> systems = [];
+    private EditableSystem? picked;
+    private int boundary;
+    private bool mapReading;
+    private bool saving;
+
+    private sealed record EditableSystem((int Page, int Index) Key, PdfPages.SystemCut Cut, List<double> Edges);
+
+    private bool CountsMatch => ReadingCounts is not null && systems.Count == ReadingCounts.Count &&
+        systems.All(s => ReadingCounts.GetValueOrDefault(s.Key) == s.Edges.Count - 1);
+
+    protected override void OnInitialized()
+    {
+        foreach (var (key, cut) in Cuts.OrderBy(c => c.Key.Page).ThenBy(c => c.Key.Index))
+        {
+            var saved = Source?.Bars.Where(b => b.Page == key.Page && b.System == key.Index).OrderBy(b => b.Order).ToList();
+            List<double> edges;
+            if (saved is { Count: > 0 })
+                edges = [.. saved.Select(b => (b.Bounds.X - cut.Bounds.X) / cut.Bounds.Width), (saved[^1].Bounds.X + saved[^1].Bounds.Width - cut.Bounds.X) / cut.Bounds.Width];
+            else
+            {
+                edges = [.. cut.Bars.Select(x => (x - cut.Bounds.X) / cut.Bounds.Width).Where(x => x >= 0 && x <= 1).Distinct().Order()];
+                // A detected opening/closing stroke can replace the crop's padding edge. All remaining proposals stay visible.
+                var margin = Math.Min(0.03, 0.02 / cut.Bounds.Width);
+                if (edges.Count == 0 || edges[0] > margin + 1e-9) edges.Insert(0, 0);
+                if (edges[^1] < 1 - margin - 1e-9) edges.Add(1);
+                if (edges.Count == 1) edges = [0, 1];
+            }
+            systems.Add(new EditableSystem(key, cut, edges.Select(x => Math.Clamp(x, 0, 1)).ToList()));
+        }
+        if (systems.Count > 0) picked = systems[0];
+    }
+
+    private void Pick(EditableSystem system, int edge) => (picked, boundary) = (system, edge);
+
+    private void Move(double position)
+    {
+        if (picked is null || !double.IsFinite(position)) return;
+        var minimum = boundary == 0 ? 0 : picked.Edges[boundary - 1] + Gap;
+        var maximum = boundary == picked.Edges.Count - 1 ? 1 : picked.Edges[boundary + 1] - Gap;
+        if (minimum > maximum) return;
+        picked.Edges[boundary] = Math.Clamp(position, minimum, maximum);
+        mapReading = false;
+    }
+
+    private void Add()
+    {
+        if (picked is null || boundary >= picked.Edges.Count - 1) return;
+        var middle = (picked.Edges[boundary] + picked.Edges[boundary + 1]) / 2;
+        picked.Edges.Insert(++boundary, middle);
+        mapReading = false;
+    }
+
+    private void Remove()
+    {
+        if (picked is null || boundary == 0 || boundary == picked.Edges.Count - 1) return;
+        picked.Edges.RemoveAt(boundary--);
+        mapReading = false;
+    }
+
+    private async Task Confirm()
+    {
+        if (saving) return;
+        saving = true;
+        try
+        {
+            var bars = new List<SourceBar>();
+            foreach (var system in systems)
+            {
+                var crop = system.Cut.Bounds;
+                for (var i = 0; i < system.Edges.Count - 1; i++)
+                {
+                    var bounds = new SourceRectangle(crop.X + system.Edges[i] * crop.Width, crop.Y, (system.Edges[i + 1] - system.Edges[i]) * crop.Width, crop.Height);
+                    var saved = Source?.Bars.FirstOrDefault(b => b.Page == system.Key.Page && b.System == system.Key.Index &&
+                        Math.Abs(b.Bounds.X - bounds.X) < 1e-9 && Math.Abs(b.Bounds.Y - bounds.Y) < 1e-9 &&
+                        Math.Abs(b.Bounds.Width - bounds.Width) < 1e-9 && Math.Abs(b.Bounds.Height - bounds.Height) < 1e-9);
+                    bounds = saved?.Bounds ?? bounds;
+                    bars.Add(new SourceBar(saved?.Id ?? Guid.NewGuid().ToString("N"), system.Key.Page, system.Key.Index, bars.Count, saved?.DisplayNumber ?? (bars.Count + 1).ToString(CultureInfo.InvariantCulture), bounds));
+                }
+            }
+            var source = new ConversionSource(SourceHash, Guid.NewGuid().ToString("N"), bars, true);
+            await OnConfirmed.InvokeAsync((source, mapReading && CountsMatch));
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private static string Percent(double value) => (value * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+}

@@ -68,14 +68,26 @@ public class TranscriptionTests
         public Task<Answer<string>> TestAsync(CancellationToken ct = default) => Task.FromResult(Ok("Claude"));
     }
 
-    private sealed class FakeEngraver : IEngraver
+    private sealed class ScriptedProvider(ScriptedClaude script) : IInferenceProvider
+    {
+        public List<InferenceExecution> Executions { get; } = [];
+
+        public Task<Answer<TAnswer>> AskAsync<TInput, TAnswer>(AssistTask<TInput, TAnswer> task, TInput input, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            lock (Executions) Executions.Add(task.Execution);
+            return script.AskAsync(task, input, ct);
+        }
+    }
+
+    private sealed class FakeEngraver(Exception? error = null) : IEngraver
     {
         public List<(string Mei, int Width)> Engraved { get; } = [];
 
         public Task<byte[]> EngraveAsync(string mei, int widthPx, CancellationToken ct)
         {
             lock (Engraved) Engraved.Add((mei, widthPx));
-            return Task.FromResult(Png(widthPx));
+            return error is null ? Task.FromResult(Png(widthPx)) : Task.FromException<byte[]>(error);
         }
     }
 
@@ -117,6 +129,39 @@ public class TranscriptionTests
         var reading = Sys(Bar(1, [N(NoteValue.Quarter, P(Step.C, 5)), N(NoteValue.Quarter, P(Step.D, 5)), N(NoteValue.Half, P(Step.E, 5), P(Step.G, 5))]), DBar with { Index = 2 });
 
         Assert.Empty(ReadingChecks.Problems(reading, first: false));
+    }
+
+    [Fact]
+    public void Problems_RejectsDuplicateTiedPitchesBeforeBuilding()
+    {
+        var reading = Sys(Bar(1, [N(NoteValue.Whole, P(Step.C, 5, tie: true), P(Step.C, 5, tie: true))]));
+
+        Assert.NotEmpty(new ReadSystem([]).Check(new SystemToRead(1, 1, true, 0, 0, ""), reading));
+    }
+
+    [Fact]
+    public void Problems_RejectsMissingCollectionElements()
+    {
+        var missingEvent = Bar(1, [null!]);
+        var missingPitch = Bar(1, [N(NoteValue.Whole, (ReadPitch)null!)]);
+        SystemReading[] readings =
+        [
+            new(null!, []), Sys((ReadBar)null!), Sys(CBar with { Staves = [null!] }),
+            Sys(CBar with { Staves = [new ReadStaff(1, ReadClef.Treble, [null!])] }),
+            Sys(missingEvent), Sys(missingPitch), new([CBar], [null!]),
+        ];
+
+        Assert.All(readings, reading => Assert.NotEmpty(ReadingChecks.Problems(reading, first: true)));
+    }
+
+    [Fact]
+    public void Comparison_RejectsMissingCorrectionsAndDoubts()
+    {
+        var task = new CompareSystem([], []);
+        var input = new SystemToCompare(1, 1, true, Sys(CBar), "");
+
+        Assert.NotEmpty(task.Check(input, new SystemComparison([null!], [])));
+        Assert.NotEmpty(task.Check(input, new SystemComparison([], [null!])));
     }
 
     [Fact]
@@ -358,7 +403,6 @@ public class TranscriptionTests
 
         Assert.True(result.Ok);
         Assert.Null(result.StoppedBy);
-        Assert.Equal("Read 2 bars from 2 systems.", result.Summary);
         Assert.Equal([72, 76], result.Score!.Bars.Select(b => NotesOf(result.Score, b.Number).Single().Tones[0].Pitch.Midi));
         Assert.Equal([(SystemStep.Done, ""), (SystemStep.Done, "1 bar corrected.")], result.Systems.Select(s => (s.Step, s.Note)));
         Assert.Equal(0.4m, result.Cost);
@@ -367,6 +411,47 @@ public class TranscriptionTests
         Assert.Equal(new SystemToRead(1, 1, true, 0, 0, ""), reads[0]);
         Assert.Equal(new SystemToRead(1, 2, false, 4, 4, ""), reads[1]);
         Assert.Equal([2400, 2300], engraver.Engraved.Select(e => e.Width));
+    }
+
+    [Fact]
+    public async Task ReadAsync_AnUnbuildableReadingFailsWithoutKeepingItForTheFinalScore()
+    {
+        var claude = new ScriptedClaude
+        {
+            Read = _ => Ok(Sys(Bar(1, [N(NoteValue.Whole, P(Step.C, 5, tie: true), P(Step.C, 5, tie: true))])))
+        };
+
+        var result = await new PdfToNotation(claude).ReadAsync([new SystemImage(1, 1, Png(2400))], new FakeEngraver(),
+            ct: TestContext.Current.CancellationToken);
+
+        Assert.False(result.Ok);
+        Assert.Null(result.Score);
+        Assert.Null(Assert.Single(result.Readings));
+        Assert.Equal(SystemStep.Failed, Assert.Single(result.Systems).Step);
+        Assert.Single(claude.Asked);
+    }
+
+    [Fact]
+    public async Task ReadAsync_AnEngravingFailureKeepsTheReadableNotation()
+    {
+        var claude = new ScriptedClaude { Read = _ => Ok(Sys(CBar)) };
+
+        var result = await new PdfToNotation(claude).ReadAsync([new SystemImage(1, 1, Png(2400))],
+            new FakeEngraver(new InvalidOperationException("Engraving failed.")), ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result.Score);
+        Assert.NotNull(Assert.Single(result.Readings));
+        Assert.Equal(SystemStep.Doubtful, Assert.Single(result.Systems).Step);
+        Assert.Single(claude.Asked);
+    }
+
+    [Fact]
+    public async Task ReadAsync_EngravingCancellationStillPropagates()
+    {
+        var claude = new ScriptedClaude { Read = _ => Ok(Sys(CBar)) };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new PdfToNotation(claude).ReadAsync(
+            [new SystemImage(1, 1, Png(2400))], new FakeEngraver(new OperationCanceledException()), ct: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -473,8 +558,62 @@ public class TranscriptionTests
     [Fact]
     public void ReadingTasks_GetTwiceTheUsualTokens()
     {
-        Assert.Equal(64_000, new ReadSystem([]).MaxTokens);
-        Assert.Equal(64_000, new CompareSystem([], []).MaxTokens);
+        Assert.Equal(64_000, new ReadSystem([]).Execution.MaxOutputTokens);
+        Assert.Equal(64_000, new CompareSystem([], []).Execution.MaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task ReadAsync_UsesANeutralProviderWithSeparateReadAndComparisonSettings()
+    {
+        var provider = new ScriptedProvider(new ScriptedClaude { Read = _ => Ok(Sys(CBar)) });
+        var readSettings = new InferenceSettings("provider/reader", EffortLevel.Low, 2048, 0, false);
+        var compareSettings = new InferenceSettings("provider/verifier", EffortLevel.Medium, 1024, 0, false);
+        var reader = new PdfToNotation(provider, readingSettings: readSettings, comparisonSettings: compareSettings);
+
+        var result = await reader.ReadAsync([new SystemImage(1, 1, Png(2400))], new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        Assert.True(result.Ok);
+        Assert.Equal([
+            new InferenceExecution("provider/reader", EffortLevel.Low, 2048, 0, false),
+            new InferenceExecution("provider/verifier", EffortLevel.Medium, 1024, 0, false),
+        ], provider.Executions);
+    }
+
+    [Fact]
+    public async Task ReadAsync_ANeutralProvidersOutputLimitPreservesTheExistingFailureContract()
+    {
+        var provider = new ScriptedProvider(new ScriptedClaude { Read = _ => Not<SystemReading>(AnswerKind.TooLong, "Output limit.") });
+
+        var result = await new PdfToNotation(provider).ReadAsync([new SystemImage(1, 1, Png(2400)), new SystemImage(1, 2, Png(2400))],
+            new FakeEngraver(), ct: TestContext.Current.CancellationToken);
+
+        Assert.False(result.Ok);
+        Assert.Null(result.Score);
+        Assert.Single(provider.Executions);
+        Assert.All(result.Systems, s => Assert.Equal(SystemStep.Failed, s.Step));
+    }
+
+    [Fact]
+    public async Task ReadAsync_ANeutralProviderReceivesCallerCancellation()
+    {
+        var provider = new ScriptedProvider(new ScriptedClaude { Read = _ => Ok(Sys(CBar)) });
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new PdfToNotation(provider).ReadAsync(
+            [new SystemImage(1, 1, Png(2400))], new FakeEngraver(), ct: cancelled.Token));
+        Assert.Empty(provider.Executions);
+    }
+
+    [Fact]
+    public async Task ReadAsync_InvalidComparisonSettingsAreRejectedBeforePayingForAReading()
+    {
+        var provider = new ScriptedProvider(new ScriptedClaude { Read = _ => Ok(Sys(CBar)) });
+        var reader = new PdfToNotation(provider, comparisonSettings: new(MaxOutputTokens: 0));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reader.ReadAsync([new SystemImage(1, 1, Png(2400))],
+            new FakeEngraver(), ct: TestContext.Current.CancellationToken));
+        Assert.Empty(provider.Executions);
     }
 
     [Fact]

@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Prima.Core\Prima.Core.csproj" />
+    <ProjectReference Include="..\..\tools\Prima.Accuracy\Prima.Accuracy.csproj" />
   </ItemGroup>
 
 </Project>

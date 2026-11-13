@@ -1,4 +1,5 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Android.Views;
@@ -11,6 +12,7 @@ public class MainActivity : MauiAppCompatActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
     {
+        if (Intent?.GetStringExtra(ConversionService.PieceExtra) is { } piece) ConversionNavigation.Request(piece);
         base.OnCreate(savedInstanceState);
 
         // The page draws behind the status and navigation bars, so their icons follow its look: dark on Studio, light on Vinyl.
@@ -18,5 +20,11 @@ public class MainActivity : MauiAppCompatActivity
         // The screen stays on while Prima is open, on every screen: the music, the results and the drills are all read from the
         // stand. Android only keeps it on while Prima is in front, so another app or the home screen sleeps as usual.
         Window!.AddFlags(WindowManagerFlags.KeepScreenOn);
+    }
+
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+        if (intent?.GetStringExtra(ConversionService.PieceExtra) is { } piece) ConversionNavigation.Request(piece);
     }
 }

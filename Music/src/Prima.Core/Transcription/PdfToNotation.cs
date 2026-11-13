@@ -69,7 +69,8 @@ public sealed record ReadingResult(bool Ok, string Summary, Score? Score, string
 /// stops the rest. So does a first system that couldn't be read: the rest are read with its time signature, so without it they
 /// wait, unsent.
 /// </summary>
-public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
+public sealed class PdfToNotation(IInferenceProvider provider, TimeProvider? clock = null,
+    InferenceSettings? readingSettings = null, InferenceSettings? comparisonSettings = null)
 {
     /// <summary>The note on a system that wasn't sent because the first system, with the time signature, isn't read.</summary>
     public const string WaitsForFirst = "Waiting for the first system: only it prints the time signature this one is read with.";
@@ -94,6 +95,8 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
     public async Task<ReadingResult> ReadAsync(IReadOnlyList<SystemImage> systems, IEngraver engraver, IProgress<ReadingProgress>? progress = null, string title = "",
         CancellationToken ct = default)
     {
+        readingSettings?.Validate();
+        comparisonSettings?.Validate();
         var images = systems.OrderBy(s => s.Page).ThenBy(s => s.Index).ToList();
         if (images.Count == 0) throw new ArgumentException("There are no systems to read.", nameof(systems));
         var run = new Run([.. images.Select(s => new SystemStatus(s.Page, s.Index, SystemStep.Waiting, ""))], new SystemReading?[images.Count], 0, TimeSpan.Zero, progress, time);
@@ -120,6 +123,8 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
     public async Task<ReadingResult> RereadAsync(ReadingResult previous, SystemImage system, IEngraver engraver, IProgress<ReadingProgress>? progress = null,
         string title = "", string hint = "", CancellationToken ct = default)
     {
+        readingSettings?.Validate();
+        comparisonSettings?.Validate();
         var at = previous.Systems.ToList().FindIndex(s => s.Page == system.Page && s.Index == system.Index);
         if (at < 0) throw new ArgumentException($"The result has no system {system.Index} on page {system.Page}.", nameof(system));
         var readings = previous.Readings.Count == previous.Systems.Count ? previous.Readings.ToArray() : new SystemReading?[previous.Systems.Count];
@@ -142,7 +147,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
 
         run.Set(at, SystemStep.Reading, "");
         var first = at == 0;
-        var read = await claude.AskAsync(new ReadSystem(image.Png), new SystemToRead(image.Page, image.Index, first, meterCount, meterUnit, hint), ct);
+        var read = await provider.AskAsync(new ReadSystem(image.Png, readingSettings), new SystemToRead(image.Page, image.Index, first, meterCount, meterUnit, hint), ct);
         run.Spend(read.Usage.Cost);
         if (!read.Ok)
         {
@@ -153,10 +158,16 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
 
         var reading = read.Value;
         run.Set(at, SystemStep.Checking, "");
+        string mei;
+        try { mei = ReadingScore.Mei(ReadingScore.Build([reading]).Score); }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            run.Set(at, SystemStep.Failed, $"The reading couldn't be turned into notation ({e.Message}).");
+            return;
+        }
         byte[] engraving;
         try
         {
-            var mei = ReadingScore.Mei(ReadingScore.Build([reading]).Score);
             run.Set(at, SystemStep.Comparing, "");
             // The print's width, from its PNG header, so the engraving comes out at about the same size.
             var width = image.Png.Length > 24 ? BinaryPrimitives.ReadInt32BigEndian(image.Png.AsSpan(16, 4)) : 2400;
@@ -168,7 +179,7 @@ public sealed class PdfToNotation(IClaude claude, TimeProvider? clock = null)
             return;
         }
 
-        var compare = await claude.AskAsync(new CompareSystem(image.Png, engraving), new SystemToCompare(image.Page, image.Index, first, reading, hint), ct);
+        var compare = await provider.AskAsync(new CompareSystem(image.Png, engraving, comparisonSettings), new SystemToCompare(image.Page, image.Index, first, reading, hint), ct);
         run.Spend(compare.Usage.Cost);
         if (!compare.Ok)
         {

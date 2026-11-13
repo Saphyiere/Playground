@@ -36,6 +36,81 @@ public class ClaudeTests
     }
 
     [Fact]
+    public async Task AskAsync_AssemblesTextBlocksWithoutThinkingAndPreservesFinalUsage()
+    {
+        api.Stream(
+            ("message_start", new { type = "message_start", message = new { id = "msg_parts", type = "message", role = "assistant", model = ClaudeModels.Sonnet, content = Array.Empty<object>(), stop_reason = (string?)null, stop_sequence = (string?)null, usage = new { input_tokens = 1000, output_tokens = 1, cache_read_input_tokens = 200, cache_creation_input_tokens = 30 } } }),
+            ("content_block_start", new { type = "content_block_start", index = 0, content_block = new { type = "thinking", thinking = "", signature = "" } }),
+            ("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "thinking_delta", thinking = "Not part of the JSON answer." } }),
+            ("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "signature_delta", signature = "signed" } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 0 }),
+            ("content_block_start", new { type = "content_block_start", index = 1, content_block = new { type = "text", text = Good[..8] } }),
+            ("content_block_delta", new { type = "content_block_delta", index = 1, delta = new { type = "text_delta", text = Good[8..32] } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 1 }),
+            ("content_block_start", new { type = "content_block_start", index = 2, content_block = new { type = "text", text = Good[32..40] } }),
+            ("content_block_delta", new { type = "content_block_delta", index = 2, delta = new { type = "text_delta", text = Good[40..] } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 2 }),
+            ("message_delta", new { type = "message_delta", delta = new { stop_reason = "end_turn", stop_sequence = (string?)null }, usage = new { output_tokens = 500 } }),
+            ("message_stop", new { type = "message_stop" }));
+
+        var answer = await Client().AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken);
+
+        Assert.True(answer.Ok);
+        Assert.Equal(new Lift(12, 105, 10, Change.Up, "10, 10, 10 at 100"), Assert.Single(answer.Value.Lifts));
+        Assert.Equal(1000, answer.Usage.InputTokens);
+        Assert.Equal(500, answer.Usage.OutputTokens);
+        Assert.Equal(200, answer.Usage.CacheReadTokens);
+        Assert.Equal(30, answer.Usage.CacheWriteTokens);
+        Assert.Equal(ClaudeModels.Sonnet, Assert.Single(log.Calls).Model);
+        Assert.Single(api.Requests);
+    }
+
+    [Fact]
+    public async Task AskAsync_RejectsIncompleteStreamEvenWhenItsTextIsValidJson()
+    {
+        api.Stream(
+            ("message_start", new { type = "message_start", message = new { id = "msg_incomplete", type = "message", role = "assistant", model = ClaudeModels.Opus, content = Array.Empty<object>(), stop_reason = (string?)null, stop_sequence = (string?)null, usage = new { input_tokens = 1000, output_tokens = 1 } } }),
+            ("content_block_start", new { type = "content_block_start", index = 0, content_block = new { type = "text", text = Good } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 0 }));
+
+        var answer = await Client().AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnswerKind.Failed, answer.Kind);
+        Assert.Null(answer.Value);
+        Assert.Single(api.Requests);
+    }
+
+    [Fact]
+    public async Task AskAsync_PreservesModelChangedByServerFallback()
+    {
+        api.Stream(
+            ("message_start", new { type = "message_start", message = new { id = "msg_fallback", type = "message", role = "assistant", model = ClaudeModels.Opus, content = Array.Empty<object>(), stop_reason = (string?)null, stop_sequence = (string?)null, usage = new { input_tokens = 1000, output_tokens = 1 } } }),
+            ("content_block_start", new { type = "content_block_start", index = 0, content_block = new { type = "fallback", from = new { model = ClaudeModels.Opus }, to = new { model = "claude-fable-5-1" }, trigger = new { type = "refusal", category = (string?)null } } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 0 }),
+            ("content_block_start", new { type = "content_block_start", index = 1, content_block = new { type = "text", text = Good } }),
+            ("content_block_stop", new { type = "content_block_stop", index = 1 }),
+            ("message_delta", new { type = "message_delta", delta = new { stop_reason = "end_turn", stop_sequence = (string?)null }, usage = new { output_tokens = 500 } }),
+            ("message_stop", new { type = "message_stop" }));
+
+        var answer = await Client().AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken);
+
+        Assert.True(answer.Ok);
+        Assert.Equal("claude-fable-5-1", Assert.Single(log.Calls).Model);
+        Assert.Equal(0.035m, answer.Usage.Cost);
+    }
+
+    [Fact]
+    public async Task AskAsync_CancellationDuringStreamingIsNotAnApiFailure()
+    {
+        api.Reply(Good);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Client().AskAsync(new NextLifts(), Owners, cancelled.Token));
+        Assert.Empty(log.Calls);
+    }
+
+    [Fact]
     public async Task AskAsync_SendsThePreambleInstructionsAttachmentsInputAndSchema()
     {
         api.Reply(Good);
@@ -135,6 +210,47 @@ public class ClaudeTests
 
         Assert.Equal(AnswerKind.NoKey, answer.Kind);
         Assert.Empty(api.Requests);
+    }
+
+    sealed class UnavailableKeys(Exception error) : IAssistKeyStore
+    {
+        public Task<string?> GetAsync() => Task.FromException<string?>(error);
+        public Task SetAsync(string key) => throw new NotSupportedException();
+        public Task RemoveAsync() => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task KeyStorageFailureIsReportedWithoutSendingARequest()
+    {
+        var client = new Claude(new UnavailableKeys(new InvalidOperationException("Secure storage failed.")), log, TimeProvider.System, api);
+
+        Assert.Equal(AnswerKind.Failed, (await client.AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken)).Kind);
+        Assert.Equal(AnswerKind.Failed, (await client.TestAsync(TestContext.Current.CancellationToken)).Kind);
+        Assert.Empty(api.Requests);
+    }
+
+    [Fact]
+    public async Task KeyStorageCancellationStillPropagates()
+    {
+        var client = new Claude(new UnavailableKeys(new OperationCanceledException()), log, TimeProvider.System, api);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.TestAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(api.Requests);
+    }
+
+    [Fact]
+    public async Task AskAsync_AMalformedAnswerThatThrowsDuringChecksIsReported()
+    {
+        api.Reply("""{"status":"answered","summary":"Done.","notes":[],"answer":{"lifts":[null]}}""");
+
+        var answer = await Client().AskAsync(new NextLifts(), Owners, TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnswerKind.Failed, answer.Kind);
+        Assert.Null(answer.Value);
+        Assert.Equal(0.014m, answer.Usage.Cost);
+        Assert.NotEmpty(Assert.Single(log.Calls).Error);
+        Assert.Single(api.Requests);
     }
 
     [Theory]

@@ -10,6 +10,8 @@
     private ElementReference element;
     private IJSObjectReference? module;
     private byte[]? opened;
+    private bool disposed;
+    private readonly string ownerId = Guid.NewGuid().ToString("N");
 
     [Parameter, EditorRequired] public byte[] Data { get; set; } = [];
 
@@ -20,24 +22,33 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (ReferenceEquals(opened, Data) || Data.Length == 0) return;
+        if (disposed || ReferenceEquals(opened, Data) || Data.Length == 0) return;
 
-        opened = Data;
+        var data = opened = Data;
         try
         {
-            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PdfPages.razor.js");
-            var result = await module.InvokeAsync<OpenResult>("open", element, Data);
+            if (module is null)
+            {
+                var imported = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Components/PdfPages.razor.js");
+                if (disposed || !ReferenceEquals(opened, data)) { await imported.DisposeAsync(); return; }
+                module = imported;
+            }
+            var result = await module.InvokeAsync<OpenResult?>("open", element, data, ownerId);
+            if (disposed || !ReferenceEquals(opened, data) || result is null) return;
             await OnOpened.InvokeAsync(result.Ratios);
         }
         catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception e) when (disposed && e is JSException or ObjectDisposedException)
         {
         }
     }
 
     private sealed record OpenResult(int Pages, double[] Ratios);
 
-    /// <summary>A system cut from a page: its picture, a URL to show it by, and its barlines as shares of its width, left to right.</summary>
-    public sealed record SystemCut(byte[] Png, string Url, double[] Bars);
+    /// <summary>A raster crop, its exact normalized page rectangle, and proposed barlines in normalized page coordinates.</summary>
+    public sealed record SystemCut(byte[] Png, string Url, double[] Bars, Prima.Core.Transcription.SourceRectangle Bounds);
 
     /// <summary>A page's rows, each one's share of dark pixels, drawn 900 px wide: for finding its systems.</summary>
     public async Task<double[]> Profile(int page) => module is null ? [] : await module.InvokeAsync<double[]>("profile", element, page);
@@ -78,12 +89,16 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (disposed) return;
+        disposed = true;
+        var owned = module;
+        module = null;
         try
         {
-            if (module is not null)
+            if (owned is not null)
             {
-                await module.InvokeVoidAsync("close", element);
-                await module.DisposeAsync();
+                try { await owned.InvokeVoidAsync("close", element, ownerId); }
+                finally { await owned.DisposeAsync(); }
             }
         }
         catch (Exception e) when (e is JSDisconnectedException or JSException)

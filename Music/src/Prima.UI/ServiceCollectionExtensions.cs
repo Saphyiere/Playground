@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Playground.AI.Assist;
 using Playground.Kit;
+using Prima.Core.Transcription;
 using Prima.UI.Host;
 using Prima.UI.Looks;
 using Prima.UI.Storage;
@@ -36,6 +37,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(new ClaudeKeyFile(Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", AssistKey.FileName)));
         services.TryAddSingleton<IAssistLog, ClaudeLog>();
         services.AddAiAssist();
+        services.TryAddSingleton<IConversionRenderer, NoConversionHost>();
+        services.TryAddSingleton<IConversionHost, NoConversionHost>();
+        services.AddSingleton<Transcription.ConversionJobs>();
         services.AddSingleton<Click>();
         services.AddSingleton<Practice.SessionRegistry>();
         services.AddScoped<AppNavigation>();

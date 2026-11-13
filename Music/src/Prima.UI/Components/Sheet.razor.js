@@ -6,6 +6,8 @@
 
 const svgNs = "http://www.w3.org/2000/svg";
 const sheets = new WeakMap();
+const renderRequests = new WeakMap();
+const renderOwners = new Map();
 let sheetCount = 0;
 let toolkitPromise;
 
@@ -111,8 +113,13 @@ export function pixelsPerMm() {
 // Engraves `mei` into the sheet: options are layout ("line": a passage, its systems as wide as the sheet; "scroll": a whole
 // piece down one sheet; "page": one page the sheet's size), staffMm, font, page and header. Redraws by itself when the sheet's
 // width changes, and tells .NET when it has painted.
-export async function render(element, mei, options, dotnet) {
+export async function render(element, mei, options, dotnet, ownerId) {
+    if (!element?.isConnected) return;
+    if (ownerId) renderOwners.set(ownerId, element);
+    const request = {};
+    renderRequests.set(element, request);
     const tk = await toolkit();
+    if (!element.isConnected || renderRequests.get(element) !== request) return;
     const state = sheets.get(element) ?? { number: ++sheetCount, moves: [], kept: new Map() };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's), and so
     // do the drawings kept of it. What Verovio is given is the music without its verses.
@@ -230,7 +237,9 @@ function finish(element, state) {
     state.line.hidden = true;
     Object.assign(state, { points: null, byId: null, words: null, drawn: new Map() });
     if (state.marks) showMarks(element, state.marks);
-    requestAnimationFrame(() => requestAnimationFrame(() => state.dotnet?.invokeMethodAsync("Painted", state.pages)));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (element.isConnected && sheets.get(element) === state) state.dotnet?.invokeMethodAsync("Painted", state.pages);
+    }));
 }
 
 // Loads music into the toolkit, and when the sheet shows only some bars of it ("6-9", by position from 1), selects them: the key,
@@ -916,9 +925,14 @@ function staffSpace(note) {
     return lines.length >= 5 ? (lines[lines.length - 1] - lines[0]) / (lines.length - 1) : null;
 }
 
-export function dispose(element) {
+export function dispose(element, ownerId) {
+    element ??= renderOwners.get(ownerId);
+    if (ownerId) renderOwners.delete(ownerId);
+    if (!element) return;
+    renderRequests.delete(element);
     const state = sheets.get(element);
     if (!state) return;
+    state.dotnet = null;
     cancelAnimationFrame(state.raf);
     clearTimeout(state.timer);
     state.observer?.disconnect();

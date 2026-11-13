@@ -36,7 +36,7 @@ public enum AnswerKind
     /// <summary>Claude said the task can't be done with this input.</summary>
     Cannot,
 
-    /// <summary>The answer failed the task's checks twice; the notes list the problems.</summary>
+    /// <summary>The answer failed the task's checks and its permitted validation retries; the notes list the problems.</summary>
     CheckFailed,
 
     /// <summary>Claude declined, and no other model answered in its place.</summary>
@@ -70,10 +70,13 @@ public enum AnswerKind
 /// <summary>What a question used: tokens, what they cost at the API's prices, and how long it took.</summary>
 public sealed record Usage(long InputTokens, long OutputTokens, long CacheReadTokens, long CacheWriteTokens, decimal Cost, TimeSpan Took)
 {
+    /// <summary>False when some received usage has no known price; Cost then contains only the priced subtotal.</summary>
+    public bool CostKnown { get; init; } = true;
     public static readonly Usage None = new(0, 0, 0, 0, 0, TimeSpan.Zero);
 
     public Usage Plus(Usage other) => new(InputTokens + other.InputTokens, OutputTokens + other.OutputTokens,
-        CacheReadTokens + other.CacheReadTokens, CacheWriteTokens + other.CacheWriteTokens, Cost + other.Cost, Took + other.Took);
+        CacheReadTokens + other.CacheReadTokens, CacheWriteTokens + other.CacheWriteTokens, Cost + other.Cost, Took + other.Took)
+        { CostKnown = CostKnown && other.CostKnown };
 }
 
 /// <summary>
@@ -82,6 +85,9 @@ public sealed record Usage(long InputTokens, long OutputTokens, long CacheReadTo
 /// </summary>
 public sealed record Answer<TAnswer>(AnswerKind Kind, TAnswer? Value, string Summary, IReadOnlyList<string> Notes, Usage Usage)
 {
+    /// <summary>Present after a final provider response was received; absent for failures before a complete response.</summary>
+    public InferenceResponse? Response { get; init; }
+
     [MemberNotNullWhen(true, nameof(Value))]
     public bool Ok => Kind == AnswerKind.Answered && Value is not null;
 }

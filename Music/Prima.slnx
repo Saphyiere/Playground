@@ -22,5 +22,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Prima.Core.Tests/Prima.Core.Tests.csproj" />
+    <Project Path="tests/Prima.UI.Tests/Prima.UI.Tests.csproj" />
   </Folder>
 </Solution>

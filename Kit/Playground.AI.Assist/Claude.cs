@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
@@ -27,16 +28,16 @@ public static class ClaudeModels
         ["claude-sonnet-5"] = (2m, 10m, 0.20m, 2.50m),
     };
 
-    /// <summary>What these tokens cost on <paramref name="model"/>; nothing for a model the list doesn't have.</summary>
+    public static bool HasPrice(string model) => Prices.ContainsKey(model);
+
+    /// <summary>The priced subtotal; check HasPrice before interpreting zero as a known cost.</summary>
     public static decimal Cost(string model, long input, long output, long cacheRead, long cacheWrite) =>
         Prices.TryGetValue(model, out var p) ? (input * p.In + output * p.Out + cacheRead * p.CacheRead + cacheWrite * p.CacheWrite) / 1_000_000m : 0m;
 }
 
 /// <summary>Asks Claude a task's question. An interface, so a preview host can answer from saved replies instead.</summary>
-public interface IClaude
+public interface IClaude : IInferenceProvider
 {
-    Task<Answer<TAnswer>> AskAsync<TInput, TAnswer>(AssistTask<TInput, TAnswer> task, TInput input, CancellationToken ct = default);
-
     /// <summary>Whether the key on this device works, without spending anything. When it does, the value is the model's name.</summary>
     Task<Answer<string>> TestAsync(CancellationToken ct = default);
 }
@@ -51,6 +52,11 @@ public interface IClaude
 /// <param name="maxRetries">How often the API client retries a request that failed on the way (busy, overloaded, dropped).</param>
 public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider time, HttpMessageHandler? handler = null, int maxRetries = 2) : IClaude
 {
+    public string ProviderId => "anthropic";
+
+    public InferenceCapabilities Capabilities { get; } = new(Images: true, Pdf: true, StructuredOutput: true,
+        Streaming: true, Cancellation: true, TokenCounting: false, DurableRetrieval: false);
+
     /// <summary>What every task is told before its own instructions.</summary>
     public const string Preamble = """
         You answer questions from the owner's own apps: AdaptiveWorkout, a workout tracker on their phone, and Prima, a piano
@@ -74,7 +80,13 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
 
     public async Task<Answer<TAnswer>> AskAsync<TInput, TAnswer>(AssistTask<TInput, TAnswer> task, TInput input, CancellationToken ct = default)
     {
-        var client = await ClientAsync();
+        var execution = task.Execution;
+        AnthropicClient? client;
+        try { client = await ClientAsync(); }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return new(AnswerKind.Failed, default, "The Claude key couldn't be read from this device's secure storage. Check it in Settings.", [], Usage.None);
+        }
         if (client is null) return new(AnswerKind.NoKey, default, NoKeySummary, [], Usage.None);
         var today = DateOnly.FromDateTime(time.GetLocalNow().DateTime);
         var question = JsonSerializer.Serialize(new { task = task.Name, version = task.Version, today, input }, AssistSchema.Json);
@@ -92,7 +104,7 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             });
         }
 
-        var effort = task.Effort switch
+        var effort = execution.Effort switch
         {
             EffortLevel.Low => Effort.Low,
             EffortLevel.Medium => Effort.Medium,
@@ -101,7 +113,7 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             _ => Effort.High,
         };
         // A refusal is answered by another model on the API's side; Haiku has no such fallback.
-        var fallback = task.Model is ClaudeModels.Opus or ClaudeModels.Sonnet;
+        var fallback = execution.AllowModelFallback && execution.Model is ClaudeModels.Opus or ClaudeModels.Sonnet;
         var schema = AssistSchema.For(typeof(Reply<TAnswer>));
         var usage = Usage.None;
         var again = "";
@@ -110,8 +122,8 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             var started = time.GetTimestamp();
             var request = new MessageCreateParams
             {
-                Model = task.Model,
-                MaxTokens = task.MaxTokens,
+                Model = execution.Model,
+                MaxTokens = execution.MaxOutputTokens,
                 System = Preamble + "\n\n" + task.Instructions,
                 Messages = [new BetaUserMessageParam { Content = (List<BetaContentBlockParam>)[.. shown, new BetaTextBlockParam { Text = question + again }] }],
                 OutputConfig = new BetaOutputConfig { Effort = effort, Format = new BetaJsonOutputFormat { Schema = schema } },
@@ -119,15 +131,72 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             // Set only when wanted: a null here would still be sent.
             if (fallback) request = request with { Betas = ["server-side-fallback-2026-07-01"], Fallbacks = new Default() };
             BetaMessage message;
+            string text;
             try
             {
-                // Streamed, and put back together by the SDK: a long answer (thinking and all, tens of thousands of tokens) can
-                // take longer than a request may wait for its whole reply, and a stream keeps coming the whole time.
-                message = await client.Beta.Messages.CreateStreaming(request, ct).Aggregate();
+                // Keep streaming long answers, but collect the text we need without the SDK's Aggregate(): Anthropic 13.6
+                // reflects a nested generic enum there, which throws InvalidCastException on the tablet's Mono runtime.
+                BetaMessage? received = null;
+                var blocks = new SortedDictionary<long, StringBuilder?>();
+                var openBlocks = new HashSet<long>();
+                var ended = false;
+                await foreach (var item in client.Beta.Messages.CreateStreaming(request, ct))
+                {
+                    if (ended) continue;
+                    if (item.TryPickStart(out var start))
+                    {
+                        if (received is not null) throw new AnthropicInvalidDataException("The stream started a message more than once.");
+                        received = start.Message;
+                    }
+                    else if (received is null) throw new AnthropicInvalidDataException("The stream sent content before its message started.");
+                    else if (item.TryPickContentBlockStart(out var content))
+                    {
+                        var words = content.ContentBlock.TryPickBetaText(out var initial) ? new StringBuilder(initial.Text) : null;
+                        if (content.Index < 0 || !blocks.TryAdd(content.Index, words)) throw new AnthropicInvalidDataException("The stream repeated a content block or used an invalid index.");
+                        openBlocks.Add(content.Index);
+                        if (content.ContentBlock.TryPickBetaFallback(out var hop)) received = received with { Model = hop.To.Model };
+                    }
+                    else if (item.TryPickContentBlockDelta(out var contentDelta))
+                    {
+                        if (!openBlocks.Contains(contentDelta.Index)) throw new AnthropicInvalidDataException("The stream updated a content block that isn't open.");
+                        if (contentDelta.Delta.TryPickText(out var more))
+                        {
+                            if (blocks[contentDelta.Index] is not { } words) throw new AnthropicInvalidDataException("The stream sent text for a non-text content block.");
+                            words.Append(more.Text);
+                        }
+                    }
+                    else if (item.TryPickContentBlockStop(out var contentStop))
+                    {
+                        if (!openBlocks.Remove(contentStop.Index)) throw new AnthropicInvalidDataException("The stream closed a content block that isn't open.");
+                    }
+                    else if (item.TryPickDelta(out var delta))
+                    {
+                        received = received with
+                        {
+                            StopReason = delta.Delta.StopReason,
+                            StopSequence = delta.Delta.StopSequence,
+                            Usage = received.Usage with
+                            {
+                                InputTokens = delta.Usage.InputTokens ?? received.Usage.InputTokens,
+                                OutputTokens = delta.Usage.OutputTokens,
+                                CacheReadInputTokens = delta.Usage.CacheReadInputTokens ?? received.Usage.CacheReadInputTokens,
+                                CacheCreationInputTokens = delta.Usage.CacheCreationInputTokens ?? received.Usage.CacheCreationInputTokens,
+                            },
+                        };
+                    }
+                    else if (item.TryPickStop(out _))
+                    {
+                        if (openBlocks.Count > 0) throw new AnthropicInvalidDataException("The stream ended with unfinished content blocks.");
+                        ended = true;
+                    }
+                }
+                if (received is null || !ended) throw new AnthropicInvalidDataException("The stream ended before its message was complete.");
+                message = received;
+                text = string.Concat(blocks.Values.Select(words => words?.ToString()));
             }
             catch (Exception e) when (Failure(e, ct) is { } failure)
             {
-                await log.WriteAsync(new AssistCall(time.GetUtcNow(), task.Name, task.Version, task.Model, attempt, failure.Kind, failure.Summary,
+                await log.WriteAsync(new AssistCall(time.GetUtcNow(), task.Name, task.Version, execution.Model, attempt, failure.Kind, failure.Summary,
                     question + again, "", attachments.Count, Usage.None, "", e.Message));
                 return new(failure.Kind, default, failure.Summary, [], usage);
             }
@@ -136,9 +205,9 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             var cacheRead = message.Usage.CacheReadInputTokens ?? 0;
             var cacheWrite = message.Usage.CacheCreationInputTokens ?? 0;
             var cost = ClaudeModels.Cost(served, message.Usage.InputTokens, message.Usage.OutputTokens, cacheRead, cacheWrite);
-            var used = new Usage(message.Usage.InputTokens, message.Usage.OutputTokens, cacheRead, cacheWrite, cost, time.GetElapsedTime(started));
+            var used = new Usage(message.Usage.InputTokens, message.Usage.OutputTokens, cacheRead, cacheWrite, cost, time.GetElapsedTime(started))
+                { CostKnown = ClaudeModels.HasPrice(served) };
             usage = usage.Plus(used);
-            var text = string.Concat(message.Content.Select(block => block.TryPickText(out var t) ? t.Text : ""));
             Reply<TAnswer>? reply = null;
             var unreadable = "";
             if (message.StopReason != BetaStopReason.Refusal && message.StopReason != BetaStopReason.MaxTokens)
@@ -147,25 +216,45 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
                 catch (JsonException e) { unreadable = e.Message; }
             }
 
-            var problems = reply is { Status: ReplyStatus.Answered, Answer: { } given } ? task.Check(input, given) : [];
+            IReadOnlyList<string> problems = [];
+            try
+            {
+                if (reply is { Status: ReplyStatus.Answered, Answer: { } given }) problems = task.Check(input, given);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // A malformed model answer must not take down the screen while its task checks it.
+                unreadable = e.Message;
+                reply = null;
+            }
             Answer<TAnswer> answer = message.StopReason == BetaStopReason.Refusal ? new(AnswerKind.Refused, default, "Claude declined to answer this.", [], usage)
-                : message.StopReason == BetaStopReason.MaxTokens ? new(AnswerKind.TooLong, default, $"The answer ran past {task.MaxTokens:N0} tokens.", [], usage)
+                : message.StopReason == BetaStopReason.MaxTokens ? new(AnswerKind.TooLong, default, $"The answer ran past {execution.MaxOutputTokens:N0} tokens.", [], usage)
                 : reply is null ? new(AnswerKind.Failed, default, "Claude's reply didn't match the task's shape.", [unreadable], usage)
                 : reply.Status == ReplyStatus.NeedMore ? new(AnswerKind.NeedMore, default, reply.Summary, reply.Notes, usage)
                 : reply.Status == ReplyStatus.Cannot ? new(AnswerKind.Cannot, default, reply.Summary, reply.Notes, usage)
                 : reply.Answer is null ? new(AnswerKind.Failed, default, "Claude said it answered, but sent no answer.", reply.Notes, usage)
                 : problems.Count > 0 ? new(AnswerKind.CheckFailed, default, "Claude's answer didn't pass the task's checks.", problems, usage)
                 : new(AnswerKind.Answered, reply.Answer, reply.Summary, reply.Notes, usage);
+            var finish = message.StopReason == BetaStopReason.MaxTokens ? InferenceFinish.OutputLimit
+                : message.StopReason == BetaStopReason.Refusal ? InferenceFinish.Refused
+                : message.StopReason == BetaStopReason.EndTurn || message.StopReason == BetaStopReason.StopSequence ? InferenceFinish.Completed
+                : InferenceFinish.Other;
+            answer = answer with { Response = new(ProviderId, execution.Model, served, message.ID, finish, message.StopReason?.Raw(), text) };
             await log.WriteAsync(new AssistCall(time.GetUtcNow(), task.Name, task.Version, served, attempt, answer.Kind, answer.Summary, question + again, text,
                 attachments.Count, used, message.ID, unreadable));
-            if (answer.Kind != AnswerKind.CheckFailed || attempt == 2) return answer;
+            if (answer.Kind != AnswerKind.CheckFailed || attempt > execution.ValidationRetries) return answer;
             again = $"\n\nYour last answer to this question was:\n{text}\n\nIt had these problems:\n- {string.Join("\n- ", problems)}\n\nAnswer the whole question again, with them fixed.";
         }
     }
 
     public async Task<Answer<string>> TestAsync(CancellationToken ct = default)
     {
-        var client = await ClientAsync();
+        AnthropicClient? client;
+        try { client = await ClientAsync(); }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return new(AnswerKind.Failed, null, "The Claude key couldn't be read from this device's secure storage. Check it in Settings.", [], Usage.None);
+        }
         if (client is null) return new(AnswerKind.NoKey, null, NoKeySummary, [], Usage.None);
         try
         {

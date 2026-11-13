@@ -1,0 +1,173 @@
+@using Prima.Core.Transcription
+@inject PrimaStore Store
+@implements IDisposable
+
+@if (state is not null && picked is not null)
+{
+    <section class="pdfread-side" data-review-bar="@SelectedBarId">
+        <p class="pdfread-status">@(picked.Accepted ? "Accepted by you" : picked.UserCorrected ? "Edited by you" : picked.UserFlags.Length > 0 ? "Flagged by you" : "Not yet reviewed")</p>
+        @if (editing && picked.Written is not null)
+        {
+            <BarEditor @key="state.Current.Revision" Bar="picked.Written" Context="@(state.Current.Bars.All(b => b.Written is not null) ? state.Current.Bars.Select(b => b.Written!).ToArray() : [])"
+                       ContextIndex="@state.Current.Bars.ToList().FindIndex(b => b.SourceBarId == SelectedBarId)" OnSave="SaveBar" OnCancel="() => editing = false" />
+        }
+        else
+        {
+            <div class="pdfread-actions">
+                @if (picked.Accepted)
+                {
+                    <button type="button" data-piano="off" class="mu-btn" data-action="reopen-bar" @onclick="() => Change(s => NotationCorrections.Reopen(s, s.Current.Revision, SelectedBarId))">Reopen bar</button>
+                }
+                else
+                {
+                    <button type="button" data-piano="off" class="mu-btn" data-action="accept-bar" disabled="@(picked.Written is null)" @onclick="() => Change(s => NotationCorrections.Accept(s, s.Current.Revision, SelectedBarId))">Mark correct</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="edit-bar" disabled="@(picked.Written is null)" @onclick="() => editing = true">Edit notes</button>
+                }
+                <button type="button" data-piano="off" class="mu-btn" data-action="undo-review" disabled="@state.UndoStack.IsEmpty" @onclick="() => Change(s => NotationCorrections.UndoLastAction(s, s.Current.Revision))">Undo last change</button>
+            </div>
+            <label class="pdfread-label">What needs checking?</label>
+            <input type="text" data-piano="off" class="text-field" data-review-hint value="@hint" @oninput="e => hint = e.Value?.ToString() ?? string.Empty" />
+            <div class="pdfread-actions">
+                <button type="button" data-piano="off" class="mu-btn" data-action="flag-bar" disabled="@string.IsNullOrWhiteSpace(hint)" @onclick="Flag">Flag this bar</button>
+                @if (OnRecheck.HasDelegate)
+                {
+                    <button type="button" data-piano="off" class="mu-btn" data-action="recheck-bar" disabled="@picked.Accepted" @onclick="() => OnRecheck.InvokeAsync((state, SelectedBarId, hint))">Recheck this bar…</button>
+                }
+            </div>
+            @foreach (var flag in picked.UserFlags)
+            {
+                <p class="pdfread-quote">@flag.Note</p>
+            }
+            @if (picked.UserFlags.Length > 0)
+            {
+                <button type="button" data-piano="off" class="mu-btn" data-action="clear-flags" @onclick="() => Change(s => NotationCorrections.SetUserFlags(s, s.Current.Revision, SelectedBarId, []))">Clear my flags</button>
+            }
+            @if (Proposal is not null && Proposal.TargetBarIds.Contains(SelectedBarId))
+            {
+                <p class="section-note">A model correction is ready. Review the proposed notation before accepting it.</p>
+                @if (proposalMei is not null) { <Sheet Mei="@proposalMei" Layout="line" Measures="@proposalRange" /> }
+                <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="apply-proposal" disabled="@(Proposal.BaseNotationRevision != state.Current.Revision || picked.Accepted)" @onclick="() => Change(s => NotationCorrections.Apply(s, Proposal))">Accept proposed change</button>
+            }
+            @if (state.History.Length > 0)
+            {
+                <p class="pdfread-label">History · @state.History.Length saved changes</p>
+                @foreach (var change in state.History.Where(h => h.TargetBarIds.Contains(SelectedBarId)).TakeLast(3).Reverse())
+                {
+                    <p class="section-note">@change.Kind</p>
+                }
+            }
+        }
+    </section>
+}
+@if (error is not null) { <p class="control-note" role="alert">@error</p> }
+
+@code {
+    [Parameter, EditorRequired] public string PieceId { get; set; } = "";
+    [Parameter] public string? ReviewId { get; set; }
+    [Parameter, EditorRequired] public ConversionSource Source { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<BarReplacement> Initial { get; set; } = [];
+    [Parameter] public string SelectedBarId { get; set; } = "";
+    [Parameter] public BarCorrectionPatch? Proposal { get; set; }
+    [Parameter] public EventCallback<NotationReview> OnChanged { get; set; }
+    [Parameter] public EventCallback<(NotationReview Review, string BarId, string Hint)> OnRecheck { get; set; }
+    private NotationReview? state;
+    private ReviewedBar? picked;
+    private string loaded = "";
+    private string selected = "";
+    private string hint = "";
+    private string? error;
+    private string? proposalMei;
+    private string? proposalRange;
+    private bool editing;
+    private bool disposed;
+    private string ReviewKey => ReviewId ?? Source.Revision;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loaded != PieceId + ":" + ReviewKey)
+        {
+            loaded = PieceId + ":" + ReviewKey;
+            state = null;
+            picked = null;
+            editing = false;
+            error = null;
+            var context = loaded;
+            var piece = PieceId;
+            var key = ReviewKey;
+            var source = Source;
+            var initial = Initial;
+            try
+            {
+                var candidate = await Store.GetNotationReviewAsync(piece, key);
+                if (disposed || loaded != context) return;
+                if (candidate is null)
+                {
+                    candidate = NotationCorrections.Create(source);
+                    candidate = NotationCorrections.Apply(candidate, new(source.Sha256, source.Revision, candidate.Current.Revision,
+                        initial.Select(b => b.SourceBarId).ToArray(), initial, CorrectionOrigin.Model));
+                    candidate = candidate with { History = [], UndoStack = [] };
+                    if (!await Store.SaveNotationReviewAsync(piece, candidate, null, key)) candidate = await Store.GetNotationReviewAsync(piece, key);
+                }
+                if (disposed || loaded != context) return;
+                state = candidate;
+                if (state is not null) await OnChanged.InvokeAsync(state);
+            }
+            catch (Exception e) { error = e.Message; }
+        }
+        if (selected != SelectedBarId) { selected = SelectedBarId; editing = false; hint = ""; }
+        picked = state?.Current.Bars.FirstOrDefault(b => b.SourceBarId == SelectedBarId);
+        proposalMei = null;
+        proposalRange = null;
+        if (Proposal?.Replacements.FirstOrDefault(b => b.SourceBarId == SelectedBarId) is { } replacement)
+        {
+            try
+            {
+                if (state is not null && state.Current.Bars.All(b => b.Written is not null))
+                {
+                    var bars = state.Current.Bars.Select(b => b.SourceBarId == SelectedBarId ? replacement.Written : b.Written!).ToArray();
+                    proposalMei = ReadingScore.Mei(ReadingScore.Build([new SystemReading(bars, [])]).Score);
+                    proposalRange = (state.Current.Bars.ToList().FindIndex(b => b.SourceBarId == SelectedBarId) + 1).ToString(CultureInfo.InvariantCulture);
+                }
+            }
+            catch (Exception) { }
+        }
+    }
+
+    private Task SaveBar(ReadBar written) => Change(s => NotationCorrections.Apply(s, new(Source.Sha256, Source.Revision, s.Current.Revision,
+        [SelectedBarId], [new(SelectedBarId, written, picked!.ModelDoubts)], CorrectionOrigin.Manual)));
+
+    private Task Flag() => Change(s => NotationCorrections.SetUserFlags(s, s.Current.Revision, SelectedBarId,
+        [.. picked!.UserFlags, new(Guid.NewGuid().ToString("N"), "user", hint.Trim())]));
+
+    private async Task Change(Func<NotationReview, NotationReview> update)
+    {
+        if (state is null) return;
+        var context = loaded;
+        var piece = PieceId;
+        var key = ReviewKey;
+        try
+        {
+            var next = update(state);
+            var saved = await Store.SaveNotationReviewAsync(piece, next, state.Current.Revision, key);
+            if (disposed || loaded != context) return;
+            if (!saved)
+            {
+                var latest = await Store.GetNotationReviewAsync(piece, key);
+                if (disposed || loaded != context) return;
+                state = latest;
+                picked = state?.Current.Bars.FirstOrDefault(b => b.SourceBarId == SelectedBarId);
+                editing = false;
+                if (state is not null) await OnChanged.InvokeAsync(state);
+                throw new InvalidOperationException("This review changed while you were editing. The latest saved version is shown; review it before trying again.");
+            }
+            state = next;
+            picked = state.Current.Bars.FirstOrDefault(b => b.SourceBarId == SelectedBarId);
+            editing = false;
+            error = null;
+            await OnChanged.InvokeAsync(state);
+        }
+        catch (Exception e) { error = e.Message; }
+    }
+
+    public void Dispose() => disposed = true;
+}

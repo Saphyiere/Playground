@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <ApplicationId>com.saphyiere.prima.renderingproof</ApplicationId>
+    <ApplicationTitle>Prima Rendering Proof</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+  </PropertyGroup>
+  <ItemGroup>
+    <AndroidMavenLibrary Include="androidx.javascriptengine:javascriptengine" Version="1.1.1" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.caverock:androidsvg-aar" Version="1.4" Bind="false" />
+    <PackageReference Include="Xamarin.AndroidX.Core" Version="1.16.0.3" />
+    <PackageReference Include="Xamarin.AndroidX.Annotation" Version="1.10.0.1" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.4.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Concurrent.Futures" Version="1.3.0.4" />
+    <PackageReference Include="Xamarin.Google.Guava" Version="33.7.1" />
+    <PackageReference Include="Xamarin.JSpecify" Version="1.0.1" />
+    <AndroidJavaSource Update="**\*.java" Bind="false" />
+    <AndroidJavaSource Include="..\..\src\Prima.Tablet\Platforms\Android\NativeRenderer.java" Link="NativeRenderer.java" Bind="true" />
+    <Compile Include="..\..\src\Prima.Tablet\Platforms\Android\AndroidConversionRenderer.cs" Link="AndroidConversionRenderer.cs" />
+    <ProjectReference Include="..\..\src\Prima.Core\Prima.Core.csproj" />
+    <AndroidAsset Include="..\..\src\Prima.UI\wwwroot\verovio\verovio-toolkit-wasm.js" Link="Assets\conversion\verovio.js" LogicalName="conversion/verovio.js" />
+    <AndroidAsset Include="..\..\tests\Prima.Core.Tests\Fixtures\verovio-from-musicxml.mei" Link="Assets\fixture.mei" LogicalName="fixture.mei" />
+    <AndroidAsset Include="Fixtures\synthetic.pdf" Link="Assets\input.pdf" LogicalName="input.pdf" />
+  </ItemGroup>
+</Project>

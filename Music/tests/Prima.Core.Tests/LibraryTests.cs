@@ -119,6 +119,48 @@ public class LibraryTests
     }
 
     [Fact]
+    public void AMeasuredThinStaffProfileFindsBothGrandStaves()
+    {
+        // Measured with the bundled pdf.js renderer at 900 px wide, counting antialiased ink below RGB 240.
+        // Only its staff-row positions and ink shares are needed; no score image or musical content is retained.
+        var rows = new double[695];
+        (int Row, double Share)[] staffRows =
+        [
+            (137, 0.926667), (138, 0.927778), (140, 0.928889), (141, 0.928889), (144, 0.928889),
+            (145, 0.928889), (147, 0.928889), (148, 0.930000), (150, 0.928889), (151, 0.928889),
+            (173, 0.928889), (176, 0.930000), (177, 0.928889), (179, 0.928889), (183, 0.928889),
+            (186, 0.926667), (235, 0.944444), (236, 0.946667), (239, 0.947778), (240, 0.946667),
+            (242, 0.947778), (243, 0.947778), (245, 0.948889), (246, 0.947778), (249, 0.947778),
+            (250, 0.948889), (271, 0.948889), (272, 0.947778), (274, 0.947778), (275, 0.948889),
+            (278, 0.947778), (279, 0.947778), (281, 0.947778), (282, 0.947778), (284, 0.945556),
+            (285, 0.944444),
+        ];
+        foreach (var (row, share) in staffRows) rows[row] = share;
+
+        var systems = PdfLayout.FindSystems(rows);
+
+        Assert.Equal([new PageSystem(124.5, 210.75, 4), new PageSystem(210.75, 298.5, 4)], systems);
+    }
+
+    [Fact]
+    public void BlankPagesAndIsolatedInkDoNotBecomeSystems()
+    {
+        var rows = new double[695];
+        Assert.Empty(PdfLayout.FindSystems(rows));
+
+        // Representative non-staff rows from the same measured profile: notes and lettering occupy little page width.
+        (int Row, double Share)[] inkRows =
+        [
+            (82, 0.120000), (83, 0.134444), (91, 0.123333), (92, 0.110000), (134, 0.166667),
+            (135, 0.195556), (136, 0.180000), (139, 0.205556), (142, 0.256667), (143, 0.232222),
+            (184, 0.226667), (185, 0.192222), (234, 0.164444), (238, 0.223333), (241, 0.216667),
+        ];
+        foreach (var (row, share) in inkRows) rows[row] = share;
+
+        Assert.Empty(PdfLayout.FindSystems(rows));
+    }
+
+    [Fact]
     public void AHalfPageTurnShowsOnlyWholeSystems()
     {
         // This page's systems every 200 px from 100; the next page's start higher, at 60 (no title), every 180.

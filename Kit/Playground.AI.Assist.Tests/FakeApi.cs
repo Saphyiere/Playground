@@ -15,6 +15,8 @@ sealed class FakeApi : HttpMessageHandler
 
     public List<(JsonElement Body, Dictionary<string, string> Headers)> Requests { get; } = [];
 
+    public void Stream(params (string Name, object Data)[] events) => replies.Enqueue(_ => Events(events));
+
     /// <summary>A reply whose text is <paramref name="text"/>, 1,000 tokens in and 500 out.</summary>
     public void Reply(string text, string stopReason = "end_turn", string model = ClaudeModels.Opus)
     {
@@ -100,7 +102,7 @@ sealed record Plan(IReadOnlyList<Lift> Lifts);
 sealed record History(IReadOnlyList<int> ExerciseIds);
 
 /// <summary>A task like the trainer's, small: which of the owner's exercises to lift next, and how.</summary>
-sealed class NextLifts(string model = ClaudeModels.Opus) : AssistTask<History, Plan>
+sealed class NextLifts(string model = ClaudeModels.Opus, InferenceSettings? settings = null) : AssistTask<History, Plan>(settings)
 {
     public override string Name => "test.next-lifts";
 

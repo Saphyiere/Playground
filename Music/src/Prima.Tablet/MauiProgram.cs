@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Playground.AI.Assist;
 using Playground.Updates;
+using Prima.Core.Transcription;
 using Prima.UI;
 using Prima.UI.Host;
 using Prima.UI.Looks;
@@ -15,6 +16,8 @@ public static class MauiProgram
         builder.UseMauiApp<App>();
 
         builder.Services.AddMauiBlazorWebView();
+        // Keep conversion and Blazor failures visible to adb logcat in the installed Release app too.
+        builder.Logging.AddProvider(new AndroidErrorLog());
         builder.Services.AddSingleton<LookSetting, TabletLookSetting>();
         builder.Services.AddSingleton<IClock, AndroidClock>();
         builder.Services.AddSingleton<IKeyboard, AndroidKeyboard>();
@@ -22,6 +25,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFiles, AndroidFiles>();
         builder.Services.AddSingleton<ISystemBars, AndroidSystemBars>();
         builder.Services.AddSingleton<ILibraryBundle, AndroidBundle>();
+        builder.Services.AddSingleton<IConversionRenderer, AndroidConversionRenderer>();
+        builder.Services.AddSingleton<IConversionHost, AndroidConversionHost>();
         // Claude's key: kept in secure storage, and taken in from claude-key.txt in the folder a PC reaches over USB
         // (/sdcard/Android/data/com.saphyiere.prima/files).
         builder.Services.AddSingleton<IAssistKeyStore, SecureKeyStore>();
