@@ -18,6 +18,11 @@ on:
         type: boolean
         required: false
         default: false
+      folder:
+        description: "Release only this app folder (empty means all changed apps)"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -41,10 +46,16 @@ jobs:
       - id: find
         env:
           FORCE: ${{ inputs.all }}
+          APP_FOLDER: ${{ inputs.folder }}
         run: |
+          if [ -n "$APP_FOLDER" ] && [[ "$APP_FOLDER" == */* || ! -f "$APP_FOLDER/release.json" ]]; then
+            echo "::error::Choose an app folder containing release.json."
+            exit 1
+          fi
           folders=()
           for config in */release.json; do
             folder=$(dirname "$config")
+            if [ -n "$APP_FOLDER" ] && [ "$folder" != "$APP_FOLDER" ]; then continue; fi
             if bash tools/release/release-app.sh changed "$folder"; then folders+=("$folder"); fi
           done
           echo "folders=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -sc 'map(select(. != ""))')" >> "$GITHUB_OUTPUT"

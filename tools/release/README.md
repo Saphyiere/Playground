@@ -6,6 +6,9 @@ own, **Prima 1.0.N** or **Workout 1.0.N**, with its app files, and the changes s
 change is skipped, Markdown aside; tick **Release every app** to release them all anyway. The apps update themselves from these
 releases, through the Kit's [Playground.Updates](../../Kit/Playground.Updates/README.md).
 
+To release one app, set **Release only this app folder** to its folder, for example **Music** for Prima. Leave it empty to
+keep the normal all-changed-apps behavior. The folder selector also applies when **Release every app** is checked.
+
 Every file is signed with the key Visual Studio signs with on the PC. So a release installs over a copy from Visual Studio as an
 update and keeps its data (and the other way round), and the watch app still pairs with the phone's, which needs the same key.
 
