@@ -1,0 +1,268 @@
+@page "/routine/jobs/{JobId}"
+@implements IDisposable
+@inject RoutineService Routines
+@inject IRoutineHost Host
+@inject NavigationManager Nav
+@using Prima.Core.Routines
+@using Prima.Core.Generation
+@using Prima.UI.Routines
+
+<PageTitle>Routine proposal · Prima</PageTitle>
+<PageHead Title="Routine proposal" Kicker="Review before using">
+    <a class="mu-btn" data-piano="off" href="exercises">Back to exercises</a>
+</PageHead>
+
+@if (job is null)
+{
+    <p class="page-note" role="status">@(problem ?? "Opening the saved request…")</p>
+}
+else if (job.State is RoutineGenerationState.Queued or RoutineGenerationState.Running)
+{
+    <section class="mu-screen" role="status" data-state="routine-working">
+        <h2 class="mu-screen-head">Preparing your routine</h2>
+        <p class="page-panel-line">You can leave this screen. Prima will keep the request and notify you when the proposal is ready.</p>
+        <button class="mu-btn" type="button" data-piano="off" data-action="routine-cancel" disabled="@busy" @onclick="Cancel">Cancel</button>
+    </section>
+}
+else if (job.State == RoutineGenerationState.Accepted)
+{
+    <section class="settings-section">
+        <p class="section-note" data-state="routine-accepted">This routine is saved. Today will use it until you choose a different routine.</p>
+        <a class="mu-btn mu-primary" data-piano="off" href="routine">Open my routine</a>
+    </section>
+}
+else if (job.State == RoutineGenerationState.Ready && draft is not null)
+{
+    <section class="settings-section">
+        <h2 class="section-title">@draft.Title</h2>
+        <p class="section-note">@draft.Summary</p>
+        <p class="control-note">@draft.Items.Sum(i => i.Minutes) of @job.Request.Minutes minutes · @draft.Items.Count activities</p>
+        @if (job.Source is not null)
+        {
+            <p class="control-note">Source: @job.Source.Title. Exercises keep this saved edition.</p>
+        }
+    </section>
+    @for (var index = 0; index < draft.Items.Count; index++)
+    {
+        var position = index;
+        var item = draft.Items[position];
+        var music = prepared.FirstOrDefault(p => p.Recipe.Id == item.Id);
+        var entry = catalog.FirstOrDefault(c => c.Kind == item.Kind && c.Id == item.TargetId);
+        IReadOnlyList<string> modes = entry?.Modes ?? (item.TargetId == "rhythm" ? ["time"] : ["wait", "time"]);
+        var referencedBars = sourceEvents.Where(e => item.SourceEventIds.Contains(e.Id)).Select(e => e.Bar).Distinct().Order().ToArray();
+        <section class="settings-section" data-routine-item="@item.Id" @key="item.Id">
+            <h2 class="section-title">@(position + 1). @item.Title</h2>
+            <p class="section-note">@item.Purpose</p>
+            @if (item.FirstBar is { } first)
+            {
+                <p class="control-note">Source bars @first–@item.LastBar</p>
+            }
+            else if (referencedBars.Length > 0)
+            {
+                <p class="control-note">Source @(referencedBars.Length == 1 ? "bar" : "bars") @string.Join(", ", referencedBars)</p>
+            }
+            <div class="control-row">
+                <label class="control-label" for="@($"minutes-{item.Id}")">Minutes</label>
+                <input id="@($"minutes-{item.Id}")" class="text-field text-field-short" type="number" min="1" max="30" data-piano="off" value="@item.Minutes" @onchange="e => SetMinutes(position, e)" />
+                <label class="control-label" for="@($"tempo-{item.Id}")">Tempo</label>
+                <input id="@($"tempo-{item.Id}")" class="text-field text-field-short" type="number" min="20" max="160" data-piano="off" value="@item.Tempo" @onchange="e => SetTempo(position, e)" />
+            </div>
+            @if (modes.Count > 1)
+            {
+                <div class="control-row">
+                    <span class="control-label">Mode</span>
+                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "wait")" @onclick='() => Change(position, item with { Mode = "wait" })'><span class="mu-led"></span>Wait for me</button>
+                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "time")" @onclick='() => Change(position, item with { Mode = "time" })'><span class="mu-led"></span>In time</button>
+                </div>
+            }
+            @if (item.Kind == "exercise")
+            {
+                <div class="control-row">
+                    <span class="control-label">Hands</span>
+                    @foreach (var hands in Exercises.All.First(e => e.Id == item.TargetId).Hands)
+                    {
+                        <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Hands == hands)" @onclick="() => Change(position, item with { Hands = hands })"><span class="mu-led"></span>@HandsName(hands)</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="control-note">@HandsName(item.Hands) · @(item.Mode == "time" ? "In time" : "Wait for me")</p>
+            }
+            @if (entry is { MaxStep: > 1 })
+            {
+                <div class="control-row">
+                    <label class="control-label" for="@($"step-{item.Id}")">Step</label>
+                    <input id="@($"step-{item.Id}")" class="text-field text-field-short" type="number" min="1" max="@entry.MaxStep" data-piano="off" value="@item.Step" @onchange="e => SetStep(position, e)" />
+                </div>
+            }
+            @if (item.Kind == "generated" && item.TargetId is "jump" or "chord-changes")
+            {
+                <div class="control-row">
+                    <label class="control-label" for="@($"preparation-{item.Id}")">Preparation beats</label>
+                    <input id="@($"preparation-{item.Id}")" class="text-field text-field-short" type="number" min="0" max="4" data-piano="off" value="@item.PreparationBeats" @onchange="e => SetPreparation(position, e)" />
+                </div>
+            }
+            <div class="control-row">
+                <button class="mu-btn" type="button" data-piano="off" data-action="routine-move-up" disabled="@(position == 0)" @onclick="() => Move(position, -1)">Move up</button>
+                <button class="mu-btn" type="button" data-piano="off" data-action="routine-move-down" disabled="@(position == draft.Items.Count - 1)" @onclick="() => Move(position, 1)">Move down</button>
+                <button class="mu-btn" type="button" data-piano="off" data-action="routine-remove-item" @onclick="() => Remove(position)">Remove</button>
+            </div>
+            @if (music is { Mei.Length: > 0 })
+            {
+                <div class="sheet-frame"><Sheet Mei="@music.Mei" /></div>
+            }
+        </section>
+    }
+    @if (problem is not null) { <p class="section-note" role="alert" data-state="routine-draft-error">@problem</p> }
+    <div class="control-row">
+        <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-accept" disabled="@(busy || problem is not null || draft.Items.Count == 0)" @onclick="Accept">@(busy ? "Saving…" : "Use routine")</button>
+        <a class="mu-btn" data-piano="off" href="routine/ask">Change the request</a>
+    </div>
+}
+else
+{
+    <section class="settings-section" data-state="routine-failed">
+        <p class="section-note" role="alert">@(job.Problem ?? "This request did not finish.")</p>
+        @if (job.State == RoutineGenerationState.Interrupted && job.Dispatched)
+        {
+            <p class="section-note">The provider may have charged for the interrupted request. Retry sends a new request.</p>
+        }
+        <div class="control-row">
+            <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-retry" disabled="@busy" @onclick="Retry">Retry request</button>
+            <a class="mu-btn" data-piano="off" href="routine/ask">Edit request</a>
+            <a class="mu-btn" data-piano="off" href="settings">Provider settings</a>
+        </div>
+    </section>
+}
+@if (job?.State != RoutineGenerationState.Ready && problem is not null) { <p class="section-note" role="alert">@problem</p> }
+
+@code {
+    [Parameter] public string JobId { get; set; } = "";
+    private RoutineGenerationJob? job;
+    private RoutineDraft? draft;
+    private IReadOnlyList<PreparedRoutineItem> prepared = [];
+    private IReadOnlyList<RoutineCatalogEntry> catalog = [];
+    private IReadOnlyList<RoutineSourceEvent> sourceEvents = [];
+    private string? problem;
+    private bool busy;
+    private bool disposed;
+    private static string On(bool value) => value ? "true" : "false";
+    private static string HandsName(HandUse hand) => hand switch { HandUse.Right => "Right hand", HandUse.Left => "Left hand", _ => "Hands together" };
+
+    protected override void OnInitialized() => Routines.Changed += Changed;
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            job = await Routines.GetJobAsync(JobId);
+            draft = job?.Draft;
+            prepared = job?.Prepared ?? [];
+            catalog = job is null ? [] : RoutineCompiler.Input(job.Request, job.Evidence, job.Source).Catalog;
+            sourceEvents = job?.Source is { } source ? RoutineCompiler.SourceEvents(MeiReader.Read(source.Mei)) : [];
+            problem = job is null ? "This saved request is unavailable." : null;
+        }
+        catch (Exception error) { problem = error.Message; }
+    }
+
+    private void Changed(RoutineGenerationJob update)
+    {
+        if (disposed || update.Id != JobId) return;
+        _ = InvokeAsync(() =>
+        {
+            job = update;
+            catalog = RoutineCompiler.Input(update.Request, update.Evidence, update.Source).Catalog;
+            sourceEvents = update.Source is { } source ? RoutineCompiler.SourceEvents(MeiReader.Read(source.Mei)) : [];
+            if (draft is null || update.State != RoutineGenerationState.Ready)
+            {
+                draft = update.Draft;
+                prepared = update.Prepared ?? [];
+            }
+            StateHasChanged();
+        });
+    }
+
+    private async Task Change(int index, RoutineItem item)
+    {
+        var items = draft!.Items.ToList();
+        items[index] = item;
+        draft = draft with { Items = items };
+        await SaveDraft();
+    }
+
+    private Task SetMinutes(int index, ChangeEventArgs args) => int.TryParse(args.Value?.ToString(), out var value) ? Change(index, draft!.Items[index] with { Minutes = value }) : Task.CompletedTask;
+    private Task SetTempo(int index, ChangeEventArgs args) => double.TryParse(args.Value?.ToString(), CultureInfo.InvariantCulture, out var value) ? Change(index, draft!.Items[index] with { Tempo = value }) : Task.CompletedTask;
+    private Task SetPreparation(int index, ChangeEventArgs args) => int.TryParse(args.Value?.ToString(), out var value) ? Change(index, draft!.Items[index] with { PreparationBeats = value }) : Task.CompletedTask;
+    private Task SetStep(int index, ChangeEventArgs args) => int.TryParse(args.Value?.ToString(), out var value) ? Change(index, draft!.Items[index] with { Step = value }) : Task.CompletedTask;
+
+    private async Task Move(int index, int direction)
+    {
+        var items = draft!.Items.ToList();
+        (items[index], items[index + direction]) = (items[index + direction], items[index]);
+        draft = draft with { Items = items };
+        await SaveDraft();
+    }
+
+    private async Task Remove(int index)
+    {
+        draft = draft! with { Items = draft.Items.Where((_, i) => i != index).ToArray() };
+        await SaveDraft();
+    }
+
+    private async Task SaveDraft()
+    {
+        try
+        {
+            problem = null;
+            prepared = RoutineCompiler.Prepare(draft!, job!.Request, job.Source);
+            await Routines.SaveDraftAsync(JobId, draft!);
+        }
+        catch (Exception error) { prepared = []; problem = error.Message; }
+    }
+
+    private async Task Accept()
+    {
+        busy = true;
+        try
+        {
+            await Routines.SaveDraftAsync(JobId, draft!);
+            await Routines.AcceptAsync(JobId);
+            Nav.NavigateTo("routine");
+        }
+        catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task Cancel()
+    {
+        busy = true;
+        try { await Routines.CancelAsync(JobId); job = await Routines.GetJobAsync(JobId); }
+        catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task Retry()
+    {
+        busy = true;
+        string? createdJob = null;
+        try
+        {
+            var next = await Routines.CreateGenerationAsync(job!.Request, job.Source, job.Model);
+            createdJob = next.Id;
+            await Host.StartAsync(next.Id);
+            Nav.NavigateTo($"routine/jobs/{next.Id}");
+        }
+        catch (Exception error)
+        {
+            problem = error.Message;
+            if (createdJob is not null)
+            {
+                await Routines.InterruptAsync(createdJob, "Background practice planning could not start: " + error.Message);
+                Nav.NavigateTo($"routine/jobs/{createdJob}");
+            }
+        }
+        finally { busy = false; }
+    }
+
+    public void Dispose() { disposed = true; Routines.Changed -= Changed; }
+}

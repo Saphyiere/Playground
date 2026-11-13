@@ -1,0 +1,163 @@
+@page "/routine"
+@inject RoutineService Routines
+@inject NavigationManager Nav
+@using Prima.UI.Routines
+
+<PageTitle>My routine · Prima</PageTitle>
+<PageHead Title="My routine" Kicker="Today’s practice">
+    <a class="mu-btn mu-primary" data-piano="off" href="routine/ask">Ask for routine</a>
+</PageHead>
+
+@if (loading)
+{
+    <p class="page-note" role="status">Opening your routine…</p>
+}
+else if (routine is null || day is null)
+{
+    <p class="page-note">No personalised routine is active. Your standard daily plan is ready on Today.</p>
+    <a class="mu-btn" data-piano="off" href="">Open Today</a>
+}
+else
+{
+    <section class="settings-section" data-state="routine-active">
+        <h2 class="section-title">@routine.Title</h2>
+        <p class="section-note">@routine.Summary</p>
+        <p class="control-note">@routine.Items.Sum(i => i.Recipe.Minutes) minutes · @day.Items.Count(i => i.State == RoutineItemState.Done) of @routine.Items.Count activities done</p>
+        @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
+    </section>
+    var nextItem = day.Items.FirstOrDefault(i => i.State is not (RoutineItemState.Done or RoutineItemState.Skipped))?.ItemId;
+    <ol class="routine-grid">
+        @for (var index = 0; index < routine.Items.Count; index++)
+        {
+            var prepared = routine.Items[index];
+            var item = prepared.Recipe;
+            var progress = day.Items.First(i => i.ItemId == item.Id);
+            var state = progress.State == RoutineItemState.Done ? "done" : item.Id == nextItem ? "now" : null;
+            var status = progress.State switch { RoutineItemState.Done => "Done", RoutineItemState.Skipped => "Skipped", RoutineItemState.Paused => "Paused", RoutineItemState.InProgress => "In progress", _ => "Ready" };
+            <li class="mu-step routine-card" data-routine-item="@item.Id" data-state="@state">
+                <div class="mu-step-meta">
+                    <span class="mu-led" aria-hidden="true"></span>
+                    <span>@((index + 1).ToString("00"))</span>
+                    <span>@item.Minutes min</span>
+                    <span>@status</span>
+                </div>
+                <h3 class="mu-step-name">@item.Title</h3>
+                <p class="section-note">@item.Purpose</p>
+                <div class="routine-card-footer">
+                    <span class="control-note">
+                        @(item.Mode == "wait" ? "Wait for me" : $"In time · {item.Tempo:0} bpm")
+                        @if (progress.ActiveSeconds > 0) { <span> · @((progress.ActiveSeconds / 60).ToString("0.#")) min practised</span> }
+                    </span>
+                    <button class="mu-btn @(item.Id == nextItem ? "mu-primary" : "")" type="button" data-piano="off" data-action="routine-start-item" disabled="@busy" @onclick="() => Start(item.Id)">@(progress.State is RoutineItemState.Done or RoutineItemState.Skipped ? "Practise again" : progress.ActiveSeconds > 0 ? "Continue" : "Start")</button>
+                </div>
+            </li>
+        }
+    </ol>
+    @if (adjustments.Count > 0)
+    {
+        <section class="settings-section">
+            <h2 class="section-title">Suggested adjustments</h2>
+            <ul class="summary-words">
+                @foreach (var adjustment in adjustments)
+                {
+                    var item = routine.Items.First(i => i.Recipe.Id == adjustment.ItemId).Recipe;
+                    <li>
+                        @item.Title:
+                        @if (adjustment.SuggestedPreparationBeats is { } beats) { <span>@beats preparation beats. </span> }
+                        else if (adjustment.SuggestedStep is { } step) { <span>Step @step. </span> }
+                        else if (adjustment.SuggestedMode is { } mode) { <span>@(mode == "time" ? "In time" : "Wait for me"). </span> }
+                        else { <span>@adjustment.CurrentTempo.ToString("0") → @adjustment.SuggestedTempo.ToString("0") bpm. </span> }
+                        @adjustment.Reason
+                    </li>
+                }
+            </ul>
+            <p class="section-note">Review these changes before applying them. This uses your saved results and makes no model request.</p>
+            <button class="mu-btn" type="button" data-piano="off" data-action="routine-review-adjustments" disabled="@busy" @onclick="ReviewAdjustments">Review adjustments</button>
+        </section>
+    }
+    <div class="control-row">
+        <button class="mu-btn" type="button" data-piano="off" data-action="routine-deactivate" disabled="@busy" @onclick="Deactivate">Use the standard daily plan</button>
+        <a class="mu-btn" data-piano="off" href="exercises?show=routine">Saved exercises</a>
+    </div>
+}
+@if (recent.Count > 0)
+{
+    <details class="settings-section routine-history">
+        <summary>Recent requests</summary>
+        <ul class="piece-list">
+            @foreach (var job in recent)
+            {
+                <li><a class="piece-row" data-piano="off" href="@($"routine/jobs/{job.Id}")"><span class="piece-title">@(job.Draft?.Title ?? job.Source?.Title ?? "Practice routine")</span><span class="piece-meta">@job.State · @job.Updated.ToLocalTime().ToString("g")</span></a></li>
+            }
+        </ul>
+    </details>
+}
+@if (problem is not null) { <p class="section-note" role="alert">@problem</p> }
+
+@code {
+    private RoutineDefinition? routine;
+    private RoutineDay? day;
+    private IReadOnlyList<RoutineGenerationJob> recent = [];
+    private IReadOnlyList<RoutineAdjustment> adjustments = [];
+    private string? sourceWarning;
+    private string? problem;
+    private bool loading = true;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            routine = await Routines.ActiveAsync();
+            day = await Routines.TodayAsync();
+            recent = (await Routines.RecentAsync()).Take(5).ToArray();
+            adjustments = await Routines.AdjustmentsAsync();
+            if (routine?.Source is { } source)
+            {
+                try
+                {
+                    var now = await Routines.PrepareSourceAsync(source.PieceId, true);
+                    if (now.Revision != source.Revision) sourceWarning = "The library piece has changed. These exercises still use the edition you accepted; ask for another routine to use the updated notes.";
+                }
+                catch (Exception) { sourceWarning = "The original library source is unavailable. Your saved exercises can still be practised."; }
+            }
+        }
+        catch (Exception error) { problem = error.Message; }
+        finally { loading = false; }
+    }
+
+    private async Task Start(string itemId)
+    {
+        busy = true;
+        try
+        {
+            var execution = await Routines.BeginExecutionAsync(day!.Id, itemId);
+            var item = execution.Item.Recipe;
+            var route = item.Kind switch
+            {
+                "exercise" => $"exercises/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
+                "drill" => $"drills/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
+                _ => $"routine/play/{execution.Id}",
+            };
+            Nav.NavigateTo(route);
+        }
+        catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task ReviewAdjustments()
+    {
+        busy = true;
+        try { var job = await Routines.CreateAdjustmentDraftAsync(); Nav.NavigateTo($"routine/jobs/{job.Id}"); }
+        catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task Deactivate()
+    {
+        busy = true;
+        try { await Routines.DeactivateAsync(); Nav.NavigateTo(""); }
+        catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+}

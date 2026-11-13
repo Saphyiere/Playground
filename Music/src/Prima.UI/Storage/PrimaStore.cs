@@ -167,7 +167,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
                 await connection.OpenAsync();
                 if (!schemaReady)
                 {
-                    await connection.ExecuteAsync(Schema + PracticeSchema + LibrarySchema + ClaudeSchema + ConversionSchema + NotationReviewSchema);
+                    await connection.ExecuteAsync(Schema + PracticeSchema + LibrarySchema + ClaudeSchema + ConversionSchema + NotationReviewSchema + RoutineSchema);
                     schemaReady = true;
                 }
 

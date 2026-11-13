@@ -250,7 +250,7 @@ public sealed partial class PrimaStore
         new { day = Iso(day), step = step + ";", done = shortPlanDone ? 1 : 0 }));
 
     /// <summary>Deletes everything practised, keeping the settings and the Library's pieces: "start over".</summary>
-    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
+    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM RoutineAttempt; DELETE FROM RoutineExecution; DELETE FROM RoutineDay; DELETE FROM RoutineDefinition; DELETE FROM RoutineGeneration; DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'; DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
 
     /// <summary>The database file, for backing up.</summary>
     public string DatabasePath => databasePath;

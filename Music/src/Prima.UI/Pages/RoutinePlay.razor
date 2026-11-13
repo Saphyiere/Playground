@@ -1,0 +1,129 @@
+@page "/routine/play/{ExecutionId}"
+@implements IAsyncDisposable
+@inject RoutineService Routines
+@using System.Text.Json
+@using Prima.Core.Routines
+@using Prima.UI.Routines
+
+<PageTitle>Routine practice · Prima</PageTitle>
+<PageHead Title="@(session?.Item?.Title ?? "Routine practice")" Kicker="From your piece"><KeyboardLamp /></PageHead>
+
+@if (session is not null)
+{
+    <RoutineBar Session="session" BeforeLeaving="StopAndSave" />
+}
+@if (problem is not null)
+{
+    <p class="page-note" role="alert">@problem</p>
+}
+else if (music is not null && session?.Item is { } item)
+{
+    <p class="exercise-does">@item.Purpose</p>
+    @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
+    @if (item.TargetId == "rhythm") { <p class="section-note">Tap this rhythm on any key. The pitch is not judged.</p> }
+    <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
+               Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
+               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" />
+    <div class="sheet-frame"><Sheet @ref="sheet" Mei="@mei" /></div>
+    @if (outcome is not null)
+    {
+        <section class="summary" aria-label="How it went"><PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" /></section>
+    }
+    @if (sourcePiece is not null)
+    {
+        <div class="control-row"><a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(sourcePiece)}{(sourceBar is { } bar ? $"?bar={bar}" : "")}")">Return to the piece</a></div>
+    }
+}
+else
+{
+    <p class="page-note" role="status">Opening the saved exercise…</p>
+}
+
+@code {
+    [Parameter] public string ExecutionId { get; set; } = "";
+    private RoutineSession? session;
+    private PlayAlong? player;
+    private Sheet? sheet;
+    private PlayMusic? music;
+    private PlayOutcome? outcome;
+    private string mei = "";
+    private string? sourcePiece;
+    private int? sourceBar;
+    private string? sourceWarning;
+    private string? problem;
+    private double tempo;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (session?.Execution?.Id == ExecutionId) return;
+        try
+        {
+            await StopAndSave();
+            (music, outcome, sourcePiece, sourceBar, sourceWarning) = (null, null, null, null, null);
+            session = new RoutineSession(Routines);
+            if (!await session.LoadAsync(ExecutionId) || session.Item?.Kind is not ("generated" or "excerpt"))
+            {
+                problem = session.Problem ?? "This activity opens in another practice screen. Return to the routine and choose it again.";
+                return;
+            }
+            mei = session.Execution!.Item.Mei;
+            var score = MeiReader.Read(mei);
+            music = new PlayMusic(score, score.Expected());
+            tempo = session.Item.Tempo;
+            var source = (await Routines.GetDefinitionAsync(session.Execution.Revision))?.Source;
+            sourcePiece = source?.PieceId;
+            sourceBar = session.Item.FirstBar;
+            if (source is not null)
+            {
+                if (sourceBar is null && session.Item.SourceEventIds.Count > 0)
+                    sourceBar = RoutineCompiler.SourceEvents(MeiReader.Read(source.Mei)).FirstOrDefault(e => e.Id == session.Item.SourceEventIds[0])?.Bar;
+                try
+                {
+                    var current = await Routines.PrepareSourceAsync(source.PieceId, true);
+                    if (current.Revision != source.Revision)
+                    {
+                        sourceWarning = "The library piece has changed. This exercise uses your accepted edition; returning opens the updated piece.";
+                        sourceBar = null;
+                    }
+                }
+                catch (Exception)
+                {
+                    sourceWarning = "The original piece is unavailable. This saved exercise can still be practised.";
+                    sourcePiece = null;
+                }
+            }
+            problem = null;
+        }
+        catch (Exception error) { problem = error.Message; }
+    }
+
+    private void Starting() => outcome = null;
+    private void PracticeStarting() => session!.Start();
+    private void SetTempo(double value) => tempo = Math.Clamp(value, 20, 160);
+
+    private async Task Finished(PlayOutcome how)
+    {
+        outcome = how;
+        if (how is { InTime: null, Wait: null or { Notes: 0 } }) { await session!.PauseAsync(); return; }
+        var item = session!.Item!;
+        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
+        object measures = how.InTime is { } result
+            ? new { inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, extra = result.Extra, holds = result.HoldsJudged, letGoEarly = result.LetGoEarly, stopped = how.Stopped }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, stopped = how.Stopped };
+        var origin = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
+        var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - origin) / 1e6 }));
+        var settings = JsonSerializer.Serialize(new { hands = item.Hands.ToString(), item.Fifths, item.Minor, sourceRevision = session.Execution!.Item.SourceRevision, template = item.TargetId });
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, session.Day, "routine-generated", how.Mode == PlayMode.InTime ? "in time" : "wait", item.Id, null,
+            how.Mode == PlayMode.InTime ? tempo : null, null, settings, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null);
+        try { await session.RecordAsync(attempt, how.Stopped ? 0 : 1); }
+        catch (Exception error) { problem = error.Message; }
+    }
+
+    private Task StopAndSave() => player?.StopAndSaveAsync() ?? Task.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopAndSave();
+        if (session is not null) await session.PauseAsync();
+    }
+}

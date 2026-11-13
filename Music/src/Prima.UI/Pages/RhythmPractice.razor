@@ -1,6 +1,7 @@
 @page "/drills/rhythm"
 @implements IDisposable
 @inject PrimaStore Store
+@inject Prima.UI.Routines.RoutineService Routines
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
@@ -13,6 +14,7 @@
 <PageTitle>Rhythm · Prima</PageTitle>
 
 <PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")"><KeyboardLamp /></PageHead>
+<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
 <p class="page-note">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
 
@@ -31,7 +33,7 @@
     }
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
     {
-        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(score is null)" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
     }
 </section>
 
@@ -64,7 +66,13 @@
 
 @code {
     private const int Tries = 3;
-    private const int Tempo = 72;
+    private double Tempo => routineSession?.Item?.Tempo ?? 72;
+    [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
+    private RoutineSession? routineSession;
+    private TaskCompletionSource? saved;
+    private bool interrupted;
+    private bool loaded;
+    private string? openedExecution;
 
     private RhythmState state = RhythmState.Start;
     private int tryIndex;
@@ -78,7 +86,7 @@
     private RhythmState? before;
     private DateTime started;
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
     private static string StageName(ClickStage s) => s switch { ClickStage.Throughout => "On", ClickStage.CountInOnly => "Count-in", _ => "Silent" };
 
@@ -89,9 +97,17 @@
         _ => "No click: the count-in shows on the screen, and the pulse is yours.",
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        if (loaded && openedExecution == ExecutionId) return;
+        await StopRoutine();
+        (loaded, openedExecution, tryIndex, result) = (true, ExecutionId, 0, null);
+        accuracies.Clear();
+        (score, mei) = (null, "");
+        routineSession = new(Routines);
+        if (!await routineSession.LoadAsync(ExecutionId, "drill", "rhythm")) return;
         state = await Store.GetTrackAsync<RhythmState>("rhythm") ?? RhythmState.Start;
+        if (routineSession.Item is { } requested) state = state with { Level = requested.Step };
         started = DateTime.Now;
         NewRhythm();
     }
@@ -122,12 +138,20 @@
 
     private void Start()
     {
+        routineSession?.Start();
+        interrupted = false;
+        saved = new(TaskCreationOptions.RunContinuationsAsynchronously);
         session?.Dispose();
         session = new PlaySession(Click, Keyboard, Clock, Registry);
         var meter = score!.Meter;
         var expected = score.Expected().Select(e => (e.Midi, e.Tick / (double)meter.BeatTicks, e.Length / (double)meter.BeatTicks)).ToList();
         var beats = score.Bars.Count * meter.BarTicks / (double)meter.BeatTicks;
-        session.Changed += () => _ = session?.Phase == Phase.Done ? InvokeAsync(Scored) : InvokeAsync(StateHasChanged);
+        session.Changed += () => _ = InvokeAsync(async () =>
+        {
+            if (session?.Phase != Phase.Done) { StateHasChanged(); return; }
+            try { await Scored(); saved.TrySetResult(); }
+            catch (Exception error) { saved.TrySetException(error); throw; }
+        });
         // No line moves across the music: keeping the pulse is the point. The count-in shows in the bar.
         session.Start(new ClickPlan(Tempo, meter.Beats, 1, state.StageForTry(tryIndex)), beats, expected);
     }
@@ -154,10 +178,12 @@
         })) ?? Task.CompletedTask);
         bars = RhythmScorer.ByBar(result.Notes, [.. expected.Select(e => e.Bar)], beatNs);
         accuracies.Add(result.Accuracy);
-        var measures = new { accuracy = result.Accuracy, lean = result.LeanPercent, steadiness = result.SteadinessPercent, drift = result.DriftPercent, missed = result.Missed, extra = result.Extra, stage = state.StageForTry(tryIndex).ToString() };
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "rhythm", state.StageForTry(tryIndex).ToString(), null, state.Level, Tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Accuracy, result.Missed == 0 && result.Extra == 0, null));
+        var measures = new { accuracy = result.Accuracy, lean = result.LeanPercent, steadiness = result.SteadinessPercent, drift = result.DriftPercent, missed = result.Missed, extra = result.Extra, stage = state.StageForTry(tryIndex).ToString(), stopped = interrupted };
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, "rhythm", state.StageForTry(tryIndex).ToString(), null, state.Level, Tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Accuracy, !interrupted && result.Missed == 0 && result.Extra == 0, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, interrupted ? 0 : 1);
+        else await Store.AddAttemptAsync(attempt);
         tryIndex++;
-        if (tryIndex >= Tries)
+        if (tryIndex >= Tries && routineSession?.IsRoutine != true)
         {
             before = state;
             state = state.After(accuracies.Average());
@@ -167,6 +193,16 @@
             started = DateTime.Now;
         }
         StateHasChanged();
+    }
+
+    private async Task StopRoutine()
+    {
+        if (session?.Phase is Phase.CountIn or Phase.Playing)
+        {
+            interrupted = true;
+            session.Finish();
+        }
+        if (saved is not null) await saved.Task;
     }
 
     // Bar by bar, against the click: one that ran early or late as a whole, by how much; the notes in it well off either way; where

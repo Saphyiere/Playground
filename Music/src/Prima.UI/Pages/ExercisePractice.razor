@@ -1,9 +1,11 @@
 @page "/exercises/{Id}"
 @inject PrimaStore Store
+@inject Prima.UI.Routines.RoutineService Routines
 @using System.Text.Json
 @using Prima.Core.Generation
 
 <PageTitle>@(exercise?.Name ?? "Exercise") · Prima</PageTitle>
+<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
 @if (exercise is null)
 {
@@ -62,7 +64,7 @@ else
             }
 
             <div class="exercise-music">
-                <PlayAlong Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" OnStarting="Starting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" />
+                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" />
 
                 <div class="sheet-frame">
                     <Sheet @ref="sheet" Mei="@mei" />
@@ -115,6 +117,9 @@ else
 
     /// <summary>"routine" when it was opened from My routine: what comes next is then the routine's next.</summary>
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
+    private RoutineSession? routineSession;
+    private PlayAlong? player;
 
     private Exercise? exercise;
     private List<Key> keys = [];
@@ -130,13 +135,17 @@ else
     private List<string> routine = [];
     private DateTime started;
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
     private static string On(bool on) => on ? "true" : "false";
 
     protected override async Task OnParametersSetAsync()
     {
-        if (exercise?.Id == Id) return;
+        if (exercise?.Id == Id && routineSession?.Execution?.Id == ExecutionId) return;
+
+        (exercise, music) = (null, null);
+        routineSession = new(Routines);
+        if (!await routineSession.LoadAsync(ExecutionId, "exercise", Id)) return;
 
         exercise = Exercises.Find(Id);
         if (exercise is null) return;
@@ -152,6 +161,7 @@ else
         key = last is not null && keys.Contains(new Key(last.Fifths, last.Minor)) ? new Key(last.Fifths, last.Minor) : keys[0];
         hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
         tempo = last?.Tempo ?? exercise.Tempo;
+        if (routineSession.Item is { } requested) (key, hands, tempo) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo);
         Build();
     }
 
@@ -169,16 +179,23 @@ else
     {
         (key, hands) = (toKey, toHands);
         Build();
-        await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
     }
 
     private async Task SetTempo(double bpm)
     {
         tempo = Math.Clamp(bpm, 20, 240);
-        await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
     }
 
-    private void Starting() => (playing, outcome) = (true, null);
+    private void Starting()
+    {
+        (playing, outcome) = (true, null);
+    }
+
+    private void PracticeStarting() => routineSession?.Start();
+
+    private Task StopRoutine() => player?.StopAndSaveAsync() ?? Task.CompletedTask;
 
     // A run is kept as an attempt at this exercise: its mode, tempo, key and hands, what was played and how it went.
     private async Task Finished(PlayOutcome how)
@@ -195,8 +212,13 @@ else
         var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
         var chosen = JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() });
         var inTime = how.Mode == PlayMode.InTime;
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, chosen, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null));
-        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, chosen, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, how.Stopped ? 0 : 1);
+        else
+        {
+            await Store.AddAttemptAsync(attempt);
+            await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+        }
         started = DateTime.Now;
         await Recount();
     }

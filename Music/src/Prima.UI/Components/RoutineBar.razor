@@ -1,0 +1,81 @@
+@implements IDisposable
+@inject NavigationManager Nav
+@inject PracticeLifecycle Lifecycle
+
+@if (Session?.IsRoutine == true)
+{
+    <NavigationLock OnBeforeInternalNavigation="Leaving" />
+    <div class="control-row" data-routine-context="@Session.Execution?.Id">
+        @if (Session.Problem is { } sessionProblem)
+        {
+            <p class="page-note" role="alert">@sessionProblem</p>
+        }
+        else if (Session.Item is { } item)
+        {
+            <span class="control-note">@item.Title · @item.Minutes min</span>
+            <button type="button" class="mu-btn" data-piano="off" disabled="@saving" @onclick="() => Complete(false)">Done for now</button>
+            <button type="button" class="mu-btn" data-piano="off" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
+        }
+        <a class="mu-btn" data-piano="off" href="routine">Back to routine</a>
+        @if (paused && OnResume.HasDelegate)
+        {
+            <button class="mu-btn mu-primary" type="button" data-piano="off" @onclick="Resume">Resume activity</button>
+        }
+        @if (Session.Execution is { ActiveSeconds: > 0 } execution)
+        {
+            @foreach (var (value, label) in new[] { ("easy", "Too easy"), ("right", "About right"), ("hard", "Too hard") })
+            {
+                <button class="mu-toggle" type="button" data-piano="off" data-feedback="@value" aria-pressed="@(execution.Feedback == value ? "true" : "false")" @onclick="() => Session.FeedbackAsync(value)">@label</button>
+            }
+        }
+    </div>
+    @if (problem is not null) { <p class="page-note" role="alert">@problem</p> }
+}
+
+@code {
+    [Parameter] public RoutineSession? Session { get; set; }
+    [Parameter] public EventCallback BeforeLeaving { get; set; }
+    [Parameter] public EventCallback OnResume { get; set; }
+    private bool saving;
+    private bool paused;
+    private string? problem;
+    private readonly SemaphoreSlim pauseLane = new(1);
+
+    protected override void OnInitialized() => Lifecycle.Pausing += Sleep;
+    private Task Sleep() => Session?.IsRoutine != true ? Task.CompletedTask : InvokeAsync(async () => { try { await Pause(); } catch (Exception error) { problem = error.Message; } StateHasChanged(); });
+    private async Task Leaving(LocationChangingContext context)
+    {
+        try { await Pause(); }
+        catch (Exception error) { context.PreventNavigation(); problem = error.Message; }
+    }
+
+    private async Task Pause()
+    {
+        await pauseLane.WaitAsync();
+        try
+        {
+            await BeforeLeaving.InvokeAsync();
+            if (Session is not null) await Session.PauseAsync();
+            paused = true;
+        }
+        finally { pauseLane.Release(); }
+    }
+
+    private async Task Resume() { await OnResume.InvokeAsync(); paused = false; }
+
+    private async Task Complete(bool skipped)
+    {
+        if (saving || Session is null) return;
+        saving = true;
+        try
+        {
+            await Pause();
+            await Session.CompleteAsync(skipped);
+            Nav.NavigateTo("routine");
+        }
+        catch (Exception error) { problem = error.Message; }
+        finally { saving = false; }
+    }
+
+    public void Dispose() => Lifecycle.Pausing -= Sleep;
+}

@@ -1,6 +1,7 @@
 @page "/drills/{Key}"
 @implements IDisposable
 @inject PrimaStore Store
+@inject Prima.UI.Routines.RoutineService Routines
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject IClock Clock
@@ -13,6 +14,7 @@
 <PageTitle>@(info?.Name ?? "Drill") · Prima</PageTitle>
 
 <PageHead Title="@(info?.Name ?? "Drill")" Kicker="@Kicker()"><KeyboardLamp /></PageHead>
+<RoutineBar Session="routineSession" BeforeLeaving="PauseRoutine" OnResume="ResumeRoutine" />
 
 @if (info is null)
 {
@@ -82,6 +84,9 @@ else
     [Parameter] public string Key { get; set; } = "";
 
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
+    private RoutineSession? routineSession;
+    private int performedStep;
 
     private DrillInfo? info;
     private DrillTrack track = DrillTrack.Start;
@@ -105,7 +110,7 @@ else
     private int forgotTheKey;
     private DateTime started;
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
     private double Share => results.Count == 0 ? 0 : results.Count(r => r.Right) / (double)results.Count;
 
@@ -116,7 +121,11 @@ else
         info = DrillCatalog.Find(Key);
         if (info is null) return;
 
+        routineSession = new(Routines);
+        if (!await routineSession.LoadAsync(ExecutionId, "drill", Key)) return;
+
         track = await Store.GetTrackAsync<DrillTrack>($"drill:{Key}") ?? DrillTrack.Start;
+        if (routineSession.Item is { } requested) track = track with { Step = requested.Step };
         await NewSet();
     }
 
@@ -124,6 +133,7 @@ else
 
     private async Task NewSet()
     {
+        performedStep = track.Step;
         loading = true;
         results.Clear();
         (index, looked, forgotTheKey, started) = (0, null, 0, DateTime.Now);
@@ -204,6 +214,7 @@ else
     private void OnReceived(MidiEvent e)
     {
         if (e.Kind != MidiKind.NoteOn || !waiting || index >= items.Count) return;
+        routineSession?.Start();
 
         lock (heard) heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
         var item = items[index].Item;
@@ -322,25 +333,47 @@ else
     {
         Registry.DrillAnswer = null;
         var share = Share;
-        if (info!.Top > 1)
+        if (info!.Top > 1 && routineSession?.IsRoutine != true)
         {
             var (step, last) = DrillLadder.After(track.Step, track.LastShare, share, info.Top);
             track = new DrillTrack(step, last, share, Today);
         }
         else track = track with { LastResult = share, LastDay = Today };
-        await Store.SaveTrackAsync($"drill:{Key}", track);
-        var measures = new { share, items = results.Count, medianMs = Stats.Median(results.Where(r => r.Right).Select(r => r.Ms).ToArray()), forgotTheKey, step = track.Step };
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, Key, null, null, track.Step, null, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), share, share == 1, null));
-        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
-        if (Key == "notes") await Store.MarkStepAsync(Today, StepKind.Notes, shortPlanDone: false);
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"drill:{Key}", track);
+        var measures = new { share, items = results.Count, medianMs = Stats.Median(results.Where(r => r.Right).Select(r => r.Ms).ToArray()), forgotTheKey, step = performedStep, performedStep };
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, Key, null, null, performedStep, null, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), share, share == 1, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, 1);
+        else
+        {
+            await Store.AddAttemptAsync(attempt);
+            await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+            if (Key == "notes") await Store.MarkStepAsync(Today, StepKind.Notes, shortPlanDone: false);
+        }
     }
 
     // The step by hand: a new set at it, and the ladder moves on from there as before.
     private async Task SetStep(int step)
     {
         track = track with { Step = Math.Clamp(step, 1, info!.Top) };
-        await Store.SaveTrackAsync($"drill:{Key}", track);
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"drill:{Key}", track);
         await NewSet();
+    }
+
+    private Task PauseRoutine()
+    {
+        waiting = false;
+        chordTimer?.Dispose();
+        chordTimer = null;
+        Registry.DrillAnswer = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task ResumeRoutine()
+    {
+        if (index >= items.Count) return;
+        ShowItem();
+        if (sheet is not null) await sheet.ClearMarks();
+        (shownNs, waiting) = (Clock.NowNs, true);
     }
 
     private async Task Looked(bool yes)

@@ -158,6 +158,10 @@
     [Parameter] public EventCallback OnStarting { get; set; }
 
     [Parameter] public EventCallback<PlayOutcome> OnFinished { get; set; }
+    [Parameter] public EventCallback OnPracticeStarting { get; set; }
+
+    /// <summary>For an explicitly generated rhythm exercise, grade taps independently of the key played.</summary>
+    [Parameter] public bool RhythmOnly { get; set; }
 
     [Parameter] public EventCallback<PlayMode> ModeChanged { get; set; }
 
@@ -208,6 +212,7 @@
     private bool listening;
     private Dictionary<string, Spelled> pitches = [];
     private Dictionary<string, ExpectedNote> notes = [];
+    private TaskCompletionSource? savedCompletion;
     private readonly Dictionary<string, SheetMark> drawn = [];
     private readonly List<PlayedNote> heard = [];
     // The note with "together" over it: the top of a chord played a key at a time, in Wait for me.
@@ -304,6 +309,7 @@
     {
         var listen = Listening;
         session?.Stop();
+        savedCompletion?.TrySetResult();
         if (wait is not null) Registry.DrillAnswer = null;
         wait = null;
         await Run(with, listen);
@@ -321,7 +327,7 @@
 
     private async Task Run(PlayMusic? with, bool listen)
     {
-        if (Running || (with ?? Music) is not { Notes.Count: > 0 }) return;
+        if (Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return;
         if (!listen && Keyboard.Name is null)
         {
             _ = InvokeAsync(StartNeeds);
@@ -331,11 +337,13 @@
         tempoOpen = false;
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
+        if (!listen) await OnPracticeStarting.InvokeAsync();
 
         // A run stopped to start again (back a bar) leaves nothing ticking.
         session?.Dispose();
         ticker?.Dispose();
         (session, wait, playing, stoppedNs, last, ticker, listening) = (null, null, music, null, null, null, listen);
+        savedCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
         notes = music.Notes.ToDictionary(n => n.Id);
         barOf = music.Notes.GroupBy(n => n.WrittenId).ToDictionary(g => g.Key, g => g.First().Bar);
@@ -355,7 +363,7 @@
             (passFrom, passTicks) = (bars[0].Start, bars.Take(count).Sum(b => b.Length));
         }
 
-        if (Mode == PlayMode.WaitForMe && !listen)
+        if (Mode == PlayMode.WaitForMe && !listen && !RhythmOnly)
         {
             var judge = wait = new WaitJudge(music.Notes, music.Ornamented, music.Rolled);
             // The preview's simulated player answers the step waited for: its keys, or a key beside its first.
@@ -375,9 +383,14 @@
         var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
         IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. timed, .. music.PianoPart ?? []] : music.PianoPart;
         var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
+        var completion = savedCompletion;
         run.Changed += () => _ = InvokeAsync(async () =>
         {
-            if (run.Phase == Phase.Done) await Ended(run);
+            if (run.Phase == Phase.Done)
+            {
+                try { await Ended(run); completion.TrySetResult(); }
+                catch (Exception error) { completion.TrySetException(error); throw; }
+            }
             else StateHasChanged();
         });
         // The click's beats are the music's own: each bar's by its metre, each as long as the score's tempo there says, the tempo
@@ -392,7 +405,7 @@
         run.Start(plan, timed.Max(e => e.Item2 + e.Item3), listen ? [] : timed, piano, Settings.TimingOffsetMs);
         // Each note judged as it's played and marked at once; the summary's marks replace these.
         var (timeAt, heardAt) = Judged(run, music);
-        var live = listen ? null : new LiveJudge(music.Notes, timeAt, music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
+        var live = listen || RhythmOnly ? null : new LiveJudge(music.Notes, timeAt, music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
         if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, heardAt(at)) is { } mark ? [mark] : []));
         ticker = new Timer(_ => _ = InvokeAsync(async () =>
         {
@@ -458,6 +471,14 @@
         run.Finish();
     }
 
+    /// <summary>Stop and await the owner's persisted outcome before navigation or host suspension.</summary>
+    public async Task StopAndSaveAsync()
+    {
+        var completion = savedCompletion;
+        await Stop();
+        if (completion is not null) await completion.Task;
+    }
+
     private async Task Ended(PlaySession run)
     {
         if (run != session || playing is not { } music) return;
@@ -489,6 +510,15 @@
         var damper = run.Damper.Select(d => (heardAt(d.DownNs), heardAt(d.UpNs))).ToList();
         var result = due.Count == 0 ? null : PassageScorer.Score(due, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, played, Settings.TimingOffsetMs, music.Ornamented, damper,
             Markings.Of(music.Score, due), range, music.Rolled);
+        if (RhythmOnly && due.Count > 0)
+        {
+            var rhythmNotes = due.GroupBy(n => n.Tick).Select(g => g.First()).ToList();
+            var rhythm = RhythmScorer.Score([.. rhythmNotes.Select(n => timeAt(n.Tick / (double)music.BeatTicks))], [.. rhythmNotes.Select(n => n.Id)], 0,
+                [.. played.Select(n => n.OnNs)], beatNs, beatNs * music.Score.Meter.Beats, Settings.TimingOffsetMs);
+            var judged = rhythm.Notes.Zip(rhythmNotes).Select(p => p.First with { Midi = p.Second.Midi, Bar = p.Second.Bar }).ToList();
+            result = new PassageResult(judged, rhythm.Extra, rhythm.LeanPercent * beatNs / 1e8, rhythm.LeanPercent, rhythm.SteadinessPercent, 0,
+                rhythm.KeptGoing, rhythm.DriftPercent, 0, judged.Where(n => n.Outcome != Outcome.Right || n.Band == Band.Off).GroupBy(n => n.Bar).ToDictionary(g => g.Key, g => g.Count()), null);
+        }
         // Round a loop, each time round played to its end is a pass, scored by itself: one whose last note is among those that
         // count. Any the run hadn't scored yet are now, any it scored after the last key was played go, and the run's result is
         // the last pass's, which is how the loop stood when it was left. Stopped in its first time round, the result is what was
@@ -599,6 +629,7 @@
     private async Task EndWait(bool stopped)
     {
         if (wait is not { } judge) return;
+        var completion = savedCompletion;
 
         wait = null;
         Registry.DrillAnswer = null;
@@ -615,7 +646,8 @@
         var result = lastPass is { } start ? judge.Stretch(start, start + passTicks) : judge.Result();
         last = new PlayOutcome(PlayMode.WaitForMe, null, result, [.. heard], stopped, bar) { Loop = loop, Passes = [.. passes], Marks = marks };
         StateHasChanged();
-        await OnFinished.InvokeAsync(last);
+        try { await OnFinished.InvokeAsync(last); completion?.TrySetResult(); }
+        catch (Exception error) { completion?.TrySetException(error); throw; }
     }
 
     private async Task Draw(IReadOnlyList<LiveMark> marks)

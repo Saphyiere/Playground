@@ -674,6 +674,73 @@ body {
     display: none;
 }
 
+/* A routine uses the practice pads with room for its explanation and a distinct action row. */
+.routine-grid {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5);
+}
+
+.routine-card {
+    padding: var(--space-5);
+    justify-content: flex-start;
+    gap: var(--space-4);
+}
+
+.routine-card .mu-step-meta {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.routine-card .mu-step-name {
+    margin: 0;
+}
+
+.routine-card .section-note {
+    max-width: none;
+    font-size: 14px;
+    line-height: 22px;
+}
+
+.routine-card-footer {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.routine-card-footer .control-note {
+    margin: 0;
+}
+
+.routine-card-footer .mu-btn {
+    min-width: 112px;
+}
+
+.routine-history summary {
+    cursor: pointer;
+    margin-bottom: var(--space-4);
+}
+
+.today-routine .piece-row {
+    color: var(--on-screen);
+    border-color: var(--on-screen-muted);
+}
+
+.today-routine .piece-meta {
+    color: var(--on-screen-muted);
+}
+
+@media (max-width: 980px) {
+    .routine-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 [data-theme="vinyl"] .mu-step {
     min-height: 0;
     padding: 16px 18px;

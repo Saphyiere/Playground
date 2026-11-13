@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILibraryBundle, AndroidBundle>();
         builder.Services.AddSingleton<IConversionRenderer, AndroidConversionRenderer>();
         builder.Services.AddSingleton<IConversionHost, AndroidConversionHost>();
+        builder.Services.AddSingleton<IRoutineHost, AndroidRoutineHost>();
         // Claude's key: kept in secure storage, and taken in from claude-key.txt in the folder a PC reaches over USB
         // (/sdcard/Android/data/com.saphyiere.prima/files).
         builder.Services.AddSingleton<IAssistKeyStore, SecureKeyStore>();

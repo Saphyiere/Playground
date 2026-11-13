@@ -469,6 +469,8 @@ else
     [Parameter] public string Id { get; set; } = "";
 
     [Parameter, SupplyParameterFromQuery(Name = "conversion")] public int? Conversion { get; set; }
+    [SupplyParameterFromQuery(Name = "bar")] public int? RequestedBar { get; set; }
+    private bool returnToRoutineBar;
     private bool openedFromNotification;
 
     private PieceRecord? piece;
@@ -624,6 +626,14 @@ else
             }
             seen = saved.TryGetValue("bar", out var top) ? (int)top : null;
         }
+        if (RequestedBar is { } requested && barStarts.ContainsKey(requested))
+        {
+            loopTo = null;
+            chosen = true;
+            seen = requested;
+            StartAt(requested);
+            returnToRoutineBar = true;
+        }
         await Store.SetPieceAsync(Id);
     }
 
@@ -672,6 +682,14 @@ else
         }
 
         // Closing the reader restores a stage that was display:none. Measure and draw only after that visible DOM is rendered.
+        if (returnToRoutineBar)
+        {
+            returnToRoutineBar = false;
+            if (session is null) await StartPractice();
+            else { stage = Stage.Practice; covered = false; clock?.Resume(DateTimeOffset.Now); }
+            StateHasChanged();
+            return;
+        }
         if (redrawPdf && !readingNotes && Pdf && pdf is not null && ratios.Count > 0)
         {
             redrawPdf = false;

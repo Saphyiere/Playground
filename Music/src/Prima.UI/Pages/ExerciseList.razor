@@ -1,24 +1,49 @@
 @page "/exercises"
 @inject PrimaStore Store
 @inject NavigationManager Nav
+@inject Prima.UI.Routines.RoutineService Routines
 @using Prima.Core.Generation
 
 <PageTitle>Exercises · Prima</PageTitle>
 
-<PageHead Title="Exercises" Kicker="Technique, a little at a time"><KeyboardLamp /></PageHead>
+<PageHead Title="Exercises" Kicker="Technique, a little at a time">
+    <div class="control-row">
+        <a class="mu-btn mu-primary" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
+        <KeyboardLamp />
+    </div>
+</PageHead>
 
 @* The exercises in two lists: the ones to play at the piano, which it opens on, and the ones to read and do (how you sit, the
    warm-ups, the ways to practise). Each is by section, as rows: an exercise's name, what you do, when it was last done, and its
    tags. A row opens the exercise, or the drill Prima already has for it. My routine is your own list, of both kinds and without
    the sections, and an exercise opened from it leads on to the routine's next. Start here and Not tried are picks of the ones
    to play. The search narrows the list showing, and says when the other of the two lists has what it's after. *@
-<div class="control-row library-filters exercise-filters">
+<div class="control-row library-filters exercise-filters" aria-busy="@(!ready ? "true" : "false")">
     @foreach (var (key, label) in Views)
     {
         <button type="button" class="mu-toggle" aria-pressed="@(view == key ? "true" : "false")" @onclick="() => See(key)"><span class="mu-led"></span>@label</button>
     }
     <input class="text-field text-field-short" type="search" placeholder="Jump, thumb, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
 </div>
+
+@if (view == "routine")
+{
+    <section class="settings-section" aria-label="Personalised routine">
+        @if (activeRoutine is not null)
+        {
+            <a class="piece-row" data-piano="off" data-action="open-active-routine" href="routine">
+                <span class="piece-title">@activeRoutine.Title</span>
+                <span class="piece-meta">@activeRoutine.Summary</span>
+                <span class="piece-tags"><span class="piece-tag">@activeRoutine.Items.Sum(i => i.Recipe.Minutes) min</span><span class="piece-tag">Today’s default</span></span>
+            </a>
+        }
+        else
+        {
+            <a class="mu-btn" data-piano="off" href="routine">Routine requests and proposals</a>
+        }
+        @if (routine.Count > 0) { <h2 class="section-title">Saved exercises</h2> }
+    </section>
+}
 
 @{
     var shown = Exercises.All.Where(Shown).ToList();
@@ -91,6 +116,8 @@ else if (shown.Count == 0)
     private HashSet<string> routine = [];
     private string view = "play";
     private string? search;
+    private Prima.UI.Routines.RoutineDefinition? activeRoutine;
+    private bool ready;
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
 
@@ -98,6 +125,8 @@ else if (shown.Count == 0)
     {
         done = await Store.GetDoneAsync("exercise", [.. DrillKinds.Values]);
         routine = [.. await Store.GetTrackAsync<List<string>>("exercise-routine") ?? []];
+        activeRoutine = await Routines.ActiveAsync();
+        ready = true;
     }
 
     protected override void OnParametersSet() => view = Views.Any(v => v.Key == Show) ? Show! : "play";

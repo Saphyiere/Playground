@@ -2,14 +2,45 @@
 
 Sight-reading and piano practice for the owner's Lenovo Idea Tab Pro, played on a Yamaha P-225B over USB MIDI. New music at
 your level every day, read in time with a click that never waits, short drills for what reading leans on and for even
-technique, a catalogue of technique exercises with how to do each, and progress as honest numbers over weeks. Local data only:
-no accounts, no cloud.
+technique, a catalogue of technique exercises with how to do each, and progress as honest numbers over weeks. Practice history
+and accepted routines stay on the tablet; there is no application server or account. Optional PDF conversion and routine
+planning send the requested source information and practice summaries to the configured inference provider.
 
 - How it works: [docs/concept.md](docs/concept.md)
 - How it's built, part by part: [docs/plan.md](docs/plan.md)
 - The evidence behind it: [docs/research.md](docs/research.md), and for the Library, [docs/library.md](docs/library.md)
 - The research behind the Exercises tab, and what it proposes to build next: [docs/exercises.md](docs/exercises.md)
 - Optional local OMR verification and companion-app packaging idea: [docs/local-omr-plugin-idea.md](docs/local-omr-plugin-idea.md)
+
+## Personal routines
+
+Open **Exercises → Ask for routine** for general practice or help with a library piece. Choose the time available, optionally
+select bars and describe the difficulty, then generate a proposal. Review its order, durations, hands, tempos and music before
+using it. The accepted routine becomes Today’s default until changed; existing pinned exercises remain available separately.
+
+Suggestions use separate reading, rhythm and technique evidence. Sparse history stays provisional, and Wait for me results
+are kept separate from timed playing. The model chooses existing activities or recipes; Prima constructs and validates source
+excerpts, jumps, chord shapes and changes, accompaniment, rhythm reductions and coordination sequences. Imported MIDI hand
+assignments need confirmation. Exercises retain their source edition when the library score changes.
+
+Each activity saves its own daily progress. Leaving practice pauses it, and tomorrow starts fresh progress on the same routine.
+Completing practice does not require perfect accuracy. Feedback and comparable results can suggest changes, which are reviewed
+before acceptance; the app does not request a new model routine automatically.
+
+Routine generation continues in Android’s foreground service when the screen is left or locked, with a completion notification
+when permitted. Only Cancel requests cancellation. If Android terminates execution, the saved request shows an interruption;
+retrying a request whose response was not received is explicit and may incur another provider charge. A received draft is
+validated locally after recovery. Failures never replace the previously accepted routine.
+
+For a local, unpaid source/generator check:
+
+```powershell
+dotnet run --project Music/tools/Prima.Accuracy -- routine source.mid report.json --reference reference.json
+```
+
+The report and sibling music folder contain the source comparison and generated notation for each applicable template. A paid
+evaluation is opt-in with `--model <explicit-model-id>` and `ANTHROPIC_API_KEY`; it performs one planner request, with automatic
+request retries, validation retries and model fallback disabled.
 
 ## Layout
 

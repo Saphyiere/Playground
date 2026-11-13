@@ -8,7 +8,12 @@ internal static class ConversionNavigation
 
     internal static void Request(string piece)
     {
-        PendingPath = "/library/" + Uri.EscapeDataString(piece) + "?conversion=1";
+        RequestPath("/library/" + Uri.EscapeDataString(piece) + "?conversion=1");
+    }
+
+    internal static void RequestPath(string path)
+    {
+        PendingPath = path;
         Requested?.Invoke();
     }
 

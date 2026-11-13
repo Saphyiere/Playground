@@ -4,6 +4,8 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject NavigationManager Nav
+@inject Prima.UI.Routines.RoutineService Routines
+@using Prima.UI.Routines
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 
@@ -50,6 +52,31 @@
         </div>
     </div>
 
+    @if (activeRoutine is { } accepted)
+    {
+        <section class="mu-screen today-screen today-routine" data-active-routine="@accepted.Revision">
+            <div class="mu-screen-head"><span>Your routine</span><span>@accepted.Items.Sum(i => i.Recipe.Minutes) min</span></div>
+            <h2 class="mu-screen-head">@accepted.Title</h2>
+            <p class="page-panel-line">@accepted.Summary</p>
+            <div class="piece-list">
+                @foreach (var item in accepted.Items)
+                {
+                    var progress = routineDay?.Items.FirstOrDefault(p => p.ItemId == item.Recipe.Id);
+                    <a class="piece-row" href="routine" data-routine-item="@item.Recipe.Id">
+                        <span class="piece-title">@item.Recipe.Title</span>
+                        <span class="piece-meta">@item.Recipe.Minutes min · @(progress?.State switch { RoutineItemState.Done => "Done", RoutineItemState.Skipped => "Skipped", RoutineItemState.Paused => "Paused", RoutineItemState.InProgress => "In progress", _ => "Ready" })</span>
+                    </a>
+                }
+            </div>
+            <div class="control-row">
+                <a class="mu-btn mu-primary" href="routine" data-piano="off">Continue routine</a>
+                <a class="mu-btn" href="routine/ask" data-piano="off">Ask for routine</a>
+                <button class="mu-btn" type="button" data-piano="off" @onclick="StandardPlan">Use the standard daily plan</button>
+            </div>
+        </section>
+    }
+    else
+    {
     <section class="mu-screen today-screen" aria-label="Up next">
         <div class="mu-screen-head"><span><span class="mu-studio-only">Sight-read ▸ up next</span><span class="mu-vinyl-only">Up next</span></span><span>@NextPassage?.Description</span></div>
         @if (NextPassage is not null)
@@ -65,9 +92,10 @@
             <button type="button" class="mu-play" aria-label="Start the next step" @onclick="StartNext"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
         </div>
     </section>
+    }
 </div>
 
-@if (plan is not null)
+@if (plan is not null && activeRoutine is null)
 {
     <div class="mu-steps today-steps" style="grid-template-columns: repeat(@plan.Steps.Count, minmax(0, 1fr))">
         @for (var i = 0; i < plan.Steps.Count; i++)
@@ -105,6 +133,8 @@
     [CascadingParameter] public Look Look { get; set; } = Look.Studio;
 
     private ReadingState? reading;
+    private RoutineDefinition? activeRoutine;
+    private RoutineDay? routineDay;
     private DayPlan? plan;
     private DayRecord? day;
     private StreakState? streak;
@@ -130,6 +160,8 @@
         }
 
         reading = await Store.GetTrackAsync<ReadingState>("reading");
+        activeRoutine = await Routines.ActiveAsync();
+        routineDay = activeRoutine is null ? null : await Routines.TodayAsync(Day0);
         var days = await Store.GetDaysAsync(Day0.AddDays(-120));
         day = days.FirstOrDefault(d => d.Day == Day0);
         todayMinutes = day?.Minutes ?? 0;
@@ -170,9 +202,16 @@
 
     private void StartNext()
     {
+        if (activeRoutine is not null) { Nav.NavigateTo("routine"); return; }
         if (NextStep is not { } step) Nav.NavigateTo("sight-read");
         else if (step.Kind == StepKind.Pause) Clicked(step);
         else Nav.NavigateTo(StepHref(step));
+    }
+
+    private async Task StandardPlan()
+    {
+        await Routines.DeactivateAsync();
+        (activeRoutine, routineDay) = (null, null);
     }
 
     // The pause: a minute to stand up and look away, then it's done.

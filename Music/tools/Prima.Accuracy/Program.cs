@@ -4,6 +4,8 @@ using Prima.Core.Library;
 using Prima.Core.Music;
 using Prima.Core.Transcription;
 
+if (args.Length > 0 && args[0] == "routine") return await RoutineEvaluation.RunAsync(args[1..]);
+
 if (args.Length is 2 or 3 && args[0] == "reference")
 {
     var sourceReference = AccuracyEvaluator.LoadReference(await File.ReadAllTextAsync(args[1]));
@@ -18,6 +20,7 @@ if (args.Length is < 3 or > 4 || args[0] is not ("reading" or "mei" or "midi"))
 {
     Console.Error.WriteLine("Usage: Prima.Accuracy <reading|mei|midi> <reference.json> <candidate-file> [report.json]");
     Console.Error.WriteLine("       Prima.Accuracy reference <reference.json> [events.json]");
+    Console.Error.WriteLine("       Prima.Accuracy routine <source.mid|mei> <report.json> [--reference reference.json] [--model explicit-model] [--confirm-hands]");
     return 1;
 }
 

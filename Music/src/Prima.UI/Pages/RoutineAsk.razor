@@ -1,0 +1,212 @@
+@page "/routine/ask"
+@inject PrimaStore Store
+@inject PrimaSettings Settings
+@inject RoutineService Routines
+@inject IInferenceProvider Provider
+@inject IRoutineHost Host
+@inject NavigationManager Nav
+@using Prima.Core.Routines
+@using Prima.UI.Routines
+@using Playground.AI.Assist
+
+<PageTitle>Ask for routine · Prima</PageTitle>
+<PageHead Title="Ask for routine" Kicker="Practice that fits you">
+    <a class="mu-btn" data-piano="off" href="exercises">Back to exercises</a>
+</PageHead>
+
+@if (loading)
+{
+    <p class="page-note" role="status">Looking at your recent practice…</p>
+}
+else
+{
+    <section class="settings-section" aria-label="Your request">
+        <div class="control-row">
+            <button class="mu-toggle" type="button" data-piano="off" data-action="routine-general" aria-pressed="@On(!pieceMode)" @onclick="() => ChooseMode(false)"><span class="mu-led"></span>General improvement</button>
+            <button class="mu-toggle" type="button" data-piano="off" data-action="routine-piece" aria-pressed="@On(pieceMode)" @onclick="() => ChooseMode(true)"><span class="mu-led"></span>Help with a piece</button>
+        </div>
+        <div class="control-row">
+            <label class="control-label" for="routine-minutes">Minutes available</label>
+            <input id="routine-minutes" type="number" class="text-field text-field-short" data-piano="off" min="5" max="120" @bind="minutes" @bind:after="SaveForm" />
+        </div>
+        <div class="control-row">
+            <label class="control-label" for="routine-goal">What would help?</label>
+            <input id="routine-goal" class="text-field" type="text" data-piano="off" maxlength="1000" placeholder="For example, I keep missing the jump to A" @bind="goal" @bind:after="SaveForm" />
+        </div>
+        @if (pieceMode)
+        {
+            <div class="control-row">
+                <label class="control-label" for="routine-piece-search">Library piece</label>
+                <input id="routine-piece-search" class="text-field" type="search" data-piano="off" placeholder="Title or composer" @bind="search" @bind:event="oninput" />
+            </div>
+            @if (selected is not null)
+            {
+                <div class="control-row">
+                    <span class="control-value">@selected.Title</span>
+                    <button class="mu-btn" type="button" data-piano="off" data-action="routine-clear-piece" @onclick="ClearPiece">Clear piece</button>
+                </div>
+            }
+            @if (selected is null || !string.IsNullOrWhiteSpace(search))
+            {
+                <ul class="piece-list">
+                    @foreach (var piece in pieces.Where(p => string.IsNullOrWhiteSpace(search) || (p.Title + " " + p.Composer).Contains(search, StringComparison.OrdinalIgnoreCase)).Take(12))
+                    {
+                        <li><a class="piece-row" href="routine/ask" data-piano="off" data-piece="@piece.Id" aria-disabled="@On(preparing)" @onclick:preventDefault="true" @onclick="() => ChoosePiece(piece)"><span class="piece-title">@piece.Title</span><span class="piece-meta">@piece.Composer</span></a></li>
+                    }
+                </ul>
+                @if (pieces.Count == 0) { <p class="section-note">Import a piece in the Library to plan practice around it.</p> }
+            }
+            @if (preparing) { <p class="section-note" role="status">Preparing this edition…</p> }
+            @if (selected is not null && !preparing && source is null)
+            {
+                <p class="section-note">This piece needs readable notes before Prima can construct exercises from it. Your request is saved.</p>
+                <a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(selected.Id)}?conversion=1")">Open the piece</a>
+            }
+            @if (source is not null)
+            {
+                <div class="control-row">
+                    <label class="control-label" for="routine-first">From bar</label>
+                    <input id="routine-first" class="text-field text-field-short" type="number" data-piano="off" min="0" @bind="firstBar" @bind:after="SaveForm" />
+                    <label class="control-label" for="routine-last">Through bar</label>
+                    <input id="routine-last" class="text-field text-field-short" type="number" data-piano="off" min="0" @bind="lastBar" @bind:after="SaveForm" />
+                </div>
+                <p class="section-note">Leave the bar range empty to consider the whole piece.</p>
+                @if (!source.HandsConfirmed)
+                {
+                    <p class="section-note">The hands were estimated from the MIDI. Check that the upper and lower staves below match the hands you play.</p>
+                    <button class="mu-toggle" type="button" data-piano="off" data-action="routine-confirm-hands" aria-pressed="false" disabled="@preparing" @onclick="ConfirmHands"><span class="mu-led"></span>These hand assignments are correct</button>
+                }
+                @if (source.HasUnresolvedErrors)
+                {
+                    <p class="section-note" role="alert">This passage has unresolved notation issues. Review its notes before using them for exercises.</p>
+                    <a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(source.PieceId)}?conversion=1")">Review the notes</a>
+                }
+                <details>
+                    <summary>Check the source music</summary>
+                    <div class="sheet-frame"><Sheet Mei="@source.Mei" Layout="scroll" /></div>
+                </details>
+            }
+        }
+    </section>
+
+    <section class="settings-section">
+        <h2 class="section-title">Your recent practice</h2>
+        <p class="section-note">Reading, timing, and technique are considered separately. A skill you have not practised stays unknown.</p>
+        <details>
+            <summary>Evidence used for this request</summary>
+            <ul class="summary-words">
+                @foreach (var skill in evidence?.Skills ?? [])
+                {
+                    <li><strong>@skill.Skill:</strong> @skill.Detail · @skill.Attempts attempts across @skill.Days days</li>
+                }
+            </ul>
+            @if (evidence is null || evidence.Skills.All(s => s.Attempts == 0))
+            {
+                <p class="section-note">There is little playing history yet. Your routine will be provisional; you can also find your reading level first.</p>
+                <a class="mu-btn" data-piano="off" href="sight-read">Open sight-reading</a>
+            }
+        </details>
+    </section>
+    <section class="settings-section">
+        <div class="control-row">
+            <label class="control-label" for="routine-model">Model · @Provider.ProviderId</label>
+            <input id="routine-model" class="text-field" type="text" data-piano="off" @bind="model" @bind:after="SaveForm" />
+        </div>
+        <p class="section-note">Generate sends a summary of your practice and relevant notes from the selected piece to this provider. The request keeps running when you leave the screen. Your current routine stays in place until you accept a new one.</p>
+        @if (problem is not null) { <p class="section-note" role="alert" data-state="request-error">@problem</p> }
+        <div class="control-row">
+            <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-generate" disabled="@(!CanGenerate)" @onclick="Generate">@(submitting ? "Starting…" : "Generate routine")</button>
+            <a class="mu-btn" data-piano="off" href="settings">Provider settings</a>
+        </div>
+    </section>
+}
+
+@code {
+    public sealed record SavedRequest(int Minutes, string Goal, bool PieceMode, string? PieceId, int? FirstBar, int? LastBar, string Model);
+    private List<PieceRecord> pieces = [];
+    private PieceRecord? selected;
+    private PracticeEvidenceSnapshot? evidence;
+    private RoutineSource? source;
+    private int minutes;
+    private string goal = "";
+    private string model = "";
+    private string search = "";
+    private int? firstBar;
+    private int? lastBar;
+    private bool pieceMode;
+    private bool loading = true;
+    private bool preparing;
+    private bool submitting;
+    private string? problem;
+    private bool CanGenerate => !loading && !preparing && !submitting && minutes is >= 5 and <= 120 && !string.IsNullOrWhiteSpace(model) && (!pieceMode || source is { HandsConfirmed: true, HasUnresolvedErrors: false });
+    private static string On(bool value) => value ? "true" : "false";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var saved = await Store.GetTrackAsync<SavedRequest>("routine-request-form");
+            minutes = saved?.Minutes ?? Settings.DailyMinutes;
+            goal = saved?.Goal ?? "";
+            var preferences = await Store.GetSettingsAsync();
+            model = saved?.Model ?? preferences.GetValueOrDefault("Routine.Model") ?? (Provider.ProviderId == "anthropic" ? ClaudeModels.Opus : "");
+            pieceMode = saved?.PieceMode ?? false;
+            firstBar = saved?.FirstBar;
+            lastBar = saved?.LastBar;
+            evidence = await Routines.EvidenceAsync();
+            pieces = await Store.GetPiecesAsync();
+            selected = pieces.FirstOrDefault(p => p.Id == saved?.PieceId);
+            if (selected is not null) await PrepareSource(false);
+        }
+        catch (Exception error) { problem = error.Message; }
+        finally { loading = false; }
+    }
+
+    private Task SaveForm() => Store.SaveTrackAsync("routine-request-form", new SavedRequest(minutes, goal, pieceMode, selected?.Id, firstBar, lastBar, model));
+    private async Task ChooseMode(bool piece) { pieceMode = piece; await SaveForm(); }
+    private async Task ClearPiece() { selected = null; source = null; firstBar = lastBar = null; await SaveForm(); }
+    private async Task ChoosePiece(PieceRecord piece)
+    {
+        if (preparing) return;
+        selected = piece;
+        search = "";
+        firstBar = lastBar = null;
+        await SaveForm();
+        await PrepareSource(false);
+    }
+
+    private Task ConfirmHands() => PrepareSource(true);
+    private async Task PrepareSource(bool confirmed)
+    {
+        (preparing, source, problem) = (true, null, null);
+        try { source = await Routines.PrepareSourceAsync(selected!.Id, confirmed); }
+        catch (Exception error) { problem = error.Message; }
+        finally { preparing = false; }
+    }
+
+    private async Task Generate()
+    {
+        if (!CanGenerate) return;
+        (submitting, problem) = (true, null);
+        string? createdJob = null;
+        try
+        {
+            await SaveForm();
+            var request = new RoutineRequest(minutes, goal.Trim(), pieceMode ? selected?.Id : null, pieceMode ? firstBar : null, pieceMode ? lastBar : null);
+            var job = await Routines.CreateGenerationAsync(request, pieceMode ? source : null, model.Trim());
+            createdJob = job.Id;
+            await Host.StartAsync(job.Id);
+            Nav.NavigateTo($"routine/jobs/{job.Id}");
+        }
+        catch (Exception error)
+        {
+            problem = error.Message;
+            if (createdJob is not null)
+            {
+                await Routines.InterruptAsync(createdJob, "Background practice planning could not start: " + error.Message);
+                Nav.NavigateTo($"routine/jobs/{createdJob}");
+            }
+        }
+        finally { submitting = false; }
+    }
+}

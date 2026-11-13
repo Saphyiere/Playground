@@ -14,6 +14,12 @@ the tab; that document isn't in the repo. **Not built**: the landing measures pr
 spread, travel time, the size and direction of a miss), the adapting steps, the log for each chord pair, the overlays on the
 Scales drill, and voicing.
 
+**Personal routines are implemented (13 November 2026).** Exercises now has Ask for routine, using separate practice evidence
+and an optional source piece. Its checked recipes construct jumps, chord shapes/transitions, accompaniment, rhythm and
+coordination exercises from retained source notes. An accepted ordered routine repeats in Today with fresh daily progress.
+Tempo, drill-step, mode and preparation-rest changes are suggestions that require acceptance. This does not implement the
+special physical-landing measurements or voicing work proposed below. See [the usage notes](../README.md#personal-routines).
+
 The notes behind it, with every source, are beside it, one file for each line of research:
 [the exercise books and exam lists](exercises/exercise_canon_and_taxonomy.md),
 [what makes technique practice work and keeps it safe](exercises/evidence_on_technique_practice.md),

@@ -40,6 +40,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IConversionRenderer, NoConversionHost>();
         services.TryAddSingleton<IConversionHost, NoConversionHost>();
         services.AddSingleton<Transcription.ConversionJobs>();
+        services.AddSingleton<Routines.RoutineService>();
+        services.TryAddSingleton<IRoutineHost, LocalRoutineHost>();
+        services.AddSingleton<PracticeLifecycle>();
         services.AddSingleton<Click>();
         services.AddSingleton<Practice.SessionRegistry>();
         services.AddScoped<AppNavigation>();

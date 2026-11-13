@@ -1,8 +1,8 @@
 @page "/drills/scales"
 @page "/drills/arpeggios"
 @page "/drills/independence"
-@implements IDisposable
 @inject PrimaStore Store
+@inject Prima.UI.Routines.RoutineService Routines
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject NavigationManager Nav
@@ -65,7 +65,8 @@
     <p class="control-note">Runs @runs of @TechniqueState.RunsPerSet. Stop if anything hurts.</p>
 </section>
 
-<PlayAlong @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(runs < TechniqueState.RunsPerSet)" Ask="@(FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnFinished="Finished">
+<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || runs < TechniqueState.RunsPerSet)" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished">
     <Readouts>
         <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     </Readouts>
@@ -138,6 +139,9 @@ else if (outcome?.Wait is not null)
 
     /// <summary>Where the screen was opened from: "today" for the day's Technique step, which is the scale and then the arpeggio.</summary>
     [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+    [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
+    private RoutineSession? routineSession;
+    private PlayAlong? player;
 
     // What it has no tempo for yet and hasn't been run: its first run is in Wait for me, which the bar is set to.
     private bool FirstRun => state.Tempo is null && result is null && outcome is null;
@@ -160,7 +164,7 @@ else if (outcome?.Wait is not null)
     private DateTime started;
     private double? noiseFloor;
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
     private static string On(bool on) => on ? "true" : "false";
 
@@ -183,36 +187,34 @@ else if (outcome?.Wait is not null)
     {
         level = (await Store.GetTrackAsync<ReadingState>("reading"))?.Level ?? 1;
         noiseFloor = Keyboard.Sensing.JitterMs;
-        Nav.LocationChanged += Moved;
-        await Open();
     }
 
-    // The address going from one of this screen's to another (Today's scale to its arpeggio) keeps the screen: it opens the new one.
-    private void Moved(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(async () =>
+    protected override async Task OnParametersSetAsync()
     {
-        if (Key == opened || Key is not ("scales" or "arpeggios" or "independence")) return;
-
+        if (Key == opened && routineSession?.Execution?.Id == ExecutionId) return;
+        await StopRoutine();
         await Open();
-        StateHasChanged();
-    });
-
-    public void Dispose() => Nav.LocationChanged -= Moved;
+    }
 
     // What the address names, as last chosen or else today's, with its runs to play.
     private async Task Open()
     {
+        (music, item, mei) = (null, null, "");
+        routineSession = new(Routines);
+        if (!await routineSession.LoadAsync(ExecutionId, "drill", Key)) return;
         (opened, runs, started) = (Key, 0, DateTime.Now);
         var plan = DailyPlan.Build(Today, Settings.DailyMinutes, level, false);
         var pattern = (await Store.GetTrackAsync<DrillTrack>("drill:independence") ?? DrillTrack.Start).Step;
         today = TechniqueChoice.Today(Key, plan.ScaleKey, plan.ArpeggioKey, level, pattern, Today);
         choice = await Store.GetTrackAsync<TechniqueChoice>($"technique-choice:{Key}") ?? today;
+        if (routineSession.Item is { } requested) choice = new(new Key(requested.Fifths, requested.Minor), Key == "arpeggios" ? ScaleKind.Arpeggio : requested.Minor ? ScaleKind.HarmonicMinor : ScaleKind.Major, 1, requested.Hands, requested.Step);
         await Build();
     }
 
     private async Task Choose(TechniqueChoice to)
     {
         choice = to;
-        await Store.SaveTrackAsync($"technique-choice:{Key}", to);
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"technique-choice:{Key}", to);
         await Build();
     }
 
@@ -222,13 +224,14 @@ else if (outcome?.Wait is not null)
         mei = MeiWriter.Write(item.Score, 72);
         music = new PlayMusic(item.Score, item.Score.Expected());
         state = await Store.GetTrackAsync<TechniqueState>(StateKey) ?? TechniqueState.New;
+        if (routineSession?.Item is { } requested) state = state with { Tempo = requested.Tempo };
         (result, outcome, comfortable) = (null, null, null);
     }
 
     private async Task SetTempo(double bpm)
     {
         state = state with { Tempo = bpm, Started = state.Started ?? Today };
-        await Store.SaveTrackAsync(StateKey, state);
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync(StateKey, state);
     }
 
     private Task Starting()
@@ -237,10 +240,15 @@ else if (outcome?.Wait is not null)
         return Task.CompletedTask;
     }
 
+    private void PracticeStarting() => routineSession?.Start();
+
+    private Task StopRoutine() => player?.StopAndSaveAsync() ?? Task.CompletedTask;
+
     private async Task Finished(PlayOutcome how)
     {
         (playing, outcome) = (false, how);
         if (item is null) return;
+        if (how.InTime is null && how.Wait is not { Notes: > 0 }) return;
 
         runs++;
         if (how.Mode == PlayMode.WaitForMe)
@@ -253,17 +261,26 @@ else if (outcome?.Wait is not null)
             {
                 comfortable = 60_000 / (gapMs * item.NotesPerBeat);
                 state = state.Comfortable(comfortable.Value, Today);
-                await Store.SaveTrackAsync(StateKey, state);
+                if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync(StateKey, state);
+            }
+            if (routineSession?.Execution is not null)
+            {
+                var waited = how.Wait!;
+                var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "arpeggios" ? "arpeggio" : Key == "scales" ? "scale" : "independence", "wait", item.Id, null, null, null,
+                    System.Text.Json.JsonSerializer.Serialize(new { key = choice.Key.Name, hands = choice.Hands.ToString() }), "[]", null,
+                    System.Text.Json.JsonSerializer.Serialize(new { rightFirstTime = waited.RightFirstTime, notes = waited.Notes, wrongKeys = waited.WrongKeys, apart = waited.Apart, stopped = how.Stopped }),
+                    waited.Notes == 0 ? null : waited.RightFirstTime / (double)waited.Notes, waited.Finished && waited.WrongKeys == 0 && waited.Apart == 0, null);
+                await routineSession.RecordAsync(attempt, how.Stopped ? 0 : 1);
             }
         }
         else
         {
             await Scored(item, how.Played);
         }
-        await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
+        if (routineSession?.IsRoutine != true) await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
         started = DateTime.Now;
         // From Today the step is the scale and then the arpeggio: it's done with the arpeggio's runs, not the scale's.
-        if (runs >= 3 && !(From == "today" && Key == "scales")) await Store.MarkStepAsync(Today, StepKind.Technique);
+        if (routineSession?.IsRoutine != true && runs >= 3 && !(From == "today" && Key == "scales")) await Store.MarkStepAsync(Today, StepKind.Technique);
     }
 
     // In time: evenness from the keys played, each note marked as the scorer lined it up (replacing the play bar's marks), and
@@ -289,8 +306,11 @@ else if (outcome?.Wait is not null)
         await (sheet?.ShowMarks(marks) ?? Task.CompletedTask);
         var sd = handRuns.Where(r => r.Valid).Select(r => r.IoiSdPercent).DefaultIfEmpty(0).Max();
         var tempo = Tempo;
-        state = state.After(result.Valid, result.Valid ? sd : null, Today);
-        await Store.SaveTrackAsync(StateKey, state);
+        if (routineSession?.IsRoutine != true)
+        {
+            state = state.After(result.Valid, result.Valid ? sd : null, Today);
+            await Store.SaveTrackAsync(StateKey, state);
+        }
         var measures = new
         {
             valid = result.Valid,
@@ -300,7 +320,10 @@ else if (outcome?.Wait is not null)
             item = run.Id,
             hands = choice.Hands.ToString(),
         };
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "independence" ? "independence" : Key == "arpeggios" ? "arpeggio" : "scale", choice.Hands.ToString(), run.Id, level, tempo, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Valid ? sd : null, result.Valid, null));
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "independence" ? "independence" : Key == "arpeggios" ? "arpeggio" : "scale", choice.Hands.ToString(), run.Id, level, tempo, null,
+            System.Text.Json.JsonSerializer.Serialize(new { key = choice.Key.Name, hands = choice.Hands.ToString() }), "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Valid ? sd : null, result.Valid, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, outcome?.Stopped == true ? 0 : 1);
+        else await Store.AddAttemptAsync(attempt);
     }
 
     private IEnumerable<string> Words()
