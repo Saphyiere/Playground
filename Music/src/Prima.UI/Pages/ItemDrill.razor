@@ -150,7 +150,7 @@ else
             _ => [],
         };
         loading = false;
-        ShowItem();
+        await ShowItem();
     }
 
     // The clefs Settings has the note drills read.
@@ -198,15 +198,21 @@ else
         }
     }
 
-    private void ShowItem()
+    private async Task ShowItem()
     {
         if (index >= items.Count) return;
 
         var item = items[index].Item;
+        var before = mei;
         mei = MeiWriter.Write(item.Score);
         lock (heard) heard.Clear();
         (waiting, feedback) = (false, null);
         Registry.DrillAnswer = right => right ? item.Answer : [.. item.Answer.Select(step => (IReadOnlyList<int>)[.. step.Select(m => m + 1)])];
+        // The same music as before (a key asked for twice running, or the item come back to): the sheet has nothing new to draw, so it
+        // won't say it's painted. The last answer's marks come off it, and the item is listened for from now.
+        if (mei != before) return;
+        if (sheet is not null) await sheet.ClearMarks();
+        (shownNs, waiting) = (Clock.NowNs, true);
     }
 
     private void Shown(long at) => (shownNs, waiting) = (at, true);
@@ -316,7 +322,7 @@ else
         if (disposed) return;
         index++;
         if (index >= items.Count) await FinishSet();
-        ShowItem();
+        await ShowItem();
         StateHasChanged();
     }
 
@@ -368,13 +374,7 @@ else
         return Task.CompletedTask;
     }
 
-    private async Task ResumeRoutine()
-    {
-        if (index >= items.Count) return;
-        ShowItem();
-        if (sheet is not null) await sheet.ClearMarks();
-        (shownNs, waiting) = (Clock.NowNs, true);
-    }
+    private Task ResumeRoutine() => ShowItem();
 
     private async Task Looked(bool yes)
     {

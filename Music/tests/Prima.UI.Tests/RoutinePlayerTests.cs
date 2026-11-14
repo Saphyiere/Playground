@@ -172,6 +172,37 @@ public class RoutinePlayerTests
         view.WaitForElement(".drill-feedback.right");
     }
 
+    [Fact]
+    public async Task AQuizItemTheSameAsTheOneBeforeIsListenedForAndMovesOn()
+    {
+        await using var host = new PlayerHost();
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+        var view = host.Context.Render<ItemDrill>(p => p.Add(c => c.Key, "geography"));
+        view.WaitForAssertion(() => Assert.NotNull(registry.DrillAnswer));
+        // Keyboard geography's first step asks for one of five keys, so most sets ask for a key twice running. Each item is played
+        // right, and the sheet says it's painted only when its music changes, as in the browser: the same music isn't drawn again.
+        var (anotherSet, itemReadout, painted) = ("[data-piano='go']", ".reading-bar .mu-readout-value", "");
+        for (var played = 0; played < 60; played++)
+        {
+            if (view.FindAll(anotherSet).Count > 0)
+            {
+                await view.Find(anotherSet).ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+                painted = "";
+            }
+            var sheet = view.FindComponent<Sheet>().Instance;
+            var again = sheet.Mei == painted;
+            if (!again) await view.InvokeAsync(() => sheet.OnPainted.InvokeAsync(host.Clock.NowNs));
+            painted = sheet.Mei;
+            var item = view.Find(itemReadout).TextContent;
+            host.Clock.NowNs += 100_000_000;
+            host.Keyboard.Emit(new MidiEvent(MidiKind.NoteOn, 1, registry.DrillAnswer!(true)[0][0], 80, host.Clock.NowNs));
+            var stuck = $"Item {item}, played right, didn't move on{(again ? ": the same key as the item before" : "")}.";
+            view.WaitForAssertion(() => Assert.True(view.FindAll(anotherSet).Count > 0 || view.Find(itemReadout).TextContent != item, stuck), TimeSpan.FromSeconds(5));
+            if (again) return;
+        }
+        Assert.Fail("No key came twice running in 60 items.");
+    }
+
     private sealed class PlayerHost : IAsyncDisposable
     {
         private readonly string database = Path.Combine(Path.GetTempPath(), $"prima-routine-player-{Guid.NewGuid():N}.db");

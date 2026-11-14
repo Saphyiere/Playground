@@ -1,6 +1,6 @@
 namespace Prima.Tablet;
 
-/// <summary>Holds notification navigation until the app's Blazor view is ready.</summary>
+/// <summary>Holds a screen to open, a notification's or the one Android closed Prima on, until the app's Blazor view is ready.</summary>
 internal static class ConversionNavigation
 {
     internal static string? PendingPath { get; private set; }

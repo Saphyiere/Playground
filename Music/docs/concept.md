@@ -578,11 +578,12 @@ success.
 The drills read from a staff (Notes, Ledger lines, Intervals and shapes, Chords, Key signatures, Keyboard geography) mark each
 answer on it as soon as it's played, as Sight-read's summary does: green right; wrong, the note grey and the key you played
 beside it as a red head, each named above (a single note's name as Settings says); outlined grey missed; and a chord's extra
-keys as red heads beside it, named. The words under the staff name the same notes: "Off: note 2, E5 for F5", "The shape was
-right, from the wrong first note: …", and for a chord "Not quite: F4 for E4" when as many keys were wrong as notes missing, or
-"G4 missing; A4, B4 extra". A set's summary lists the single notes and chords you missed. The drills with steps show the step
-beside the item count, with − and + to choose it: a new set starts at the step chosen, and from there over 90% in two sets in a
-row steps up and under 80% steps back.
+keys as red heads beside it, named. The next item takes the marks off; one asking for the same note as the item before
+(Keyboard geography's first step has only five keys) shows it unmarked, listened for as any other. The words under the staff
+name the same notes: "Off: note 2, E5 for F5", "The shape was right, from the wrong first note: …", and for a chord "Not quite:
+F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4 extra". A set's summary lists the single notes
+and chords you missed. The drills with steps show the step beside the item count, with − and + to choose it: a new set starts at
+the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back.
 
 Notes come back on a spacing schedule: a note answered right but slowly counts as not yet learned, and comes back sooner than a
 fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right;
@@ -761,7 +762,9 @@ details.
   timing, evenness), levels and progress. No UI, all tested.
 - **UI**: the Razor screens.
 - **Tablet**: the Android app: USB MIDI in and out through Android's MIDI API, the click through `AudioTrack`, and the tablet's
-  screen kept on while Prima is open (every screen is read from the music stand; another app sleeps as usual).
+  screen kept on while Prima is open (every screen is read from the music stand; another app sleeps as usual). Should Android
+  close Prima while it's out of sight (it does, to free memory), coming back opens the screen it was on rather than Today, started
+  afresh: a drill begins a new set.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
