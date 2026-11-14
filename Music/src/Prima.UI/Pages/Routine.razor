@@ -129,18 +129,7 @@ else
     private async Task Start(string itemId)
     {
         busy = true;
-        try
-        {
-            var execution = await Routines.BeginExecutionAsync(day!.Id, itemId);
-            var item = execution.Item.Recipe;
-            var route = item.Kind switch
-            {
-                "exercise" => $"exercises/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
-                "drill" => $"drills/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
-                _ => $"routine/play/{execution.Id}",
-            };
-            Nav.NavigateTo(route);
-        }
+        try { Nav.NavigateTo(await Routines.OpenAsync(day!.Id, itemId)); }
         catch (Exception error) { problem = error.Message; }
         finally { busy = false; }
     }

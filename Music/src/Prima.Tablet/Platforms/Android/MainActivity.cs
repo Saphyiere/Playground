@@ -56,4 +56,15 @@ public class MainActivity : MauiAppCompatActivity
             catch (Exception error) { Android.Util.Log.Error("Prima", "Practice checkpoint failed: " + error.Message); }
         });
     }
+
+    // Back in front after OnStop: a routine's activity counts its time again, and goes on where it was.
+    protected override void OnRestart()
+    {
+        base.OnRestart();
+        _ = Task.Run(async () =>
+        {
+            try { await IPlatformApplication.Current!.Services.GetRequiredService<Prima.UI.Host.PracticeLifecycle>().ResumeAsync(); }
+            catch (Exception error) { Android.Util.Log.Error("Prima", "Practice resume failed: " + error.Message); }
+        });
+    }
 }

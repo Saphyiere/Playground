@@ -66,7 +66,7 @@
 </section>
 
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
-<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || runs < TechniqueState.RunsPerSet)" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished">
+<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || runs < TechniqueState.RunsPerSet)" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
     <Readouts>
         <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     </Readouts>

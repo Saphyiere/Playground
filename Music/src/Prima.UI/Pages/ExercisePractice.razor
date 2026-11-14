@@ -64,7 +64,7 @@ else
             }
 
             <div class="exercise-music">
-                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" />
+                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" />
 
                 <div class="sheet-frame">
                     <Sheet @ref="sheet" Mei="@mei" />

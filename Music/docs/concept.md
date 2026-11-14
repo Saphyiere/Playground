@@ -229,7 +229,9 @@ a PDF plays out; this is what came of it.
   then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a
   run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to
   its start): it's the same go, moved, so what was played before it isn't judged or kept as a run of its own, and its time
-  carries on. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  carries on. The bar stays as it plays all the while, never showing Start for a moment between: Wait for me waits at the bar
+  tapped at once, and In time counts in to it. The piece's Options, What's this and Print can't be opened while a run plays,
+  and look off then. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as

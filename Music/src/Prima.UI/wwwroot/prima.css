@@ -723,6 +723,15 @@ body {
     min-width: 112px;
 }
 
+/* An activity's time left in the routine's bar: figures that keep their width as they count down, in the accent once it's up. */
+.routine-time {
+    font-variant-numeric: tabular-nums;
+}
+
+.routine-time[data-over] {
+    color: var(--accent);
+}
+
 .routine-history summary {
     cursor: pointer;
     margin-bottom: var(--space-4);
@@ -3664,6 +3673,13 @@ html[data-full] .bar-strip {
 
 .piece-tool[aria-pressed="true"] {
     color: var(--accent);
+}
+
+/* While a run plays, options, What's this and the print can't be opened, so they look off, as a key with nothing to start does. */
+.piece-tool:disabled {
+    opacity: 0.45;
+    box-shadow: none;
+    cursor: default;
 }
 
 /* The options in place of the music: the same space, the music kept drawn beneath, hidden. */

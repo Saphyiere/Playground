@@ -23,9 +23,15 @@ are kept separate from timed playing. The model chooses existing activities or r
 excerpts, jumps, chord shapes and changes, accompaniment, rhythm reductions and coordination sequences. Imported MIDI hand
 assignments need confirmation. Exercises retain their source edition when the library score changes.
 
-Each activity saves its own daily progress. Leaving practice pauses it, and tomorrow starts fresh progress on the same routine.
-Completing practice does not require perfect accuracy. Feedback and comparable results can suggest changes, which are reviewed
-before acceptance; the app does not request a new model routine automatically.
+Each activity's bar counts down its minutes: the time on it, played or not (a run stopped to read the music counts too). The
+clock stops only while the activity is left or Prima is put away, and carries on when Prima is back in front. Once the time is
+up the bar says so and Next stands out, without stopping you. **Next**, or **Skip**, goes straight to the next activity not done
+yet, and back to the routine after the last. Where an activity has a play bar, a run played to its end starts again by itself
+until you press Stop: each run is kept, and the bar counts the runs and shows how the last went, up or down on the one before.
+
+Each activity saves its own daily progress, and tomorrow starts fresh progress on the same routine. Completing practice does
+not require perfect accuracy. Feedback (**Too easy**, **About right**, **Too hard**) and comparable results can suggest changes,
+which are reviewed before acceptance; the app does not request a new model routine automatically.
 
 Routine generation continues in Android’s foreground service when the screen is left or locked, with a completion notification
 when permitted. Only Cancel requests cancellation. If Android terminates execution, the saved request shows an interruption;

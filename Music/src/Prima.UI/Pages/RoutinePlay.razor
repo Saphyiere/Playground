@@ -23,7 +23,7 @@ else if (music is not null && session?.Item is { } item)
     @if (item.TargetId == "rhythm") { <p class="section-note">Tap this rhythm on any key. The pitch is not judged.</p> }
     <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
                Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
-               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" />
+               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" />
     <div class="sheet-frame"><Sheet @ref="sheet" Mei="@mei" /></div>
     @if (outcome is not null)
     {

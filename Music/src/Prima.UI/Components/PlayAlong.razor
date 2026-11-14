@@ -27,7 +27,7 @@
     @Readouts
     @* In portrait a piece's bar puts its run's controls on a row of their own, under its figures and keys. *@
     <span class="play-bar-break" aria-hidden="true"></span>
-    @if (Running)
+    @if (Running || moving)
     {
         @if (Mode == PlayMode.InTime || listening)
         {
@@ -41,18 +41,19 @@
         @* Round a loop, the time round being played, and (unless it's not wanted) as each begins how the one before went, up or
            down on the one before that: In time the share right in time, Wait for me the notes right first time. Nothing stops for
            it, and nothing moves: it's in the bar. A loop that waits after each pass counts on from its passes before this run,
-           those played in this mode. *@
-        @if (loop is not null && !listening)
+           those played in this mode. Runs going again by themselves (Again) are counted the same, once one has been played. *@
+        var earlier = EarlierPasses.Where(p => (p.RightInTime is null) == (Mode == PlayMode.WaitForMe));
+        List<PiecePass>? all = listening ? null : loop is not null ? [.. earlier, .. passes] : runs.Count > 0 ? runs : null;
+        @if (all is not null)
         {
-            List<PiecePass> all = [.. EarlierPasses.Where(p => (p.RightInTime is null) == (Mode == PlayMode.WaitForMe)), .. passes];
-            <div class="mu-readout"><span class="mu-readout-label">Pass</span><span class="mu-readout-value">@(all.Count + 1)</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">@(loop is not null ? "Pass" : "Run")</span><span class="mu-readout-value">@(all.Count + 1)</span></div>
             @if (all.Count > 0 && ShowPassFigure)
             {
                 var (done, before) = (all[^1], all.Count > 1 ? all[^2] : null);
                 var (now, then) = done.RightInTime is { } share ? (share, before?.RightInTime) : (done.Right, before?.Right);
                 var way = then is null || then == now ? "" : now > then ? " ↑" : " ↓";
                 var low = done.RightInTime is { } inTime ? inTime < 0.8 : done.Right < done.Notes * 0.9;
-                <div class="mu-readout @(low ? "miss" : "")"><span class="mu-readout-label">Last pass</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
+                <div class="mu-readout @(low ? "miss" : "")"><span class="mu-readout-label">@(loop is not null ? "Last pass" : "Last run")</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
             }
         }
         @if (OnBack.HasDelegate)
@@ -177,6 +178,12 @@
     /// <summary>Round a loop, the last pass's figure in the bar beside the pass being played.</summary>
     [Parameter] public bool ShowPassFigure { get; set; } = true;
 
+    /// <summary>
+    /// Round and round, as a routine's activity is: a run played to its end is kept and starts again by itself (In time after its
+    /// count-in) until Stop, and the bar counts the runs and says how the last went, up or down on the one before.
+    /// </summary>
+    [Parameter] public bool Again { get; set; }
+
     /// <summary>Round a loop that waits after each pass (a run a pass), the passes before this run's, for the pass count and the last figure.</summary>
     [Parameter] public IReadOnlyList<PiecePass> EarlierPasses { get; set; } = [];
 
@@ -203,6 +210,8 @@
     public bool Listening => listening && Running;
 
     private PlaySession? session;
+    // A run moving to another bar (Restart): the bar stays as it plays, not showing Start and the mode for the moment in between.
+    private bool moving;
     private PlayOutcome? last;
     private WaitJudge? wait;
     private PlayMusic? playing;
@@ -223,6 +232,9 @@
     private long passFrom;
     private long passTicks;
     private readonly List<PiecePass> passes = [];
+    // Going again by itself (Again): each run played to its end since Start, as a pass, for the run count and the last figure.
+    private readonly List<PiecePass> runs = [];
+    private bool disposed;
     // Wait for me's marks as the last pass played to its end left them, for the summary.
     private List<SheetMark> passMarks = [];
     // In time: whether the run goes anywhere at a tempo other than the one set (where its score marks another).
@@ -308,11 +320,16 @@
     public async Task Restart(PlayMusic with)
     {
         var listen = Listening;
-        session?.Stop();
-        savedCompletion?.TrySetResult();
-        if (wait is not null) Registry.DrillAnswer = null;
-        wait = null;
-        await Run(with, listen);
+        moving = true;
+        try
+        {
+            session?.Stop();
+            savedCompletion?.TrySetResult();
+            if (wait is not null) Registry.DrillAnswer = null;
+            wait = null;
+            await Run(with, listen);
+        }
+        finally { moving = false; }
     }
 
     private async Task ListenNeeds()
@@ -325,7 +342,7 @@
         listenNeeds = null;
     }
 
-    private async Task Run(PlayMusic? with, bool listen)
+    private async Task Run(PlayMusic? with, bool listen, bool again = false)
     {
         if (Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return;
         if (!listen && Keyboard.Name is null)
@@ -334,6 +351,8 @@
             return;
         }
 
+        // Runs going round count from the one started by hand.
+        if (!again) runs.Clear();
         tempoOpen = false;
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
@@ -390,6 +409,7 @@
             {
                 try { await Ended(run); completion.TrySetResult(); }
                 catch (Exception error) { completion.TrySetException(error); throw; }
+                if (run == session) await Round(music);
             }
             else StateHasChanged();
         });
@@ -648,6 +668,17 @@
         StateHasChanged();
         try { await OnFinished.InvokeAsync(last); completion?.TrySetResult(); }
         catch (Exception error) { completion?.TrySetException(error); throw; }
+        if (playing is { } music) await Round(music);
+    }
+
+    // A run played to its end where the bar goes round (Again): counted, and started again. Stop is the way out; leaving ends it.
+    private async Task Round(PlayMusic music)
+    {
+        if (disposed || !Again || last is not { Stopped: false } run) return;
+
+        if (run.InTime is { } timed) runs.Add(new PiecePass(timed.Right, timed.Expected, timed.InTimeAccuracy));
+        else if (run.Wait is { } waited) runs.Add(new PiecePass(waited.RightFirstTime, waited.Notes, null));
+        await Run(music, listen: false, again: true);
     }
 
     private async Task Draw(IReadOnlyList<LiveMark> marks)
@@ -679,6 +710,7 @@
 
     public void Dispose()
     {
+        disposed = true;
         Keyboard.Received -= Heard;
         Keyboard.Changed -= Plugged;
         if (wait is not null) Registry.DrillAnswer = null;

@@ -233,6 +233,19 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
     public async Task<RoutineDay?> TodayAsync(DateOnly? day = null) { await recovered; return await store.GetOrCreateRoutineDayAsync(day ?? DateOnly.FromDateTime(DateTime.Now)); }
     public Task<RoutineDay?> GetDayAsync(string id) => store.GetRoutineDayAsync(id);
     public Task<RoutineExecution> BeginExecutionAsync(string dayId, string itemId) => store.BeginRoutineExecutionAsync(dayId, itemId);
+
+    /// <summary>Begins an activity of the day, or takes it up again, and gives the address of the screen it's practised on.</summary>
+    public async Task<string> OpenAsync(string dayId, string itemId)
+    {
+        var execution = await BeginExecutionAsync(dayId, itemId);
+        var item = execution.Item.Recipe;
+        return item.Kind switch
+        {
+            "exercise" => $"exercises/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
+            "drill" => $"drills/{Uri.EscapeDataString(item.TargetId)}?execution={execution.Id}",
+            _ => $"routine/play/{execution.Id}",
+        };
+    }
     public Task<RoutineExecution?> GetExecutionAsync(string id) => store.GetRoutineExecutionAsync(id);
     public Task<long> RecordAttemptAsync(string executionId, string submissionId, AttemptRecord attempt, double activeSeconds, int completedPasses = 0) =>
         store.RecordRoutineAttemptAsync(executionId, submissionId, attempt, activeSeconds, completedPasses);

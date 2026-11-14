@@ -64,21 +64,23 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
     return Results.Text(scenario);
 });
 
-// A routine of one drill, accepted as if planned (the stand-in Claude can't plan one), begun today with a minute's practice on it,
-// so its bar asks how the activity felt: the drill's address in the routine, to open it as from the routine's page.
-app.MapGet("/seed/routine/{drill}", async (string drill, PrimaStore store) =>
+// A routine of its activities, comma-separated (a drill's key, or "exercise:" and an exercise's id, in Wait for me), accepted as if
+// planned (the stand-in Claude can't plan one), its first begun today with "spent" seconds on it (60 unless said), so its bar asks
+// how it felt: that first activity's address in the routine, to open it as from the routine's page.
+app.MapGet("/seed/routine/{activities}", async (string activities, int? spent, PrimaStore store, RoutineService routines) =>
 {
-    var title = DrillCatalog.Find(drill)?.Name ?? drill;
-    var item = new RoutineItem { Id = drill, Kind = "drill", TargetId = drill, Title = title, Purpose = "Warm up", Minutes = 4, Hands = HandUse.Together };
-    var (request, draft) = (new RoutineRequest(10, "Reading"), new RoutineDraft("Reading", "A reading warm-up", [item]));
+    RoutineItem[] items = [.. activities.Split(',').Select(a => a.StartsWith("exercise:")
+        ? new RoutineItem { Id = a[9..], TargetId = a[9..], Title = Exercises.Find(a[9..])?.Name ?? a, Purpose = "Warm up", Minutes = 2, Hands = HandUse.Right, Mode = "wait" }
+        : new RoutineItem { Id = a, Kind = "drill", TargetId = a, Title = DrillCatalog.Find(a)?.Name ?? a, Purpose = "Warm up", Minutes = 2, Hands = HandUse.Together })];
+    var (request, draft) = (new RoutineRequest(10, "Reading"), new RoutineDraft("Reading", "A reading warm-up", items));
     var (id, now, prepared) = (Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, RoutineCompiler.Prepare(draft, request));
     var job = new RoutineGenerationJob(id, 0, RoutineGenerationState.Ready, now, request, new(now, []), null, "preview", "preview", draft, prepared);
     await store.CreateRoutineJobAsync(job);
     await store.AcceptRoutineAsync(job.Id);
     var day = await store.GetOrCreateRoutineDayAsync(DateOnly.FromDateTime(DateTime.Now));
-    var execution = await store.BeginRoutineExecutionAsync(day!.Id, item.Id);
-    await store.CheckpointRoutineExecutionAsync(execution.Id, 60);
-    return Results.Text($"drills/{drill}?execution={execution.Id}");
+    var address = await routines.OpenAsync(day!.Id, items[0].Id);
+    await store.CheckpointRoutineExecutionAsync(address[(address.IndexOf("execution=") + 10)..], spent ?? 60);
+    return Results.Text(address);
 });
 
 // The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.

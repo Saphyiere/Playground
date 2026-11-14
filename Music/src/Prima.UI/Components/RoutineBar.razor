@@ -1,6 +1,8 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject PracticeLifecycle Lifecycle
+@inject RoutineService Routines
+@using Prima.UI.Routines
 
 @if (Session?.IsRoutine == true)
 {
@@ -12,9 +14,12 @@
         }
         else if (Session.Item is { } item)
         {
-            <span class="control-note">@item.Title · @item.Minutes min</span>
-            <button type="button" class="mu-btn" data-piano="off" disabled="@saving" @onclick="() => Complete(false)">Done for now</button>
-            <button type="button" class="mu-btn" data-piano="off" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
+            @* The time on the activity, played or not, counting down from its minutes; once it's up, Next stands out. Next and Skip go
+               straight on to the next activity not done yet, and back to the routine after the last. *@
+            var left = item.Minutes * 60 - (int)Session.Seconds;
+            <span class="control-note">@item.Title · <span class="routine-time" data-over="@(left <= 0 ? "true" : null)">@(left > 0 ? $"{left / 60}:{left % 60:00} left" : "time's up")</span></span>
+            <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {next.Title}")</button>
+            <button type="button" class="mu-btn" data-piano="off" data-action="routine-skip" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
         }
         <a class="mu-btn" data-piano="off" href="routine">Back to routine</a>
         @if (paused && OnResume.HasDelegate)
@@ -40,9 +45,46 @@
     private bool paused;
     private string? problem;
     private readonly SemaphoreSlim pauseLane = new(1);
+    // The activity after this one not done yet, in the routine's order and round to its start, and the execution it was found for.
+    private Prima.Core.Routines.RoutineItem? next;
+    private string? nextFor;
+    private Timer? ticker;
 
-    protected override void OnInitialized() => Lifecycle.Pausing += Sleep;
+    protected override void OnInitialized()
+    {
+        Lifecycle.Pausing += Sleep;
+        Lifecycle.Resuming += Wake;
+        // The time left counts down a second at a time while the clock counts.
+        ticker = new Timer(_ => { if (Session?.Counting == true) _ = InvokeAsync(StateHasChanged); }, null, 1000, 1000);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Session?.Execution is not { } execution || execution.Id == nextFor) return;
+
+        // Another activity (Next can open it on this same screen): not paused, and the next after it.
+        (nextFor, paused, next) = (execution.Id, false, null);
+        var definition = await Routines.GetDefinitionAsync(execution.Revision);
+        var day = await Routines.GetDayAsync(execution.DayId);
+        if (definition is null || day is null) return;
+        var order = definition.Items.Select(i => i.Recipe).ToList();
+        var at = order.FindIndex(i => i.Id == execution.ItemId);
+        var open = day.Items.Where(p => p.State is not (RoutineItemState.Done or RoutineItemState.Skipped)).Select(p => p.ItemId).ToHashSet();
+        next = order.Skip(at + 1).Concat(order.Take(at)).FirstOrDefault(i => open.Contains(i.Id));
+    }
+
     private Task Sleep() => Session?.IsRoutine != true ? Task.CompletedTask : InvokeAsync(async () => { try { await Pause(); } catch (Exception error) { problem = error.Message; } StateHasChanged(); });
+
+    // Prima in front again on the activity: after the pause it went into as Prima was put away, it goes on, its clock counting.
+    private Task Wake() => Session?.IsRoutine != true ? Task.CompletedTask : InvokeAsync(async () =>
+    {
+        await pauseLane.WaitAsync();
+        try { if (paused) await Resume(); }
+        catch (Exception error) { problem = error.Message; }
+        finally { pauseLane.Release(); }
+        StateHasChanged();
+    });
+
     private async Task Leaving(LocationChangingContext context)
     {
         try { await Pause(); }
@@ -61,21 +103,32 @@
         finally { pauseLane.Release(); }
     }
 
-    private async Task Resume() { await OnResume.InvokeAsync(); paused = false; }
+    private async Task Resume()
+    {
+        await OnResume.InvokeAsync();
+        Session?.Resume();
+        paused = false;
+    }
 
     private async Task Complete(bool skipped)
     {
-        if (saving || Session is null) return;
+        if (saving || Session?.Execution is not { } execution) return;
         saving = true;
         try
         {
             await Pause();
             await Session.CompleteAsync(skipped);
-            Nav.NavigateTo("routine");
+            // On to the next activity not done yet; after the last, back to the routine.
+            Nav.NavigateTo(next is null ? "routine" : await Routines.OpenAsync(execution.DayId, next.Id));
         }
         catch (Exception error) { problem = error.Message; }
         finally { saving = false; }
     }
 
-    public void Dispose() => Lifecycle.Pausing -= Sleep;
+    public void Dispose()
+    {
+        Lifecycle.Pausing -= Sleep;
+        Lifecycle.Resuming -= Wake;
+        ticker?.Dispose();
+    }
 }
