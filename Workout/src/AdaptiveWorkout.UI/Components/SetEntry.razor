@@ -1,7 +1,7 @@
 @inject WorkoutFlow Flow
 @inject AppSettings Settings
 @* One stopped set on the rest screen: the exercise's name, then weight × reps and Hit goal on a line, pre-filled, and under them how
-   many more reps it had in it, if I say. Every change is saved as it's made, so there's nothing to confirm. The three dots open
+   many more reps it had in it, if I say. Every change is saved as it's made, so there's nothing to confirm. The ⋯ button opens
    what's rarely needed: Warm-up (a lighter set to get ready: it has no goal or reps left, and isn't one of the exercise's sets),
    Assisted (the weight is help, kept as a minus), and the way to every set of today. *@
 
@@ -25,7 +25,7 @@
             {
                 <span class="pen-note lift-note">Next time: @SetSummary.WeightText(weight + Settings.HitGoalStep) @unit</span>
             }
-            <button type="button" class="icon-btn plain lift-dots" aria-expanded="@(open ? "true" : "false")" aria-label="@($"More for this set of {exercise.Name}")" @onclick="() => open = !open">
+            <button type="button" class="icon-btn" aria-expanded="@(open ? "true" : "false")" aria-label="@($"More for this set of {exercise.Name}")" @onclick="() => open = !open">
                 <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="M6 12H6.05M12 12H12.05M18 12H18.05" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path></svg>
             </button>
         </span>

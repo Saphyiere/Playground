@@ -88,19 +88,9 @@
     flex-direction: column;
 }
 
-/* The exercise's name over its line; at the far end, what a tick did, and three dots for what's rarely needed. */
+/* The exercise's name over its line; at the far end, what a tick did, and the ⋯ button for what's rarely needed. */
 .lift-head {
     min-height: 28px;
-}
-
-/* The dots keep their 44px to tap, but take only the name's height. */
-.lift-dots {
-    margin: -8px -11px -8px 0;
-    color: var(--ink-muted);
-}
-
-.lift-dots[aria-expanded="true"] {
-    color: var(--ink);
 }
 
 .lift-note {
@@ -1103,18 +1093,7 @@ button.set-line:active {
     flex: none;
 }
 
-/* In a rest, how far heart rate has fallen since the set stopped, and where it stopped on the last minute's line. */
-.heart-drop {
-    font-family: var(--font-label);
-    font-size: 12px;
-    line-height: 16px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--channel, var(--mark));
-}
-
+/* In a rest, where the set stopped on the last minute's line. */
 .ruler .stop-mark {
     stroke: var(--channel, var(--mark));
     stroke-width: 1;

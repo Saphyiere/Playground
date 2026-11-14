@@ -1,9 +1,8 @@
 @implements IDisposable
 @inject WatchLink Watch
 @inject WorkoutFlow Flow
-@inject WorkoutStore Store
-@* Live heart rate from the watch, and in a rest how far it's fallen since the set stopped. Without a recent reading, it offers to open
-   the watch app again. *@
+@* Live heart rate from the watch; in Telemetry with its last minute, and in a rest where the set stopped on it. Without a recent
+   reading, it offers to open the watch app again. *@
 @if (Watch.Connected && Watch.Latest is { } latest && Theme == Theme.Telemetry)
 {
     @* The heart channel: its tag and number, and the last minute as a line over a ruler of 5-second ticks. *@
@@ -11,7 +10,6 @@
     var (low, high) = (minute.Min(r => r.Bpm) - 2, minute.Max(r => r.Bpm) + 2);
     double X(HeartRateSample r) => 0.5 + (60 - (latest.At - r.At).TotalSeconds) * 149 / 60;
     double Y(HeartRateSample r) => 2 + (high - r.Bpm) * 22.0 / (high - low);
-    var fall = Fall();
     <div class="spread heart-rate">
         <div class="row-text">
             <p class="inline">
@@ -21,10 +19,6 @@
                     <span class="unit">bpm</span>
                 </span>
             </p>
-            @if (fall is { } f)
-            {
-                <span class="heart-drop channel-heart">@DropText(f)</span>
-            }
         </div>
         <svg class="ruler trace-60 channel-heart" viewBox="0 0 150 40" role="img" aria-label="@($"Heart rate over the last minute, from {minute[0].Bpm} to {latest.Bpm}")">
             <RulerTicks Width="150" Bottom="40" Steps="12" MajorEvery="3" />
@@ -51,10 +45,6 @@ else if (Watch.Connected && Watch.Latest is { } reading)
             <span class="number sm">@reading.Bpm</span>
             <span class="unit">bpm</span>
         </span>
-        @if (Fall() is { } fall)
-        {
-            <span class="pen-note">@DropText(fall)</span>
-        }
     </p>
 }
 else
@@ -73,39 +63,8 @@ else
 
     [CascadingParameter] public Theme Theme { get; set; } = Theme.Logbook;
 
-    /// <summary>In a rest: when the set stopped, to say how far heart rate has fallen since. Empty during a set.</summary>
+    /// <summary>In a rest: when the set stopped, marked on Telemetry's last minute. Empty during a set.</summary>
     [Parameter] public DateTimeOffset? AfterSet { get; set; }
-
-    // The peak around the stop, kept once its seconds are past: the watch link holds two minutes of readings, and a rest can be longer.
-    private HeartRateSample? peak;
-    private DateTimeOffset? peakFor;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (AfterSet is not { } stop || peakFor == stop) return;
-
-        (peak, peakFor) = (null, null);
-        if (DateTimeOffset.Now - stop <= HeartRateRecovery.AroundStop || Watch.Recent.Any(r => r.At <= stop - HeartRateRecovery.AroundStop)) return;
-
-        // Opened again after the readings around the stop left the watch link: they're in the store.
-        peak = HeartRateRecovery.Peak(await Store.GetHeartRateAsync(stop - HeartRateRecovery.AroundStop, stop + HeartRateRecovery.AroundStop), stop, DateTimeOffset.Now);
-        peakFor = stop;
-    }
-
-    // How far heart rate has fallen since the set stopped, from the watch link's readings (and the peak kept, for a long rest).
-    private HeartRateFall? Fall()
-    {
-        if (AfterSet is not { } stop) return null;
-
-        var readings = Watch.Recent;
-        if (peakFor != stop && DateTimeOffset.Now - stop > HeartRateRecovery.AroundStop && HeartRateRecovery.Peak(readings, stop, DateTimeOffset.Now) is { } found)
-            (peak, peakFor) = (found, stop);
-        return HeartRateRecovery.Since(peak is not null && peakFor == stop ? [peak, .. readings] : readings, stop, DateTimeOffset.Now);
-    }
-
-    // "Down 34 since the set", or while it's still climbing, "Up 4 since the set": this rest only, never set against another workout.
-    // Telemetry's readout drops the article, to stay on its one line beside the last minute's ruler.
-    private string DropText(HeartRateFall fall) => $"{(fall.Drop >= 0 ? "Down" : "Up")} {Math.Abs(fall.Drop)} since {(Theme == Theme.Telemetry ? "set" : "the set")}";
 
     protected override void OnInitialized()
     {

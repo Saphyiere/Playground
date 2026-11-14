@@ -6,7 +6,7 @@ small change, **M** a Core piece and a screen or two, **L** several screens, a d
 
 | # | Part | Where you'll see it | Size | Claude |
 | --- | --- | --- | --- | --- |
-| 1 | Heart rate drop on the rest screen (**built**) | The rest screen | S | Feeds the look back |
+| 1 | Heart rate drop on the rest screen (**built**, then taken off the screen: the look back still reads it) | The rest screen | S | Feeds the look back |
 | 2 | How many more could you have done? (**built**) | Each set's entry | S | Feeds the look back |
 | 3 | Plateau check (**built**) | Next on the rest screen, an exercise's Stats, the look back | M | Feeds the look back |
 | 4 | Maintenance from the scale (**built**) | Calories | M | No |
@@ -37,6 +37,9 @@ no study gives a number to wait for, and resting until heart rate reaches a targ
 what happened, and the countdown stays the rest.
 
 **Only the phone can show** real readings: it needs the watch.
+
+**Taken off the rest screen** in 1.0.4, as you asked: the live heart rate stays, without the words. Each set still keeps its
+first minute's fall, for the look back.
 
 ## 2. How many more could you have done? (S)
 
