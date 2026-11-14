@@ -241,10 +241,13 @@ public static class MidiNotation
                 }
             }
 
+            // The file's tempo, as the piece's own: on the first bar, and only the first (a file's later tempos can be a whole
+            // performance's give and take, which a click shouldn't follow).
             built.Add(new Bar(b + 1, voices)
             {
                 NewKey = b > 0 && KeyAt(bars[b - 1].Start) != key ? key : null,
                 NewMeter = b > 0 && bars[b - 1].Meter != meter ? meter : null,
+                Tempos = b == 0 && midi.MarkedTempo is { } tempo and >= 20 and <= 300 ? [(0, tempo)] : [],
             });
         }
 

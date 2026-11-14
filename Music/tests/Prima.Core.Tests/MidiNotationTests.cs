@@ -257,4 +257,28 @@ public class MidiNotationTests
     {
         Assert.Throws<FormatException>(() => MidiNotation.Read(File(480, [Meter(4, 2)]), "Empty"));
     }
+
+    [Fact]
+    public void TheFilesTempoIsThePiecesOwnAndKeptUnprintedInItsNotation()
+    {
+        // 600,000 µs a quarter: 100 a minute.
+        (long Tick, byte[] Event) tempo = (0, [0xFF, 0x51, 3, 0x09, 0x27, 0xC0]);
+        var score = MidiNotation.Read(File(480, [Meter(4, 2), tempo, .. Notes((60, 0, 480), (62, 480, 960))]), "Tempo");
+
+        Assert.Equal([(0, 100.0)], score.Bars[0].Tempos);
+        Assert.Equal(100, score.MainTempo());
+        // Written as notation and read back, as a piece is kept: the tempo stays, and nothing of it is printed.
+        var mei = MeiWriter.Write(score);
+        Assert.Equal(100, MeiReader.Read(mei).MainTempo());
+        Assert.Equal("", System.Xml.Linq.XDocument.Parse(mei).Descendants(System.Xml.Linq.XName.Get("tempo", "http://www.music-encoding.org/ns/mei")).Single().Value);
+    }
+
+    [Fact]
+    public void AFileThatSetsNoTempoGivesThePieceNone()
+    {
+        var score = MidiNotation.Read(File(480, [Meter(4, 2), .. Notes((60, 0, 480))]), "No tempo");
+
+        Assert.Null(score.MainTempo());
+        Assert.Null(MeiReader.Read(MeiWriter.Write(score)).MainTempo());
+    }
 }

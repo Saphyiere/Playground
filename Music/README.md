@@ -239,6 +239,8 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
 - A minuet you know, **Wait for me** and then **In time**: does the cursor wait for the right keys, keep up with the click, and
   scroll the next line into view in time?
 - In portrait, a PDF's half-page turns, and **Scroll at the tempo**: is a line at a time the right pace?
+- In Practice, the play key before the tempo starts the metronome: does it keep time as you play along, and do its settings
+  (the metronome key beside Options) change where it's heard and how it sounds straight away?
 - Whether 7 mm staves read comfortably from the music stand (Settings → Notation changes the size).
 - With Claude's key on, a PDF's **Convert to notation** toolbar button: are the systems boxed right on the page, does the reading finish
   in about the time it says, and does each system's reading match its print? Keep it, play it, and press **Print** for the PDF.

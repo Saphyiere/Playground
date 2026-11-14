@@ -5,6 +5,7 @@
 @inject IClock Clock
 @inject Click Click
 @inject SessionRegistry Registry
+@inject PracticeLifecycle Lifecycle
 @using Prima.Core.Practice
 @using Prima.Core.Scoring
 
@@ -29,7 +30,7 @@
     <span class="play-bar-break" aria-hidden="true"></span>
     @if (Running || moving)
     {
-        @if (Mode == PlayMode.InTime || listening)
+        @if (Mode == PlayMode.InTime || listening || Metronome)
         {
             <div class="mu-readout"><span class="mu-readout-label">@(listening ? "Listening" : "Tempo")</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
@@ -73,6 +74,42 @@
         {
             <div class="mu-readout play-result @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
         }
+        @* The tempo as its figure; tapped, its − and + and a field to type it, under it. With a metronome it's shown whatever the
+           mode, since the metronome goes at it: after the metronome's key and before the mode, with the music's own tempo beside it
+           once it's been changed, to go back to. *@
+        RenderFragment tempoPick = @<div class="play-tempo-pick">
+            <button type="button" class="mu-readout play-tempo-figure" aria-expanded="@On(tempoOpen)" aria-label="@($"Tempo {Tempo:0}: change it")" @onclick="() => tempoOpen = !tempoOpen">
+                <span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span>
+            </button>
+            @if (tempoOpen)
+            {
+                <div class="tempo-pop" role="dialog" aria-label="Tempo">
+                    <input class="text-field tempo-entry" type="number" min="20" max="240" step="1" inputmode="numeric" aria-label="Tempo, to type" value="@Tempo.ToString("0", CultureInfo.InvariantCulture)" @onchange="TypedTempo" />
+                    <TempoControl Value="Tempo" ValueChanged="TempoChanged" Figure="false" />
+                    <button type="button" class="mu-btn" @onclick="() => tempoOpen = false">Done</button>
+                </div>
+            }
+        </div>;
+        @if (Metronome)
+        {
+            <button type="button" class="play-metronome" data-piano="off" aria-pressed="@On(ticking is not null)" aria-label="@(ticking is null ? "Start the metronome" : "Pause the metronome")" @onclick="ToggleMetronome">
+                @if (ticking is null)
+                {
+                    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor" /></svg>
+                }
+                else
+                {
+                    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M5.5 4H8.5V16H5.5ZM11.5 4H14.5V16H11.5Z" fill="currentColor" /></svg>
+                }
+            </button>
+            @tempoPick
+            @if (OriginalTempo is { } original && Math.Round(original) != Math.Round(Tempo))
+            {
+                <button type="button" class="mu-readout play-tempo-original" data-piano="off" aria-label="@($"Back to the music's own tempo, {original:0}")" @onclick="() => TempoChanged.InvokeAsync(Math.Round(original))">
+                    <span class="mu-readout-label">Original</span><span class="mu-readout-value">@original.ToString("0", CultureInfo.InvariantCulture)</span>
+                </button>
+            }
+        }
         @if (ShowMode)
         {
             <div class="play-mode" role="radiogroup" aria-label="How it follows you">
@@ -80,22 +117,9 @@
                 <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for me</button>
             </div>
         }
-        @if (Mode == PlayMode.InTime)
+        @if (!Metronome && Mode == PlayMode.InTime)
         {
-            @* The tempo as its figure; tapped, its − and + and a field to type it, under it. *@
-            <div class="play-tempo-pick">
-                <button type="button" class="mu-readout play-tempo-figure" aria-expanded="@On(tempoOpen)" aria-label="@($"Tempo {Tempo:0}: change it")" @onclick="() => tempoOpen = !tempoOpen">
-                    <span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span>
-                </button>
-                @if (tempoOpen)
-                {
-                    <div class="tempo-pop" role="dialog" aria-label="Tempo">
-                        <input class="text-field tempo-entry" type="number" min="20" max="240" step="1" inputmode="numeric" aria-label="Tempo, to type" value="@Tempo.ToString("0", CultureInfo.InvariantCulture)" @onchange="TypedTempo" />
-                        <TempoControl Value="Tempo" ValueChanged="TempoChanged" Figure="false" />
-                        <button type="button" class="mu-btn" @onclick="() => tempoOpen = false">Done</button>
-                    </div>
-                }
-            </div>
+            @tempoPick
         }
         @if (ShowStart)
         {
@@ -184,6 +208,16 @@
     /// </summary>
     [Parameter] public bool Again { get; set; }
 
+    /// <summary>
+    /// A metronome on the bar (a piece's): its key, before the tempo, starts and stops a click at the tempo, accented on each bar's
+    /// first beat by the music's metre where it starts, with nothing judged, to play to as you like. The tempo shows then in either
+    /// mode. A run, leaving, or Prima put away stops it.
+    /// </summary>
+    [Parameter] public bool Metronome { get; set; }
+
+    /// <summary>The music's own tempo, in the tempo's beats a minute: beside the tempo once it's been changed, a tap going back to it.</summary>
+    [Parameter] public double? OriginalTempo { get; set; }
+
     /// <summary>Round a loop that waits after each pass (a run a pass), the passes before this run's, for the pass count and the last figure.</summary>
     [Parameter] public IReadOnlyList<PiecePass> EarlierPasses { get; set; } = [];
 
@@ -212,6 +246,9 @@
     private PlaySession? session;
     // A run moving to another bar (Restart): the bar stays as it plays, not showing Start and the mode for the moment in between.
     private bool moving;
+    // The metronome going, and what it was started with (the tempo, beats a bar, and where and how the click's heard), so a change
+    // to any of them starts it again with the change.
+    private (double Tempo, int Beats, bool OnPiano, ClickSoundKind Sound, int Volume)? ticking;
     private PlayOutcome? last;
     private WaitJudge? wait;
     private PlayMusic? playing;
@@ -266,6 +303,7 @@
     {
         Keyboard.Received += Heard;
         Keyboard.Changed += Plugged;
+        Lifecycle.Pausing += Hush;
         kept = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
         (asked, Mode) = (Ask, Ask ?? kept.Value);
         await ModeChanged.InvokeAsync(Mode);
@@ -273,6 +311,8 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // The metronome going at what's asked of it: a new tempo, start bar's metre, or click starts it again with it.
+        if (ticking is { } going && Music is { } music && going != (Tempo, OpeningMeter(music).Beats, Settings.ClickOnPiano, Settings.ClickSound, Settings.ClickVolume)) Tick();
         if (kept is not { } own || Ask == asked) return;
 
         (asked, Mode) = (Ask, Ask ?? own);
@@ -280,6 +320,44 @@
     }
 
     private Task StartPressed() => Keyboard.Name is null ? StartNeeds() : OnStart.HasDelegate ? OnStart.InvokeAsync() : Start();
+
+    private void ToggleMetronome()
+    {
+        if (ticking is null) Tick();
+        else StopMetronome();
+    }
+
+    // The metronome clicking at the tempo, by the metre where the music starts: from a downbeat, with nothing counted in.
+    private void Tick()
+    {
+        if (Music is not { } music) return;
+
+        var beats = OpeningMeter(music).Beats;
+        Click.Start(new ClickPlan(Tempo, beats, 0, ClickStage.Throughout));
+        ticking = (Tempo, beats, Settings.ClickOnPiano, Settings.ClickSound, Settings.ClickVolume);
+    }
+
+    private void StopMetronome()
+    {
+        if (ticking is null) return;
+
+        Click.Stop();
+        ticking = null;
+    }
+
+    // Prima put away: the metronome stops, as a run does.
+    private Task Hush() => InvokeAsync(() =>
+    {
+        StopMetronome();
+        StateHasChanged();
+    });
+
+    // The metre in force where the music starts (its start bar's): what a run's count-in counts, and the metronome's bar.
+    private static Meter OpeningMeter(PlayMusic music)
+    {
+        var bars = music.Score.BarTimes(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)]);
+        return music.Score.WithSignatures().ElementAt(bars.First(b => b.Start >= music.FromTick).Index).Meter;
+    }
 
     // The piano plugged in or out: Start and Listen look as they can be used.
     private void Plugged() => _ = InvokeAsync(StateHasChanged);
@@ -351,8 +429,9 @@
             return;
         }
 
-        // Runs going round count from the one started by hand.
+        // Runs going round count from the one started by hand. A run has the click to itself (In time's, or none).
         if (!again) runs.Clear();
+        StopMetronome();
         tempoOpen = false;
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
@@ -711,6 +790,8 @@
     public void Dispose()
     {
         disposed = true;
+        StopMetronome();
+        Lifecycle.Pausing -= Hush;
         Keyboard.Received -= Heard;
         Keyboard.Changed -= Plugged;
         if (wait is not null) Registry.DrillAnswer = null;

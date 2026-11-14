@@ -187,9 +187,10 @@ a PDF plays out; this is what came of it.
 - **A piece** opens on its front: its music, About this piece under it, and on its bar its level and two big keys,
   **Practice** and **Play** ([practice.md](practice.md) has the design). Only a tap presses them, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
-  read opens on its pages, as below.) In Practice the bar ends with two keys: **Options**, which shows the piece's options in
-  place of the music (the view, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
-  where to start; a PDF's tempo and bars) until it's pressed again, and **Full screen**, which leaves only the bar and the
+  read opens on its pages, as below.) In Practice its tools come first on the bar, after the level: **?** (What's this,
+  below), **Options**, which shows the piece's options in place of the music (the view, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
+  where to start; a PDF's tempo and bars) until it's pressed again, the **metronome**'s settings (below), and **Full
+  screen**, which leaves only the bar and the
   music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
   A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practising
   the Standard way) with the run's summary there instead; while a run plays the music has that space too. About this piece
@@ -209,7 +210,13 @@ a PDF plays out; this is what came of it.
   (the first bar too; a scroll is never a tap), with a tab over it saying where the run starts, **Loop**, and **Clear**. Clear
   removes the selected start or loop and its highlight, returning the next run to the beginning without changing the visible
   page or scroll position. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
-  keys over the run's controls, Play at the end. A
+  keys over the run's controls, Play at the end. After the tools, a small play key starts **the metronome**: a click at the
+  tempo, each bar's first beat accented by the metre where the music starts, with nothing judged, to play to however you
+  like; while it goes it's a pause key, and a new tempo carries it on at that. So the tempo shows after it in either mode.
+  A run, or Listen, has the click to itself, so starting one stops the metronome; leaving the piece or putting Prima away
+  stops it too. Its key among the tools opens its settings under it: where it's heard (Tablet or Piano), its sound (Wood or
+  Beep) and how loud, which are Settings' click's. Where the piece marks a tempo of its own (the one it goes at most, or a
+  MIDI file's) and the tempo has been set to another, **Original** shows that one beside it, quieter: a tap goes back to it. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
@@ -230,7 +237,7 @@ a PDF plays out; this is what came of it.
   run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to
   its start): it's the same go, moved, so what was played before it isn't judged or kept as a run of its own, and its time
   carries on. The bar stays as it plays all the while, never showing Start for a moment between: Wait for me waits at the bar
-  tapped at once, and In time counts in to it. The piece's Options, What's this and Print can't be opened while a run plays,
+  tapped at once, and In time counts in to it. The piece's Options, What's this, the metronome's settings and Print can't be opened while a run plays,
   and look off then. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
@@ -359,7 +366,7 @@ a PDF plays out; this is what came of it.
   the Library with a line saying what came in and what couldn't. A MIDI file is written out as notation first, since it holds
   when notes sound, not how they're written: the hands from its tracks (or middle C), the bars from its time signatures, the
   key from its signature or its notes, each beat snapped to sixteenths, thirty-seconds or triplets, a hand's held notes as a
-  second voice, ties across beats and barlines. Notation software lets each note go a little before its written end (a file
+  second voice, ties across beats and barlines, and its first tempo kept, unprinted, as the piece's own. Notation software lets each note go a little before its written end (a file
   from MuseScore holds each for 95% of its length), so where a file's notes stop a little short of the next, each is written
   at its full length: a half note is a half note, not a dotted quarter tied to a scrap with a rest after it. A staccato note
   stays as short as it sounds, with its rest, and a written rest stays. One exported from notation software comes out close to

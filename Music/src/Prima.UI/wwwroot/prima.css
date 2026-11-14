@@ -3682,6 +3682,97 @@ html[data-full] .bar-strip {
     cursor: default;
 }
 
+/* Practice's bar on a piece: its tools at its start, beside the level; the metronome's key, the tempo (and the piece's own, once
+   it's been changed), the mode and the run's keys at its end. In portrait the metronome's key starts the run's row. */
+.play-bar.piece-bar:not(.play-strip) .piece-actions {
+    margin-left: 0;
+}
+
+.play-bar.piece-bar .play-metronome {
+    margin-left: auto;
+}
+
+.play-bar.piece-bar .play-metronome ~ .play-mode {
+    margin-left: 0;
+}
+
+@media (orientation: portrait) {
+    .play-bar.piece-bar .play-metronome {
+        margin-left: 0;
+    }
+}
+
+/* The metronome's key: a play mark to start it, a pause mark lit while it goes; as quiet as the tempo's figure beside it. */
+.play-metronome {
+    width: 40px;
+    height: 44px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--mu-r-control);
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.play-metronome[aria-pressed="true"] {
+    color: var(--accent);
+    background: var(--meter-off);
+}
+
+/* The piece's own tempo beside the one set, once that's been changed: a quieter figure, a tap going back to it. */
+.play-tempo-original {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: var(--mu-r-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+/* The metronome's settings under its key, from the key's left edge: each choice a row, its name, its keys, the two as wide. */
+.piece-tool-pick {
+    position: relative;
+    display: inline-flex;
+}
+
+.tempo-pop.metronome-pop {
+    left: 0;
+    transform: none;
+    width: max-content;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 10px 12px;
+    color: var(--on-screen);
+}
+
+.metronome-label {
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--on-screen-muted);
+}
+
+.metronome-pop .control-range {
+    width: 140px;
+}
+
+.metronome-pop > .mu-btn {
+    grid-column: 3;
+    justify-self: end;
+}
+
 /* The options in place of the music: the same space, the music kept drawn beneath, hidden. */
 .piece-stage {
     position: relative;

@@ -98,6 +98,15 @@ public static class MeiWriter
                 }
 
                 foreach (var mark in score.Marks.Where(m => barOf.GetValueOrDefault(m.StartId, -1) == bar.Number)) WriteMark(xml, mark, staffOf.GetValueOrDefault(mark.StartId, 1));
+                // Its tempos (a MIDI file's own), unprinted, for what it goes at: each at its beat, as MeiReader reads them back.
+                foreach (var (start, perMinute) in bar.Tempos)
+                {
+                    xml.WriteStartElement("tempo", Ns);
+                    xml.WriteAttributeString("tstamp", (1 + start * meter.Unit / (double)Ticks.Whole).ToString("0.###", CultureInfo.InvariantCulture));
+                    xml.WriteAttributeString("staff", "1");
+                    xml.WriteAttributeString("midi.bpm", perMinute.ToString("0.###", CultureInfo.InvariantCulture));
+                    xml.WriteEndElement();
+                }
                 xml.WriteEndElement();
             }
 

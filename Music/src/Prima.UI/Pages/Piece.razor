@@ -55,6 +55,31 @@ else
                 <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(options)" disabled="@playing" @onclick="ToggleOptions">
                     <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
                 </button>
+                @* The metronome's settings, under its key (the notation's bar has the metronome): the click's (Settings › Click's), where
+                   it's heard, its sound and how loud. *@
+                @if (!Pdf)
+                {
+                <span class="piece-tool-pick">
+                    <button type="button" class="mu-btn piece-tool" aria-label="Metronome" aria-expanded="@On(metronomeOpen)" disabled="@playing" @onclick="() => metronomeOpen = !metronomeOpen">
+                        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M5.5 17.5L8 3H12L14.5 17.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><path d="M10 14L14.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="13.1" cy="8.4" r="1.6" fill="currentColor" /></svg>
+                    </button>
+                    @if (metronomeOpen && !playing)
+                    {
+                        <div class="tempo-pop metronome-pop" role="dialog" aria-label="The metronome">
+                            <span class="metronome-label">Heard on</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = true)"><span class="mu-led"></span>Piano</button>
+                            <span class="metronome-label">Sound</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Wood)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Wood)"><span class="mu-led"></span>Wood</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Beep)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Beep)"><span class="mu-led"></span>Beep</button>
+                            <span class="metronome-label">Volume</span>
+                            <input type="range" class="control-range" min="10" max="100" step="5" value="@Settings.ClickVolume" aria-label="Click volume" @onchange="e => SaveClick(() => Settings.ClickVolume = int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+                            <span class="metronome-value">@Settings.ClickVolume%</span>
+                            <button type="button" class="mu-btn" @onclick="() => metronomeOpen = false">Done</button>
+                        </div>
+                    }
+                </span>
+                }
                 <button type="button" class="mu-btn piece-tool" aria-label="@(fullScreen ? "Leave full screen" : "Full screen")" aria-pressed="@On(fullScreen)" @onclick="ToggleFullScreen">
                     <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="@(fullScreen ? "M8 3v5H3M17 8h-5V3M12 17v-5h5M3 12h5v5" : "M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5")" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 </button>
@@ -127,7 +152,8 @@ else
         else
         {
             <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="@(Settings.AfterRun != "nothing")" ShowPassFigure="Settings.PassFigure"
-                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened">
+                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
+                       Metronome="true" OriginalTempo="originalTempo">
                 <Readouts>
                     @if (clock is not null)
                     {
@@ -518,6 +544,9 @@ else
     // other hand.
     private PlayAlong? play;
     private bool options;
+    // The metronome's settings open under its key; and the piece's own tempo, to go back to (none when its score marks none).
+    private bool metronomeOpen;
+    private double? originalTempo;
     private bool fullScreen;
     private ErrorBoundary? readingBoundary;
     private int? loopTo;
@@ -594,6 +623,10 @@ else
                 // Read away from the screen's thread: a long piece takes a moment.
                 score = await Task.Run(() => MeiReader.Read(text));
                 expected = score.Expected();
+                // The piece's own tempo, as its score marks it (an imported MIDI file's, or a PDF's MIDI's), in its first metre's beats
+                // as the tempo is (♩. in 6/8).
+                var opening = score.WithSignatures().First().Meter;
+                originalTempo = (score.MainTempo() ?? midi?.MarkedTempo) is { } quarters ? Math.Round(quarters * Ticks.Quarter / opening.BeatTicks) : null;
                 // A bar number met again (a second ending, say) keeps its first place.
                 barStarts = score.BarStarts().GroupBy(b => b.Bar.Number).ToDictionary(g => g.Key, g => g.First().Start);
                 twoHands = expected.Select(n => n.Staff).Distinct().Order().SequenceEqual([1, 2]);
@@ -858,6 +891,13 @@ else
         fullScreen = !fullScreen;
         if (turns is not null) await turns.InvokeVoidAsync("fullScreen", fullScreen);
         SystemBars.Show(!fullScreen);
+    }
+
+    // The click's settings (Settings › Click's) changed on the metronome's popover: kept, and a metronome going starts again with them.
+    private Task SaveClick(Action change)
+    {
+        change();
+        return Store.SaveAsync(Settings);
     }
 
     private async Task SetTempo(double bpm)

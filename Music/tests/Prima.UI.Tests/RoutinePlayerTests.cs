@@ -183,6 +183,36 @@ public class RoutinePlayerTests
     }
 
     [Fact]
+    public async Task TheMetronomeClicksAtTheTempoByTheMetreUntilARunStarts()
+    {
+        await using var host = new PlayerHost();
+        var score = new Score(new Prima.Core.Music.Key(0), new Meter(3, 4), [new Bar(1, [new Voice(1, [new Notes("n1", 0, Ticks.Quarter * 3, [new Tone("t1", new Spelled(Step.C, 0, 4))])])])]);
+        var sheet = host.Context.Render<Sheet>(p => p.Add(c => c.Mei, MeiWriter.Write(score)));
+        var click = host.Context.Services.GetRequiredService<Click>();
+        double? asked = null;
+        var view = host.Context.Render<PlayAlong>(p => p.Add(c => c.Name, "metronome-test").Add(c => c.Music, new PlayMusic(score, score.Expected()))
+            .Add(c => c.SheetOf, () => sheet.Instance).Add(c => c.Tempo, 90).Add(c => c.Ask, PlayMode.WaitForMe).Add(c => c.Metronome, true)
+            .Add(c => c.OriginalTempo, 100).Add(c => c.TempoChanged, bpm => asked = bpm));
+        view.WaitForAssertion(() => Assert.Equal(PlayMode.WaitForMe, view.Instance.Mode));
+        // The tempo shows in Wait for me too, with the music's own beside it once it's been changed: a tap asks to go back to it.
+        Assert.NotNull(view.Find(".play-tempo-figure"));
+        await view.Find(".play-tempo-original").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Equal(100, asked);
+        // Its key: a click at the tempo, three a bar as the music's metre, nothing counted in.
+        await view.Find(".play-metronome").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.True(click.Running);
+        Assert.Equal((90.0, 3, 0), (click.Plan!.Bpm, click.Plan.BeatsPerBar, click.Plan.CountInBars));
+        // A new tempo starts it again at that.
+        view.Render(p => p.Add(c => c.Tempo, 100));
+        Assert.Equal(100, click.Plan!.Bpm);
+        // A run has the click to itself: the metronome stops, and stays stopped after it.
+        await view.InvokeAsync(() => view.Instance.Start());
+        Assert.False(click.Running);
+        await view.InvokeAsync(view.Instance.Stop);
+        Assert.Equal("false", view.Find(".play-metronome").GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
     public async Task ListeningDoesNotStartPracticeAccounting()
     {
         await using var host = new PlayerHost();

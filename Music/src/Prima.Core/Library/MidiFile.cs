@@ -29,6 +29,9 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
     /// <summary>The tracks' names, by track, where they have them: the first track's is the file's own, often the piece's title.</summary>
     public IReadOnlyList<(int Track, string Name)> Names { get; init; } = [];
 
+    /// <summary>The tempo the file sets first, in quarter notes a minute; null when it sets none (it's played at 120 then).</summary>
+    public double? MarkedTempo { get; init; }
+
     public static MidiFile Read(ReadOnlySpan<byte> data)
     {
         if (data.Length < 14 || !data[..4].SequenceEqual("MThd"u8)) throw new FormatException("Not a MIDI file.");
@@ -132,6 +135,7 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
             Meters = [.. meters.OrderBy(m => m.Tick)],
             Keys = [.. keys.OrderBy(k => k.Tick)],
             Names = names,
+            MarkedTempo = tempos.Count > 0 ? 60_000_000.0 / tempos[0].MicrosPerQuarter : null,
         };
     }
 
