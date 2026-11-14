@@ -38,7 +38,7 @@ what happened, and the countdown stays the rest.
 
 **Only the phone can show** real readings: it needs the watch.
 
-**Taken off the rest screen** in 1.0.4, as you asked: the live heart rate stays, without the words. Each set still keeps its
+**Taken off the rest screen** in 1.0.11, as you asked: the live heart rate stays, without the words. Each set still keeps its
 first minute's fall, for the look back.
 
 ## 2. How many more could you have done? (S)
