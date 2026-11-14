@@ -203,6 +203,24 @@ public class RoutinePlayerTests
         Assert.Fail("No key came twice running in 60 items.");
     }
 
+    [Fact]
+    public async Task HowAnActivityFeltIsSavedAndItsKeyLightsUp()
+    {
+        await using var host = new PlayerHost();
+        var service = host.Context.Services.GetRequiredService<RoutineService>();
+        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var execution = await host.AddRoutineAsync(item);
+        // A minute played on it already, so its bar asks how it felt.
+        await service.CheckpointAsync(execution.Id, 60);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo($"drills/{item.TargetId}?execution={execution.Id}");
+        var view = host.Context.Render<ItemDrill>(p => p.Add(c => c.Key, item.TargetId));
+        await view.WaitForElement("[data-feedback='hard']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        view.WaitForAssertion(() => Assert.Equal("true", view.Find("[data-feedback='hard']").GetAttribute("aria-pressed")));
+        Assert.Equal("hard", (await service.GetExecutionAsync(execution.Id))!.Feedback);
+        // A toggle shows it's on by its lamp, lit in Studio and a dot in Vinyl: without one, Studio shows no change at all.
+        Assert.All(view.FindAll("[data-feedback]"), key => Assert.Contains(key.Children, c => c.ClassList.Contains("mu-led")));
+    }
+
     private sealed class PlayerHost : IAsyncDisposable
     {
         private readonly string database = Path.Combine(Path.GetTempPath(), $"prima-routine-player-{Guid.NewGuid():N}.db");

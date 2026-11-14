@@ -9,11 +9,13 @@ using Prima.Core.Generation;
 using Prima.Core.Keyboard;
 using Prima.Core.Music;
 using Prima.Core.Practice;
+using Prima.Core.Routines;
 using Prima.Preview;
 using Prima.Preview.Components;
 using Prima.UI;
 using Prima.UI.Host;
 using Prima.UI.Practice;
+using Prima.UI.Routines;
 using Prima.UI.Storage;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
@@ -60,6 +62,23 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
     await store.LoadAsync(settings);
     await Seeds.Fill(scenario, store, settings);
     return Results.Text(scenario);
+});
+
+// A routine of one drill, accepted as if planned (the stand-in Claude can't plan one), begun today with a minute's practice on it,
+// so its bar asks how the activity felt: the drill's address in the routine, to open it as from the routine's page.
+app.MapGet("/seed/routine/{drill}", async (string drill, PrimaStore store) =>
+{
+    var title = DrillCatalog.Find(drill)?.Name ?? drill;
+    var item = new RoutineItem { Id = drill, Kind = "drill", TargetId = drill, Title = title, Purpose = "Warm up", Minutes = 4, Hands = HandUse.Together };
+    var (request, draft) = (new RoutineRequest(10, "Reading"), new RoutineDraft("Reading", "A reading warm-up", [item]));
+    var (id, now, prepared) = (Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, RoutineCompiler.Prepare(draft, request));
+    var job = new RoutineGenerationJob(id, 0, RoutineGenerationState.Ready, now, request, new(now, []), null, "preview", "preview", draft, prepared);
+    await store.CreateRoutineJobAsync(job);
+    await store.AcceptRoutineAsync(job.Id);
+    var day = await store.GetOrCreateRoutineDayAsync(DateOnly.FromDateTime(DateTime.Now));
+    var execution = await store.BeginRoutineExecutionAsync(day!.Id, item.Id);
+    await store.CheckpointRoutineExecutionAsync(execution.Id, 60);
+    return Results.Text($"drills/{drill}?execution={execution.Id}");
 });
 
 // The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.

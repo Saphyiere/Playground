@@ -25,7 +25,7 @@
         {
             @foreach (var (value, label) in new[] { ("easy", "Too easy"), ("right", "About right"), ("hard", "Too hard") })
             {
-                <button class="mu-toggle" type="button" data-piano="off" data-feedback="@value" aria-pressed="@(execution.Feedback == value ? "true" : "false")" @onclick="() => Session.FeedbackAsync(value)">@label</button>
+                <button class="mu-toggle" type="button" data-piano="off" data-feedback="@value" aria-pressed="@(execution.Feedback == value ? "true" : "false")" @onclick="() => Session.FeedbackAsync(value)"><span class="mu-led"></span>@label</button>
             }
         }
     </div>
