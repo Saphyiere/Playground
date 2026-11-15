@@ -9,4 +9,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--
+    The devices' key: every app is signed with it, so any build installs over the copy on a device as an update and keeps its
+    data. It's the PC's .NET for Android debug key, the one Visual Studio has always signed with, and the GitHub releases are
+    signed with it too (tools/release/README.md). Directory.Build.targets signs every app with it; here is where it's kept (where
+    .NET for Android keeps its debug key, on any computer) and its certificate's SHA-256, which the install guard
+    (tools/build/InstallGuard.targets) names when a device's copy has another.
+  -->
+  <PropertyGroup>
+    <PlaygroundSigningKeyStore Condition="'$(PlaygroundSigningKeyStore)' == ''">$([MSBuild]::NormalizePath($([System.Environment]::GetFolderPath(SpecialFolder.LocalApplicationData)), 'Xamarin', 'Mono for Android', 'debug.keystore'))</PlaygroundSigningKeyStore>
+    <PlaygroundSigningSha256>c22578f9e77d3b4c1bae27db455535dce8aff61aa8ca9337429c336ceae07148</PlaygroundSigningSha256>
+    <!-- Signing given on a build's command line, as the Release workflow gives it, is used as given. -->
+    <PlaygroundSigningGiven Condition="'$(AndroidKeyStore)$(AndroidSigningKeyStore)' != ''">true</PlaygroundSigningGiven>
+
+    <!-- An app file (.apk), as the Release workflow builds, rather than an app bundle (.aab), a Release build's default: before
+         installing a bundle on a device, .NET for Android uninstalls the app, which erases its data. -->
+    <AndroidPackageFormats Condition="'$(AndroidPackageFormats)' == ''">apk</AndroidPackageFormats>
+  </PropertyGroup>
+
 </Project>
