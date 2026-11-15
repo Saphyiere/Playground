@@ -69,22 +69,22 @@ public static class DailyPlan
     public static string? GoGradually(int newMinutes, double lastWeekDailyAverage) => lastWeekDailyAverage > 0 && newMinutes > lastWeekDailyAverage * 1.25 ? "That's a big step up from last week. Going up gradually is kinder to your hands." : null;
 }
 
-/// <summary>A practised day: its minutes, and whether the five-minute plan was finished.</summary>
+/// <summary>A practiced day: its minutes, and whether the five-minute plan was finished.</summary>
 public sealed record PracticeDayRecord(DateOnly Day, double Minutes, bool ShortPlanDone);
 
 /// <summary>
-/// The streak and the week, worked out from the practised days: the days practised of the last seven, and the minutes this week,
+/// The streak and the week, worked out from the practiced days: the days practiced of the last seven, and the minutes this week,
 /// from Monday, as You's weeks are.
 /// </summary>
-public sealed record StreakState(int Days, int FreezesBanked, IReadOnlyList<DateOnly> FreezesUsed, int DaysThisWeek, bool WeekKept, double MinutesThisWeek, DateOnly? LastPractised)
+public sealed record StreakState(int Days, int FreezesBanked, IReadOnlyList<DateOnly> FreezesUsed, int DaysThisWeek, bool WeekKept, double MinutesThisWeek, DateOnly? LastPracticed)
 {
-    /// <summary>A break said plainly, never as a failure: "Last practised Tuesday."</summary>
-    public string? BreakNote(DateOnly today) => LastPractised is { } last && last < today.AddDays(-1) ? $"Last practised {last.ToString("dddd", System.Globalization.CultureInfo.InvariantCulture)}. Today's plan is ready." : null;
+    /// <summary>A break said plainly, never as a failure: "Last practiced Tuesday."</summary>
+    public string? BreakNote(DateOnly today) => LastPracticed is { } last && last < today.AddDays(-1) ? $"Last practiced {last.ToString("dddd", System.Globalization.CultureInfo.InvariantCulture)}. Today's plan is ready." : null;
 }
 
 /// <summary>
-/// The repairable streak (plan, The streak and the habit; ours): a practised day has 5 minutes or more, or the five-minute plan
-/// done; a freeze is earned every 7 practised days, up to 2 banked, and used by itself on a missed day; a week is kept at 5 of 7.
+/// The repairable streak (plan, The streak and the habit; ours): a practiced day has 5 minutes or more, or the five-minute plan
+/// done; a freeze is earned every 7 practiced days, up to 2 banked, and used by itself on a missed day; a week is kept at 5 of 7.
 /// </summary>
 public static class Streak
 {
@@ -94,19 +94,19 @@ public static class Streak
 
     public static StreakState Compute(IEnumerable<PracticeDayRecord> days, DateOnly today)
     {
-        var practised = days.Where(d => d.Minutes >= MinutesForADay || d.ShortPlanDone).Select(d => d.Day).ToHashSet();
+        var practiced = days.Where(d => d.Minutes >= MinutesForADay || d.ShortPlanDone).Select(d => d.Day).ToHashSet();
         var all = days.ToList();
         var week = Enumerable.Range(0, 7).Select(i => today.AddDays(-i)).ToList();
         var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
         var minutes = all.Where(d => d.Day >= monday && d.Day <= today).Sum(d => d.Minutes);
-        var daysThisWeek = week.Count(practised.Contains);
-        if (practised.Count == 0) return new StreakState(0, 0, [], daysThisWeek, daysThisWeek >= 5, minutes, null);
+        var daysThisWeek = week.Count(practiced.Contains);
+        if (practiced.Count == 0) return new StreakState(0, 0, [], daysThisWeek, daysThisWeek >= 5, minutes, null);
 
         var (streak, banked, earnedFrom) = (0, 0, 0);
         var used = new List<DateOnly>();
-        for (var day = practised.Min(); day <= today; day = day.AddDays(1))
+        for (var day = practiced.Min(); day <= today; day = day.AddDays(1))
         {
-            if (practised.Contains(day))
+            if (practiced.Contains(day))
             {
                 streak++;
                 earnedFrom++;
@@ -122,6 +122,6 @@ public static class Streak
                 else (streak, earnedFrom) = (0, 0);
             }
         }
-        return new StreakState(streak, banked, used, daysThisWeek, daysThisWeek >= 5, minutes, practised.Max());
+        return new StreakState(streak, banked, used, daysThisWeek, daysThisWeek >= 5, minutes, practiced.Max());
     }
 }

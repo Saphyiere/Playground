@@ -238,7 +238,7 @@ public class RoutinePlayerTests
     public async Task SuspendedQuizResumesTheSameItemAndAcceptsItsAnswer()
     {
         await using var host = new PlayerHost();
-        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practice locations", Hands = HandUse.Together };
         var execution = await host.AddRoutineAsync(item);
         var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo($"drills/{item.TargetId}?execution={execution.Id}");
@@ -295,7 +295,7 @@ public class RoutinePlayerTests
     {
         await using var host = new PlayerHost();
         var service = host.Context.Services.GetRequiredService<RoutineService>();
-        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practice locations", Hands = HandUse.Together };
         var execution = await host.AddRoutineAsync(item);
         // A minute played on it already, so its bar asks how it felt.
         await service.CheckpointAsync(execution.Id, 60);
@@ -313,7 +313,7 @@ public class RoutinePlayerTests
     {
         await using var host = new PlayerHost();
         var service = host.Context.Services.GetRequiredService<RoutineService>();
-        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practice locations", Hands = HandUse.Together };
         var execution = await host.AddRoutineAsync(item);
         var session = new RoutineSession(service);
         Assert.True(await session.LoadAsync(execution.Id, "drill", "geography"));
@@ -343,7 +343,7 @@ public class RoutinePlayerTests
     {
         await using var host = new PlayerHost();
         var service = host.Context.Services.GetRequiredService<RoutineService>();
-        var first = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var first = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practice locations", Hands = HandUse.Together };
         var second = new RoutineItem { Id = "ledger", Kind = "drill", TargetId = "ledger", Title = "Ledger lines", Purpose = "Read high and low", Hands = HandUse.Together };
         var execution = await host.AddRoutineAsync(first, second);
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
@@ -364,7 +364,7 @@ public class RoutinePlayerTests
     {
         await using var host = new PlayerHost();
         var service = host.Context.Services.GetRequiredService<RoutineService>();
-        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practise locations", Hands = HandUse.Together };
+        var item = new RoutineItem { Id = "geography", Kind = "drill", TargetId = "geography", Title = "Find keys", Purpose = "Practice locations", Hands = HandUse.Together };
         var execution = await host.AddRoutineAsync(item);
         // Two minutes and more on it already.
         await service.CheckpointAsync(execution.Id, 125);

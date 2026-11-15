@@ -229,12 +229,21 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
     }
 
     public async Task<RoutineDefinition?> ActiveAsync() { await recovered; return await store.GetActiveRoutineAsync(); }
+
+    /// <summary>Every routine accepted, newest first, the one followed among them.</summary>
+    public async Task<IReadOnlyList<RoutineDefinition>> RoutinesAsync() { await recovered; return await store.GetRoutineDefinitionsAsync(); }
+
+    /// <summary>The last day each routine had an activity practiced, by revision.</summary>
+    public Task<Dictionary<string, DateOnly>> LastPracticedAsync() => store.GetRoutineLastPracticedAsync();
+
+    /// <summary>Follows another accepted routine: Today has it from now on, in place of the one followed before (kept, to follow again).</summary>
+    public async Task FollowAsync(string revision) { await recovered; await store.FollowRoutineAsync(revision); }
     public Task<RoutineDefinition?> GetDefinitionAsync(string revision) => store.GetRoutineDefinitionAsync(revision);
     public async Task<RoutineDay?> TodayAsync(DateOnly? day = null) { await recovered; return await store.GetOrCreateRoutineDayAsync(day ?? DateOnly.FromDateTime(DateTime.Now)); }
     public Task<RoutineDay?> GetDayAsync(string id) => store.GetRoutineDayAsync(id);
     public Task<RoutineExecution> BeginExecutionAsync(string dayId, string itemId) => store.BeginRoutineExecutionAsync(dayId, itemId);
 
-    /// <summary>Begins an activity of the day, or takes it up again, and gives the address of the screen it's practised on.</summary>
+    /// <summary>Begins an activity of the day, or takes it up again, and gives the address of the screen it's practiced on.</summary>
     public async Task<string> OpenAsync(string dayId, string itemId)
     {
         var execution = await BeginExecutionAsync(dayId, itemId);

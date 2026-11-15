@@ -3,6 +3,7 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using Playground.AI.Assist;
 using Prima.Core.Music;
@@ -25,9 +26,14 @@ internal sealed class ComponentHost : IAsyncDisposable
     public ConversionJobs Jobs { get; }
     public PrimaStore Store { get; }
     public string DatabasePath => database;
+    /// <summary>What the components logged as problems, in a file of this test's own.</summary>
+    public ProblemLog Problems { get; } = new(Path.Combine(Path.GetTempPath(), $"prima-ui-{Guid.NewGuid():N}.errors.log"));
 
     public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null)
     {
+        Context.Services.AddSingleton(Problems);
+        Context.Services.AddSingleton<ILoggerFactory>(new KeptLogs(new ProblemLogProvider(Problems)));
+        Context.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
         Context.Services.AddSingleton<IJSRuntime>(js ?? Browser);
         Context.Services.AddSingleton<ISystemBars>(Bars);
         Context.Services.AddSingleton<IClaude>(Claude);
@@ -64,6 +70,21 @@ internal sealed class ComponentHost : IAsyncDisposable
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, ForeignKeys = true }.ToString());
         SqliteConnection.ClearPool(connection);
         File.Delete(database);
+        Problems.Clear();
+    }
+}
+
+/// <summary>Loggers that keep warnings and errors in a problem log, as the hosts' do.</summary>
+internal sealed class KeptLogs(ILoggerProvider provider) : ILoggerFactory
+{
+    public ILogger CreateLogger(string categoryName) => provider.CreateLogger(categoryName);
+
+    public void AddProvider(ILoggerProvider other)
+    {
+    }
+
+    public void Dispose()
+    {
     }
 }
 
@@ -79,6 +100,13 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public List<(ElementReference Element, string? Id)> Outlines { get; } = [];
     public List<ElementReference> ShownPdfs { get; } = [];
     public List<JsonElement> BarChoices { get; } = [];
+    public List<ElementReference> BarStrips { get; } = [];
+    /// <summary>Held, the piece's listening to keys (its last step setting itself up) and full screen wait for it.</summary>
+    public Task? ListenKeysReady { get; set; }
+    public int ListenKeysCalls { get; private set; }
+    public Task? FullScreenReady { get; set; }
+    /// <summary>Held, every script module (turns.js, bars.js, the sheet's) is still loading.</summary>
+    public Task? ImportsReady { get; set; }
     public Exception? CutError { get; set; }
     public int Cuts { get; private set; }
     public Prima.UI.Components.PdfPages.SystemCut[]? CutResult { get; set; }
@@ -92,11 +120,27 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (identifier == "listenKeys") ListenKeysCalls++;
+        if (identifier == "listenKeys" && ListenKeysReady is not null) await ListenKeysReady;
+        if (identifier == "import" && ImportsReady is not null) await ImportsReady;
         if (identifier is "import" or "listenKeys") return (TValue)(object)this;
-        if (identifier == "fullScreen") Fullscreen.Add((bool)args![0]!);
+        if (identifier == "fullScreen")
+        {
+            Fullscreen.Add((bool)args![0]!);
+            // Held once: leaving full screen as the page goes doesn't wait for it.
+            if (FullScreenReady is { } ready)
+            {
+                FullScreenReady = null;
+                await ready;
+            }
+        }
         if (identifier == "outline") Outlines.Add(((ElementReference)args![0]!, (string?)args[1]));
         if (identifier == "show" && args?.Length == 7) ShownPdfs.Add((ElementReference)args[0]!);
-        if (identifier == "show" && args?.Length == 4) BarChoices.Add(JsonSerializer.SerializeToElement(args[3]));
+        if (identifier == "show" && args?.Length == 4)
+        {
+            BarStrips.Add((ElementReference)args[1]!);
+            BarChoices.Add(JsonSerializer.SerializeToElement(args[3]));
+        }
         if (identifier == "cut")
         {
             Cuts++;

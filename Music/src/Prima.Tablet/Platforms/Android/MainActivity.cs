@@ -3,6 +3,7 @@ using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Android.Views;
+using Microsoft.Extensions.Logging;
 
 namespace Prima.Tablet;
 
@@ -53,7 +54,7 @@ public class MainActivity : MauiAppCompatActivity
         _ = Task.Run(async () =>
         {
             try { await IPlatformApplication.Current!.Services.GetRequiredService<Prima.UI.Host.PracticeLifecycle>().PauseAsync(); }
-            catch (Exception error) { Android.Util.Log.Error("Prima", "Practice checkpoint failed: " + error.Message); }
+            catch (Exception error) { Logged(error, "Practice checkpoint failed as Prima was put away"); }
         });
     }
 
@@ -64,7 +65,14 @@ public class MainActivity : MauiAppCompatActivity
         _ = Task.Run(async () =>
         {
             try { await IPlatformApplication.Current!.Services.GetRequiredService<Prima.UI.Host.PracticeLifecycle>().ResumeAsync(); }
-            catch (Exception error) { Android.Util.Log.Error("Prima", "Practice resume failed: " + error.Message); }
+            catch (Exception error) { Logged(error, "Practice couldn't go on as Prima came back"); }
         });
+    }
+
+    // In the problem log (Settings › Problems) and the device log.
+    private static void Logged(Exception error, string what)
+    {
+        try { IPlatformApplication.Current!.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Prima.Tablet.MainActivity").LogError(error, "{What}: {Message}", what, error.Message); }
+        catch (Exception) { Android.Util.Log.Error("Prima", $"{what}: {error}"); }
     }
 }

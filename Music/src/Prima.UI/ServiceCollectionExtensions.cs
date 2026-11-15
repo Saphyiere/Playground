@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Playground.AI.Assist;
 using Playground.Kit;
 using Prima.Core.Transcription;
@@ -17,8 +18,9 @@ public static class ServiceCollectionExtensions
     /// (<see cref="IClick"/>), files (<see cref="IFiles"/>), the Library's bundled music
     /// (<see cref="ILibraryBundle"/>), a <see cref="LookSetting"/> if it has parts of its own to dress for the look, and for Claude its
     /// key store (<see cref="IAssistKeyStore"/>), the <see cref="ClaudeKeyFile"/> a key arrives in, and an <see cref="IClaude"/> of its
-    /// own if it answers without the API. Without them there's no piano, a stopwatch clock, a silent click, no files and no bundle, and
-    /// a key kept in memory, looked for beside the data file.
+    /// own if it answers without the API, and a <see cref="ProblemLog"/> where what goes wrong is kept. Without them there's no piano,
+    /// a stopwatch clock, a silent click, no files and no bundle, a key kept in memory, looked for beside the data file, and the
+    /// problems kept beside the data file too.
     /// </summary>
     public static IServiceCollection AddPrima(this IServiceCollection services, string databasePath)
     {
@@ -42,6 +44,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Transcription.ConversionJobs>();
         services.AddSingleton<Routines.RoutineService>();
         services.TryAddSingleton<IRoutineHost, LocalRoutineHost>();
+        // What goes wrong, kept in errors.log beside the data file unless the host keeps it elsewhere (the tablet: where a PC reaches
+        // it over USB), from every warning or error logged by Prima, the Kit or Blazor.
+        services.TryAddSingleton(new ProblemLog(Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", ProblemLog.FileName)));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ILoggerProvider, ProblemLogProvider>());
         services.AddSingleton<PracticeLifecycle>();
         services.AddSingleton<Click>();
         services.AddSingleton<Practice.SessionRegistry>();

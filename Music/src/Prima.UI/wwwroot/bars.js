@@ -308,7 +308,10 @@ function follow(state) {
 
 // ——— The strip ———
 
+// Only an element on the page: a strip .NET hasn't drawn yet comes as a reference to nothing (not an element, nor null), and is
+// bound once it's there.
 function bindStrip(state, strip) {
+    if (strip != null && !(strip instanceof Element)) return;
     state.strip = strip;
     state.cellsKey = null;
     if (!strip) return;

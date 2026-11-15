@@ -80,7 +80,7 @@ tablet.
   one-line review (picture 2).
 - **The look back** reads at a glance: stretches, passes, first → last, Still hard. **The in-depth review** on a long piece shows
   the 16 worst bars with a strip of the whole piece over them, and tapping a bar shows its music marked (31 ms).
-- **Portrait with full screen in Practice** gives the music 714 of 1280 px with the summary under it. That's how I'd practise on
+- **Portrait with full screen in Practice** gives the music 714 of 1280 px with the summary under it. That's how I'd practice on
   this tablet (picture 4).
 - **Importing a MIDI file of my own** worked first time (once my file was valid). It came out cleanly notated and correctly
   judged.
@@ -114,7 +114,7 @@ tap Practice, start a run, `/keys/perform?right=0.97&spread=15`, then tap Finish
 processor six times in DevTools to feel the tablet.
 
 **On the tablet.** On No. 17 at the tablet's speed I'd expect 4–10 s for each. Practice a bar of Op. 28 No. 17, then tap
-Finish practice and count until Keep practising responds to a tap. Do the same with In-depth review, then Done. If each takes
+Finish practice and count until Keep practicing responds to a tap. Do the same with In-depth review, then Done. If each takes
 seconds and the screen won't respond in between, it's this.
 
 **What I'd change.** The sheet shouldn't draw itself again while it's hidden or about to be shown at the size it had. Either
@@ -171,10 +171,10 @@ the play bar. The goal is two systems of music at all times, three in full scree
 ### 4.5 Friction: Play's quick review can't take you to the bar it names
 
 **What happens.** At the end of a play-through: "97% right in time · 1314 of 1356 notes · look at bar 74", with **Again**,
-**In-depth review** and **Done** (picture 2). To practise bar 74 you go Done → Practice → find 74 on the strip → Loop. That's four
+**In-depth review** and **Done** (picture 2). To practice bar 74 you go Done → Practice → find 74 on the strip → Loop. That's four
 steps, and the bar number has to be remembered on the way. Seen.
 
-**What I'd change.** A fourth key, **Practise bar 74** (or **Loop 73–75**), that opens Practice on that bar with a loop set. The
+**What I'd change.** A fourth key, **Practice bar 74** (or **Loop 73–75**), that opens Practice on that bar with a loop set. The
 in-depth review's bar cells could do the same. That's the bridge between "how did I do" and "now fix it", which is the point of
 having both modes.
 
@@ -192,7 +192,7 @@ Judged from the seat the owner described: "pretend like it's the actual sheet mu
 - **No time on the review.** It knows the minutes; one more number on the line ("4:12") would answer "how long was I playing".
 - Opening Play costs a full redraw (4.1): 6 s at a sixth of the speed, before the strip responds.
 
-**What I'd change, in order:** the 4.1 fix; a "Practise bar N" key; the time on the line; page turns in Play; then, when the
+**What I'd change, in order:** the 4.1 fix; a "Practice bar N" key; the time on the line; page turns in Play; then, when the
 instructor work comes back, Follow me (no click, judged on notes and evenness rather than a metronome).
 
 ### 4.7 Bug (probable): "let go early" on notes no hand can hold
@@ -245,9 +245,9 @@ Library ─▶ Piece (music full height, slim bar: Practice · Play · tempo · 
               ├─ Play ──▶ count-in ─▶ music only, page turns by pedal ─▶ end
               │                                                            │
               │          quick review strip (bottom, one line):            │
-              │          "96% · 1314/1356 · 4:12 · bar 74"  [Practise bar 74] [Review] [Again] [Done]
+              │          "96% · 1314/1356 · 4:12 · bar 74"  [Practice bar 74] [Review] [Again] [Done]
               │                                                            │
-              └─ Practice ◀──────────── Practise bar 74 (loop 73–75 set) ◀─┘
+              └─ Practice ◀──────────── Practice bar 74 (loop 73–75 set) ◀─┘
                     │  clocks in the bar, not the title
                     │  runs and loops; summary in a side column (landscape) or a one-line strip
                     └─ Finish practice ─▶ look back over the music (sheet kept as drawn) ─▶ Done
@@ -256,7 +256,7 @@ Library ─▶ Piece (music full height, slim bar: Practice · Play · tempo · 
 - **Move**: in landscape, the summary to a column beside the music; the clocks and Finish practice into the play bar; the bar
   strip into the play bar too, or hidden until tapped.
 - **Merge**: Play's review and Practice's "look at bar N" into one key that opens Practice on that bar with a loop.
-- **Cut**: the page title in Practice and Play (it's on the bar); About under the music while practising (it's for the front).
+- **Cut**: the page title in Practice and Play (it's on the bar); About under the music while practicing (it's for the front).
 - **Keep**: the front with two keys; the look back; the in-depth review; Simple, Standard and Hands-on.
 - **Never**: draw the music again just because a screen came over it.
 
@@ -267,7 +267,7 @@ Library ─▶ Piece (music full height, slim bar: Practice · Play · tempo · 
 2. **Keep the page alive while a piece is engraved, and keep each orientation's layout** (4.2): draw the first screen first, or
    engrave in a worker.
 3. **Give the music the screen in landscape Practice** (4.4): summary beside it, chrome cut, two systems always.
-4. **"Practise bar N" from Play's quick review and the in-depth review** (4.5), and the time on Play's line.
+4. **"Practice bar N" from Play's quick review and the in-depth review** (4.5), and the time on Play's line.
 5. **Make Pages honest** (4.3): either runs play in pages with page turns, or the layout for runs is ready before Start, so
    the count-in is never late.
 
@@ -387,7 +387,7 @@ Library afterwards; event listeners 22 → 33 over the visits.
 
 | # | Suspect (where) | Evidence | Cost on the tablet (estimate) | How to check on the tablet |
 | --- | --- | --- | --- | --- |
-| 1 | The sheet drawn again when hidden or resized for another screen (`Sheet.razor.js`, the `ResizeObserver` in `render`; `Piece.razor`'s `piece-stage-gone` and full screen) | profiled ×6: 6–8 s each; seen ×1: ~1 s each | 4–10 s frozen at Finish practice, In-depth review, Done, Play, Back | Practise a bar of No. 17, tap Finish practice, then tap Keep practising straight away: count until it responds. The same with In-depth review and Done |
+| 1 | The sheet drawn again when hidden or resized for another screen (`Sheet.razor.js`, the `ResizeObserver` in `render`; `Piece.razor`'s `piece-stage-gone` and full screen) | profiled ×6: 6–8 s each; seen ×1: ~1 s each | 4–10 s frozen at Finish practice, In-depth review, Done, Play, Back | Practice a bar of No. 17, tap Finish practice, then tap Keep practicing straight away: count until it responds. The same with In-depth review and Done |
 | 2 | Whole piece engraved at once on opening and on turning (`Sheet.razor.js` `draw`) | measured on 8 pieces ×1/×4 | 2–7 s per open and per turn on the long pieces | Open No. 17 and count; turn the tablet and count again |
 | 3 | A run in Pages switches to Scroll and waits up to 4 s (`Piece.razor` `Starting`) | seen ×4: 5.3 s + 2.3 s | the count-in starts late, sometimes by seconds | Pages view, tap Play: does the click start at once? |
 | 4 | Live marks and the size of the page during a run (`Sheet.razor.js` `tint`, the page's 15,000–20,000 shapes) | ×6: ~1 stall/s, up to 280 ms | the cursor and marks stutter in dense music | No. 17 In time, Marks as you play on, then off |

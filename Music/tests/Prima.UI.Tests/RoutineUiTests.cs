@@ -38,8 +38,8 @@ public class RoutineUiTests
         var service = host.Context.Services.GetRequiredService<RoutineService>();
         var request = new RoutineRequest(10, "Improve jumps");
         var draft = new RoutineDraft("Practice", "A short routine", [
-            new RoutineItem { Id = "first", TargetId = "octave-jump", Title = "First activity", Purpose = "Practise the landing", Minutes = 3 },
-            new RoutineItem { Id = "second", TargetId = "jump-ladder", Title = "Second activity", Purpose = "Practise distances", Minutes = 2 },
+            new RoutineItem { Id = "first", TargetId = "octave-jump", Title = "First activity", Purpose = "Practice the landing", Minutes = 3 },
+            new RoutineItem { Id = "second", TargetId = "jump-ladder", Title = "Second activity", Purpose = "Practice distances", Minutes = 2 },
         ]);
         var job = new RoutineGenerationJob("proposal", 0, RoutineGenerationState.Ready, DateTimeOffset.UtcNow, request,
             new PracticeEvidenceSnapshot(DateTimeOffset.UtcNow, []), null, "test-provider", "test", draft, RoutineCompiler.Prepare(draft, request));
@@ -101,6 +101,45 @@ public class RoutineUiTests
         view.WaitForAssertion(() => Assert.True(view.FindComponent<PlayAlong>().Instance.RhythmOnly));
         Assert.Equal(execution.Item.Mei, view.FindComponent<Sheet>().Instance.Mei);
         Assert.False(view.FindComponent<PlayAlong>().Instance.ShowMode);
+        Assert.Equal(0, host.Claude.Calls);
+    }
+
+    // Routines Claude wrote before it was asked for American spelling are shown spelled as Prima spells.
+    [Theory]
+    [InlineData("Warm up, then practise the two leaps", "Warm up, then practice the two leaps")]
+    [InlineData("Practised slowly; PRACTISING daily", "Practiced slowly; PRACTICING daily")]
+    [InlineData("Practice what you practice", "Practice what you practice")]
+    [InlineData(null, "")]
+    public void RoutineWordsAreShownInAmericanSpelling(string? written, string shown) => Assert.Equal(shown, RoutineWords.American(written));
+
+    // Routines: the one followed, what's been asked for and isn't a routine yet, and every routine kept, to follow another.
+    [Fact]
+    public async Task RoutinesShowsTheOneFollowedTheRequestsAndEveryRoutineKeptAndFollowsAnother()
+    {
+        await using var host = new ComponentHost();
+        var service = host.Context.Services.GetRequiredService<RoutineService>();
+        await service.RecentAsync();
+        var first = RoutineStoreTests.ReadyJob() with { Draft = new("Landing on A", "Leaps up to A", RoutineStoreTests.ReadyJob().Draft!.Items) };
+        var second = RoutineStoreTests.ReadyJob() with { Draft = new("Scales, slowly", "Even scales", RoutineStoreTests.ReadyJob().Draft!.Items) };
+        var waiting = RoutineStoreTests.ReadyJob() with { Draft = new("Left-hand chords", "Shapes", RoutineStoreTests.ReadyJob().Draft!.Items) };
+        var failed = RoutineStoreTests.ReadyJob() with { State = RoutineGenerationState.Failed, Draft = null, Prepared = null, Problem = "Claude couldn't be asked" };
+        foreach (var job in new[] { first, second, waiting, failed }) await host.Store.CreateRoutineJobAsync(job);
+        var landing = await service.AcceptAsync(first.Id);
+        var scales = await service.AcceptAsync(second.Id);
+
+        var view = host.Context.Render<RoutineLibrary>();
+        view.WaitForElement("[data-state='routine-following']");
+        Assert.Contains("Scales, slowly", view.Find("[data-state='routine-following']").TextContent);
+        Assert.Equal([scales.Revision, landing.Revision], view.FindAll("[data-routine]").Select(r => r.GetAttribute("data-routine")));
+        Assert.Equal("now", view.Find($"[data-routine='{scales.Revision}']").GetAttribute("data-state"));
+        Assert.Equal(["ready", "failed"], view.FindAll("[data-routine-job]").Select(r => r.GetAttribute("data-state")).Order(StringComparer.Ordinal).Reverse());
+        Assert.Contains("Ready to look over", view.Find($"[data-routine-job='{waiting.Id}']").TextContent);
+        Assert.Equal($"routine/jobs/{failed.Id}", view.Find($"[data-routine-job='{failed.Id}']").GetAttribute("href"));
+
+        await view.InvokeAsync(() => view.Find($"[data-routine='{landing.Revision}'] [data-action='routine-follow']").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal("now", view.Find($"[data-routine='{landing.Revision}']").GetAttribute("data-state")));
+        Assert.Contains("Landing on A", view.Find("[data-state='routine-following']").TextContent);
+        Assert.Equal(landing.Revision, (await service.ActiveAsync())!.Revision);
         Assert.Equal(0, host.Claude.Calls);
     }
 }

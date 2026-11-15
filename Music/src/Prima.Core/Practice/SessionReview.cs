@@ -1,7 +1,7 @@
 namespace Prima.Core.Practice;
 
 /// <summary>
-/// A stretch of a piece practised in a session: its bars (from a bar to the end, or round a loop), the hand and the mode, and each
+/// A stretch of a piece practiced in a session: its bars (from a bar to the end, or round a loop), the hand and the mode, and each
 /// of its runs, or round a loop each pass, as a point. Its runs, and how many of them went through the whole piece.
 /// </summary>
 public sealed record Stretch(int From, int? To, string Hands, bool InTime, IReadOnlyList<StretchPoint> Points, int Runs, int Throughs)

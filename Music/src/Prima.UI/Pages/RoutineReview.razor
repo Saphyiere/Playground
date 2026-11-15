@@ -9,7 +9,7 @@
 
 <PageTitle>Routine proposal · Prima</PageTitle>
 <PageHead Title="Routine proposal" Kicker="Review before using">
-    <a class="mu-btn" data-piano="off" href="exercises">Back to exercises</a>
+    <a class="mu-btn" data-piano="off" href="routines">All routines</a>
 </PageHead>
 
 @if (job is null)
@@ -34,8 +34,8 @@ else if (job.State == RoutineGenerationState.Accepted)
 else if (job.State == RoutineGenerationState.Ready && draft is not null)
 {
     <section class="settings-section">
-        <h2 class="section-title">@draft.Title</h2>
-        <p class="section-note">@draft.Summary</p>
+        <h2 class="section-title">@RoutineWords.American(draft.Title)</h2>
+        <p class="section-note">@RoutineWords.American(draft.Summary)</p>
         <p class="control-note">@draft.Items.Sum(i => i.Minutes) of @job.Request.Minutes minutes · @draft.Items.Count activities</p>
         @if (job.Source is not null)
         {
@@ -51,8 +51,8 @@ else if (job.State == RoutineGenerationState.Ready && draft is not null)
         IReadOnlyList<string> modes = entry?.Modes ?? (item.TargetId == "rhythm" ? ["time"] : ["wait", "time"]);
         var referencedBars = sourceEvents.Where(e => item.SourceEventIds.Contains(e.Id)).Select(e => e.Bar).Distinct().Order().ToArray();
         <section class="settings-section" data-routine-item="@item.Id" @key="item.Id">
-            <h2 class="section-title">@(position + 1). @item.Title</h2>
-            <p class="section-note">@item.Purpose</p>
+            <h2 class="section-title">@(position + 1). @RoutineWords.American(item.Title)</h2>
+            <p class="section-note">@RoutineWords.American(item.Purpose)</p>
             @if (item.FirstBar is { } first)
             {
                 <p class="control-note">Source bars @first–@item.LastBar</p>

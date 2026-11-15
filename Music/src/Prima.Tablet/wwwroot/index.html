@@ -17,12 +17,16 @@
 
     <div id="app"></div>
 
+    <!-- Shown by Blazor when Prima has stopped answering: problems.js puts why in it, and keeps it for Settings › Problems. -->
     <div id="blazor-error-ui" data-nosnippet>
-        An unhandled error has occurred.
+        <span class="problem-lead">Prima stopped answering taps.</span>
+        <span class="problem-what"></span>
+        <span class="problem-kept">It's kept in Settings › Problems.</span>
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
     </div>
 
+    <script src="_content/Prima.UI/problems.js"></script>
     <script src="_framework/blazor.webview.js" autostart="false"></script>
 
 </body>

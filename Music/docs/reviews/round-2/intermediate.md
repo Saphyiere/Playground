@@ -31,7 +31,7 @@ a slim strip, a one-line verdict at the end. Portrait is the best layout of all.
    the line it was scrolled to, so with a loop on bars 25–28 you see bars 16–23 and the top sliver of the loop (picture 1).
    The marks you most want are hidden under the summary.
 
-Also worth doing soon: a way from "look at bar 15" (Play's verdict, the look back's Still hard) straight to *practise bar 15*,
+Also worth doing soon: a way from "look at bar 15" (Play's verdict, the look back's Still hard) straight to *practice bar 15*,
 and something on the piece's front that says where you left off.
 
 ## 2. My month
@@ -65,7 +65,7 @@ stretches, each its own line, and a later session on the loop said *Earlier toda
 **Week 4: playing it through.** **Play**: the page, *Minuet in G Major · Play · Tempo 66 · Start · Done*. Stopped at bar 12:
 *90% right in time · 62 of 69 notes · look at bar 1 · stopped at bar 12*. Again, the whole piece: *92% right in time · 374 of
 408 notes · look at bar 15*, every note marked, Again / In-depth review / Done (saw, picture 4). About now says *Played through
-once In time: 92% at 66*. The second piece, the Tchaikovsky, I practised the **Hands-on** way: each run's review took the
+once In time: 92% at 66*. The second piece, the Tchaikovsky, I practiced the **Hands-on** way: each run's review took the
 screen, 78% → 86% → 96% over three runs, each review on its own (saw).
 
 **Warm-up, most days.** Today plans **20 minutes**: technique 4, notes 3, rhythm 3, pause 1, sight-reading 7, one spot 2
@@ -84,7 +84,7 @@ want a 10-minute warm-up (one scale in the piece's key, three sight-reading pass
 - **The look back's lines**: one per stretch, first → last, best named, tempo as a step. Readable at a glance (saw).
 - **Play**: nothing on the page while you play, a one-line verdict after, every note marked. It is the "just the sheet music"
   the owner asked for (saw).
-- **The pause cover**: leaving a piece mid-session and coming back shows *Still practising? 0:47 playing and 0:20 idle so
+- **The pause cover**: leaving a piece mid-session and coming back shows *Still practicing? 0:47 playing and 0:20 idle so
   far* (saw).
 - **Wrong notes named on the music** (*G3 G♯3*) and slips greyed: you know exactly what your hand did (saw).
 - **Speed** in the preview: a piece opens in 0.4 s, Finish practice → look back in 33 ms, ten passes with no lag. The Library's
@@ -136,7 +136,7 @@ four-bar loop fits in one line: show that line, centred.
 ### P4. "Look at bar N" leads nowhere from Play and the look back — gap, sure
 
 Play's verdict says *look at bar 15*, the look back says *Still hard: bar 25*: neither is a key (saw). The Standard summary
-already has *Play from bar 27* and *Loop bars 25 to 28*; these two screens should too: **Practise bar 15** starts a session
+already has *Play from bar 27* and *Loop bars 25 to 28*; these two screens should too: **Practice bar 15** starts a session
 with a two-bar loop around it, at 80% of the tempo, Wait for me or In time as you last had it.
 
 ### P5. Nothing says where you left off, or what's next — gap, sure
@@ -233,10 +233,10 @@ Practice (as built)
                     Fixed: bar 27 (22 wrong → 0)          ← new
                     Still hard: bar 25, in the last 3 passes  ← recalculated
                     Since last time: bars 25–28 60 → 66, best 100 → 96
-                    [Practise bar 25 next time]  ← sets the piece to open there
-                    Keep practising · In-depth review · Done
+                    [Practice bar 25 next time]  ← sets the piece to open there
+                    Keep practicing · In-depth review · Done
 
-Play ─► verdict: 92% · look at bar 15 [Practise bar 15 →]  · Again · Done
+Play ─► verdict: 92% · look at bar 15 [Practice bar 15 →]  · Again · Done
 ```
 
 **What each pass shows, what waits for the look back, what goes:**
@@ -273,7 +273,7 @@ could later turn a week of look backs into a paragraph.
    pass (P1).
 2. **A waited loop keeps its pass number and trend** in the bar and the summary, and Hands-on's review leads with it (P2).
 3. **Scroll the run's bars into view** after a run in landscape (P3).
-4. **"Practise bar N →"** on Play's verdict and the look back's Still hard (P4), and the hard bars named after one read-through
+4. **"Practice bar N →"** on Play's verdict and the look back's Still hard (P4), and the hard bars named after one read-through
    (P6).
 5. **Where you left off** on the piece's front and a **Your pieces** card on Today (P5).
 

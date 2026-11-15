@@ -204,7 +204,7 @@ Review screen: the marked music small, the summary beside it, and **Again**, **L
   marked music, the best feedback, off the page or shrinks it. And the summary doesn't need a screen: its useful part is four
   lines.
 
-**C. A practice session.** A piece opens on a small card: where you left off, and **Practise**. That starts a session with a
+**C. A practice session.** A piece opens on a small card: where you left off, and **Practice**. That starts a session with a
 clock. Inside it the screen is arrangement A. **End** (or leaving the piece) shows the session's review, once:
 
 ```

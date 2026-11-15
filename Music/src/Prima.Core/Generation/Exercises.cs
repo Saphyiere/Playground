@@ -11,7 +11,7 @@ public enum ExerciseKind
     /// <summary>Played at the piano: its music is shown and followed.</summary>
     Played,
 
-    /// <summary>A way of practising anything: to read.</summary>
+    /// <summary>A way of practicing anything: to read.</summary>
     Way,
 
     /// <summary>One of the drills Prima already has: its row opens it.</summary>
@@ -85,7 +85,7 @@ public static class Exercises
         new("hands", "Hands doing different things", "One hand holds, or moves at another speed, or with another touch."),
         new("touch", "Touch, loud and soft", "Joined and detached, and how fast the key goes down. Prima judges these from each key's press and release."),
         new("pedal", "Pedal", "The right pedal, changed cleanly."),
-        new("ways", "Ways to practise anything", "Not exercises: how to work on any of them, or on a piece."),
+        new("ways", "Ways to practice anything", "Not exercises: how to work on any of them, or on a piece."),
     ];
 
     public static IReadOnlyList<Exercise> All { get; } =
@@ -174,7 +174,7 @@ public static class Exercises
             ExerciseMusic.FiveAndChord, ExerciseKeys.All, Any, 72),
         Played("hanon", "five", "Hanon's first pattern, quietly", ExerciseLevel.Intermediate, "The best-known finger pattern, used the modern way: quiet, slow, with the arm helping.",
             ["Each hand alone. Ignore the old instruction to lift the fingers high: stay close to the keys.", "Give each run one thing to watch: a loose thumb, or the wrist gliding sideways so the forearm lines up behind each finger.", "Five minutes at most, and stop at the first ache."],
-            "No study shows this pattern does more for playing than scales do. Its use is as plain notes to practise a movement on.",
+            "No study shows this pattern does more for playing than scales do. Its use is as plain notes to practice a movement on.",
             ExerciseMusic.Hanon, ExerciseKeys.One, Any),
 
         // ——— Scales ———
@@ -317,10 +317,10 @@ public static class Exercises
             "No blur from the chord before, and no gap. Prima says when the pedal came late or stayed down.",
             ExerciseMusic.PedalChanges, ExerciseKeys.All, Either),
 
-        // ——— Ways to practise anything ———
+        // ——— Ways to practice anything ———
         Way("slow", "Slow enough to be right", "A tempo at which it comes out right the first time.",
             ["Find the speed at which you make no mistakes.", "Stay there until it's easy, then move up."],
-            "How well you practise decides the result, not how long: in one study of pianists the share of correct run-throughs predicted the next day's playing, and practice time didn't."),
+            "How well you practice decides the result, not how long: in one study of pianists the share of correct run-throughs predicted the next day's playing, and practice time didn't."),
         Way("hands-apart", "Hands separately, then together", "Each hand alone, but not for too long.",
             ["Each hand alone until it's sure of its notes.", "Then together, sooner than feels comfortable, at a slower tempo."],
             "Hands separately teaches the notes. Playing them together is its own skill and only comes from doing it."),
@@ -329,7 +329,7 @@ public static class Exercises
             "Playing the whole thing through again is the slow way."),
         Way("fix-now", "Stop and fix it at once", "A mistake is dealt with where it happens.",
             ["When something goes wrong, stop there.", "Find exactly which note or finger it was.", "Play that spot right, slowly, a few times before going on."],
-            "A mistake repeated is a mistake learned. The best practisers in that study fixed theirs straight away."),
+            "A mistake repeated is a mistake learned. The best practicers in that study fixed theirs straight away."),
         Way("ladder", "The metronome ladder", "Speed built a notch at a time on clean runs.",
             ["Start where it's clean.", "After a few clean runs, a notch faster; after a messy one, a notch back.", "Tomorrow, start a couple of notches below where you finished."],
             "Speed that's built on clean runs stays."),

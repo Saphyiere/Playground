@@ -171,7 +171,7 @@ research supports the listening and looking (§5, mental practice, Bernardi 2012
 runs the steps, each one a run on the screen that exists today:
 
 1. *First try.* The phrase from last time, once, In time, marks off. This is the day's honest measure: the app's own Ways to
-   practise says "judge an exercise by how the first try goes the next day".
+   practice says "judge an exercise by how the first try goes the next day".
 2. *Notes, a hand at a time.* Wait for me, right then left. Move on at two passes with nine notes in ten right first time;
    after five tries, move on anyway and say so.
 3. *Together, slowly.* In time at about half the goal tempo. Hands together early, at a slower tempo, is the app's own advice.
@@ -251,7 +251,7 @@ Mozart's Minuet K. 1f or the like, goal ♩ = 110 (three quarters of its marking
 - **Week 1.** Plan as now, with the last step the piece. Lesson: Listen, phrases marked (four of four bars and a pickup).
   Sessions: bars 1–8, hands apart, then together at 56. Check: first try of bars 1–8 together.
 - **Week 2.** Bars 9–17 the same; bars 1–8 up the ladder. Exercises: broken chords in the piece's key (finger work carries
-  over best to the patterns practised, §4, Furuya 2013). Check: all phrases together at 60.
+  over best to the patterns practiced, §4, Furuya 2013). Check: all phrases together at 60.
 - **Week 3.** Joins: 1–8 with 9–17; the stuck bars looped at the start of each session ("the hard bit first"). Ladder to 84.
   Check: whole piece, one take, 85% in time.
 - **Week 4.** Ladder to 100–110; marks off; touch and dynamics now shown. Check: a take at goal tempo on the first try of the

@@ -758,7 +758,7 @@ The design in §6:
 - **The 7.4 MB Verovio asset.** Pin one exact version (6.4.1 was tested here) and ship it as a separate file.
 - **Grading.** The rule grader and the repertoire-to-reading offset are untested. Calibrate them on your own playing.
 - **For the owner:** whether you have the LP-1 pedal unit or a Bluetooth turner. Which teaching books you already know, since
-  pieces you've practised are no longer sight-reading. Whether hymns and Lieder belong in the Library.
+  pieces you've practiced are no longer sight-reading. Whether hymns and Lieder belong in the Library.
 - **Only the device can settle:** how far away the music stand is, and whether 7 mm reads comfortably from it. Whether the
   follower keeps up with your playing. Whether pedal turns feel natural.
 

@@ -14,14 +14,17 @@
 }
 else if (routine is null || day is null)
 {
-    <p class="page-note">No personalised routine is active. Your standard daily plan is ready on Today.</p>
-    <a class="mu-btn" data-piano="off" href="">Open Today</a>
+    <p class="page-note">No personalised routine is active. Your standard daily plan is ready on Today, or follow one of your routines again.</p>
+    <div class="control-row">
+        <a class="mu-btn" data-piano="off" href="">Open Today</a>
+        <a class="mu-btn" data-piano="off" href="routines">Your routines</a>
+    </div>
 }
 else
 {
     <section class="settings-section" data-state="routine-active">
-        <h2 class="section-title">@routine.Title</h2>
-        <p class="section-note">@routine.Summary</p>
+        <h2 class="section-title">@RoutineWords.American(routine.Title)</h2>
+        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
         <p class="control-note">@routine.Items.Sum(i => i.Recipe.Minutes) minutes · @day.Items.Count(i => i.State == RoutineItemState.Done) of @routine.Items.Count activities done</p>
         @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
     </section>
@@ -41,14 +44,14 @@ else
                     <span>@item.Minutes min</span>
                     <span>@status</span>
                 </div>
-                <h3 class="mu-step-name">@item.Title</h3>
-                <p class="section-note">@item.Purpose</p>
+                <h3 class="mu-step-name">@RoutineWords.American(item.Title)</h3>
+                <p class="section-note">@RoutineWords.American(item.Purpose)</p>
                 <div class="routine-card-footer">
                     <span class="control-note">
                         @(item.Mode == "wait" ? "Wait for me" : $"In time · {item.Tempo:0} bpm")
-                        @if (progress.ActiveSeconds > 0) { <span> · @((progress.ActiveSeconds / 60).ToString("0.#")) min practised</span> }
+                        @if (progress.ActiveSeconds > 0) { <span> · @((progress.ActiveSeconds / 60).ToString("0.#")) min practiced</span> }
                     </span>
-                    <button class="mu-btn @(item.Id == nextItem ? "mu-primary" : "")" type="button" data-piano="off" data-action="routine-start-item" disabled="@busy" @onclick="() => Start(item.Id)">@(progress.State is RoutineItemState.Done or RoutineItemState.Skipped ? "Practise again" : progress.ActiveSeconds > 0 ? "Continue" : "Start")</button>
+                    <button class="mu-btn @(item.Id == nextItem ? "mu-primary" : "")" type="button" data-piano="off" data-action="routine-start-item" disabled="@busy" @onclick="() => Start(item.Id)">@(progress.State is RoutineItemState.Done or RoutineItemState.Skipped ? "Practice again" : progress.ActiveSeconds > 0 ? "Continue" : "Start")</button>
                 </div>
             </li>
         }
@@ -62,7 +65,7 @@ else
                 {
                     var item = routine.Items.First(i => i.Recipe.Id == adjustment.ItemId).Recipe;
                     <li>
-                        @item.Title:
+                        @RoutineWords.American(item.Title):
                         @if (adjustment.SuggestedPreparationBeats is { } beats) { <span>@beats preparation beats. </span> }
                         else if (adjustment.SuggestedStep is { } step) { <span>Step @step. </span> }
                         else if (adjustment.SuggestedMode is { } mode) { <span>@(mode == "time" ? "In time" : "Wait for me"). </span> }
@@ -76,28 +79,16 @@ else
         </section>
     }
     <div class="control-row">
+        <a class="mu-btn" data-piano="off" data-action="all-routines" href="routines">Other routines and requests</a>
         <button class="mu-btn" type="button" data-piano="off" data-action="routine-deactivate" disabled="@busy" @onclick="Deactivate">Use the standard daily plan</button>
         <a class="mu-btn" data-piano="off" href="exercises?show=routine">Saved exercises</a>
     </div>
-}
-@if (recent.Count > 0)
-{
-    <details class="settings-section routine-history">
-        <summary>Recent requests</summary>
-        <ul class="piece-list">
-            @foreach (var job in recent)
-            {
-                <li><a class="piece-row" data-piano="off" href="@($"routine/jobs/{job.Id}")"><span class="piece-title">@(job.Draft?.Title ?? job.Source?.Title ?? "Practice routine")</span><span class="piece-meta">@job.State · @job.Updated.ToLocalTime().ToString("g")</span></a></li>
-            }
-        </ul>
-    </details>
 }
 @if (problem is not null) { <p class="section-note" role="alert">@problem</p> }
 
 @code {
     private RoutineDefinition? routine;
     private RoutineDay? day;
-    private IReadOnlyList<RoutineGenerationJob> recent = [];
     private IReadOnlyList<RoutineAdjustment> adjustments = [];
     private string? sourceWarning;
     private string? problem;
@@ -110,7 +101,6 @@ else
         {
             routine = await Routines.ActiveAsync();
             day = await Routines.TodayAsync();
-            recent = (await Routines.RecentAsync()).Take(5).ToArray();
             adjustments = await Routines.AdjustmentsAsync();
             if (routine?.Source is { } source)
             {
@@ -119,7 +109,7 @@ else
                     var now = await Routines.PrepareSourceAsync(source.PieceId, true);
                     if (now.Revision != source.Revision) sourceWarning = "The library piece has changed. These exercises still use the edition you accepted; ask for another routine to use the updated notes.";
                 }
-                catch (Exception) { sourceWarning = "The original library source is unavailable. Your saved exercises can still be practised."; }
+                catch (Exception) { sourceWarning = "The original library source is unavailable. Your saved exercises can still be practiced."; }
             }
         }
         catch (Exception error) { problem = error.Message; }

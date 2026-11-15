@@ -14,7 +14,7 @@
 </PageHead>
 
 @* The exercises in two lists: the ones to play at the piano, which it opens on, and the ones to read and do (how you sit, the
-   warm-ups, the ways to practise). Each is by section, as rows: an exercise's name, what you do, when it was last done, and its
+   warm-ups, the ways to practice). Each is by section, as rows: an exercise's name, what you do, when it was last done, and its
    tags. A row opens the exercise, or the drill Prima already has for it. My routine is your own list, of both kinds and without
    the sections, and an exercise opened from it leads on to the routine's next. Start here and Not tried are picks of the ones
    to play. The search narrows the list showing, and says when the other of the two lists has what it's after. *@
@@ -32,15 +32,12 @@
         @if (activeRoutine is not null)
         {
             <a class="piece-row" data-piano="off" data-action="open-active-routine" href="routine">
-                <span class="piece-title">@activeRoutine.Title</span>
-                <span class="piece-meta">@activeRoutine.Summary</span>
+                <span class="piece-title">@Prima.UI.Routines.RoutineWords.American(activeRoutine.Title)</span>
+                <span class="piece-meta">@Prima.UI.Routines.RoutineWords.American(activeRoutine.Summary)</span>
                 <span class="piece-tags"><span class="piece-tag">@activeRoutine.Items.Sum(i => i.Recipe.Minutes) min</span><span class="piece-tag">Today’s default</span></span>
             </a>
         }
-        else
-        {
-            <a class="mu-btn" data-piano="off" href="routine">Routine requests and proposals</a>
-        }
+        <a class="mu-btn" data-piano="off" href="routines">Your routines and requests</a>
         @if (routine.Count > 0) { <h2 class="section-title">Saved exercises</h2> }
     </section>
 }

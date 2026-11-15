@@ -17,8 +17,8 @@
             @* The time on the activity, played or not, counting down from its minutes; once it's up, Next stands out. Next and Skip go
                straight on to the next activity not done yet, and back to the routine after the last. *@
             var left = item.Minutes * 60 - (int)Session.Seconds;
-            <span class="control-note">@item.Title · <span class="routine-time" data-over="@(left <= 0 ? "true" : null)">@(left > 0 ? $"{left / 60}:{left % 60:00} left" : "time's up")</span></span>
-            <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {next.Title}")</button>
+            <span class="control-note">@RoutineWords.American(item.Title) · <span class="routine-time" data-over="@(left <= 0 ? "true" : null)">@(left > 0 ? $"{left / 60}:{left % 60:00} left" : "time's up")</span></span>
+            <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {RoutineWords.American(next.Title)}")</button>
             <button type="button" class="mu-btn" data-piano="off" data-action="routine-skip" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
         }
         <a class="mu-btn" data-piano="off" href="routine">Back to routine</a>

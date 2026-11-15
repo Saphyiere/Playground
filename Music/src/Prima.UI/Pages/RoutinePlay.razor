@@ -6,7 +6,7 @@
 @using Prima.UI.Routines
 
 <PageTitle>Routine practice · Prima</PageTitle>
-<PageHead Title="@(session?.Item?.Title ?? "Routine practice")" Kicker="From your piece"><KeyboardLamp /></PageHead>
+<PageHead Title="@(session?.Item?.Title is { } title ? RoutineWords.American(title) : "Routine practice")" Kicker="From your piece"><KeyboardLamp /></PageHead>
 
 @if (session is not null)
 {
@@ -18,7 +18,7 @@
 }
 else if (music is not null && session?.Item is { } item)
 {
-    <p class="exercise-does">@item.Purpose</p>
+    <p class="exercise-does">@RoutineWords.American(item.Purpose)</p>
     @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
     @if (item.TargetId == "rhythm") { <p class="section-note">Tap this rhythm on any key. The pitch is not judged.</p> }
     <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
@@ -88,7 +88,7 @@ else
                 }
                 catch (Exception)
                 {
-                    sourceWarning = "The original piece is unavailable. This saved exercise can still be practised.";
+                    sourceWarning = "The original piece is unavailable. This saved exercise can still be practiced.";
                     sourcePiece = null;
                 }
             }

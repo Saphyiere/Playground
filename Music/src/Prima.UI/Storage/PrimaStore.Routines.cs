@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -73,6 +74,23 @@ public sealed partial class PrimaStore
         ReadRoutine<RoutineDefinition>(await c.QuerySingleOrDefaultAsync<string>("SELECT d.Data FROM RoutineDefinition d JOIN Setting s ON s.Value=d.Revision WHERE s.Key=@key", new { key = ActiveRoutineKey })));
 
     public Task DeactivateRoutineAsync() => SetSettingAsync(ActiveRoutineKey, null);
+
+    /// <summary>Every routine accepted, newest first: each revision, an adjusted one too, is a routine of its own.</summary>
+    public Task<List<RoutineDefinition>> GetRoutineDefinitionsAsync() => RunAsync(async c =>
+        (await c.QueryAsync<string>("SELECT Data FROM RoutineDefinition ORDER BY Accepted DESC")).Select(d => ReadRoutine<RoutineDefinition>(d)!).ToList());
+
+    /// <summary>The last day each routine had an activity practiced on it, by revision.</summary>
+    public Task<Dictionary<string, DateOnly>> GetRoutineLastPracticedAsync() => RunAsync(async c =>
+        (await c.QueryAsync<(string Revision, string Day)>("SELECT d.Revision, MAX(d.Day) FROM RoutineExecution e JOIN RoutineDay d ON d.Id = e.DayId GROUP BY d.Revision"))
+            .ToDictionary(r => r.Revision, r => DateOnly.Parse(r.Day, CultureInfo.InvariantCulture)));
+
+    /// <summary>Follows an accepted routine: Today uses it from now on, its progress today as it was if it was practiced today.</summary>
+    public Task FollowRoutineAsync(string revision) => RunAsync(async c =>
+    {
+        if (await c.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM RoutineDefinition WHERE Revision=@revision", new { revision }) == 0)
+            throw new InvalidOperationException("That routine isn't saved any more.");
+        await c.ExecuteAsync("INSERT INTO Setting(Key,Value) VALUES(@key,@revision) ON CONFLICT(Key) DO UPDATE SET Value=excluded.Value", new { key = ActiveRoutineKey, revision });
+    });
 
     /// <summary>Only an explicitly accepted, prepared draft becomes active. An accepted revision is never overwritten.</summary>
     public Task<RoutineDefinition> AcceptRoutineAsync(string jobId) => RunAsync(async c =>

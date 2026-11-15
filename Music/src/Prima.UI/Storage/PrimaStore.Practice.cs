@@ -20,12 +20,12 @@ public sealed record AttemptRecord(long Id, DateTimeOffset At, DateOnly Day, str
 /// </summary>
 public sealed record DoneRecord(string Kind, string? SetId, int Times, int Days, DateOnly Last, double? CleanTempo);
 
-/// <summary>A practised day: its minutes, the plan made for it, the steps done, and the five-minute plan.</summary>
+/// <summary>A practiced day: its minutes, the plan made for it, the steps done, and the five-minute plan.</summary>
 public sealed record DayRecord(DateOnly Day, double Minutes, string? Plan, string StepsDone, bool ShortDone);
 
 /// <summary>
 /// A practice session on a piece: when it started, its clock as last kept (playing and idle time, whether it's paused, when
-/// something was last played), the way it was practised ("simple", "standard", "hands-on", or "custom" for a mix of their
+/// something was last played), the way it was practiced ("simple", "standard", "hands-on", or "custom" for a mix of their
 /// settings), and when it finished, if it has.
 /// </summary>
 public sealed record PracticeSession(long Id, string Piece, DateTimeOffset Started, TimeSpan Playing, TimeSpan Idle, bool Paused, DateTimeOffset LastPlayed, string Way, DateTimeOffset? Finished);
@@ -249,7 +249,7 @@ public sealed partial class PrimaStore
         "INSERT INTO PracticeDay (Day, StepsDone, ShortDone) VALUES (@day, @step, @done) ON CONFLICT (Day) DO UPDATE SET StepsDone = CASE WHEN instr(StepsDone, @step) > 0 THEN StepsDone ELSE StepsDone || @step END, ShortDone = MAX(ShortDone, excluded.ShortDone)",
         new { day = Iso(day), step = step + ";", done = shortPlanDone ? 1 : 0 }));
 
-    /// <summary>Deletes everything practised, keeping the settings and the Library's pieces: "start over".</summary>
+    /// <summary>Deletes everything practiced, keeping the settings and the Library's pieces: "start over".</summary>
     public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM RoutineAttempt; DELETE FROM RoutineExecution; DELETE FROM RoutineDay; DELETE FROM RoutineDefinition; DELETE FROM RoutineGeneration; DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'; DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
 
     /// <summary>The database file, for backing up.</summary>

@@ -83,6 +83,46 @@ app.MapGet("/seed/routine/{activities}", async (string activities, int? spent, P
     return Results.Text(address);
 });
 
+// Routines (the Routines screen): two kept, one practiced yesterday and the other followed with an activity done today; a request
+// ready to look over; and one that didn't finish. Any routines before are cleared first.
+app.MapGet("/seed/routines", async (PrimaStore store) =>
+{
+    using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+    {
+        connection.Open();
+        foreach (var table in new[] { "RoutineAttempt", "RoutineExecution", "RoutineDay", "RoutineDefinition", "RoutineGeneration" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
+        new SqliteCommand("DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'", connection).ExecuteNonQuery();
+    }
+    var (now, today) = (DateTimeOffset.UtcNow, DateOnly.FromDateTime(DateTime.Now));
+    RoutineItem Item(string id, int minutes) => Exercises.Find(id) is { } exercise
+        ? new RoutineItem { Id = id, TargetId = id, Title = exercise.Name, Purpose = "Land it the first time", Minutes = minutes, Hands = HandUse.Right, Mode = "wait" }
+        : new RoutineItem { Id = id, Kind = "drill", TargetId = id, Title = DrillCatalog.Find(id)?.Name ?? id, Purpose = "Warm up", Minutes = minutes, Hands = HandUse.Together };
+    async Task<RoutineGenerationJob> Job(string title, string summary, string goal, RoutineGenerationState state, params RoutineItem[] items)
+    {
+        var request = new RoutineRequest(Math.Max(5, items.Sum(i => i.Minutes)), goal);
+        var draft = items.Length > 0 ? new RoutineDraft(title, summary, items) : null;
+        var job = new RoutineGenerationJob(Guid.NewGuid().ToString("N"), 0, state, now, request, new(now, []), null, "preview", "preview", draft,
+            draft is null ? null : RoutineCompiler.Prepare(draft, request), state == RoutineGenerationState.Failed ? "Claude couldn't be asked: the key was refused." : null);
+        await store.CreateRoutineJobAsync(job);
+        return job;
+    }
+    // Spelled as Claude once wrote it, before it was asked for American spelling: Prima shows it as practice.
+    var landing = await Job("Landing on A", "Find your way around the keys, warm up some leaps, then practise the two leaps up to A.", "The jump to A",
+        RoutineGenerationState.Ready, Item("geography", 4), Item("octave-jump", 5), Item("jump-ladder", 5));
+    await store.AcceptRoutineAsync(landing.Id);
+    var yesterday = (await store.GetOrCreateRoutineDayAsync(today.AddDays(-1)))!;
+    await store.CheckpointRoutineExecutionAsync((await store.BeginRoutineExecutionAsync(yesterday.Id, "geography")).Id, 240);
+    var reading = await Job("Reading, a little faster", "Notes on both staves, then intervals, at the edge of what reads easily.", "Reading speed",
+        RoutineGenerationState.Ready, Item("notes", 4), Item("intervals", 4), Item("octave-jump", 3));
+    await store.AcceptRoutineAsync(reading.Id);
+    var day = (await store.GetOrCreateRoutineDayAsync(today))!;
+    await store.CompleteRoutineExecutionAsync((await store.BeginRoutineExecutionAsync(day.Id, "notes")).Id);
+    await Job("Left-hand chords", "Chord shapes for the waltz's left hand, then the bars they're in.", "Left-hand chords in the waltz",
+        RoutineGenerationState.Ready, Item("jump-ladder", 4), Item("geography", 3));
+    await Job("", "", "The jumps in the Aria", RoutineGenerationState.Failed);
+    return Results.Text("routines");
+});
+
 // The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.
 app.MapGet("/keys/connect", (SimulatedKeyboard keys) => { keys.Plug(true); return Results.Text("connected"); });
 app.MapGet("/keys/disconnect", (SimulatedKeyboard keys) => { keys.Plug(false); return Results.Text("disconnected"); });

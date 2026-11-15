@@ -9,6 +9,8 @@
 @inject IAssistKeyStore Keys
 @inject ClaudeKeyFile KeyFile
 @inject Updater Updates
+@inject ProblemLog Problems
+@inject IJSRuntime JS
 @using Playground.AI.Assist
 @using Playground.Updates
 @implements IDisposable
@@ -66,10 +68,10 @@
     </div>
     <p class="section-note">What shows on the music while a run plays In time, in the Library, Sight-read and the drills with a tempo. With the cursor off, the music still scrolls as you play. With the marks off, every note is still judged, and marked when the run ends. Wait for me always shows where it's waiting.</p>
     <div class="control-row">
-        <span class="control-label">Practising a piece</span>
+        <span class="control-label">Practicing a piece</span>
         @foreach (var (way, name) in PrimaSettings.WayNames)
         {
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Way == way)" @onclick="() => Save(() => Options.Practise(way))"><span class="mu-led"></span>@name</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Way == way)" @onclick="() => Save(() => Options.UseWay(way))"><span class="mu-led"></span>@name</button>
         }
     </div>
     <p class="section-note">How much Practice tells you as you go, on a Library piece. Simple says nothing of how it went, to learn a piece in peace: loops, In time, Wait for me and the hands, with the marks on the music (none at all with Marks as you play off). Standard sums each run up under the music, and each pass round a loop in the bar. Hands-on goes over each run on a screen of its own, and a loop waits for you after each pass. Each sets the four below, which you can change one by one; the piece's Options change them too.</p>
@@ -303,6 +305,54 @@
     <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up first if you might want it." : dataNote ?? "Back up opens the share sheet, to save the file to Drive or send it to the PC.")</p>
 </section>
 
+@* What went wrong, newest first, as Prima kept it: a screen that stopped, the page that stopped answering, a job that failed. Each
+   opens on what was said in full, to copy and send. *@
+<section id="problems" class="settings-section" aria-labelledby="problems-heading">
+    <h2 id="problems-heading" class="section-title">Problems</h2>
+    @if (problems.Count == 0)
+    {
+        <p class="section-note">Nothing has gone wrong that Prima noticed. If a screen stops, or Prima stops answering taps, what happened is kept here.</p>
+    }
+    else
+    {
+        <ul class="problem-list">
+            @foreach (var problem in problems)
+            {
+                <li>
+                    <details class="problem">
+                        <summary>
+                            <span class="problem-when">@problem.At.ToString("d MMM HH:mm", CultureInfo.InvariantCulture)</span>
+                            <span class="problem-level" data-level="@problem.Level">@problem.Level</span>
+                            <span class="problem-source">@problem.Short</span>
+                            <span class="problem-message">@problem.Message</span>
+                        </summary>
+                        @if (problem.Detail.Length > 0)
+                        {
+                            <pre class="problem-detail">@problem.Detail</pre>
+                        }
+                    </details>
+                </li>
+            }
+        </ul>
+    }
+    <div class="control-row">
+        @if (problems.Count > 0)
+        {
+            <button type="button" class="mu-btn" data-piano="off" @onclick="CopyProblems">Copy</button>
+            @if (clearingProblems)
+            {
+                <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="ClearProblems">Clear them</button>
+                <button type="button" class="mu-btn" @onclick="() => clearingProblems = false">Keep them</button>
+            }
+            else
+            {
+                <button type="button" class="mu-btn" @onclick="() => clearingProblems = true">Clear…</button>
+            }
+        }
+    </div>
+    <p class="section-note" role="status">@(problemNote ?? $"Kept in {ProblemFile()} too, which a PC reaches over USB, even when Prima won't open.")</p>
+</section>
+
 @code {
     [CascadingParameter] public Look Current { get; set; } = Look.Studio;
 
@@ -319,8 +369,15 @@
     private bool removingKey;
     private List<ClaudeSpend> spend = [];
 
+    // The problems kept, newest first, and the list follows as more are kept; Clear asks first.
+    private IReadOnlyList<Problem> problems = [];
+    private bool clearingProblems;
+    private string? problemNote;
+
     protected override async Task OnInitializedAsync()
     {
+        problems = Problems.Recent(12);
+        Problems.Kept += ProblemKept;
         // The updater's status is read straight from it, and the page redraws when it changes; it asks GitHub at most once in 20 hours.
         Updates.Changed += Redraw;
         _ = Updates.CheckAsync();
@@ -375,7 +432,46 @@
 
     private void Redraw(UpdateStatus status) => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Updates.Changed -= Redraw;
+    private void ProblemKept(Problem problem) => _ = InvokeAsync(() =>
+    {
+        problems = Problems.Recent(12);
+        StateHasChanged();
+    });
+
+    // Where the file is, as a PC sees the tablet's storage (Android/data/…), or else in full.
+    private string ProblemFile()
+    {
+        var path = Problems.Path.Replace('\\', '/');
+        var at = path.IndexOf("/Android/data/", StringComparison.Ordinal);
+        return at >= 0 ? path[(at + 1)..] : path;
+    }
+
+    // Every problem shown, in full, on the clipboard: to paste into a message.
+    private async Task CopyProblems()
+    {
+        var text = string.Join("\n\n", problems.Select(p => $"{p.At:yyyy-MM-dd HH:mm:ss zzz} · {p.Level} · {p.Source}\n{p.Message}{(p.Detail.Length > 0 ? "\n" + p.Detail : "")}"));
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            problemNote = $"Copied {problems.Count} {(problems.Count == 1 ? "problem" : "problems")}.";
+        }
+        catch (JSException)
+        {
+            problemNote = $"Couldn't copy them: the file is {ProblemFile()}.";
+        }
+    }
+
+    private void ClearProblems()
+    {
+        Problems.Clear();
+        (problems, clearingProblems, problemNote) = ([], false, "Cleared.");
+    }
+
+    public void Dispose()
+    {
+        Updates.Changed -= Redraw;
+        Problems.Kept -= ProblemKept;
+    }
 
     private async Task InstallUpdate()
     {

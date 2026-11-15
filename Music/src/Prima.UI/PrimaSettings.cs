@@ -77,7 +77,7 @@ public sealed class PrimaSettings
     public bool LiveMarks { get; set; } = true;
 
     /// <summary>
-    /// The ways of practising a piece, each a set of the settings after it, which can then be changed one by one: what shows after a
+    /// The ways of practicing a piece, each a set of the settings after it, which can then be changed one by one: what shows after a
     /// run, each pass's figure round a loop, whether a loop waits for you after each pass, and whether a run goes again by itself.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, (string AfterRun, bool PassFigure, bool PassWaits, bool RunAgain)> Ways = new Dictionary<string, (string, bool, bool, bool)>
@@ -102,9 +102,9 @@ public sealed class PrimaSettings
     /// <summary>Whether a run in Practice that comes to its end goes again by itself, after its count-in.</summary>
     public bool RunAgain { get; set; }
 
-    /// <summary>The way of practising the settings make up, or null when they've been changed from all three.</summary>
+    /// <summary>The way of practicing the settings make up, or null when they've been changed from all three.</summary>
     public string? Way => Ways.FirstOrDefault(w => w.Value == (AfterRun, PassFigure, PassWaits, RunAgain)).Key;
 
-    /// <summary>Practising a way: its settings.</summary>
-    public void Practise(string way) => (AfterRun, PassFigure, PassWaits, RunAgain) = Ways[way];
+    /// <summary>Practicing a way: its settings.</summary>
+    public void UseWay(string way) => (AfterRun, PassFigure, PassWaits, RunAgain) = Ways[way];
 }

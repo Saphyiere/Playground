@@ -1070,6 +1070,94 @@ a {
     top: 0.5rem;
 }
 
+/* The bar says what stopped Prima (problems.js fills it in), and where that's kept. */
+#blazor-error-ui {
+    box-sizing: border-box;
+    padding-right: 3rem;
+}
+
+#blazor-error-ui .problem-what {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9em;
+    margin: 0 0.35em;
+    overflow-wrap: anywhere;
+}
+
+#blazor-error-ui .problem-what:empty {
+    display: none;
+}
+
+#blazor-error-ui .reload {
+    margin-left: 0.35em;
+}
+
+/* A screen that stopped: its card in the screen's place, Try again on it, and the rail still there. */
+.problem-screen {
+    max-width: 760px;
+    margin-top: var(--space-4);
+}
+
+.problem-said {
+    font-family: var(--font-mono, monospace);
+    overflow-wrap: anywhere;
+}
+
+/* Settings › Problems: a line each, newest first, opening on what was said in full. */
+.problem-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 960px;
+}
+
+.problem {
+    border-top: 1px solid var(--seam);
+}
+
+.problem summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px var(--space-3);
+    padding: 10px 0;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+.problem-when,
+.problem-level,
+.problem-source {
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    white-space: nowrap;
+    color: var(--ink-muted);
+}
+
+.problem-level[data-level="Error"],
+.problem-level[data-level="Critical"] {
+    color: var(--accent);
+}
+
+.problem-message {
+    flex: 1 1 320px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.problem-detail {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    max-height: 360px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    line-height: 17px;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
 /* The shell: the rail down the left, the screen beside it. Only the screen scrolls. */
 .shell {
     height: calc(100dvh - env(safe-area-inset-top, 0px));
@@ -5435,7 +5523,7 @@ html[data-full] .piece .summary {
     line-height: 30px;
 }
 
-/* The session paused: the page covered, a card in its middle asking whether you're still practising. */
+/* The session paused: the page covered, a card in its middle asking whether you're still practicing. */
 .pause-cover {
     position: fixed;
     inset: 0;
@@ -5524,7 +5612,7 @@ html[data-full] .piece .summary {
     order: 5;
 }
 
-/* The look back: what was practised, each stretch a row with its line of runs or passes, then across the session. */
+/* The look back: what was practiced, each stretch a row with its line of runs or passes, then across the session. */
 .look-back {
     display: flex;
     flex-direction: column;
@@ -5903,7 +5991,7 @@ html[data-full] .piece .summary {
         padding: 0 14px;
     }
 
-    /* The look back has the page's head in portrait too: what was practised, and when. */
+    /* The look back has the page's head in portrait too: what was practiced, and when. */
     .piece-lookback .reading-head {
         display: flex;
     }

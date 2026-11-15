@@ -14,12 +14,12 @@ technique), did it as them in the preview, then picked up the tablet at the next
 
 1. **Finish practice doesn't finish the session** (a bug, very sure, seen and found in the code). About a second after the
    look back appears, the session is saved again as not finished. Every time the piece is opened after that, the same
-   session is back under "Still practising?", its playing time different each time (1:05, then 0:00, then 0:37). For the
+   session is back under "Still practicing?", its playing time different each time (1:05, then 0:00, then 0:37). For the
    look back, the comparison with "earlier today", the day's minutes, and anything a teacher would read later, this is
    the first thing to fix.
 2. **A teacher can't see the week.** The look back is good, but it's gone once Done is pressed. Nothing lists a piece's
-   sessions, the minutes spent on a piece, or what was practised on which day. You is a page of reading statistics. At the
-   lesson I could tell *that* the student played the Menuet and how the last run went, not *how they practised it*.
+   sessions, the minutes spent on a piece, or what was practiced on which day. You is a page of reading statistics. At the
+   lesson I could tell *that* the student played the Menuet and how the last run went, not *how they practiced it*.
 3. **There's nothing for a beginner to learn, and the app's "level" scares them off what there is.** The Library's easiest
    piece is level 5 (about ABRSM Grade 2). Any piece with both hands sounding together is at least level 5, so the
    8-bar C-position tune I wrote for my beginner came in as "Level 5". Written in ABC, its two hands came in one after the
@@ -29,7 +29,7 @@ technique), did it as them in the preview, then picked up the tablet at the next
 **What's already right:** the look back after a session (stretches, first → last, best, tempo, Still hard) is the most
 useful thing in the app for a teacher, and with hands-apart and hands-together as separate lines I could see the order my
 student worked in. Wait for me on chords ("together") is sound teaching. Loops counted pass by pass, waiting after each
-pass, and Hands-on's review with Again: all work and are fast (under 0.3 s each). The Exercises' "Ways to practise
+pass, and Hands-on's review with Again: all work and are fast (under 0.3 s each). The Exercises' "Ways to practice
 anything" are what I'd say in a lesson, and they say plainly what MIDI can't feel.
 
 ## 2. My month
@@ -79,7 +79,7 @@ in loops; the day's plan as usual.
   Clear and quick.
 
 **At the lesson:** the piece's About says "Last played today… 9 runs on 1 day". You's Pieces say runs, days, last run, best
-play-through. Nothing anywhere says she practised the Menuet for 1 minute of playing and 30 s idle, or that she went
+play-through. Nothing anywhere says she practiced the Menuet for 1 minute of playing and 30 s idle, or that she went
 hands apart first. When I opened the piece to see, I got her finished session back, with "0:00 playing · 3:12 idle".
 ([Picture 1](#picture-1)) The rest of You (reading score 4.2, fluent notes, Zhukov's four, technique table) is about her
 reading, which is not what I'd ask about in a lesson. One useful thing I did see: "clean (every note right, kept going) in
@@ -114,7 +114,7 @@ Leave these alone:
 - **Loops pass by pass**, and **Wait after each pass**: a breath between passes is good teaching.
 - **Wait for me's "together"** on chords, and rolled chords taken as rolls.
 - **Hands-on's Again**, from the same bar, on the go key.
-- **The Exercises' "Ways to practise anything"** and "When to stop": short, right, and honest about evidence.
+- **The Exercises' "Ways to practice anything"** and "When to stop": short, right, and honest about evidence.
 - **Honest numbers on You** ("clean in 0%", "a plateau after early gains is normal").
 - **Speed**: every screen I timed answered within 0.7 s (table at the end of section 4).
 
@@ -124,7 +124,7 @@ Leave these alone:
 
 **What happens.** Finish practice shows the look back. Within a second the session is saved again as not finished. Done
 goes to the front, but the next time the piece is opened (from the Library's row, no reload) it's back in Practice under
-"Still practising?", the same session with the same runs, idle still counting. Its playing time is shown differently each
+"Still practicing?", the same session with the same runs, idle still counting. Its playing time is shown differently each
 time: the look back said 1:05; the next opening 0:00 playing, 3:12 idle; later 0:37; the data file held 55 s.
 ([Picture 1](#picture-1))
 
@@ -138,7 +138,7 @@ back's "Earlier today" can never appear; the session's playing time, and so the 
 student has to finish a phantom session every time they open the piece.
 
 **To see it:** `seed/today`, open any piece, Practice, play a run, Finish practice, Done; then the menu's Library and the
-piece's row: "Still practising?".
+piece's row: "Still practicing?".
 
 **What I'd change:** stop the tick once the session is finished (or have `KeepSession` keep `Finished` once it's set), and
 test it in `PracticeClock`'s tests' spirit: finished stays finished.
@@ -151,7 +151,7 @@ test it in `PracticeClock`'s tests' spirit: finished stays finished.
 look back's comparison). Once Done is pressed, a session's look back is gone. Nowhere lists:
 - a piece's sessions (when, how long playing and idle, which way: Simple, Standard, Hands-on);
 - minutes per piece, this week or ever (You has minutes a week for everything together);
-- what was practised: which bars, which hand, Wait for me or In time, the tempo reached;
+- what was practiced: which bars, which hand, Wait for me or In time, the tempo reached;
 - whether the student did the day's plan, or skipped Technique every day.
 
 You's Pieces table (runs, days, last run, best play-through) is the closest. The rest of You is reading statistics.
@@ -183,10 +183,10 @@ You's Pieces table (runs, days, last run, best play-through) is the closest. The
 
 **What I'd change:**
 - **The generator writes the beginner's pieces**, not just passages: 8–16 bars, a title, a five-finger position, both hands
-  shared then together, repeated and kept for the week like a Library piece, so they can be *learned* (practised, looped,
+  shared then together, repeated and kept for the week like a Library piece, so they can be *learned* (practiced, looped,
   played through) rather than read once. The generator already writes tonal music at each level.
 - **Grade a piece to learn on its own scale**, or say "to learn: about level 2" beside the reading level, since a piece is
-  practised, not read at sight.
+  practiced, not read at sight.
 - **ABC**: either fix multi-voice ABC or say on import that ABC with voices isn't supported, and to use MusicXML.
 
 **How sure:** sure of what I saw. The ABC cause is an inference.
@@ -223,7 +223,7 @@ every note was right first time. Name a pickup bar "the upbeat", not "bar 0".
 **What happens:** the day's scale and arpeggio are picked by the *reading* level, and always for the right hand
 (`TechniqueChoice.Today`, `HandUse.Right`; inferred from code, and You's Technique table in both seeds lists only Right).
 At level 1 that's a one-octave C major scale with the thumb under, in eighths, on day one (seen,
-[Picture 4](#picture-4)). The left hand is never set by the plan; a student who follows Today never practises a left-hand
+[Picture 4](#picture-4)). The left hand is never set by the plan; a student who follows Today never practices a left-hand
 scale.
 
 **Why it matters:** the adult method books and RCM start with five-finger patterns and reach a one-octave scale weeks in
@@ -240,7 +240,7 @@ alone.
 ### 4.7 Gap: pieces get two minutes of the plan
 
 **What happens** (inferred from `DailyPlan.Build`, seen on Today): of twenty minutes, Technique 4, Notes 3, Rhythm 3, a
-pause, Sight-reading 7, "One spot" 2. A piece is only the alternative to One spot. A piece practised in a session counts
+pause, Sight-reading 7, "One spot" 2. A piece is only the alternative to One spot. A piece practiced in a session counts
 towards the day's minutes but isn't a step of the plan.
 
 **Why it matters:** for a beginner or intermediate who is learning pieces, the piece is the centre of the week, and my
@@ -338,7 +338,7 @@ stop) and is honest about the rest. Where the research supports a choice I cite 
 - **The check**: the week's goal played *cold*, first try, before any warm-up on it: e.g. "Menuet bars 1–8, hands
   together, ♩ = 72, Play". Its result is the week's result. (Retention shows on a later day's first try:
   [Duke, Simmons & Cash 2009](https://doi.org/10.1177/0022429408328851), [Simmons 2012](https://doi.org/10.1177/0022429411424798).)
-- **The week's look back**: days practised, minutes on each piece and on the plan, each piece's tempo and best by day,
+- **The week's look back**: days practiced, minutes on each piece and on the plan, each piece's tempo and best by day,
   the bars that stayed hard. This is section 4.2's page.
 - **Next week's goals**: one per piece, specific and a little hard ("bars 9–16 hands together at 66, three clean in a
   row"), set by the app from the check, which the student or a teacher can change. (Specific, hard goals beat "do your
@@ -361,7 +361,7 @@ stop) and is honest about the rest. Where the research supports a choice I cite 
 | 7. Play it through | The week's section with Play | Once a session, at the end |
 
 Rules the app keeps through it:
-- **Short stretches, mostly right.** The share of right passes predicts the next day; the best practisers fixed errors at
+- **Short stretches, mostly right.** The share of right passes predicts the next day; the best practicers fixed errors at
   once and stopped before repeating them ([Duke, Simmons & Cash 2009](https://doi.org/10.1177/0022429408328851)). So a
   pass under 60% moves the tempo back a notch *straight away*, and three wrong passes in a row in one bar shrink the stretch
   to that bar with a note either side ("Small sections", "Stop and fix it at once", already in Exercises).
@@ -511,7 +511,7 @@ minute each week ("Record yourself", in Exercises) and listen "once without the 
 All in the preview at http://127.0.0.1:5299, landscape 1280 × 800 unless said, Studio look.
 
 - **4.1** `seed/today`; open `library/pdmx-QmPcZ5vXeX5YEK77qDFMLrNkswKpMsRczQgeg3wfWeki6V` (Menuet in G); Practice; a run
-  (`/keys/perform?right=0.9`); Finish practice; Done; the menu's Library, the piece's row: "Still practising?". The data
+  (`/keys/perform?right=0.9`); Finish practice; Done; the menu's Library, the piece's row: "Still practicing?". The data
   file (`artifacts/bin/Prima.Preview/debug/preview.db`, table `PracticeSession`) shows `Finished` empty.
 - **4.3** `seed/fresh`; Library › Near my level. ABC: a two-voice file through `/files/next?path=…` and Import files.
 - **4.4** The Menuet: loop bars 1–4 (tap bar 1 on the strip, Loop, tap bar 4), Options › Wait after each pass, In time at

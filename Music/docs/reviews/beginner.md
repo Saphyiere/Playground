@@ -38,7 +38,7 @@ high, chords a key at a time, long silences, and with the piano unplugged.
 
 **Day one.**
 
-- *Welcome.* Name, minutes (I chose 15), when I'll practise, the look. Quick and friendly. It never asks whether I can read
+- *Welcome.* Name, minutes (I chose 15), when I'll practice, the look. Quick and friendly. It never asks whether I can read
   music or have played before. Then "Plug in the piano and set the timing" took me to a screen that begins: "The median of how
   early or late your notes land is kept as the timing offset… since they can't be told apart without a loop of wires." I
   tapped 16 beats and was told "Offset −40 ms, your spread 65 ms". I didn't know what I had done or whether it was good.
@@ -354,7 +354,7 @@ Sonatina  ▸  Learn it                                   goal: both hands at 72
 - **Move** "Where the notes live" out of Tools into the Notes drill and onto every sheet; keep the Glossary where it is too.
 - **Move** the timing calibration out of the welcome to the first time a run In time needs it, with one plain line.
 - **Hide until level 3 or so:** Find my level, the variants (Read ahead, Duet, Hear first), the silent-click rhythm tries,
-  ledger lines, key signatures, and most of You's figures. Show a beginner's You: days practised, notes I know (lit on the
+  ledger lines, key signatures, and most of You's figures. Show a beginner's You: days practiced, notes I know (lit on the
   Glossary's keyboard), the reading level, my pieces.
 - **Rename** Sight-read to "Reading" for the first months. "Sight-reading" is a goal I don't have yet.
 - **Add** "My pieces" to Today and the Library.

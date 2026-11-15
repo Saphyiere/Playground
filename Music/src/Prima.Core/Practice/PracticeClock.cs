@@ -11,7 +11,7 @@ public sealed class PracticeClock
     /// <summary>How long a key keeps you playing: the gaps of playing a bar over on your own (ours).</summary>
     public static readonly TimeSpan Keep = TimeSpan.FromSeconds(10);
 
-    /// <summary>How long with nothing played before the session pauses to ask whether you're still practising.</summary>
+    /// <summary>How long with nothing played before the session pauses to ask whether you're still practicing.</summary>
     public static readonly TimeSpan PauseAfter = TimeSpan.FromMinutes(15);
 
     // The time counted up to; until when a key keeps you playing; whether a run is going; and the last thing done, played or a

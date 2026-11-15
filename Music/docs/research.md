@@ -211,7 +211,7 @@ comes back.
 (g = 0.42), larger for visual categories (about 0.67), but blocking was *better* for word lists (g = −0.39). Mixing worked best
 when categories looked alike ([Brunmair & Richter 2019](https://pubmed.ncbi.nlm.nih.gov/31556629/)). Neighbouring lines and
 spaces, and the same position in two clefs, are exactly that kind of confusable set. In music, 25 piano-trained adults played
-melodies practised in random order faster two days later, while believing fixed order had worked better
+melodies practiced in random order faster two days later, while believing fixed order had worked better
 ([Abushanab & Bishara 2013](https://pubmed.ncbi.nlm.nih.gov/23508339/)). Beginner clarinettists (N = 41) showed the same
 pattern ([Stambaugh 2010](https://doi.org/10.1177/0022429410385945)). In 10 advanced clarinettists the results were modest,
 and they still preferred blocked practice ([Carter & Grahn 2016](https://pmc.ncbi.nlm.nih.gov/articles/PMC4989027)).
@@ -371,10 +371,10 @@ differences ([Ericsson et al. 1993](https://doi.org/10.1037/0033-295x.100.3.363)
 practice explained 21% of the variance in music ([Macnamara et al. 2014](https://doi.org/10.1177/0956797614535810)). A
 music-only meta-analysis with stricter rules found about 37% (r = 0.61, 13 studies, N = 788)
 ([Platz et al. 2014](https://doi.org/10.3389/fpsyg.2014.00646)). A direct replication found a "substantial, but considerably
-smaller" effect ([Macnamara & Maitra 2019](https://doi.org/10.1098/rsos.190327)). Minutes are worth logging. How you practise
+smaller" effect ([Macnamara & Maitra 2019](https://doi.org/10.1098/rsos.190327)). Minutes are worth logging. How you practice
 is where the app can help.
 
-**How you practise beats how long.** In 17 pianists, retention followed the proportion of correct tries, not time or tries
+**How you practice beats how long.** In 17 pianists, retention followed the proportion of correct tries, not time or tries
 ([Duke, Simmons & Cash 2009](https://doi.org/10.1177/0022429408328851)). Better players in 3,325 young musicians used more
 systematic strategies, more immediate error correction, and more recording and metronome use
 ([Hallam et al. 2012](https://doi.org/10.1177/0305735612443868)).
@@ -860,7 +860,7 @@ look like failure.
 - Mark anything under about 10 ms as "below what anyone can hear".
 
 **Habit:**
-- Minutes this week, and days practised out of the last 7.
+- Minutes this week, and days practiced out of the last 7.
 - A **repairable** streak: allow a freeze, or count "5 of 7 days". Frame breaks neutrally, not as the owner's fault.
 - Percentage of clean passes per session ([Duke et al. 2009](https://doi.org/10.1177/0022429408328851)).
 - Feedback should be informative ("92% in time at level 6, up from 84%"), not points for showing up.

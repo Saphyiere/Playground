@@ -217,7 +217,7 @@ For someone who mostly plays through. The owner asked: a play mode and then a su
 Library                      Piece                         Review
   Playing now (my 5)   ->      opens where I stopped   ->    how it went, on a screen of its own
   everything else              full screen as I left it      the bars as a strip, worst first
-                               Play  |  Practise             Loop bars 9 to 12  ->  back to the piece
+                               Play  |  Practice             Loop bars 9 to 12  ->  back to the piece
                                                              Done  ->  the session card
 ```
 
@@ -226,16 +226,16 @@ Library                      Piece                         Review
 3. **Two ways in, named for what they're for.**
    - **Play**: the page and nothing else. No cursor, no marks, no click unless asked (Follow me, problem 6). Pages turn by
      pedal. This is "pretend it's the sheet music".
-   - **Practise**: what the piece screen is now, with the cursor, marks, loops, hands, Wait for me.
+   - **Practice**: what the piece screen is now, with the cursor, marks, loops, hands, Wait for me.
 4. **After Play, a Review screen, not a panel under the music.** How long I played, the bars as a strip shaded by what went
    wrong, the four short lines, and the music with its marks only for the bar I tap. It can draw only what's on screen, which
-   also removes problem 1. **Loop bars** goes back to Practise with the loop set.
+   also removes problem 1. **Loop bars** goes back to Practice with the loop set.
 5. **In a loop, one line after each pass**, in the bar: "Pass 6: 31 of 34, was 24". At Stop, the passes as a row of figures.
 6. **The session.** From opening the first piece to leaving the last: "38 minutes. Prélude No. 17: played through twice,
    bars 9 to 12 fourteen times, 71% to 93%." The runs are stored already; nothing reads them.
 
 Move: Today's plan is no use at this level; let Today lead with "carry on with Prélude No. 17" when a piece is in hand.
-Merge: Options' **While playing** switches into the choice between Play and Practise. Cut: nothing.
+Merge: Options' **While playing** switches into the choice between Play and Practice. Cut: nothing.
 
 ## 6. The five changes I'd make first
 

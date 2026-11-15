@@ -1,13 +1,13 @@
 @using Prima.Core.Practice
 @using Prima.UI.Storage
 
-@* A practice session looked back on, taking the page once it's finished: its time playing and idle; each stretch practised
+@* A practice session looked back on, taking the page once it's finished: its time playing and idle; each stretch practiced
    (its bars, the hand and the mode) with its runs, or round a loop its passes, as a line, the first to the last and the best
    named, and its tempo; the bar still hard at the end, and the bar put right; and how it compares with the session before.
-   Keep practising carries the session on, Practise the bar still hard carries it on round that bar, the in-depth review goes
+   Keep practicing carries the session on, Practice the bar still hard carries it on round that bar, the in-depth review goes
    over it, and Done goes back to the piece's front: only taps press them. *@
 <div class="look-back">
-    <section class="mu-screen look-stretches" aria-label="What was practised">
+    <section class="mu-screen look-stretches" aria-label="What was practiced">
         <div class="look-head">
             <span class="mu-readout-label">This session</span>
             <span class="look-total"><b>@PracticeStrip.Said(Session.Playing)</b> playing · @PracticeStrip.Said(Session.Idle) idle@(Totals())</span>
@@ -94,11 +94,11 @@
     </div>
 
     <div class="look-keys">
-        <button type="button" class="mu-btn" data-piano="off" @onclick="OnKeep">Keep practising</button>
+        <button type="button" class="mu-btn" data-piano="off" @onclick="OnKeep">Keep practicing</button>
         <button type="button" class="mu-btn" data-piano="off" @onclick="OnReview">In-depth review</button>
         @if (Review.Hard is { } still)
         {
-            <button type="button" class="mu-btn" data-piano="off" @onclick="() => OnPractise.InvokeAsync(still.Bar)">Practise @PieceWords.Bar(still.Bar)</button>
+            <button type="button" class="mu-btn" data-piano="off" @onclick="() => OnPractice.InvokeAsync(still.Bar)">Practice @PieceWords.Bar(still.Bar)</button>
         }
         <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="OnDone">Done</button>
     </div>
@@ -116,8 +116,8 @@
 
     [Parameter] public EventCallback OnReview { get; set; }
 
-    /// <summary>Practise a bar: the session carried on, looping it.</summary>
-    [Parameter] public EventCallback<int> OnPractise { get; set; }
+    /// <summary>Practice a bar: the session carried on, looping it.</summary>
+    [Parameter] public EventCallback<int> OnPractice { get; set; }
 
     [Parameter] public EventCallback OnDone { get; set; }
 

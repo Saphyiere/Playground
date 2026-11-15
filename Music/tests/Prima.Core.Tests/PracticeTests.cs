@@ -240,19 +240,19 @@ public class PracticeTests
     public void TheStreakEarnsFreezesAndUsesThemOnMissedDays()
     {
         var days = Enumerable.Range(0, 14).Select(i => new PracticeDayRecord(Today.AddDays(-20 + i), 15, false)).ToList();
-        // Practised 14 days in a row (two freezes earned), then missed two days, then practised again, then missed one more.
+        // Practiced 14 days in a row (two freezes earned), then missed two days, then practiced again, then missed one more.
         days.AddRange([new(Today.AddDays(-4), 12, false), new(Today.AddDays(-3), 2, true), new(Today.AddDays(-1), 3, false)]);
 
         var streak = Streak.Compute(days, Today);
 
         Assert.Equal(0, streak.Days);
         Assert.Equal(2, streak.FreezesUsed.Count);
-        Assert.Equal(Today.AddDays(-3), streak.LastPractised);
+        Assert.Equal(Today.AddDays(-3), streak.LastPracticed);
         Assert.Equal(2, streak.DaysThisWeek);
         // This week's minutes are from Monday, as You's weeks are: Monday's 2 and yesterday's 3, not Sunday's 12.
         Assert.Equal(5, streak.MinutesThisWeek);
         Assert.False(streak.WeekKept);
-        Assert.StartsWith("Last practised", streak.BreakNote(Today));
+        Assert.StartsWith("Last practiced", streak.BreakNote(Today));
     }
 
     [Fact]

@@ -14,9 +14,15 @@ planning send the requested source information and practice summaries to the con
 
 ## Personal routines
 
-Open **Exercises → Ask for routine** for general practice or help with a library piece. Choose the time available, optionally
-select bars and describe the difficulty, then generate a proposal. Review its order, durations, hands, tempos and music before
-using it. The accepted routine becomes Today’s default until changed; existing pinned exercises remain available separately.
+Open **Routines → Ask for routine** (or Exercises' or Today's) for general practice or help with a library piece. Choose the
+time available, optionally select bars and describe the difficulty, then generate a proposal. Review its order, durations,
+hands, tempos and music before using it. The accepted routine becomes Today’s default until changed; existing pinned exercises
+remain available separately.
+
+**Routines**, under Library in the rail, keeps every routine accepted and every request that isn't one yet: the one Today
+follows, requests being asked, ready to look over or not finished, and each routine kept, with **Follow** to make it Today's
+again. Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses
+nothing.
 
 Suggestions use separate reading, rhythm and technique evidence. Sparse history stays provisional, and Wait for me results
 are kept separate from timed playing. The model chooses existing activities or recipes; Prima constructs and validates source
@@ -213,10 +219,23 @@ secure storage ([the framework's README](../Kit/Playground.AI.Assist/README.md) 
 Push it again after reinstalling or restoring the app: secure storage isn't backed up. If the tablet is lost or the key leaks,
 disable it in the Console, make a new one and push that.
 
+## When something goes wrong
+
+Prima keeps every warning and error in **Settings › Problems** (with **Copy**, to paste them into a message), and in
+`errors.log` in the same folder as the key file, so it can be copied off even when Prima won't open:
+
+```bash
+adb pull /sdcard/Android/data/com.saphyiere.prima/files/errors.log
+```
+
+Or open the tablet in Windows Explorer over USB: Internal shared storage › Android › data › com.saphyiere.prima › files.
+`errors.old.log` beside it holds the half megabyte before. A screen that fails shows **This screen stopped** with **Try again**,
+and the rest of Prima keeps working; Android's own log has the errors too (`adb logcat -s Prima`), but it moves on in minutes.
+
 ## Connecting the piano
 
 The P-225B's **USB TO HOST** port (a square USB-B socket on the back) goes to the tablet's USB-C port, with a USB-B to USB-C
-cable or a USB-B cable and an adapter. The tablet then has no free port, so it practises on battery unless a USB-C hub with power
+cable or a USB-B cable and an adapter. The tablet then has no free port, so it practices on battery unless a USB-C hub with power
 delivery sits in between. Prima finds the piano by itself, and its name lights up at the foot of the rail.
 
 Then try, in **Tools**:

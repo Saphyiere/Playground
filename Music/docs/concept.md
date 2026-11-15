@@ -44,14 +44,19 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 ## Sections
 
-The rail down the left edge, in both looks: Today, Drills, Sight-read and Exercises; Library, Tools and You; Settings at the
-foot. In Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
+The rail down the left edge, in both looks: Today, Drills, Sight-read and Exercises; Library, Routines, Tools and You; Settings
+at the foot. In Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
+
+Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
+**This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
+still goes anywhere, and another screen starts afresh. Before, a failure left the whole page not answering taps under Blazor's
+yellow bar, until Reload.
 
 ### Today
 
 What to do now. The day's plan as five steps (below), with the next one ready to start; a shorter five-minute plan for busy
 days that still counts; this week's minutes (from Monday, as You's weeks are; a piece's are its practice sessions' playing
-time and its plays through) and its days practised; the streak; and the
+time and its plays through) and its days practiced; the streak; and the
 practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
@@ -192,7 +197,7 @@ a PDF plays out; this is what came of it.
   where to start; a PDF's tempo and bars) until it's pressed again, the **metronome**'s settings (below), and **Full
   screen**, which leaves only the bar and the
   music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
-  A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practising
+  A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practicing
   the Standard way) with the run's summary there instead; while a run plays the music has that space too. About this piece
   starts with what's been done on it, from the runs kept: when it was last played, how that run was
   played and how it went (round a loop, its bars, its passes and how they went from the first to the last); then how often
@@ -248,7 +253,7 @@ a PDF plays out; this is what came of it.
   bar shows the headline (**right in time**: the share of the notes played right and not off the beat; or right first time;
   in landscape in the level's place, so the keys keep their one row, a long key's words on two lines where they must, and in
   portrait beside the level),
-  every note stays marked, and (practising the Standard way) the summary takes About this piece's place under the music, so
+  every note stays marked, and (practicing the Standard way) the summary takes About this piece's place under the music, so
   how it went is on the screen with it, as in full screen: its few lines fit, and its details scroll in the summary's own
   share of the screen. It doesn't move your level.
 - **Practice** starts a practice session on the piece in full screen, hiding the navigation and Android system bars. Returning
@@ -258,7 +263,7 @@ a PDF plays out; this is what came of it.
   stopped (going over a bar on your own: a key in the last ten seconds counts), and **Idle**, the rest of the session: looking
   at the music, working out a fingering, a drink of water. **Finish practice**, beside them, ends the session (a run going
   stops first, and is kept with it) and shows its look back. After 15 minutes with nothing played the session pauses: the
-  page is covered by **Still practising?**, with **Keep practising** and **Finish practice**, and the clocks stop until you
+  page is covered by **Still practicing?**, with **Keep practicing** and **Finish practice**, and the clocks stop until you
   carry on. Leaving the piece, or the tablet sleeping or Prima put away, pauses it the same way, and coming back shows the
   cover; a key played on the piano carries on too. Finished from the cover, the session ends as of the last thing played, and
   one left paused until another day is finished that way, the piece opening on its front. The session is kept every half
@@ -268,7 +273,7 @@ a PDF plays out; this is what came of it.
   (none at all with Marks as you play off), and round a loop the bar counts the passes but doesn't score them. **Standard**
   sums each run up under the music, and each pass in the bar as the next begins. **Hands-on** gives each run the in-depth
   review (below), taking the screen, with **Again** (the run again, from the same bar; the piano's go key presses it) and
-  **Back to practising**, which leaves every mark the run left on the music; and its loops wait for you after each pass.
+  **Back to practicing**, which leaves every mark the run left on the music; and its loops wait for you after each pass.
   Whether a loop waits is a setting of its own in every way (**Round a loop** on the Options: **Go straight on**, to drill a
   riff over and over, or **Wait after each pass**, for a breather to look at it): waiting, each pass is a run of its own,
   ended and kept as one, and the next starts with its key or the go key, but the loop still counts on: the bar says the pass
@@ -278,7 +283,7 @@ a PDF plays out; this is what came of it.
   every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
   loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
 - **The look back**, once a session is finished, takes the page: the session's playing and idle time, its stretches, passes
-  and runs through; each stretch practised (its bars: the whole piece, from a bar, or round a loop; the hand; In time or Wait
+  and runs through; each stretch practiced (its bars: the whole piece, from a bar, or round a loop; the hand; In time or Wait
   for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its first and last figures,
   and its tempo, a step on the line where it changed; **Still hard**, the bar with most still to fix at the end, and
   **Fixed**, the bar put right; and how the stretches played both times compare with the session before on the piece
@@ -287,7 +292,7 @@ a PDF plays out; this is what came of it.
   the first third how it started. Still hard is the bar with most to fix in its last times, a wrong or missed note weighing
   three times anything else (a note off the beat or let go early, a slip put right, a chord not together), and says what
   went wrong then: one read-through names its worst bar. Fixed is the bar with most to fix at first, played three times or
-  more, that was clean in its last times. **Keep practising** carries the session on, **Practise bar N** carries it on
+  more, that was clean in its last times. **Keep practicing** carries the session on, **Practice bar N** carries it on
   looping the bar still hard (with a bar either side), **In-depth review** goes over it, and **Done** goes back to the
   piece's front. Only taps press them.
 - **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
@@ -298,14 +303,14 @@ a PDF plays out; this is what came of it.
   **Look at** and **Fixed**, the look back's Still hard and Fixed. Its bars are shaded by what went wrong against the bar with
   the most, so the worst is darkest whatever the session. A tap on a bar's cell, or on the bar on the music, outlines it there
   with the marks the latest run that played it left on its notes; it opens on the bar still hard (or else the bar put right),
-  and **Practise bar N** loops the bar picked, as from the look back. Up to 24 bars every bar has a cell. A longer piece shows
+  and **Practice bar N** loops the bar picked, as from the look back. Up to 24 bars every bar has a cell. A longer piece shows
   the bars that had something wrong, the most to fix first, up to 16, over a thin strip of the whole piece with each marked on
   it, and **and 9 more** shows the rest. The pickup before bar 1 is "the upbeat" in its words, as it has no number on the strip.
 - **Play** is the piece played through, In time with the click, both hands, from its first bar to its end, full screen: the
   music, and a slim strip with the piece's name, the tempo (tap it to change it) and **Start** (or the piano's go key), so the
   tempo can be set first; then the bar, the time and Stop. Nothing is on the music while it plays, whatever the settings say:
   no cursor and no marks. Once it's over every note is marked, and a line at the bottom says how it went (**93% right in
-  time** · 88 of 95 notes · look at bar 1), with **Again**, **Practise bar 1** (Practice, a session started looping that bar
+  time** · 88 of 95 notes · look at bar 1), with **Again**, **Practice bar 1** (Practice, a session started looping that bar
   with a bar either side), **In-depth review** and **Done**; the strip at the top keeps only the tempo then. A play-through is
   kept as a run, counted in About's played through and its best, and its minutes are the day's.
 - **Screens over the music don't draw it again.** The look back, the in-depth review and Play cover the music or take it full
@@ -377,6 +382,24 @@ a PDF plays out; this is what came of it.
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
 
+### Routines
+
+Every routine Claude has made for you, kept to follow again, so you can keep several going (one for a piece, one for technique)
+and switch between them. **Ask for routine** in its head asks for another (Exercises and Today have it too). In three parts:
+
+- **Following**: the routine Today has, with its minutes, activities and how many are done today, **Practice it** (My routine,
+  its activities to start) and **Use the standard daily plan**. With none followed, Today has the daily plan.
+- **Asked for**: requests that aren't routines yet, newest first, each with what it's called, where it is (Asking Claude…,
+  Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and when. Each opens the request: its
+  proposal to look over and use, or why it didn't finish and **Retry request**. The list follows a request as it changes.
+- **Your routines**: every routine accepted, newest first, an adjusted one too (Adjusted), each a card with its minutes and
+  activities, its summary, its activities by name, when it was accepted and last practiced, and its piece. **Follow** makes it
+  the one Today has; the one followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its
+  own progress for the day, so switching back finds today's done activities still done.
+
+The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity.
+Routines Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it.
+
 ### Tools
 
 - **Glossary**: everything on a sheet of music. First and largest, **where the notes live**: the grand staff from the bass
@@ -412,7 +435,8 @@ Practice tells you on a piece (Simple, Standard or Hands-on, or their four setti
 pass's figure, whether a loop waits after each pass, and whether a run goes again at its end), and whether the right note is
 named after a wrong one in a note drill), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
 timing), notation (the
-music font and the sheet's size), the click (where it sounds, its sound and volume), Claude, and your data. A daily goal much above last
+music font and the sheet's size), the click (where it sounds, its sound and volume), Claude, your data, and the problems Prima
+kept. A daily goal much above last
 week's average gets a note to go up gradually; Prima never raises it by itself.
 
 Claude: the Anthropic API key on this tablet, shown masked (`sk-ant-…a1B2`), with **Test** (asks the API whether the key works,
@@ -431,6 +455,15 @@ confirm. The first time, Android asks to let Prima install apps.
 Your data: **Back up** shares the data file through the tablet's share sheet (to Drive, or to the PC); **Restore** takes a backup
 back, after checking it's one of Prima's; **Start over** clears levels, notes, history and the streak but keeps the settings, after
 asking. Nothing leaves the tablet unless you back it up.
+
+**Problems:** what went wrong, newest first, each line its time, how bad (Warning, Error, Critical), what said it (a screen, a
+job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (all of them, to paste into a
+message) and **Clear…**. Everything Prima logs as a warning or an error goes in: a screen that stopped, a job that failed, the
+page that stopped answering, anything thrown that nothing caught (kept as Android closes Prima). They're kept in `errors.log`
+in Prima's folder too (Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even
+when Prima won't open; past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it
+stopped answering at the time, so it keeps what Blazor said in its own storage, and its yellow bar says it ("Prima stopped
+answering taps", why, and that it's kept); Prima writes it in the log the next time it starts, as of when it happened.
 
 ## The sight-reading flow
 
@@ -637,13 +670,13 @@ choose.
 | Hands doing different things | One hand holds while the other moves, two notes against one, smooth against detached, two against three |
 | Touch, loud and soft | Two-note slurs, five fingers detached, one note soft to loud, growing and fading |
 | Pedal | The pedal by itself, and changed on each chord |
-| Ways to practise anything | Slow enough to be right, hands separately then together, small sections, fixing a mistake at once, the metronome ladder, mixing things up, sleeping on it, recording yourself, the hard bit first, when to stop |
+| Ways to practice anything | Slow enough to be right, hands separately then together, small sections, fixing a mistake at once, the metronome ladder, mixing things up, sleeping on it, recording yourself, the hard bit first, when to stop |
 
 There are four kinds. One **played at the piano** (39 of them) shows its music with the fingering under the play bar every
 screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards. Its notes, timing and held notes
 are judged as a passage's are, and so, where its music marks them, are the touch (slurs and staccato), loud and soft, and the
 pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) has nothing for Prima to follow: you do it and
-press Done, once a day. A **way to practise** is a few lines to read. And the three technique **drills** are listed in the
+press Done, once a day. A **way to practice** is a few lines to read. And the three technique **drills** are listed in the
 sections they belong to, their rows opening the drill.
 
 An exercise's page has what you do in a line, how in a few steps, and what to notice. One that's played offers its keys with −
@@ -656,7 +689,7 @@ one is under the other.
 
 They come as **two lists**, so the ones you play aren't among the ones you read. **To play**, which the tab opens on, has the
 42 played at the piano, the three drills among them; **To read** has the other 24, to read and do: how you sit, the warm-ups,
-the pedal by itself, and the ways to practise. Each shows its sections with a line on what they're for, and each exercise as
+the pedal by itself, and the ways to practice. Each shows its sections with a line on what they're for, and each exercise as
 a row: its name, what you do, when it was last done (Today, a date, or Not tried), and tags for Routine, Drill, Start here
 (played, and for the first weeks) and Later (for when the basics are easy). Beside the two are **My routine**, your own list
 of both kinds in the catalogue's order, without the sections' headings, where one to read is tagged so; and two picks of the
@@ -701,7 +734,7 @@ judged.
 - **Rhythm**: your early or late lean, steadiness, drift without the click, and the figures you miss most.
 - **Technique**, per scale or arpeggio and hand, from the last run: evenness at a tempo, the fastest tempo at which it stays even,
   crossing and octave slips, evenness of touch, legato, and how far apart the hands are.
-- **Habit**: minutes a week, days practised out of the last seven, the streak and the freezes banked. The share of clean passages
+- **Habit**: minutes a week, days practiced out of the last seven, the streak and the freezes banked. The share of clean passages
   shows under Reading (retention follows the share of correct tries). The streak can be repaired: a missed day can be covered
   by a freeze, and the week counts as kept at five days out of seven. A break is described plainly, never as a failure.
 
@@ -737,7 +770,7 @@ Everything lives in one SQLite file on the tablet.
 - **Note cards**: one per note and clef, with its review box, when it's next due, its recent answers and response times.
 - **Sessions**: each day's practice, its steps and minutes.
 - **Practice sessions**: each one on a piece, when it started and finished, its playing and idle time, whether it's paused
-  and when something was last played, and the way it was practised (Simple, Standard, Hands-on, or its own mix).
+  and when something was last played, and the way it was practiced (Simple, Standard, Hands-on, or its own mix).
 - **Attempts**: one per passage, rhythm, technique or exercise run, keeping its settings (the level's step, the key it was in and the key it
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
   passage can be made again (one spot does) and a result recomputed if the scoring changes. A piece's run keeps the bar it
@@ -758,9 +791,14 @@ Everything lives in one SQLite file on the tablet.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Exercises**: each one's runs are attempts under its id, with the key and hands (a Done away from the keys is one too); the
   key, hands and tempo each was last played in; and the ones kept in My routine.
-- **Streak**: the days practised and the freezes used.
+- **Streak**: the days practiced and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no
   images, and never the key), and the tokens and cost, so Settings can show the month's cost.
+- **Routines**: each request (what was asked, the evidence it was asked with, the piece's edition, where it is, what came back);
+  each routine accepted, kept as accepted, never changed (an adjustment is a routine of its own); which one is followed, a
+  setting; and each routine's day, one per routine and date, with each activity's state, time and runs.
+- **Problems** aren't in the data file: they're `errors.log` beside `claude-key.txt`, plain text, an entry a problem (`===`, the
+  time, how bad and what said it, then what it said and the rest), so they're there even when the data file isn't.
 
 ## How it's built
 

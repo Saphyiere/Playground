@@ -62,7 +62,7 @@ public static class RoutineEvaluation
                 ? confirmHands ? "MIDI hand inference explicitly confirmed by the caller; not independently verified." : "MIDI hand inference is unverified; offline template checks assume it only for the compiler fixture."
                 : "Using written staff assignments; physical hand movement and fingering are not inferred.";
             var source = new RoutineSource("routine-evaluation", score.Title ?? Path.GetFileNameWithoutExtension(sourcePath), RoutineCompiler.SourceRevision(mei), mei, handsConfirmed);
-            var request = new RoutineRequest(20, "Help me practise this piece, especially jumps, changing chord shapes, rhythm and hand coordination. Use precise source passages and include a return to the original music.", source.PieceId);
+            var request = new RoutineRequest(20, "Help me practice this piece, especially jumps, changing chord shapes, rhythm and hand coordination. Use precise source passages and include a return to the original music.", source.PieceId);
             var evidence = new PracticeEvidenceSnapshot(DateTimeOffset.UtcNow, []);
             var input = RoutineCompiler.Input(request, evidence, source);
             var frames = input.SourceEvents;

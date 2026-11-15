@@ -1,0 +1,196 @@
+@page "/routines"
+@implements IDisposable
+@inject RoutineService Routines
+@inject ILogger<RoutineLibrary> Logger
+@using Microsoft.Extensions.Logging
+@using Prima.Core.Routines
+@using Prima.UI.Routines
+
+<PageTitle>Routines · Prima</PageTitle>
+<PageHead Title="Routines" Kicker="Asked for, kept, and the one you follow">
+    <a class="mu-btn mu-primary" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
+</PageHead>
+
+@* Every routine Prima has made for you, to follow any of them again: the one Today follows now, what's been asked for and isn't a
+   routine yet (being asked, ready to look over, or not finished), and every routine accepted, newest first. Following another
+   keeps the one before, and each keeps its own progress for the day. *@
+@if (loading)
+{
+    <p class="page-note" role="status">Opening your routines…</p>
+}
+else
+{
+    <section class="settings-section" aria-labelledby="following-heading" data-state="routine-following">
+        <h2 id="following-heading" class="section-title">Following</h2>
+        @if (active is { } now)
+        {
+            <p class="section-note">Today has <b>@RoutineWords.American(now.Title)</b>: @Minutes(now) min, @Activities(now)@(day is null ? "" : $", {day.Items.Count(i => i.State == RoutineItemState.Done)} of {now.Items.Count} done today").</p>
+            <div class="control-row">
+                <a class="mu-btn mu-primary" data-piano="off" data-action="open-active-routine" href="routine">Practice it</a>
+                <button type="button" class="mu-btn" data-piano="off" data-action="routine-deactivate" disabled="@busy" @onclick="StopFollowing">Use the standard daily plan</button>
+            </div>
+        }
+        else
+        {
+            <p class="section-note">Today has the standard daily plan. Follow one of your routines below, or ask for a new one, and Today has it instead.</p>
+        }
+    </section>
+
+    @if (asked.Count > 0)
+    {
+        <section class="settings-section" aria-labelledby="asked-heading">
+            <h2 id="asked-heading" class="section-title">Asked for</h2>
+            <p class="section-note">Requests that aren't routines yet: open one to look over what came back, ask again, or see why it didn't finish. The ones you've accepted are your routines, below.</p>
+            <ul class="piece-list routine-requests">
+                @foreach (var job in asked)
+                {
+                    <li>
+                        <a class="piece-row" data-piano="off" data-routine-job="@job.Id" data-state="@job.State.ToString().ToLowerInvariant()" href="@($"routine/jobs/{job.Id}")">
+                            <span class="piece-title">@JobTitle(job)</span>
+                            <span class="piece-meta">@JobState(job) · @job.Request.Minutes min@(job.Source is { } source ? $" · {source.Title}" : "") · @job.Updated.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <section class="settings-section" aria-labelledby="routines-heading">
+        <h2 id="routines-heading" class="section-title">Your routines</h2>
+        @if (routines.Count == 0)
+        {
+            <p class="section-note">None yet. Ask for a routine, look it over, and use it: it's kept here, to follow again whenever you like.</p>
+        }
+        else
+        {
+            <ol class="routine-grid routine-list">
+                @foreach (var routine in routines)
+                {
+                    var following = routine.Revision == active?.Revision;
+                    var adjusted = routine.Provider == "local";
+                    <li class="mu-step routine-card" data-routine="@routine.Revision" data-state="@(following ? "now" : null)">
+                        <div class="mu-step-meta">
+                            <span class="mu-led" aria-hidden="true"></span>
+                            <span>@Minutes(routine) min</span>
+                            <span>@Activities(routine)</span>
+                            <span>@(following ? "Following" : adjusted ? "Adjusted" : "Kept")</span>
+                        </div>
+                        <h3 class="mu-step-name">@RoutineWords.American(routine.Title)</h3>
+                        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
+                        <p class="control-note routine-items">@string.Join(" · ", routine.Items.Select(i => RoutineWords.American(i.Recipe.Title)))</p>
+                        <div class="routine-card-footer">
+                            <span class="control-note">
+                                @(adjusted ? "Adjusted" : "Accepted") @routine.Accepted.ToLocalTime().ToString("d MMM", CultureInfo.InvariantCulture)@(practiced.TryGetValue(routine.Revision, out var last) ? $" · last practiced {When(last)}" : " · not practiced yet")@(routine.Source is { } source ? $" · {source.Title}" : "")
+                            </span>
+                            @if (following)
+                            {
+                                <a class="mu-btn mu-primary" data-piano="off" href="routine">Practice it</a>
+                            }
+                            else
+                            {
+                                <button type="button" class="mu-btn" data-piano="off" data-action="routine-follow" disabled="@busy" @onclick="() => Follow(routine.Revision)">Follow</button>
+                            }
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+    </section>
+}
+@if (problem is not null)
+{
+    <p class="section-note" role="alert">@problem</p>
+}
+
+@code {
+    private RoutineDefinition? active;
+    private RoutineDay? day;
+    private IReadOnlyList<RoutineDefinition> routines = [];
+    private IReadOnlyList<RoutineGenerationJob> asked = [];
+    private Dictionary<string, DateOnly> practiced = [];
+    private bool loading = true;
+    private bool busy;
+    private string? problem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Routines.Changed += Changed;
+        await Load();
+        loading = false;
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            active = await Routines.ActiveAsync();
+            day = active is null ? null : await Routines.TodayAsync();
+            routines = await Routines.RoutinesAsync();
+            asked = [.. (await Routines.RecentAsync()).Where(j => j.State != RoutineGenerationState.Accepted)];
+            practiced = await Routines.LastPracticedAsync();
+        }
+        catch (Exception error)
+        {
+            Logger.LogError(error, "Couldn't open the routines: {Message}", error.Message);
+            problem = $"Couldn't open your routines: {error.Message}";
+        }
+    }
+
+    // A request asked for finished, failed or was accepted elsewhere (its notification, the review): the lists follow.
+    private void Changed(RoutineGenerationJob job) => _ = InvokeAsync(async () =>
+    {
+        await Load();
+        StateHasChanged();
+    });
+
+    private async Task Follow(string revision)
+    {
+        busy = true;
+        try
+        {
+            await Routines.FollowAsync(revision);
+            await Load();
+        }
+        catch (InvalidOperationException error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+
+    private async Task StopFollowing()
+    {
+        busy = true;
+        try
+        {
+            await Routines.DeactivateAsync();
+            await Load();
+        }
+        finally { busy = false; }
+    }
+
+    private static int Minutes(RoutineDefinition routine) => routine.Items.Sum(i => i.Recipe.Minutes);
+
+    private static string Activities(RoutineDefinition routine) => routine.Items.Count == 1 ? "1 activity" : $"{routine.Items.Count} activities";
+
+    private static string When(DateOnly day)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        return day == today ? "today" : day == today.AddDays(-1) ? "yesterday" : day.ToString("d MMM", CultureInfo.InvariantCulture);
+    }
+
+    // What a request is called: what came back, or else what was asked for, or the piece it's for.
+    private static string JobTitle(RoutineGenerationJob job) =>
+        RoutineWords.American(job.Draft?.Title ?? (job.Request.Goal is { Length: > 0 } goal ? goal : job.Source?.Title ?? "Practice routine"));
+
+    private static string JobState(RoutineGenerationJob job) => job.State switch
+    {
+        RoutineGenerationState.Queued => "Waiting to be asked",
+        RoutineGenerationState.Running => "Asking Claude…",
+        RoutineGenerationState.Ready => "Ready to look over",
+        RoutineGenerationState.Failed => "Didn't finish",
+        RoutineGenerationState.Interrupted => "Interrupted",
+        RoutineGenerationState.Cancelled => "Cancelled",
+        _ => job.State.ToString(),
+    };
+
+    public void Dispose() => Routines.Changed -= Changed;
+}

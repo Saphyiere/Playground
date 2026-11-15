@@ -6,6 +6,9 @@
 @inject IJSRuntime JS
 @inject ClaudeKeyFile KeyFile
 @inject Playground.AI.Assist.IAssistKeyStore Keys
+@inject ILogger<MainLayout> Logger
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
 
 @* Screens wait for the saved look, so the parts that draw per look don't start in the wrong one, and for the saved settings. *@
 @if (loaded)
@@ -15,8 +18,10 @@
             <PianoButtons />
             <Rail />
             <main class="shell-main">
-                <Prima.UI.Transcription.ConversionNotice />
-                @Body
+                <ScreenErrorBoundary>
+                    <Prima.UI.Transcription.ConversionNotice />
+                    @Body
+                </ScreenErrorBoundary>
             </main>
         </div>
     </CascadingValue>
@@ -38,6 +43,8 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender) await TakeInPageProblems();
+
         // The page's colors, fonts and shapes follow data-theme on <html>, which index.html restores before the first paint.
         if (!loaded || shownLook == LookSetting.Current.Id) return;
 
@@ -57,6 +64,27 @@
         {
         }
     }
+
+    // What the page kept of its own problems (problems.js): above all, why it last stopped answering, which it can't tell .NET at
+    // the time. Each goes in the problem log as of when it happened.
+    private async Task TakeInPageProblems()
+    {
+        try
+        {
+            var kept = JsonSerializer.Deserialize<List<PageProblem>>(await JS.InvokeAsync<string>("primaProblems.take"), JsonSerializerOptions.Web) ?? [];
+            foreach (var problem in kept)
+            {
+                var at = problem.At.ToLocalTime();
+                if (problem.Kind == "stopped") Logger.LogError("The page stopped answering at {Path} ({At:d MMM HH:mm:ss}): {Said}", problem.Path, at, problem.Text);
+                else Logger.LogWarning("The page reported a problem ({Kind}) at {Path} ({At:d MMM HH:mm:ss}): {Said}", problem.Kind, problem.Path, at, problem.Text);
+            }
+        }
+        catch (Exception e) when (e is JSException or JSDisconnectedException or JsonException)
+        {
+        }
+    }
+
+    private sealed record PageProblem(DateTimeOffset At, string Kind, string Path, string Text);
 
     private void OnLookChanged() => _ = InvokeAsync(StateHasChanged);
 

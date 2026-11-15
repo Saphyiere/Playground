@@ -136,10 +136,37 @@ public class RoutineStoreTests
         Assert.Null(await host.Store.GetActiveRoutineAsync());
     }
 
+    // Every routine accepted is kept to follow again; each keeps its own progress for the day, whichever is followed between.
+    [Fact]
+    public async Task EveryAcceptedRoutineIsKeptToFollowAgainWithItsOwnProgressForTheDay()
+    {
+        await using var host = new ComponentHost();
+        var (first, second) = (ReadyJob(), ReadyJob() with { Draft = new("Second routine", "Practice", ReadyJob().Draft!.Items) });
+        await host.Store.CreateRoutineJobAsync(first);
+        await host.Store.CreateRoutineJobAsync(second);
+        var older = await host.Store.AcceptRoutineAsync(first.Id);
+        var today = new DateOnly(2026, 11, 15);
+        var day = (await host.Store.GetOrCreateRoutineDayAsync(today))!;
+        await host.Store.CompleteRoutineExecutionAsync((await host.Store.BeginRoutineExecutionAsync(day.Id, "jump")).Id);
+        var newer = await host.Store.AcceptRoutineAsync(second.Id);
+
+        Assert.Equal([newer.Revision, older.Revision], (await host.Store.GetRoutineDefinitionsAsync()).Select(r => r.Revision));
+        Assert.Equal(newer.Revision, (await host.Store.GetActiveRoutineAsync())!.Revision);
+        Assert.Equal(today, (await host.Store.GetRoutineLastPracticedAsync())[older.Revision]);
+        Assert.False((await host.Store.GetRoutineLastPracticedAsync()).ContainsKey(newer.Revision));
+        Assert.All((await host.Store.GetOrCreateRoutineDayAsync(today))!.Items, i => Assert.Equal(RoutineItemState.NotStarted, i.State));
+
+        await host.Store.FollowRoutineAsync(older.Revision);
+        Assert.Equal(older.Revision, (await host.Store.GetActiveRoutineAsync())!.Revision);
+        Assert.Equal(RoutineItemState.Done, Assert.Single((await host.Store.GetOrCreateRoutineDayAsync(today))!.Items).State);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Store.FollowRoutineAsync("gone"));
+        Assert.Equal(older.Revision, (await host.Store.GetActiveRoutineAsync())!.Revision);
+    }
+
     internal static RoutineGenerationJob ReadyJob()
     {
         var item = new RoutineItem { Id = "jump", Kind = "exercise", TargetId = "octave-jump", Title = "Jump", Purpose = "Land accurately", Hands = HandUse.Right, Mode = "time", Tempo = 60 };
-        return new(Guid.NewGuid().ToString("N"), 0, RoutineGenerationState.Ready, DateTimeOffset.UtcNow, new(10, "Practise jumps"),
+        return new(Guid.NewGuid().ToString("N"), 0, RoutineGenerationState.Ready, DateTimeOffset.UtcNow, new(10, "Practice jumps"),
             new(DateTimeOffset.UtcNow, []), null, "test", "explicit-model", new("Routine", "Practice", [item]), [new(item, "", null)]);
     }
 }

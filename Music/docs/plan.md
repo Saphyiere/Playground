@@ -476,10 +476,10 @@ bands on each set's share right: over 90% in two sets in a row steps up, under 8
 
 ### The streak and the habit
 
-- **A practised day** has 5 minutes or more, or the five-minute plan done (ours).
-- **Freezes:** one earned for every 7 practised days, up to 2 banked, used by themselves on a missed day (ours).
+- **A practiced day** has 5 minutes or more, or the five-minute plan done (ours).
+- **Freezes:** one earned for every 7 practiced days, up to 2 banked, used by themselves on a missed day (ours).
 - **Weeks:** a week counts as kept at 5 days of 7.
-- **Breaks** are described plainly: "Last practised Tuesday. Today's plan is ready."
+- **Breaks** are described plainly: "Last practiced Tuesday. Today's plan is ready."
 
 ### Progress
 
@@ -553,7 +553,7 @@ Two drills have their own touches:
 - the collection with each piece's level and composer;
 - importing a file;
 - a piece's view: two systems in landscape, a full page in portrait;
-- practising a piece: loop bars, slow it down, the click, and the same timing summary.
+- practicing a piece: loop bars, slow it down, the click, and the same timing summary.
 
 The rest follows `library.md`.
 
@@ -671,7 +671,7 @@ xUnit v3 in `Prima.Core.Tests`, for everything in the Core:
   split or dual voice sends on;
 - whether notes sent with future timestamps play on time;
 - whether the piano sends Active Sensing, and the jitter it shows;
-- that the tablet's one USB-C port is taken by the piano, so it runs on battery while practising unless a hub with power
+- that the tablet's one USB-C port is taken by the piano, so it runs on battery while practicing unless a hub with power
   delivery is used;
 - where the click sounds (speaker, or the piano as USB audio), and "Click on the piano";
 - the timing calibration's offset and spread;

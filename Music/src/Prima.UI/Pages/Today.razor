@@ -56,14 +56,14 @@
     {
         <section class="mu-screen today-screen today-routine" data-active-routine="@accepted.Revision">
             <div class="mu-screen-head"><span>Your routine</span><span>@accepted.Items.Sum(i => i.Recipe.Minutes) min</span></div>
-            <h2 class="mu-screen-head">@accepted.Title</h2>
-            <p class="page-panel-line">@accepted.Summary</p>
+            <h2 class="mu-screen-head">@RoutineWords.American(accepted.Title)</h2>
+            <p class="page-panel-line">@RoutineWords.American(accepted.Summary)</p>
             <div class="piece-list">
                 @foreach (var item in accepted.Items)
                 {
                     var progress = routineDay?.Items.FirstOrDefault(p => p.ItemId == item.Recipe.Id);
                     <a class="piece-row" href="routine" data-routine-item="@item.Recipe.Id">
-                        <span class="piece-title">@item.Recipe.Title</span>
+                        <span class="piece-title">@RoutineWords.American(item.Recipe.Title)</span>
                         <span class="piece-meta">@item.Recipe.Minutes min · @(progress?.State switch { RoutineItemState.Done => "Done", RoutineItemState.Skipped => "Skipped", RoutineItemState.Paused => "Paused", RoutineItemState.InProgress => "In progress", _ => "Ready" })</span>
                     </a>
                 }
@@ -248,9 +248,9 @@
 
     private int WeekSegments() => (int)Math.Round(Math.Min(1, (streak?.MinutesThisWeek ?? 0) / Math.Max(1.0, Settings.DailyMinutes * 7)) * 14);
 
-    private string StreakWords() => streak?.LastPractised is null ? "The first day. A freeze for a missed day comes every 7 practised days." : streak.BreakNote(Day0) ?? $"{streak.DaysThisWeek} of the last 7 days. {(streak?.FreezesBanked ?? 0) switch { 0 => "No freezes banked yet: one comes every 7 practised days.", 1 => "One freeze banked for a missed day.", var n => $"{n} freezes banked for missed days." }}";
+    private string StreakWords() => streak?.LastPracticed is null ? "The first day. A freeze for a missed day comes every 7 practiced days." : streak.BreakNote(Day0) ?? $"{streak.DaysThisWeek} of the last 7 days. {(streak?.FreezesBanked ?? 0) switch { 0 => "No freezes banked yet: one comes every 7 practiced days.", 1 => "One freeze banked for a missed day.", var n => $"{n} freezes banked for missed days." }}";
 
-    private string SleeveLine() => streak?.LastPractised is null ? $"Side A, the first day: {Settings.DailyMinutes} minutes today." : streak.BreakNote(Day0) ?? $"{streak.Days} {(streak.Days == 1 ? "day" : "days")} in a row. {streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week.";
+    private string SleeveLine() => streak?.LastPracticed is null ? $"Side A, the first day: {Settings.DailyMinutes} minutes today." : streak.BreakNote(Day0) ?? $"{streak.Days} {(streak.Days == 1 ? "day" : "days")} in a row. {streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week.";
 
     private string RecentInTime()
     {

@@ -28,7 +28,7 @@ public class RoutineCompilerTests
 
     private static RoutineItem Item(string template) => new()
     {
-        Id = "focus", Kind = template == "source" ? "excerpt" : "generated", TargetId = template, Title = "Exercise", Purpose = "Practise the selected transition",
+        Id = "focus", Kind = template == "source" ? "excerpt" : "generated", TargetId = template, Title = "Exercise", Purpose = "Practice the selected transition",
         Minutes = 3, Hands = template == "coordination" ? HandUse.Together : HandUse.Right, Mode = template == "rhythm" ? "time" : "wait",
         SourceEventIds = template == "chord-shapes" ? ["b1s1t0"] : template is "jump" or "chord-changes" ? ["b1s1t0", "b1s1t480"] : [],
         FirstBar = template is "jump" or "chord-changes" or "chord-shapes" ? null : 1,

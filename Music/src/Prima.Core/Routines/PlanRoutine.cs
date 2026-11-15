@@ -11,7 +11,8 @@ public sealed class PlanRoutine : AssistTask<RoutinePlanningInput, RoutineDraft>
     }
 
     public override string Name => "prima.plan-routine";
-    public override int Version => 1;
+    // 2: titles, purposes and summary in American spelling.
+    public override int Version => 2;
     public override int MaxTokens => 8_000;
     public override EffortLevel Effort => EffortLevel.Medium;
 
@@ -65,7 +66,8 @@ public sealed class PlanRoutine : AssistTask<RoutinePlanningInput, RoutineDraft>
         Keep preparation and tempo comfortable. Recommend looking at the destination when first learning a jump; never infer
         that a larger printed interval must be a hand jump. Choose the precise movement the user identified when its source
         references are supplied. Do not imply the current catalogue can monitor eyes or hand travel. Suggestions must be useful
-        without explanatory jargon, and the summary should disclose important uncertainty without a long disclaimer.
+        without explanatory jargon, and the summary should disclose important uncertainty without a long disclaimer. Write the
+        title, purposes and summary in American English: practice, practiced and practicing, never practise.
         """;
 
     public override IReadOnlyList<string> Check(RoutinePlanningInput input, RoutineDraft answer) => RoutineCompiler.Check(input, answer);
