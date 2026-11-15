@@ -1224,26 +1224,31 @@ a {
         display: none;
     }
 
-    /* Eight keys across: Studio's share the row alike, their print set a little closer so the longest name stays inside its
-       key; Vinyl's names take the room each needs. */
+    /* Nine keys across, at 800 wide: Studio's share the row alike, their print a little smaller and closer so the longest
+       name (Sight-read) stays inside its key; Vinyl's names take the room each needs, a little smaller, with room between. */
     .shell .mu-nav-item {
         flex: 1;
         min-width: 0;
-        padding-inline: 8px;
-        letter-spacing: 0.06em;
+        padding-inline: 6px;
+        font-size: 10px;
+        letter-spacing: 0.02em;
     }
 
     .shell .mu-nav-end {
         margin-top: 0;
     }
 
+    [data-theme="vinyl"] .shell > .mu-nav {
+        gap: 14px;
+    }
+
     [data-theme="vinyl"] .shell .mu-nav-item {
         flex: 1 1 auto;
         justify-content: center;
-        gap: 8px;
+        gap: 5px;
         padding: 0;
-        font-size: 24px;
-        letter-spacing: 0.03em;
+        font-size: 20px;
+        letter-spacing: 0.02em;
     }
 
     [data-theme="vinyl"] .shell .mu-nav-code {
