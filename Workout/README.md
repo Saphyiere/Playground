@@ -104,7 +104,9 @@ has the whole story, from the Console's workspace and spend limit to what to do 
    `adb push claude-key.txt /sdcard/Android/data/com.saphyiere.adaptiveworkout/files/`. Delete the copy on the PC with Shift+Delete.
 3. Open the app: it takes the key into secure storage and deletes the file on the phone. **Settings › Claude** shows the key
    masked; **Test** checks it with Anthropic without spending anything.
-4. Finish a workout. The look back takes about half a minute; **Use for next time** takes its plan.
+4. Finish a workout. The look back takes about half a minute; **Use for next time** takes its plan. Leaving the app meanwhile
+   doesn't lose it: a foreground service keeps the app going while Claude answers (the Kit's Playground.AI.Assist.Android), with a
+   quiet notification once it's taken ten seconds.
 5. Try it in a **Release** build once: Release builds trim the app, and the answer's JSON schema is made from its records, so check
    that a look back still arrives there.
 

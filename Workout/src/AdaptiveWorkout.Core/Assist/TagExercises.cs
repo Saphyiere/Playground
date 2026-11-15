@@ -36,6 +36,8 @@ public sealed class TagExercises : AssistTask<ExercisesToTag, ExerciseTags>
 {
     public override string Name => "workout.tag-exercises";
 
+    public override string Doing => "Tagging your exercises with their muscles";
+
     public override int Version => 1;
 
     // Naming what a row or a curl trains takes knowledge, not long thought.

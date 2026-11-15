@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/kit/">
     <Project Path="../Kit/Playground.AI.Assist/Playground.AI.Assist.csproj" />
+    <Project Path="../Kit/Playground.AI.Assist.Android/Playground.AI.Assist.Android.csproj" />
     <Project Path="../Kit/Playground.AI.Assist.Tests/Playground.AI.Assist.Tests.csproj" />
     <Project Path="../Kit/Playground.Kit/Playground.Kit.csproj" />
     <Project Path="../Kit/Playground.Updates/Playground.Updates.csproj" />

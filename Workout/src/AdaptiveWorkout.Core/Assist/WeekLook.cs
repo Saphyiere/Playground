@@ -38,6 +38,8 @@ public sealed class WeekTask : AssistTask<WeekInput, WeekLook>
 {
     public override string Name => "workout.week";
 
+    public override string Doing => "Looking back at your week";
+
     public override int Version => 1;
 
     // It's asked as the app opens and read when it's ready, and a week of summed-up numbers doesn't need the deepest thinking.

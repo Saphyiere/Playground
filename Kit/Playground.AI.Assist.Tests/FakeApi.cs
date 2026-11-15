@@ -15,6 +15,9 @@ sealed class FakeApi : HttpMessageHandler
 
     public List<(JsonElement Body, Dictionary<string, string> Headers)> Requests { get; } = [];
 
+    /// <summary>Run as each request arrives, to see what else holds at that moment.</summary>
+    public Action? Sending { get; set; }
+
     public void Stream(params (string Name, object Data)[] events) => replies.Enqueue(_ => Events(events));
 
     /// <summary>A reply whose text is <paramref name="text"/>, 1,000 tokens in and 500 out.</summary>
@@ -58,6 +61,7 @@ sealed class FakeApi : HttpMessageHandler
         var body = request.Content is null ? "{}" : await request.Content.ReadAsStringAsync(cancellationToken);
         var json = JsonDocument.Parse(body.Length == 0 ? "{}" : body).RootElement.Clone();
         Requests.Add((json, request.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value))));
+        Sending?.Invoke();
         return replies.Dequeue()(json.TryGetProperty("stream", out var stream) && stream.ValueKind == JsonValueKind.True);
     }
 }

@@ -35,7 +35,11 @@ Claude.cs         IClaude and Claude, which asks; ClaudeModels, the models and t
 Inference.cs      Provider-neutral inference, adapter capabilities, execution settings and response metadata.
 AssistKey.cs      IAssistKeyStore, where a device keeps its key, and getting the key in from a file.
 AssistLog.cs      IAssistLog, where a host keeps its calls, and two simple ones.
+AssistKeepAlive.cs  IAssistKeepAlive, what keeps the app going while Claude answers, and NoKeepAlive, the default.
 ```
+
+Beside it, **Playground.AI.Assist.Android** is the keep-alive on Android: a foreground service while an ask is under way (see
+*Using it in an app*).
 
 ## Provider-neutral execution
 
@@ -97,7 +101,11 @@ from the new interface.
 5. **The checks.** By default an answer that fails the task's checks is asked for once more, with its problems listed. If it fails again,
    the kind is `CheckFailed`.
 6. **The log.** Every call goes to `IAssistLog`: the task, model, question, reply, tokens, cost and the API's message id.
-7. **When the request fails.** The API's errors become kinds: `KeyRejected`, `OutOfCredit`, `SpendLimit`, `Busy`, `Offline` and
+7. **Leaving the app.** From the request to the answer (a second ask for failed checks included), the ask holds the host's
+   `IAssistKeepAlive`, with the task's `Doing` ("Looking back at your workout"; "Asking Claude" unless a task says) for its
+   notification. On Android that keeps the app from being stopped or frozen when it's left: another app opened, the phone locked,
+   or the app swiped off the recent apps. Without a keep-alive registered, nothing is kept going, as before.
+8. **When the request fails.** The API's errors become kinds: `KeyRejected`, `OutOfCredit`, `SpendLimit`, `Busy`, `Offline` and
    `Failed`, and a stream that breaks off with an error partway is `Busy`. The client retries a busy or dropped request twice on
    its own.
 
@@ -182,6 +190,24 @@ These are the API's rules for structured outputs. `AssistSchema.For` refuses a r
    the web view or JavaScript.
 8. **Asking from the screens.** Screens take `IClaude`. A preview host registers a stand-in that answers from saved replies, so
    the screens can be checked without a key.
+9. **Keeping an ask going when the app is left** (Android). Reference `Kit/Playground.AI.Assist.Android` from the host and register
+   it with the app's status bar mark, a white-on-clear drawable:
+
+   ```csharp
+   builder.Services.AddAndroidAskKeepAlive(Resource.Drawable.notification_mark);
+   ```
+
+   Every ask through `IClaude` then runs a foreground service until it's done, with a quiet notification saying the task's
+   `Doing` and that Claude keeps going if the app is left. Android shows it only once an ask has taken ten seconds, so a quick one
+   doesn't flash. The library brings the service and its permissions (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`,
+   `WAKE_LOCK`) into the manifest. The notification itself needs `POST_NOTIFICATIONS`, which the app asks for; without it, the
+   ask is still kept going. Android 12 and later start the service only while the app is on screen, so an ask begun in the
+   background goes on unkept, as before.
+
+   The process outlives the app's screen then: swiped away, the app's activity and web view go, and the asks go on. Register
+   whatever asks and remembers an ask under way as a singleton, not scoped to the web view, so the screen made when the app is
+   opened again hears it. Workout's trainer, coach and week's look back are (`AddAdaptiveWorkout(…, askers:
+   ServiceLifetime.Singleton)`).
 
 ## Getting the key onto a device
 
@@ -224,7 +250,7 @@ dotnet test --project Kit/Playground.AI.Assist.Tests
 ```
 
 The tests stand a fake API in for the network: the request's shape, the replies and their kinds, the checks and the second ask,
-the schema rules, and the key file. `ClaudeModels` holds the API's list prices from November 2026; change them when Anthropic
+the schema rules, the key file, and the keep-alive each ask holds. The Android service itself is checked on a device. `ClaudeModels` holds the API's list prices from November 2026; change them when Anthropic
 does.
 
 Three more tests ask the real API, and are skipped unless `PLAYGROUND_CLAUDE_KEY` holds a key. They check that the key works,

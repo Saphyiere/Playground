@@ -46,12 +46,17 @@ public interface IClaude : IInferenceProvider
 /// Asks Claude through the API with the key on this device. Each question is one request: the task's instructions after the
 /// shared preamble, then its attachments and its input as JSON, with the reply held to the schema of
 /// <see cref="Reply{TAnswer}"/>. The answer is checked, asked for once more if the checks fail, logged call by call, and handed
-/// back as an <see cref="Answer{TAnswer}"/>. A refused request is answered by another model where the API can do that.
+/// back as an <see cref="Answer{TAnswer}"/>. A refused request is answered by another model where the API can do that. While it
+/// asks, it holds the host's <see cref="IAssistKeepAlive"/>, so leaving the app doesn't lose the answer.
 /// </summary>
 /// <param name="handler">Stands in for the network, for tests.</param>
 /// <param name="maxRetries">How often the API client retries a request that failed on the way (busy, overloaded, dropped).</param>
-public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider time, HttpMessageHandler? handler = null, int maxRetries = 2) : IClaude
+/// <param name="keepAlive">What keeps the app going while it asks; nothing, without one.</param>
+public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider time, HttpMessageHandler? handler = null, int maxRetries = 2,
+    IAssistKeepAlive? keepAlive = null) : IClaude
 {
+    readonly IAssistKeepAlive alive = keepAlive ?? NoKeepAlive.Instance;
+
     public string ProviderId => "anthropic";
 
     public InferenceCapabilities Capabilities { get; } = new(Images: true, Pdf: true, StructuredOutput: true,
@@ -88,6 +93,8 @@ public sealed class Claude(IAssistKeyStore keys, IAssistLog log, TimeProvider ti
             return new(AnswerKind.Failed, default, "The Claude key couldn't be read from this device's secure storage. Check it in Settings.", [], Usage.None);
         }
         if (client is null) return new(AnswerKind.NoKey, default, NoKeySummary, [], Usage.None);
+        // Held until the answer, or what went wrong, is back: the app is kept going if it's left meanwhile.
+        using var held = alive.Hold(task.Doing);
         var today = DateOnly.FromDateTime(time.GetLocalNow().DateTime);
         var question = JsonSerializer.Serialize(new { task = task.Name, version = task.Version, today, input }, AssistSchema.Json);
         var attachments = task.Attachments(input);

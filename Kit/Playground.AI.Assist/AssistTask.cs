@@ -36,6 +36,12 @@ public abstract class AssistTask<TInput, TAnswer>
     /// <summary>Raised whenever the instructions or either record change, so the log tells old answers from new.</summary>
     public abstract int Version { get; }
 
+    /// <summary>
+    /// What the app is doing while this is asked, in a few words for the notification that keeps it going when it's left (see
+    /// <see cref="IAssistKeepAlive"/>), like "Looking back at your workout".
+    /// </summary>
+    public virtual string Doing => "Asking Claude";
+
     /// <summary>What Claude is told to do, after the shared preamble every task gets.</summary>
     public abstract string Instructions { get; }
 

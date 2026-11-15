@@ -97,6 +97,8 @@ public sealed class AskTask : AssistTask<AskInput, AskAnswer>
 {
     public override string Name => "workout.ask";
 
+    public override string Doing => "Answering your question";
+
     public override int Version => 1;
 
     // The owner waits on the screen, and reading 8 weeks of summed-up numbers doesn't need the deepest thinking.

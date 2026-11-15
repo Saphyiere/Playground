@@ -25,8 +25,12 @@ public static class MauiProgram
 		// (/sdcard/Android/data/com.saphyiere.adaptiveworkout/files/).
 		builder.Services.AddSingleton<IAssistKeyStore, SecureKeyStore>();
 		builder.Services.AddSingleton(new ClaudeKeyFile(Path.Combine(Android.App.Application.Context.GetExternalFilesDir(null)!.AbsolutePath, AssistKey.FileName)));
+		// While Claude answers, a quiet notification keeps the app going, so leaving it (another app, the lock button, a swipe off the
+		// recent apps) doesn't lose the answer. The askers live as long as the app then, not its screen: a screen opened after the app
+		// was swiped away and opened again still hears an asking that's under way.
+		builder.Services.AddAndroidAskKeepAlive(Resource.Drawable.notification_mark);
 		var database = Path.Combine(FileSystem.AppDataDirectory, "adaptiveworkout.db");
-		builder.Services.AddAdaptiveWorkout(database);
+		builder.Services.AddAdaptiveWorkout(database, askers: ServiceLifetime.Singleton);
 		// Updates from the repo's GitHub releases (workout-1.0.N, with workout.apk); a copy of the data goes to Download/Workout backups first.
 		builder.Services.AddAndroidUpdates(new UpdateOptions("workout", "workout.apk") { DataFiles = [database], BackupFolder = "Workout backups" });
 

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Android's side of asking Claude: a foreground service that keeps the app going while an ask is under way, so leaving the app
+    (another app, the lock button, a swipe off the recent apps) doesn't lose its answer. An app's host references it and calls
+    AddAndroidAskKeepAlive. It puts the service and the permissions it needs into the app's manifest itself.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Playground.AI.Assist\Playground.AI.Assist.csproj" />
+  </ItemGroup>
+
+</Project>

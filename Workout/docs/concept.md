@@ -356,6 +356,12 @@ Claude through the apps' shared [framework](../../Kit/Playground.AI.Assist/READM
   once more, or **Claude in Settings** goes to the key.
 - **It's kept** with the workout: the workout's page shows its first lines and opens it again. A workout from before, or one finished
   with the look back off, has **Look back with Claude** there instead.
+- **Leaving the app doesn't lose it.** While Claude reads, the phone keeps the app going, so opening another app, locking the phone
+  or swiping the app off the recent apps leaves Claude reading; after ten seconds a quiet notification says **Looking back at your
+  workout**, and tapping it opens the app. The look back is kept when it comes, and opening the app again shows it, or the
+  heartbeat if Claude's still reading, never a second asking. Every question to Claude does the same: Ask Claude says **Answering
+  your question**, the week's look back **Looking back at your week**, and the muscle tagging **Tagging your exercises with their
+  muscles**. Android lets the app do this only while it's on screen, which it is when each of them starts.
 
 What Claude is sent, and what holds it to its answer:
 
@@ -404,6 +410,7 @@ next workout?**, **What muscles am I missing?** and **How's the weight loss goin
   follow-up reads as one.
 - **Trouble** says what it was, as the look back's does, with **Try again** or **Claude in Settings**. Without a key, the page says
   where to put one.
+- **Leaving the app** doesn't lose the answer, as with the look back (see *Claude's look back*).
 
 What Claude is sent with a question (task `workout.ask`, Opus 5.5 at medium effort): the last 8 weeks, week by week, each with its
 workouts against the routine's gym days, each muscle's hard sets and the ones with none (see *Muscle map*), the food days logged
@@ -420,7 +427,8 @@ steps of 15, and a weight whole steps from one in its times, by at most a tenth 
 ## The week, looked back
 
 On the Monday after a week, or once the week's last planned workout is done (no planned day left after today, and today's done if
-it's one), the app asks Claude to look back at it as Today opens: never in the background, and never with a notification. Without a
+it's one), the app asks Claude to look back at it as Today opens: never in the background, and no notification says when it's ready
+(while Claude reads, the one that keeps the app going says **Looking back at your week**; see *Claude's look back*). Without a
 routine, only on Monday. A week with no workouts isn't looked back at, and each week is asked once.
 
 - **Today** shows its card while it's the latest: **Last week** (or **This week**), with Claude's sentence on it.

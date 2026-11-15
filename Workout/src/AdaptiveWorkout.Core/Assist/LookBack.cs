@@ -52,6 +52,8 @@ public sealed class LookBackTask : AssistTask<LookBackInput, LookBack>
 {
     public override string Name => "workout.look-back";
 
+    public override string Doing => "Looking back at your workout";
+
     // 2: reps left, the first minute's heart rate fall, and plateaus. 3: the week's muscles, on its last planned workout. 4: warm-up sets.
     public override int Version => 4;
 
