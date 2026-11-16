@@ -66,6 +66,36 @@ public class LibraryBrowseTests
     }
 
     [Fact]
+    public async Task AListOfManyComposersHasAKeyForEachLetterTheirSurnamesStartWith()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=all");
+
+        // Three composers: a key each.
+        var few = host.Context.Render<Pages.Library>();
+
+        few.WaitForAssertion(() => Assert.Equal(4, few.FindAll(".piece-item").Count));
+        Assert.Equal(["Johann Sebastian Bach 2", "Frédéric Chopin 1", "Scott Joplin 1"], few.FindAll(".shelf-jump .shelf-chip").Select(a => a.TextContent.Trim()));
+
+        // Thirteen: a key for each letter, with how many pieces are under it, going to the first composer there.
+        string[] more = ["Carl Czerny", "Muzio Clementi", "Johann Burgmüller", "Antonín Dvořák", "Edvard Grieg", "George Frideric Handel", "Joseph Haydn",
+            "Franz Liszt", "Felix Mendelssohn", "Wolfgang Amadeus Mozart"];
+        foreach (var (name, i) in more.Select((name, i) => (name, i)))
+        {
+            await Add(host, $"more-{i}", name, $"Piece {i}", null);
+        }
+
+        var many = host.Context.Render<Pages.Library>();
+
+        many.WaitForAssertion(() => Assert.Equal(14, many.FindAll(".piece-item").Count));
+        var keys = many.FindAll(".shelf-jump .shelf-chip");
+        Assert.Equal(["B 3", "C 3", "D 1", "G 1", "H 2", "J 1", "L 1", "M 2"], keys.Select(a => a.TextContent.Trim()));
+        Assert.EndsWith("#group-2", keys[1].GetAttribute("href"));
+        Assert.Equal("Frédéric Chopin", many.Find("#group-2").TextContent);
+    }
+
+    [Fact]
     public async Task AnOpeningPlaysOnThePianoWhenOneTakesNotes()
     {
         await using var host = new ComponentHost();
