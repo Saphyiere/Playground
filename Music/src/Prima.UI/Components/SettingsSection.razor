@@ -1,0 +1,45 @@
+@* A section of Settings: its heading, what it says first, and its settings. While something's looked for, the heading names the tab
+   it's in first ("Keyboard & sound › Click"), or only the tab when the section's named like it ("Claude"). It's drawn, hidden, when
+   it doesn't show, so its settings are still there to be found. *@
+<section id="@Id" class="settings-section" aria-labelledby="@($"{Id}-heading")" hidden="@(!Finder.Shows(this))">
+    <h2 id="@($"{Id}-heading")" class="section-title">
+        @if (!Finder.Searching)
+        {
+            @Title
+        }
+        else
+        {
+            <span class="settings-found-in">@TabName</span>
+            @if (TabName != Title)
+            {
+                <span class="settings-found-sep"> › </span>@Title
+            }
+        }
+    </h2>
+    @if (Note is not null)
+    {
+        <p class="section-note">@Note</p>
+    }
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</section>
+
+@code {
+    [CascadingParameter] public SettingsFinder Finder { get; set; } = null!;
+
+    /// <summary>The id of the tab it's in.</summary>
+    [Parameter, EditorRequired] public string Tab { get; set; } = "";
+
+    /// <summary>Its id in the page (a link's <c>section=</c>), and its heading's with "-heading".</summary>
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    /// <summary>What it says first, under its heading, about all of it.</summary>
+    [Parameter] public string? Note { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string TabName => SettingsFinder.TabFor(Tab).Name;
+}

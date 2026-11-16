@@ -1,0 +1,36 @@
+@implements IDisposable
+
+@* One setting in a section of Settings: its controls, then what it says about them. It shows when its tab is open, or when a search
+   finds it by its section's words, its name, its choices (Words) or what it says (Note). *@
+@if (Finder.Shows(this))
+{
+    @ChildContent
+    @if (Note is { Length: > 0 })
+    {
+        <p class="section-note">@Note</p>
+    }
+}
+
+@code {
+    [CascadingParameter] public SettingsFinder Finder { get; set; } = null!;
+
+    [CascadingParameter] public SettingsSection Section { get; set; } = null!;
+
+    /// <summary>What it's called, as its label says.</summary>
+    [Parameter] public string? Name { get; set; }
+
+    /// <summary>Its choices' words, and any others on it it should be found by.</summary>
+    [Parameter] public string? Words { get; set; }
+
+    /// <summary>What it says under its controls.</summary>
+    [Parameter] public string? Note { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Every word it's found by.</summary>
+    internal string Text => string.Join(' ', Section.Title, Section.Note, Name, Words, Note);
+
+    protected override void OnInitialized() => Finder.Add(this);
+
+    public void Dispose() => Finder.Remove(this);
+}

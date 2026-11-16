@@ -170,7 +170,7 @@ ignored `artifacts/` rather than in the repository. The offline evaluator is `to
 3. Visual Studio: set **Prima.Tablet** as the startup project, pick the tablet in the device dropdown, and press F5.
    CLI: `dotnet build src/Prima.Tablet -t:Run`
 
-**Back up before installing from Visual Studio** (Settings › Your data › Back up). A Release install from Visual Studio has
+**Back up before installing from Visual Studio** (Settings › App & data › Back up). A Release install from Visual Studio has
 wiped Prima's data before, and .NET's Android tooling has a known bug that can do it in Debug too
 ([dotnet/android#9627](https://github.com/dotnet/android/issues/9627)). For the copy you use day to day, take a release from
 GitHub (below), or build Release and install it with `adb install -r`. That replaces the app and keeps its data, or stops with
@@ -221,7 +221,7 @@ disable it in the Console, make a new one and push that.
 
 ## When something goes wrong
 
-Prima keeps every warning and error in **Settings › Problems** (with **Copy**, to paste them into a message), and in
+Prima keeps every warning and error in **Settings › App & data › Problems** (with **Copy**, to paste them into a message), and in
 `errors.log` in the same folder as the key file, so it can be copied off even when Prima won't open:
 
 ```bash
@@ -244,7 +244,7 @@ Then try, in **Tools**:
   MIDI path's jitter, from the piano's Active Sensing. **Play middle C** checks the piano plays notes Prima sends it, on channel
   16, with the grand piano voice.
 - **Metronome**: does the click sound on time, and where (the tablet's speaker, or the piano if Android sends audio there)? In
-  **Settings → Click**, "On the piano" plays it as short high notes on the piano instead, for headphones in the piano.
+  **Settings → Keyboard & sound → Click**, "On the piano" plays it as short high notes on the piano instead, for headphones in the piano.
 - **Timing**: play a key with the click for 16 beats and keep the offset. Redo it after changing where the click sounds.
 
 Worth noting: whether the piano echoes the notes Prima sends back to it, which channel a split or dual voice sends on, the
@@ -260,7 +260,7 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
 - In portrait, a PDF's half-page turns, and **Scroll at the tempo**: is a line at a time the right pace?
 - In Practice, the play key before the tempo starts the metronome: does it keep time as you play along, and do its settings
   (the metronome key beside Options) change where it's heard and how it sounds straight away?
-- Whether 7 mm staves read comfortably from the music stand (Settings → Notation changes the size).
+- Whether 7 mm staves read comfortably from the music stand (Settings → Look & music → Notation changes the size).
 - With Claude's key on, a PDF's **Convert to notation** toolbar button: are the systems boxed right on the page, does the reading finish
   in about the time it says, and does each system's reading match its print? Keep it, play it, and press **Print** for the PDF.
 

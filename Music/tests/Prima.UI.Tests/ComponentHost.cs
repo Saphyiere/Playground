@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using Playground.AI.Assist;
+using Playground.Updates;
 using Prima.Core.Music;
 using Prima.Core.Transcription;
 using Prima.UI.Host;
@@ -39,6 +40,8 @@ internal sealed class ComponentHost : IAsyncDisposable
         Context.Services.AddSingleton<IClaude>(Claude);
         Context.Services.AddSingleton<IConversionRenderer>(Renderer);
         Context.Services.AddSingleton<IConversionHost>(ConversionHost);
+        // Settings asks after updates: GitHub and the tablet stood in for, with no release yet.
+        Context.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk"), "Prima");
         if (bundle is not null) Context.Services.AddSingleton(bundle);
         Context.Services.AddPrima(database);
         Store = Context.Services.GetRequiredService<PrimaStore>();
@@ -99,6 +102,9 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public List<bool> Fullscreen { get; } = [];
     public List<(ElementReference Element, string? Id)> Outlines { get; } = [];
     public List<ElementReference> ShownPdfs { get; } = [];
+    /// <summary>The sections Settings brought into view, by id, and the first of them once it's asked for.</summary>
+    public List<string> ShownSections { get; } = [];
+    public TaskCompletionSource<string> SectionShown { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public List<JsonElement> BarChoices { get; } = [];
     public List<ElementReference> BarStrips { get; } = [];
     /// <summary>Held, the piece's listening to keys (its last step setting itself up) and full screen wait for it.</summary>
@@ -136,6 +142,11 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
         }
         if (identifier == "outline") Outlines.Add(((ElementReference)args![0]!, (string?)args[1]));
         if (identifier == "show" && args?.Length == 7) ShownPdfs.Add((ElementReference)args[0]!);
+        if (identifier == "show" && args is [string section])
+        {
+            ShownSections.Add(section);
+            SectionShown.TrySetResult(section);
+        }
         if (identifier == "show" && args?.Length == 4)
         {
             BarStrips.Add((ElementReference)args[1]!);

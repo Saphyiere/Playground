@@ -430,14 +430,30 @@ Settings.
 
 ### Settings
 
-Profile (name, minutes a day, the cue, which clefs the note review drills), practice (one or two bars of count-in, how much
-Practice tells you on a piece (Simple, Standard or Hands-on, or their four settings one by one: what shows after a run, each
-pass's figure, whether a loop waits after each pass, and whether a run goes again at its end), and whether the right note is
-named after a wrong one in a note drill), look (Studio or Vinyl), keyboard (the device, sending notes to the piano, the piano buttons,
-timing), notation (the
-music font and the sheet's size), the click (where it sounds, its sound and volume), Claude, your data, and the problems Prima
-kept. A daily goal much above last
-week's average gets a note to go up gradually; Prima never raises it by itself.
+Five tabs, in Studio a strip of the amber screen with the open one lit, in Vinyl a row of names with the open one on a mustard
+line:
+
+- **Practice**: the profile (name, minutes a day, the cue, which clefs the note review drills) and practice (one or two bars of
+  count-in, how much Practice tells you on a piece (Simple, Standard or Hands-on, or their four settings one by one: what shows
+  after a run, each pass's figure, whether a loop waits after each pass, and whether a run goes again at its end), and whether
+  the right note is named after a wrong one in a note drill).
+- **Keyboard & sound**: the keyboard (the device, sending notes to the piano, the piano buttons, timing) and the click (where it
+  sounds, its sound and volume).
+- **Look & music**: the look (Studio or Vinyl) and the notation (the music font and the sheet's size, with two bars to show them).
+- **Claude**.
+- **App & data**: updates, your data, and the problems Prima kept.
+
+A daily goal much above last week's average gets a note to go up gradually; Prima never raises it by itself.
+
+The tab open is kept in the address (`settings?tab=keyboard`), so coming back to Settings, by the way back from Timing say, it's
+open again; a tab tapped takes the address's place, so the way back leaves Settings rather than stepping back through its tabs.
+Settings from the rail opens on Practice. A link can open a tab, and bring a section of it into view: the stopped screen's card
+opens App & data at Problems (`settings?tab=app&section=problems`), and a routine's **Provider settings** opens Claude.
+
+**Search**, beside Settings' heading, finds a setting in any tab by its name, its choices or what it says: every word typed, in
+any order, whatever the case (# finds ♯). What it finds shows in the tabs' place, each section headed by its tab's name ("Keyboard
+& sound › Click"; just "Claude" where they're the same), and works there as in its tab; a section's name finds all of it.
+Cleared, the tabs come back on the one that was open.
 
 Claude: the Anthropic API key on this tablet, shown masked (`sk-ant-…a1B2`), with **Test** (asks the API whether the key works,
 which costs nothing) and **Remove**. Without a key, the steps to add one: a file named `claude-key.txt` holding the key, copied
