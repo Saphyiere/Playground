@@ -128,4 +128,58 @@ public class BrowsingTests
     [InlineData("Gradus ad Parnassum, No. 1", null, "Études")]
     public void FantasiesCapricciosAndToccatasGoWhereTheySuitACakeWalkIsADanceAndDoctorGradusIsntAnEtude(string title, string? work, string kind) =>
         Assert.Equal(kind, Shelves.Kind(title, work));
+
+    // 25. An opening from notation starts at its first note, as one from a MIDI file does: the rests a piece starts with (a drum
+    // intro, now unseen, among them) aren't played through.
+    [Fact]
+    public void AnOpeningFromNotationStartsAtItsFirstNoteNotThroughTheRestsAndTheDrumIntroBeforeIt()
+    {
+        // At 120: a bar where only the drums play (the piano's hands rest), then the piano comes in after a crotchet's rest.
+        var mei = """
+            <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+            <scoreDef meter.count="4" meter.unit="4" key.sig="0"><staffGrp>
+            <staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp>
+            <staffDef n="3" lines="5" clef.shape="perc"/>
+            </staffGrp></scoreDef>
+            <section>
+            <measure n="1">
+            <staff n="1"><layer n="1"><mRest/></layer></staff>
+            <staff n="2"><layer n="1"><mRest/></layer></staff>
+            <staff n="3"><layer n="1"><note loc="5" dur="4"/><note loc="5" dur="4"/><note loc="5" dur="4"/><note loc="5" dur="4"/></layer></staff>
+            <tempo tstamp="1" mm="120" mm.unit="4">Allegro</tempo>
+            </measure>
+            <measure n="2">
+            <staff n="1"><layer n="1"><rest dur="4"/><note xml:id="c" pname="c" oct="5" dur="4"/><note xml:id="d" pname="d" oct="5" dur="4"/><note xml:id="e" pname="e" oct="5" dur="4"/></layer></staff>
+            <staff n="2"><layer n="1"><mRest/></layer></staff>
+            <staff n="3"><layer n="1"><note loc="5" dur="1"/></layer></staff>
+            </measure>
+            </section></score></mdiv></body></music></mei>
+            """;
+
+        var opening = Opening.Of(MeiReader.Read(mei));
+
+        Assert.Equal([(72, 0.0), (74, 0.5), (76, 1.0)], opening.Select(n => (n.Midi, Math.Round(n.Start, 3))));
+    }
+
+    // 26. An opening from a MIDI file leaves its drum channel out.
+    [Fact]
+    public void AnOpeningFromAMidiFileLeavesItsDrumChannelOut()
+    {
+        // A file of one track, 480 ticks a quarter at 120: a closed hi-hat on the drums' channel (the tenth) for the first beat, as
+        // a count-in, then middle C on the first channel for the second, with a bass drum under it.
+        byte[] file =
+        [
+            .. "MThd"u8, 0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xE0,
+            .. "MTrk"u8, 0, 0, 0, 30,
+            0x00, 0x99, 42, 90, 0x83, 0x60, 0x89, 42, 0,
+            0x00, 0x90, 60, 80, 0x00, 0x99, 36, 100, 0x83, 0x60, 0x80, 60, 0, 0x00, 0x89, 36, 0,
+            0x00, 0xFF, 0x2F, 0x00,
+        ];
+
+        var read = MidiFile.Read(file);
+        var opening = Opening.Of(read);
+
+        Assert.Equal(2, read.Notes.Count(n => n.Channel == MidiFile.DrumChannel));
+        Assert.Equal([new FileNote(60, 0, 0.5, 80)], opening);
+    }
 }

@@ -206,12 +206,13 @@ a PDF plays out; this is what came of it.
   letter their surnames start with; the pieces without a composer are a group of their own there, with a key of their own, and
   aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
   about where its collection sits, or what its MIDI reads at.
-- **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from the start, at the tempo it starts
-  at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is
+- **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from its first note (a pickup's
+  included; rests it starts with, and a drum part's bars before the piano comes in, aren't played through), at the tempo it
+  starts at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is
   plugged in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it
-  came with; one without MIDI or read notes has nothing to play. One opening at a time: ■ stops it, another's ▶ starts that one
-  instead (the last tapped, even while the one before is still being read), and it stops by itself at the opening's end or when
-  the Library is left. A line at the top says what's playing and where.
+  came with, without its drum channel, from its first note; one without MIDI or read notes has nothing to play. One opening at
+  a time: ■ stops it, another's ▶ starts that one instead (the last tapped, even while the one before is still being read), and
+  it stops by itself at the opening's end or when the Library is left. A line at the top says what's playing and where.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
