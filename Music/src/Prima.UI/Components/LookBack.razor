@@ -84,6 +84,7 @@
                 var ys = values.Select(v => 18 + (1 - (v - low) / Math.Max(0.01, 1 - low)) * (Height - 34)).ToList();
                 // Where the tempo changed along it, the new tempo under that point.
                 var steps = stretch.InTime && stretch.Points.Select(p => p.Tempo).Distinct().Count() > 1 ? stretch.Points.Select((p, i) => (i, p.Tempo)).Where(s => s.i == 0 || stretch.Points[s.i - 1].Tempo != s.Tempo).ToList() : [];
+                var tempos = TempoLabels(steps, xs);
                 <div class="look-row">
                     <div class="look-name">
                         <span class="look-bars">@Name(stretch, true)</span>
@@ -92,12 +93,13 @@
                     </div>
                     <div class="look-spark">
                         <svg class="look-line" viewBox="0 0 @Width @Height" role="img" aria-label="@($"{values.Count} {(stretch.To is null ? "runs" : "passes")}: {Said(stretch, stretch.First)} the first, {Said(stretch, stretch.Best)} at best, {Said(stretch, stretch.Last)} the last")">
-                            @foreach (var (i, tempo) in steps)
+                            @foreach (var (i, _) in steps)
                             {
-                                // A change at the line's far end is named to its left, so it stays in the drawing.
-                                var far = xs[i] > Width - 46;
                                 <line x1="@xs[i]" x2="@xs[i]" y1="12" y2="@(Height - 12)" class="look-step" />
-                                @Label(xs[i] + (far ? -4 : 4), Height - 2, far ? "end" : "start", null, $"at {tempo:0}")
+                                @if (tempos.TryGetValue(i, out var tempo))
+                                {
+                                    @Label(tempo.X, Height - 2, tempo.Anchor, null, tempo.Words)
+                                }
                             }
                             <path d="@string.Join(" ", xs.Select((x, i) => $"{(i == 0 ? "M" : "L")}{x:0.0} {ys[i]:0.0}"))" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
                             @foreach (var i in new[] { 0, best, values.Count - 1 }.Distinct())
@@ -192,6 +194,31 @@
     }
 
     // Words on a line's drawing (Razor takes a text element for its own, so it's written out).
+    // The words under a line's tempo changes: "at 120" where the changes leave room for them, only "120" where they come closer (a
+    // new tempo every run or two ran "at 120at 115" together), and none under a change too close even for that to the one named
+    // before it, whose dashed line still shows it. A change at the line's far end is named to its left, to stay in the drawing.
+    // A letter is taken as 6.8 of the drawing's 360 across: the widest at its 11.
+    private static Dictionary<int, (double X, string Anchor, string Words)> TempoLabels(List<(int i, double? Tempo)> steps, List<double> xs)
+    {
+        Dictionary<int, (double X, string Anchor, string Words)> Fit(Func<double?, string> words)
+        {
+            var named = new Dictionary<int, (double X, string Anchor, string Words)>();
+            var clear = double.NegativeInfinity;
+            foreach (var (i, tempo) in steps)
+            {
+                var said = words(tempo);
+                var far = xs[i] > Width - 46;
+                var (from, to) = far ? (xs[i] - 4 - said.Length * 6.8, xs[i] - 4) : (xs[i] + 4, xs[i] + 4 + said.Length * 6.8);
+                if (from < clear) continue;
+                named[i] = (far ? xs[i] - 4 : xs[i] + 4, far ? "end" : "start", said);
+                clear = to + 6;
+            }
+            return named;
+        }
+        var full = Fit(tempo => $"at {tempo:0}");
+        return full.Count == steps.Count ? full : Fit(tempo => $"{tempo:0}");
+    }
+
     private static MarkupString Label(double x, double y, string anchor, string? kind, string words) =>
         new($"<text x=\"{x.ToString("0.0", CultureInfo.InvariantCulture)}\" y=\"{y.ToString("0.0", CultureInfo.InvariantCulture)}\" text-anchor=\"{anchor}\"{(kind is null ? "" : $" class=\"{kind}\"")}>{System.Net.WebUtility.HtmlEncode(words)}</text>");
 
