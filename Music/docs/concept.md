@@ -70,7 +70,9 @@ calibration or straight to Today.
 
 The reading screen, and the way to read more than the plan asks for. A passage at your level: thirty seconds to look it over
 (you can tap its rhythm or try a bar; Settings makes the look 10, 20 or 30 seconds, or as long as you like, and Start begins
-the count-in sooner), one bar of count-in, then play it in time with the click, each note marked as you play it. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
+the count-in sooner), one bar of count-in, then play it in time with the click, each note marked as you play it. A look that
+runs out with no piano plugged in starts nothing: the bar says to plug in the keyboard, and the passage waits with its Start
+for when it is. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
 
 Variants, one a day in the plan and any time here:
 

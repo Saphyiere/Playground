@@ -95,7 +95,8 @@
     else if (passage is not null)
     {
         @* The play bar every tempo screen shares. Its Start in the look is the piano's go key too (a deliberate press: trying a bar
-           doesn't count); the look's end starts the run by itself unless Settings says to wait for Start. *@
+           doesn't count); the look's end starts the run by itself unless Settings says to wait for Start, or there's no piano to
+           play on: then Start stays, and the bar says why. *@
         <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
             <Readouts>
                 @if (stage == Stage.Hear && session is { Phase: Phase.CountIn })
@@ -221,6 +222,8 @@
     private PlayOutcome? waited;
     private Sheet? sheet;
     private DateTime lookStarted;
+    // Whether this look's time has run out: its end tries to start the run once, and with no piano Start is left for it.
+    private bool lookRanOut;
     private DateTime runStarted;
     private Timer? ticker;
     private bool finding;
@@ -373,7 +376,7 @@
 
     private void BeginLook()
     {
-        stage = Stage.Look;
+        (stage, lookRanOut) = (Stage.Look, false);
         lookStarted = DateTime.Now;
         _ = sheet?.ClearMarks();
         StartTicker();
@@ -403,17 +406,22 @@
             Settings.TimingOffsetMs);
     }
 
-    // The run, on the play bar, In time or Wait for me: Duet's own part for you and the piano's for it, Read ahead's window.
+    // The run, on the play bar, In time or Wait for me: Duet's own part for you and the piano's for it, Read ahead's window. The
+    // page runs once the play bar has started: with no piano to play on it doesn't, and says why, and the look and its Start stay.
     private async Task Run()
     {
         if (stage != Stage.Look || play is null || passage is null) return;
 
-        stage = Stage.Run;
-        runStarted = DateTime.Now;
         var expected = passage.Score.Expected();
         var mine = variant == Variant.Duet && expected.Any(e => e.Staff == 2) && passage.Spec.Hands == Hands.Together ? expected.Where(e => e.Staff == 1).ToList() : expected;
         var others = variant == Variant.Duet ? (mine.Count < expected.Count ? Beats(expected.Where(e => e.Staff == 2).ToList()) : Accompaniment()) : null;
-        await play.Start(new PlayMusic(passage.Score, mine) { PianoPart = others, ReadAheadQuarters = variant == Variant.ReadAhead ? ReadAheadQuarters : null });
+        if (await play.Start(new PlayMusic(passage.Score, mine) { PianoPart = others, ReadAheadQuarters = variant == Variant.ReadAhead ? ReadAheadQuarters : null }) && stage == Stage.Look)
+        {
+            stage = Stage.Run;
+            runStarted = DateTime.Now;
+            // Drawn now: the look's end calls this from its timer, not from a tap.
+            StateHasChanged();
+        }
     }
 
     private Task Starting()
@@ -612,12 +620,18 @@
 
     private double LookShare() => LookSeconds is { } limit ? Math.Min(100, LookedSeconds / limit * 100) : 0;
 
+    // The look's end starts the run by itself, once: with no piano to play on, nothing starts and the bar says why, and the look
+    // waits for Start (the piano's go key once it's in).
     private void StartTicker()
     {
         ticker?.Dispose();
         ticker = new Timer(_ =>
         {
-            if (stage == Stage.Look && LookSeconds is { } limit && LookedSeconds >= limit) _ = InvokeAsync(Run);
+            if (stage == Stage.Look && !lookRanOut && LookSeconds is { } limit && LookedSeconds >= limit)
+            {
+                lookRanOut = true;
+                _ = InvokeAsync(Run);
+            }
             else if (stage is Stage.Look or Stage.Hear) _ = InvokeAsync(StateHasChanged);
         }, null, 250, 250);
     }
