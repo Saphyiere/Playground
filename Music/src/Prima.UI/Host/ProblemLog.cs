@@ -43,11 +43,13 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
         var lines = (message ?? "").Replace("\r", "").Trim().Split('\n');
         var rest = string.Join('\n', lines.Skip(1).Append(detail ?? "").Where(l => l.Length > 0));
         var problem = new Problem(at ?? clock.GetLocalNow(), level, source, lines[0].Trim(), rest.Replace("\r", "").TrimEnd());
+        // A line that looks like the start of an entry, the message's own or one of the detail's, is set in, so the file reads back
+        // the same.
+        string SetIn(string line) => line.StartsWith(Mark, StringComparison.Ordinal) ? " " + line : line;
         var entry = new StringBuilder()
             .Append(Mark).Append(problem.At.ToString(When, CultureInfo.InvariantCulture)).Append(" · ").Append(level).Append(" · ").Append(source).Append('\n')
-            .Append(problem.Message).Append('\n');
-        // A line of the detail that looks like the start of an entry is set in, so the file reads back the same.
-        foreach (var line in problem.Detail.Split('\n').Where(l => l.Length > 0)) entry.Append(line.StartsWith(Mark, StringComparison.Ordinal) ? " " : "").Append(line).Append('\n');
+            .Append(SetIn(problem.Message)).Append('\n');
+        foreach (var line in problem.Detail.Split('\n').Where(l => l.Length > 0)) entry.Append(SetIn(line)).Append('\n');
         entry.Append('\n');
         try
         {
@@ -116,7 +118,8 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
             if (head.Length < 3 || !DateTimeOffset.TryParseExact(head[0], When, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) continue;
             var body = new List<string>();
             while (i + 1 < lines.Length && !lines[i + 1].StartsWith(Mark, StringComparison.Ordinal)) body.Add(lines[++i]);
-            var said = body.FirstOrDefault() ?? "";
+            // A message is kept trimmed, so a space before it is only ever the one that set it in.
+            var said = (body.FirstOrDefault() ?? "").TrimStart();
             yield return new Problem(at, head[1], head[2], said, string.Join('\n', body.Skip(1)).TrimEnd());
         }
     }
