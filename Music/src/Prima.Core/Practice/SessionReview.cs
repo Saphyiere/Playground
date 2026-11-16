@@ -18,6 +18,13 @@ public sealed record Stretch(int From, int? To, string Hands, bool InTime, IRead
 
     /// <summary>The time spent playing it, where every run of it kept how long it took.</summary>
     public TimeSpan? Time { get; init; }
+
+    /// <summary>
+    /// From a bar to the end, when every one of its runs was stopped on the way: the last bar they got to, the furthest of them.
+    /// It's named by the bars it reached ("bars 1–8"), not as the whole piece, wherever it's named. None for a loop, or when a run
+    /// of it got to the end.
+    /// </summary>
+    public int? Reached { get; init; }
 }
 
 /// <summary>
@@ -107,9 +114,13 @@ public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? 
         {
             var points = g.Select(u => new StretchPoint(u.Run.At, u.Figure, u.Right, u.Notes, u.InTime ? u.Run.Tempo : null) { Partial = u.Run is { To: null, Stopped: true } }).ToList();
             var played = g.Select(u => u.Run).Distinct().ToList();
+            // Runs from a bar to the end that were all stopped on the way got only so far: each to the bar before the one it
+            // was stopped in.
+            var reached = g.Key.To is null && played.All(r => r.Stopped) ? played.Max(r => Math.Max(r.From, (r.Bar ?? r.From) - 1)) : lastBar;
             return new Stretch(g.Key.From, g.Key.To, g.Key.Hands, g.Key.InTime, points, played.Count, played.Count(r => r.Through))
             {
                 Time = g.All(u => u.Seconds is not null) ? TimeSpan.FromSeconds(g.Sum(u => u.Seconds!.Value)) : null,
+                Reached = reached < lastBar ? reached : null,
             };
         }).ToList();
 

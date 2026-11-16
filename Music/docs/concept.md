@@ -346,8 +346,9 @@ a PDF plays out; this is what came of it.
   there.
 
   Under those, **what was played**, as before: each stretch practiced (its bars: the whole piece, from a bar, or round a
-  loop; the hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best
-  named, its first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
+  loop, and runs that were all stopped on the way by the bars they reached, "Bars 1–8", as the words above name them; the
+  hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its
+  first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
 
   A bar still going wrong, and one put right, come from the runs and passes that played it, in order: the last third of them
   (the last time, at least) is how it stands now, the first third how it started. The bar still hard is the one with most to
@@ -358,8 +359,9 @@ a PDF plays out; this is what came of it.
   **Keep practicing** carries the session on, **In-depth review** goes over it, and **Done** goes back to the piece's
   front: the three stay at the foot of the screen as the page scrolls. Only taps press them.
 - **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
-  with where it ended, not its average: its last stretch first → last ("Bars 13–16, first → last: 70% → 96%"), that
-  stretch's tempo, and the time playing; one run's are its right in time and notes right. Its lines go over every run and
+  with where it ended, not its average: its last stretch, named as the look back names it, first → last ("Bars 13–16,
+  first → last: 70% → 96%"), that stretch's tempo, and the time playing; one run's are its right in time and notes right.
+  Its lines go over every run and
   pass: the notes (wrong, missed, slips put right and chord notes not together each named, and "every one" only when every
   note was right), the timing (only the timing: the notes more than a tenth of a beat out, and where), the notes let go early, and
   **Look at** and **Fixed**, the bar still hard and the bar put right, by the look back's rule. Its bars are shaded by what went wrong against the bar with

@@ -237,10 +237,15 @@
         return " · " + string.Join(" · ", parts);
     }
 
-    /// <summary>A stretch's bars: "Bars 13–16", "Bar 7", "From bar 9" or "The whole piece" (lower case in a sentence).</summary>
+    /// <summary>
+    /// A stretch's bars: "Bars 13–16", "Bar 7", "From bar 9" or "The whole piece", and runs that were all stopped on the way by
+    /// the bars they reached, "Bars 1–8", as the look back's words name them (lower case in a sentence).
+    /// </summary>
     public static string Name(Stretch stretch, bool capital)
     {
-        var name = stretch.To is { } to ? PieceWords.Bars(stretch.From, to) : stretch.From <= 1 ? "the whole piece" : $"from bar {stretch.From}";
+        var name = stretch.To is { } to ? PieceWords.Bars(stretch.From, to)
+            : stretch.Reached is { } reached ? PieceWords.Bars(stretch.From, reached)
+            : stretch.From <= 1 ? "the whole piece" : $"from bar {stretch.From}";
         return capital ? Capital(name) : name;
     }
 

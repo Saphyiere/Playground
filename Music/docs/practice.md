@@ -103,7 +103,7 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
     for today". The teacher's review again: two passes in a row getting worse "is tiredness, not learning". With nothing of
     the sort to say, and room for it, the last line is where the playing time went.
   - A run from a bar that was stopped on the way is the bars it got through ("bars 1–8"), not "the whole piece", and isn't
-    set against the runs that got to the end.
+    set against the runs that got to the end. What was played and the in-depth review name it the same way.
 - **Where the piece stands**: every bar a cell, lighter the further along it is, the bars played today underlined, from
   every run kept on the piece: not played; notes not there yet (played, but not yet right In time with both hands); notes
   there, in time; and at tempo, within a tenth of the piece's own. A bar's notes are there once two of its last four times
@@ -130,7 +130,8 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   line on the front come out and the rest stands.
 - **What was played**, under those, is the first look back's lines as they were: each stretch you practiced (its bars, the
   hand and the mode) with its runs, or round a loop its passes, as a line, the best named and its first and last figures
-  beside it, the minutes it took, and its tempo (a step on the line where it changed).
+  beside it, the minutes it took, and its tempo (a step on the line where it changed). Runs that were all stopped on the
+  way are named by the bars they reached ("Bars 1–8"), as the words above name them, and so is the in-depth review's lead.
 - The bar still hard and the bar put right keep the rule round 2's reviews asked for: still hard is the bar with most to
   fix in the last third of the times it was played (a wrong or missed note weighing three times anything else), and put
   right is the bar that was worst at first and clean at the end. The line now says in how many of those last times it went

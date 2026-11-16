@@ -210,14 +210,9 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
 
         // ——— Names and figures ———
 
-        // The last bar a stretch got to: a loop's last, the piece's, or where its runs were stopped, when every one of them was.
-        private int Reached(Stretch s)
-        {
-            if (s.To is { } to) return to;
-
-            var its = runs.Where(r => r.To is null && (r.From, r.Hands, r.InTime) == (s.From, s.Hands, s.InTime)).ToList();
-            return its.Count > 0 && its.All(r => r.Stopped) ? its.Max(r => Math.Max(r.From, (r.Bar ?? r.From) - 1)) : piece.LastBar;
-        }
+        // The last bar a stretch got to: a loop's last, the piece's, or where its runs were stopped, when every one of them was
+        // (the session's review works that out, so What was played and the in-depth review name a stretch as this does).
+        private int Reached(Stretch s) => s.To ?? s.Reached ?? piece.LastBar;
 
         // A stretch's bars: a loop's, "the whole piece", "from bar 17", or the bars its runs got through when they were all stopped.
         private string Name(Stretch s) => s.To is null && Reached(s) == piece.LastBar ? s.From <= piece.FirstBar ? "the whole piece" : $"from bar {s.From}" : Bars(s.From, Reached(s));
