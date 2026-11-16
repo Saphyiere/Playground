@@ -169,8 +169,9 @@ Sources for the table: [Mutopia ftp tree](https://github.com/MutopiaProject/Muto
 - **Mutopia's LilyPond doesn't convert.** python-ly's "experimental" MusicXML export failed outright on Burgmüller no. 2, garbled
   three Anna Magdalena pieces into six staves, and dropped chord notes from Czerny (measured;
   [python-ly](https://python-ly.readthedocs.io/en/latest/_modules/ly/musicxml.html)).
-- Open Hymnal's ABC collapses onto one staff, because Verovio's ABC reader doesn't do multiple voices (measured). It needs
-  abc2xml first [untested].
+- Open Hymnal's ABC collapses onto one staff, because Verovio's ABC reader doesn't do multiple voices (measured). abc2svg's MEI
+  backend keeps all four voices and the verses, once the Library tool puts right what it writes (measured, November 2026: the
+  local collection, below).
 
 **Hymns and folk tunes:**
 
@@ -572,7 +573,7 @@ authors are asked.
 |---|---|---|---|---|---|---|
 | A1 | Lemoine Op. 37, Duvernoy Op. 176, Czerny Op. 821/599/139, Mozart K. 1–5 and K. 15, Anna Magdalena (BWV Anh.), Schumann Op. 68, Tchaikovsky Op. 39 (single numbers), Clementi Op. 36, Gurlitt, Beethoven Anh. 5, Diabelli Op. 168/1, Burgmüller Op. 100 (3), Streabbog | PDMX, MXL | Dataset CC BY 4.0 (credit PDMX), plus each file's PD or CC0 tag | ~120–150 after removing duplicates and review (estimate) | ~1–2 MB (samples 4–8 KB each) | 3–8 |
 | A2 | Burgmüller Op. 100 (18), Czerny Op. 821 (19 files), Kuhlau Op. 20 (3), Bach Inventions and Sinfonias (30), Bach Little Preludes (11), Joplin (18) | Mutopia **PDF + MIDI** (LilyPond doesn't convert) | Per piece: PD, CC BY or CC BY-SA (credit, keep SA) | ~99 | Not measured; one 2-page PDF was 75 KB | 6–10 |
-| A3 | Hymns | Open Hymnal ABC → MusicXML through abc2xml [untested] | PD (maintainer's statement) | up to 301 | Not measured | 8 |
+| A3 | Hymns | Open Hymnal ABC → MEI through abc2svg, built into the local collection instead (below) | PD (each file's statement) | 320 | 2.6 MB | 7 (most) |
 | A4 (optional) | A few Lieder for duet reading (the app plays the voice) | OpenScore `.mscx` → `.mxl` with MuseScore's batch file | CC0 | ~20–50, chosen | Not measured | 9–12 |
 | B1 | Joplin rags, Mozart sonatas, Haydn sonatas, Scarlatti sonatas | Sapp `**kern` (Verovio reads it directly) | CC BY-NC-SA 4.0 | 47 + 69 + 25 + 65 = 206 | 3.1 MB | 8–12 |
 | B2 | Grieg Lyric Pieces, Kinderszenen, Tchaikovsky's Seasons | DCML `.mscx` → MusicXML with MuseScore | CC BY-NC-SA 4.0 | 66 + 13 + 12 = 91 | Not measured | 7–12 |
@@ -609,7 +610,8 @@ reads.
 4. **DCML** (B2): clone [grieg_lyric_pieces](https://github.com/DCMLab/grieg_lyric_pieces), [schumann_kinderszenen](https://github.com/DCMLab/schumann_kinderszenen)
    and [tchaikovsky_seasons](https://github.com/DCMLab/tchaikovsky_seasons). Convert `MS3/*.mscx` with `mscore -o x.musicxml x.mscx`
    on the PC, or in the cloud if MuseScore's command line runs there [untested].
-5. **Open Hymnal** ([mirror](https://github.com/mzealey/openhymnal), `Complete/*.abc`): convert with abc2xml, then render-check.
+5. **Open Hymnal** ([mirror](https://github.com/mzealey/openhymnal), `Complete/*.abc`): built from the site's own edition into the
+   local collection instead (below), converted with abc2svg.
 6. **OpenScore Lieder** ([repo](https://github.com/OpenScore/Lieder)): only the chosen songs, through `corpus_conversion.json`.
 
 The credits screen shows, for each piece: title, composer, encoder or project, source link, licence name and link, and
@@ -636,10 +638,12 @@ below that day.
 | ASAP ([asap-dataset](https://github.com/fosfrancesco/asap-dataset)), MusicXML | Bach's Well-Tempered Clavier (29 preludes, 29 fugues) and the Italian Concerto's Andante, Chopin's études, ballades, scherzos, second and third sonatas, Barcarolle, Berceuse and Polonaise Op. 53, Liszt (Transcendental and Paganini Études, the Sonata, Mephisto Waltz, a Hungarian Rhapsody), Schubert's impromptus, moments musicaux, Wanderer Fantasy and sonatas D. 664 and 894, Schumann's Kreisleriana, Arabeske and Toccata, Rachmaninoff's preludes, Ravel's Ondine and Pavane, Scriabin, Balakirev's Islamey, Brahms Op. 118 No. 2, Glinka's The Lark, Prokofiev's Toccata, Mozart's Fantasia K. 475; all published before 1931 | CC BY-NC-SA 4.0, in LICENSE.md | 143 | Its Beethoven, Haydn and Mozart sonatas (the DCML's and Sapp's editions have them), the Debussy and Ravel the DCML has, Liszt's Gondoliera (the DCML's), and its copies with a repeat changed to match a performance |
 | PDMX, more ([Zenodo](https://zenodo.org/records/15571083)), MusicXML | Solo piano music by 62 composers who died before 1931, from Bach, Beethoven, Chopin and Mozart to Czerny's, Köhler's and Beyer's studies | Each score's public-domain mark or CC0, as its uploader set it; the dataset CC BY 4.0 | 568 | What the bundle takes from PDMX; scores with a licence conflict, other than PDMX's best copy, tagged with a popular genre, or arranged (by their titles: arrangements, reductions of symphonies, concertos, overtures and operas, quartets, chorales); composers who lived past 1930; 50 pieces the editions above have |
 | Mutopia, more ([Mutopia](https://www.mutopiaproject.org)), PDF and MIDI | The rest of its music for piano, harpsichord or clavichord alone: Bach (the Goldberg Variations, partitas, suites, the Anna Magdalena pieces), Beethoven's sonatas, Chopin, Handel, Mozart, Czerny, Mendelssohn, Field, Dussek and more, each with its MIDI, graded from it | Public domain, CC BY or CC BY-SA, read from each piece's .rdf | 612 PDFs | Duets (and a piece's duet parts), organ, songs and ensembles; any non-commercial or no-derivatives licence; the bundle's 104; a zipped piece's US Letter copies, and where its movements have MIDI, its PDFs without (a title page, the whole suite beside its movements) |
+| Open Hymnal ([openhymnal.org](http://openhymnal.org/copying.html)), ABC | Its 2026.11 edition's hymns as a hymnal sets them, soprano and alto on the upper staff, tenor and bass on the lower, with up to five verses under the notes: Lutheran chorales, Genevan and English psalm tunes, Victorian hymns, gospel songs, carols | Public domain in tune, setting, words and translation, as each file's `C: copyright:` line says (under US law, as its copying page explains); the site's robots.txt bars only older editions' files | 320 | 24 with words or a setting under copyright (most may be copied for worship, which isn't enough here), under CPDL's licence, or "All other rights reserved"; 4 with a third staff (a melody or descant above the parts, or the parts above an accompaniment); One Thing's Needful, which changes metre partway; I Bind Unto Myself Today and Jesu, Joy of Man's Desiring, which abc2svg can't write as MEI; a second From All Thy Saints in Warfare, the same music with other saints' days |
 
 Each piece in the collection is keyboard music: a single line (a melody alone, one instrument's part) would ask Prima to have
 it played as a piano piece, and from PDMX a score on more than two staves is more often a voice above a piano than a pianist's
-three staves (as Debussy and Liszt write, which the editions keep), so the tool leaves those out (244 of PDMX's candidates). A piece the scholarly
+three staves (as Debussy and Liszt write, which the editions keep), and a hymn's a melody or descant above its four parts, so
+the tool leaves those out (244 of PDMX's candidates, 4 hymns). A piece the scholarly
 editions have comes from them alone, by its composer and catalogue number ("Op. 27 No. 2", "K. 331", "BWV 846") or name: so
 ASAP's Beethoven isn't there beside the DCML's, nor PDMX's Für Elise beside the bundle's. Mutopia's PDFs stay beside them, being
 another way to read the music.
@@ -659,19 +663,38 @@ another way to read the music.
   tool), one file a run, since after some files its memory breaks and every later file fails; under Node 22 it needs Node's own
   `navigator` made writable and `fetch` hidden while it loads. The DCML's harmony labels are taken out first (they'd print as
   chord symbols), and so are the instrument's names (they'd print as "Piano" and "Pno.").
-- **Size and time**: 2,652 pieces, 150 MB in five zips (the editions 38 MB, PDMX 16, Mutopia's PDFs 96 in
-  three). A first run takes about an hour, half of it the PDMX archive's download and Mutopia's files; a second, about
-  7 minutes. Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for each
-  of Mutopia's); on 6 November the tablet took about a minute for the 1,201 pieces then. Prima's data file grows by about
-  325 MB of MEI and 100,000 excerpts, with 97 MB of PDFs and MIDI beside it. The Library lists about 2,950 pieces then: in
-  the preview it opened in half a second and a search settled in a quarter of one (desktop Chromium; the tablet is slower).
+- **Hymns** come as ABC with four voices on two staves, of which the app's Verovio reads one ("Multi-voice music is not
+  supported"); a hymn's MIDI through the app's import went ragged at its first fermata. abc2svg 1.22.1 (the last its author put
+  on npm, which now calls it unsupported; LGPL and GPL, used only by the tool) writes each as MEI with its backend `tomei.js`,
+  run the way the package's `abcnode` script runs it: the core, the command line and the backend in one script, with the
+  tool's `abc-to-mei.js` after them. tomei.js was written for an earlier core, so the tool puts right what it writes: dotted
+  notes (it writes a dotted half as a dotted quarter), the hyphens between syllables, a hymn's only verse (left where Verovio
+  doesn't draw it), a bar the hymnal carries over a line's end (written as two bars), an empty bar before a repeat, the
+  metronome mark's beat and the inverted fermata's place; a doxology's mark, a D in the Symbol font, is written as Δ. A hymn
+  without a time signature (Old 100th, Wachet auf) has each bar marked as not filling a metre, so Prima reads the bar's own
+  length rather than 4/4's; where its first bar isn't four beats, Prima numbers it 0, as it does a pickup. Then Verovio
+  writes the MEI again as it reads it, like every other piece's. The edition's zip is found from the site's home page, so a
+  new edition is fetched when there is one.
+- **Size and time**: 2,972 pieces, 153 MB in six zips (the editions 38 MB, PDMX 16, Mutopia's PDFs 96 in
+  three, the hymns 2.6). A first run takes about an hour, half of it the PDMX archive's download and Mutopia's files; a
+  second, about 7 minutes (`-- local hymns` on the whole collection took 5:45, the hymns' own fetching and converting half a
+  minute of it). Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for
+  each of Mutopia's, about 10 for the hymns'); on 6 November the tablet took about a minute for the 1,201 pieces then.
+  Prima's data file grows by about 340 MB of MEI and 105,000 excerpts (the hymns' share 12 MB and 4,082), with 97 MB of PDFs
+  and MIDI beside it. The Library lists about 3,250 pieces then: in the preview it opened in half a second and a search
+  settled in a quarter of one (desktop Chromium, before the hymns; the tablet is slower).
 - **Levels** (a piece's hardest excerpt): Sapp's 7–12, mostly 7–8; the DCML's and ASAP's mostly 10–12; PDMX's from 4, its
-  teaching pieces; Mutopia's PDFs, graded from their MIDI, 7–12, and 20 with no MIDI aren't graded.
+  teaching pieces; Mutopia's PDFs, graded from their MIDI, 7–12, and 20 with no MIDI aren't graded. The hymns 7 (245 of them,
+  for two notes in the right hand), 8 (48) or 9 (8), one 10, and 12 for the 18 in 6/4 or 8/4, which the grader rates as hard
+  as any metre the ladder doesn't teach.
 - The titles come from each corpus's metadata, and Debussy's from a list by Lesure number, since the DCML's metadata for him is
   mostly dedications and engravers' headings. Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
   by its folders, since its scores' own titles are unreliable ("a", "title"); PDMX's are the uploaders' own, without the
   composer's name; Mutopia's come from each piece's .rdf, and a movement zipped with others is named by its file, or numbered
-  where the file's name is no word ("10title-hub"). Instrument names ("Piano", "Pno.") are taken off every piece.
+  where the file's name is no word ("10title-hub"). Instrument names ("Piano", "Pno.") are taken off every piece. A hymn goes
+  by its title, with its tune's name where a title has two tunes ("Blest Be the Tie That Binds (Dennis)"), under the work
+  "Hymns", so the Library shelves it with the chorales; its composer is the tune's, and a tune that's no one's (a hymnbook's, a
+  people's, the chant's) is Traditional, its credit saying where it's from.
 - **Left out as it's prepared**: a score the Core can't read is named and left out rather than stopping the run (two PDMX
   scores, whose MEI has a note without a pitch: `MeiReader.ReadTone` throws on it, which an import on the tablet would too).
 
@@ -690,15 +713,9 @@ the repo:
   personal use?: Yes"), says its files "may not be reposted on other sites", and its FAQ asks anyone "taking loads of midis" to
   email first. Its robots.txt disallows only the forums. Its MIDI files now import as notation.
 
-**Looked at on 15 November and left out of the tool**, with why (licences and robots.txt as read that day):
+**Looked at on 15 November and left out of the tool**, with why (licences and robots.txt as read that day; the Open Hymnal,
+looked at then too, is in the table above):
 
-- **Open Hymnal** ([openhymnal.org](http://openhymnal.org/copying.html)): its 2026.11 edition has 352 hymns, about 325 of them
-  public domain in tune, setting, words and translation (each file says; the rest have words or a setting under copyright,
-  some freely reproducible), with the current edition's ABC and MIDI each one zip (robots.txt bars only the old editions'
-  files). A good fit for sight-reading, but the ABC sets four voices on two staves, which the app's Verovio can't read
-  ("Multi-voice music is not supported"), and the one hymn's MIDI tried through the app's MIDI import (Abide with Me) came out
-  clean for 20 bars, then ragged where the MIDI holds a fermata and plays the tune again. It needs abc2svg's MEI backend
-  (`tomei.js`, GPL, from npm), not built yet.
 - **OpenScore Lieder** ([repo](https://github.com/OpenScore/Lieder)): CC0, about 1,300 songs as MuseScore files, which the
   tool's webmscore could convert. Left out because a song is a voice and a piano: Prima expects every note on the page to be
   played, voice and all. The piano's two staves alone would work, as accompaniments.
@@ -804,7 +821,7 @@ The design in §6:
 | Grading and excerpting imports (Core C#) | Grading the bundle (the same Core code) |
 | Finding systems in a PDF; pen fixes | MuseScore conversions (`.mscx`, `.mscz`, MIDI → MusicXML) |
 | Following MIDI live; aligning afterwards | OMR with Audiveris, then checking in MuseScore |
-| Turns from pedal, key or tap | abc2xml for hymns; any LilyPond work |
+| Turns from pedal, key or tap | abc2svg for hymns; any LilyPond work |
 
 ### Risks and open questions
 

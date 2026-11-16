@@ -178,12 +178,13 @@ a PDF plays out; this is what came of it.
   rags, Bach's 370 chorales on a grand staff), the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's
   suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Bartók's Bagatelles, and more)
   and ASAP's concert scores (the Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), all CC BY-NC-SA 4.0;
-  more of PDMX's public-domain piano music; and the rest of the Mutopia Project's keyboard music as PDFs with their MIDI, each
-  PDF at the level its MIDI reads at. About 2,650 pieces, all keyboard music, prepared like the bundle and packed in a few
-  zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores its pieces in
-  the background with the same meter, credited like the collection's; those already here stay as they are. The Library then
-  holds about 2,950 pieces, so a list is drawn again a second at a time at most while pieces are stored, and the search follows
-  once typing pauses.
+  more of PDMX's public-domain piano music; the rest of the Mutopia Project's keyboard music as PDFs with their MIDI, each
+  PDF at the level its MIDI reads at; and the Open Hymnal's public-domain hymns, four voices on the grand staff with their
+  verses under the notes, shelved with the chorales. About 2,970 pieces, all keyboard music, prepared like the bundle and
+  packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores
+  its pieces in the background with the same meter, credited like the collection's; those already here stay as they are. The
+  Library then holds about 3,250 pieces, so a list is drawn again a second at a time at most while pieces are stored, and the
+  search follows once typing pauses.
 - **Finding your way** (the Library's home): a search across everything, then **Working on** (the pieces played in the last
   month, eight at most, the latest first, each with when it was last played and how that run went), then **Near your level**: a
   few of the pieces to play along with whose most reads from your sight-reading level to two above it (since a piece to learn
