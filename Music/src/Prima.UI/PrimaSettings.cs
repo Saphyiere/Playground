@@ -37,6 +37,9 @@ public sealed class PrimaSettings
     /// <summary>The sheet's size: -1 smaller, 0 the printed 7 mm staff, 1 larger.</summary>
     public int SheetSize { get; set; }
 
+    /// <summary>Whether a song's words (its lyrics, or its lines typed as text) are printed under its notes.</summary>
+    public bool Lyrics { get; set; } = true;
+
     public string? Name { get; set; }
 
     /// <summary>The daily goal. The app never raises it by itself.</summary>

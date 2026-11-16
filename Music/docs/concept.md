@@ -193,7 +193,7 @@ a PDF plays out; this is what came of it.
   **Practice** and **Play** ([practice.md](practice.md) has the design). Only a tap presses them, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
   read opens on its pages, as below.) In Practice its tools come first on the bar, after the level: **?** (What's this,
-  below), **Options**, which shows the piece's options in place of the music (the view, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
+  below), **Options**, which shows the piece's options in place of the music (the view, a song's lyrics, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
   where to start; a PDF's tempo and bars) until it's pressed again, the **metronome**'s settings (below), and **Full
   screen**, which leaves only the bar and the
   music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
@@ -361,14 +361,16 @@ a PDF plays out; this is what came of it.
   excerpts like an import, with **Print** returning to the original PDF and **Convert PDF again** available from About.
   Notes, chords, rests, ties, grace notes, tuplets, clef changes, repeats, endings, articulation, fingering, dynamics and
   expression marks are retained where supported. Written 8va, 15ma and 8vb notation keeps its written pitches and octave
-  markings while playback keeps the sounding pitches. The result still needs checking against the source before use.
+  markings while playback keeps the sounding pitches. A song's lyrics printed in the PDF aren't read: the notation is its notes
+  and marks, and the words stay in the print. The result still needs checking against the source before use.
 - **The sight-reading track** reads real music too: every third passage of the day, from level 4, is an excerpt at or below your
   level of the length the level reads (four bars, eight from level 7), engraved from the piece itself. A read excerpt rests
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
 - **Imports** (**Import files**, one or several at once, or a zip of them, like a download that bundles a song's files):
-  MusicXML, MEI and ABC are engraved and graded like the collection; a PDF is kept as pages, and takes a MIDI file of the same
-  name picked or zipped with it, to be heard on the piano and scrolled at its tempo. One piece imported opens; several stay in
-  the Library with a line saying what came in and what couldn't. A MIDI file is written out as notation first, since it holds
+  MusicXML, MEI and ABC are engraved and graded like the collection, a song's lyrics kept with its notes (Notation, below,
+  says how they're printed); a PDF is kept as pages, and takes a MIDI file of the same name picked or zipped with it, to be
+  heard on the piano and scrolled at its tempo. One piece imported opens; several stay in the Library with a line saying
+  what came in and what couldn't. A MIDI file is written out as notation first, since it holds
   when notes sound, not how they're written: the hands from its tracks (or middle C), the bars from its time signatures, the
   key from its signature or its notes, each beat snapped to sixteenths, thirty-seconds or triplets, a hand's held notes as a
   second voice, ties across beats and barlines, and its first tempo kept, unprinted, as the piece's own. Notation software lets each note go a little before its written end (a file
@@ -376,8 +378,9 @@ a PDF plays out; this is what came of it.
   at its full length: a half note is a half note, not a dotted quarter tied to a scrap with a rest after it. A staccato note
   stays as short as it sounds, with its rest, and a written rest stays. One exported from notation software comes out close to
   its score, less what a MIDI file can't hold: its repeats are written out, a trill is the notes it plays, and slurs and
-  dynamics are gone. One recorded from playing comes out ragged, and a pickup comes out as a full bar. MuseScore and Humdrum
-  files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
+  dynamics are gone, as are any lyrics it carries (a song's words come with its MusicXML). One recorded from playing comes
+  out ragged, and a pickup comes out as a full bar. MuseScore and Humdrum files need converting to MusicXML on the PC first
+  (the Library tool does it for its corpora).
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
@@ -439,7 +442,8 @@ line:
   the right note is named after a wrong one in a note drill).
 - **Keyboard & sound**: the keyboard (the device, sending notes to the piano, the piano buttons, timing) and the click (where it
   sounds, its sound and volume).
-- **Look & music**: the look (Studio or Vinyl) and the notation (the music font and the sheet's size, with two bars to show them).
+- **Look & music**: the look (Studio or Vinyl) and the notation (the music font and the sheet's size, with two bars to show them,
+  and whether a song's lyrics are printed under its notes, on unless turned off; a song's Options have the same switch).
 - **Claude**.
 - **App & data**: updates, your data, and the problems Prima kept.
 
@@ -840,6 +844,21 @@ details.
   paper's left edge as the last bar line does from its right. A sheet that prints fingering (the technique drills, the
   exercises) keeps a deeper top margin, and a mark's words go above the fingering, so the names of a wrong key and the note it
   was played for sit over their own note without covering the finger numbers.
+- **Words in the music** (a song's lyrics, directions, the tempo, fingering) are set in Liberation Serif, the face Verovio
+  measures them by and carries with it, so they're drawn as wide as it spaced them for on any device (Android has no Times,
+  and its own serif is wider and taller: a song's syllables ran into each other there). The page takes the face from Verovio
+  once and each drawing leaves it out. A song's lyrics go under the notes they're sung on, a little smaller than Verovio
+  prints them by itself (3.8 half-spaces against its 4.5, about a book's 9.5 point at the printed size; Verovio sets all of a
+  piece's words at its lyrics' size, so a song's tempo, directions and part name come down with them), and Verovio spaces the
+  notes so the syllables on a line never run together. Each verse and each voice's lyrics have a line of their own: two
+  voices' lyrics numbered alike, or verses an exporter names (`part1verse1`) that Verovio reads as one, would otherwise share
+  a line and print over each other. A song's lines typed as text over or under the music (directions: four or more of three
+  words or more, one every four bars at least) go on a line of their own under the notes they start at, since as directions
+  they piled up and crushed their bars; a whole verse typed as text (longer than 60 characters) is left off. Where a line
+  still can't hold its words apart (a busy song, the tablet upright), a passage's bars first break where they fit, then the
+  words get smaller, to 3.3, 2.9 and at the least 2.5: small words read better than words run together. **Lyrics** off
+  (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note names and
+  counts) are printed as written.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
   the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
   the app as woff2 files, so it works offline; Verovio brings its own music fonts.

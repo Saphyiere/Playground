@@ -228,6 +228,13 @@ else if (!finder.FoundAny)
         </div>
         <Sheet Mei="@Sample" Class="settings-sheet" />
     </Setting>
+    <Setting Name="Lyrics" Words="On, Off" Note="A song's words, under its notes, each verse and each voice's on a line of its own. Off, a song's sheet is the music alone. A song's options have it too.">
+        <div class="control-row">
+            <span class="control-label">Lyrics</span>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = true)"><span class="mu-led"></span>On</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(!Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = false)"><span class="mu-led"></span>Off</button>
+        </div>
+    </Setting>
 </SettingsSection>
 
 @* Claude *@

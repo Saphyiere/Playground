@@ -203,7 +203,7 @@ else
                 }
                 else if (mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@
@@ -225,6 +225,15 @@ else
                             <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
                         }
                     </div>
+                    @if (!Pdf && lyrics)
+                    {
+                        <div class="control-row">
+                            <span class="control-label">Lyrics</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Lyrics)" @onclick="() => ShowLyrics(true)"><span class="mu-led"></span>On</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.Lyrics)" @onclick="() => ShowLyrics(false)"><span class="mu-led"></span>Off</button>
+                            <span class="control-note">@(Settings.Lyrics ? "The song's words under its notes, on every song." : "The music alone, on every song.")</span>
+                        </div>
+                    }
                     @if (Pdf)
                     {
                         <div class="control-row">
@@ -505,6 +514,8 @@ else
     private bool missing;
     private string? mei;
     private Score? score;
+    // The piece is a song with words to show or hide (SongWords): its Options have the switch.
+    private bool lyrics;
     private byte[]? pdfBytes;
     private MidiFile? midi;
     private Sheet? sheet;
@@ -625,7 +636,7 @@ else
             if (mei is { } text)
             {
                 // Read away from the screen's thread: a long piece takes a moment.
-                score = await Task.Run(() => MeiReader.Read(text));
+                (score, lyrics) = await Task.Run(() => (MeiReader.Read(text), SongWords.Has(text)));
                 expected = score.Expected();
                 // The piece's own tempo, as its score marks it (an imported MIDI file's, or a PDF's MIDI's), in its first metre's beats
                 // as the tempo is (♩. in 6/8).
@@ -882,6 +893,13 @@ else
     private Task ShowWhilePlaying(bool cursor, bool marks)
     {
         (Settings.Cursor, Settings.LiveMarks) = (cursor, marks);
+        return Store.SaveAsync(Settings);
+    }
+
+    // A song's words under its notes or not: kept in Settings, for every song's sheet.
+    private Task ShowLyrics(bool shown)
+    {
+        Settings.Lyrics = shown;
         return Store.SaveAsync(Settings);
     }
 

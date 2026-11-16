@@ -9,7 +9,7 @@
     line or space), and played on the piano when Prima sends it notes.
 *@
 <div class="staff-map">
-    <Sheet @ref="sheet" Mei="@Map" Scale="1.2" Class="staff-map-sheet" OnNoteTapped="Tapped" />
+    <Sheet @ref="sheet" Mei="@Map" Scale="1.2" Class="staff-map-sheet" Names="true" OnNoteTapped="Tapped" />
     <svg class="staff-map-keys" viewBox="0 0 @(Whites.Count * KeyWidth) 112" role="group" aria-label="The same notes on the keyboard">
         @foreach (var (midi, i) in Whites.Select((m, i) => (m, i)))
         {
