@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using Playground.AI.Assist;
 using Playground.Updates;
+using Prima.Core.Keyboard;
 using Prima.Core.Music;
+using Prima.Core.Timing;
 using Prima.Core.Transcription;
 using Prima.UI.Host;
 using Prima.UI.Storage;
@@ -36,10 +38,15 @@ internal sealed class ComponentHost : IAsyncDisposable
     static ComponentHost() => BunitContext.DefaultWaitTimeout = TimeSpan.FromSeconds(10);
 
     /// <param name="safeguard">What keeps the data before an update, in place of Prima's copies: a test's own, one that fails, say.</param>
-    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null, Playground.Sync.ISyncStore? copies = null)
+    /// <param name="copies">Where Prima's copies go, in place of a temporary folder: a store of the test's own.</param>
+    /// <param name="keyboard">The piano, in place of none.</param>
+    /// <param name="clock">The clock, in place of a stopwatch: one a test sets, say.</param>
+    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null, Playground.Sync.ISyncStore? copies = null, IKeyboard? keyboard = null, IClock? clock = null)
     {
         // Where the copies go: a store of the test's own, or, without one, a temporary folder in the copies' work folder.
         if (copies is not null) Context.Services.AddSingleton(copies);
+        if (keyboard is not null) Context.Services.AddSingleton(keyboard);
+        if (clock is not null) Context.Services.AddSingleton(clock);
         Context.Services.AddSingleton(Problems);
         Context.Services.AddSingleton<ILoggerFactory>(new KeptLogs(new ProblemLogProvider(Problems)));
         Context.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
@@ -100,6 +107,42 @@ internal sealed class KeptLogs(ILoggerProvider provider) : ILoggerFactory
     public void Dispose()
     {
     }
+}
+
+/// <summary>A piano that isn't plugged in until it is (or is from the start), with a key played when a test says.</summary>
+internal sealed class TestPiano(bool plugged = false) : IKeyboard
+{
+    public string? Name { get; private set; } = plugged ? "P-225B" : null;
+
+    public bool CanSend => false;
+
+    public SensingJitter Sensing { get; } = new();
+
+    public event Action<MidiEvent>? Received;
+
+    public event Action? Changed;
+
+    public void Send(byte[] message, long atNs)
+    {
+    }
+
+    public void Silence()
+    {
+    }
+
+    public void Plug()
+    {
+        Name = "P-225B";
+        Changed?.Invoke();
+    }
+
+    public void Play(int midi, long atNs) => Received?.Invoke(new MidiEvent(MidiKind.NoteOn, 1, midi, 80, atNs));
+}
+
+/// <summary>A clock that says the time a test sets.</summary>
+internal sealed class SetClock : IClock
+{
+    public long NowNs { get; set; }
 }
 
 internal sealed class SystemBars : ISystemBars

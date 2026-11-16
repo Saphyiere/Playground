@@ -384,9 +384,10 @@
 
     /// <summary>
     /// Starts a run in the chosen mode: the screen's Start, the piano's go key, or the screen itself with the music it's about to
-    /// show (a parameter set in the same step wouldn't have reached here yet).
+    /// show (a parameter set in the same step wouldn't have reached here yet). Whether one started: with no piano plugged in,
+    /// say, none does and the bar says why, so a screen that has a stage of its own for the run moves to it only once it has.
     /// </summary>
-    public Task Start(PlayMusic? with = null) => Run(with, listen: false);
+    public Task<bool> Start(PlayMusic? with = null) => Run(with, listen: false);
 
     /// <summary>
     /// Listen: the piano plays the music at the tempo, its notes and any piano part, after the count-in (the click only counts in),
@@ -423,13 +424,14 @@
         listenNeeds = null;
     }
 
-    private async Task Run(PlayMusic? with, bool listen, bool again = false)
+    // Whether a run started.
+    private async Task<bool> Run(PlayMusic? with, bool listen, bool again = false)
     {
-        if (Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return;
+        if (Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return false;
         if (!listen && Keyboard.Name is null)
         {
             _ = InvokeAsync(StartNeeds);
-            return;
+            return false;
         }
 
         // Runs going round count from the one started by hand. A run has the click to itself (In time's, or none).
@@ -437,7 +439,7 @@
         StopMetronome();
         tempoOpen = false;
         await OnStarting.InvokeAsync();
-        if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return;
+        if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return false;
         if (!listen) await OnPracticeStarting.InvokeAsync();
 
         // A run stopped to start again (back a bar) leaves nothing ticking.
@@ -473,7 +475,7 @@
             // Read ahead's covers go: the cursor waits, so there's no time to keep ahead of.
             await sheet.StopCursor();
             await sheet.CursorAt(PlayMusic.SheetId(wait.Current[0].Id));
-            return;
+            return true;
         }
 
         // In time: beats from the run's beat 0, the click's, with a pickup's before it. Listen gives the piano the notes as well as
@@ -557,6 +559,7 @@
         }
         var msPerQuarter = 60_000 / Tempo * Ticks.Quarter / music.BeatTicks;
         await sheet.StartCursor(run.MsUntil(Beat(first)), msPerQuarter, music.QuarterOf(first.Tick), plan.BeatNs / 1e6, run.MsUntil(0), music.ReadAheadQuarters, path, Settings.Cursor && !Bare, times);
+        return true;
     }
 
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>

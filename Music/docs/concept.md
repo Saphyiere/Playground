@@ -64,13 +64,17 @@ every step is done, a line sums up the day. The pieces played today are in it, e
 show as a line of their own before the plan is done.
 
 The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
-calibration or straight to Today.
+calibration or straight to Today. From the welcome the timing leads on: once its offset is kept, **Done** goes to Today. With
+the timing set already, as after Start over, the welcome skips that step: its one key goes straight to Today. Nothing else
+comes between these steps and Today: no tour or guide.
 
 ### Sight-read
 
 The reading screen, and the way to read more than the plan asks for. A passage at your level: thirty seconds to look it over
 (you can tap its rhythm or try a bar; Settings makes the look 10, 20 or 30 seconds, or as long as you like, and Start begins
-the count-in sooner), one bar of count-in, then play it in time with the click, each note marked as you play it. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
+the count-in sooner), one bar of count-in, then play it in time with the click, each note marked as you play it. A look that
+runs out with no piano plugged in starts nothing: the bar says to plug in the keyboard, and the passage waits with its Start
+for when it is. After the last bar, the summary. Then the next passage, with the level and tempo already adjusted.
 
 Variants, one a day in the plan and any time here:
 
@@ -86,10 +90,13 @@ history as a repeat and doesn't move the level or count as one of the day's pass
 
 The play bar's two modes are here too ([Playing to a tempo](#playing-to-a-tempo)). In time is reading at sight, as below. **Wait
 for me** waits at each note for the right keys and counts the notes right first time: practice for the notes, so it doesn't
-move the level or count as one of the day's passages. A passage stopped early is kept, but doesn't move the level either. The
-level can be set by hand on the first screen, with − and + and a line on what it reads (keys, metres, hands, tempo): it starts
-at the bottom of that level's tempo range, as Find my level sets it, and moves on from there as usual. The tempo's − and + set
-it for this passage and the next ones at the level.
+move the level or count as one of the day's passages. A passage stopped early is kept, but doesn't move the level either.
+
+The first screen is the same from the first time on: a new Prima reads at level 1 until the level is set, found or moved by
+the passages read. It has the level, with − and + and a line on what it reads (keys, metres, hands, tempo); ▶ for a new
+passage; and beside it **Find my level**, two short passages from levels 1, 3, 5 and up until they fall under 80% in time,
+then the level below. A level set by hand starts at the bottom of its tempo range, as Find my level sets it, and moves on from there as usual. The
+tempo's − and + set it for this passage and the next ones at the level.
 
 ### The piano buttons
 
