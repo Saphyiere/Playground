@@ -84,14 +84,17 @@ internal sealed record Played(PieceRun Run, int Pass, int Right, int Notes, doub
 }
 
 /// <summary>
-/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bars with most still to fix at the end
-/// (the first of them the bar still hard) and the bar put right, what went wrong in each bar over every run and pass, the notes
-/// right of those played, the share right in time of those played In time, and the notes let go early. Round a loop each pass
-/// counts, not the run.
+/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bars with something still to fix at
+/// the end, the most first (the first of them the bar still hard), and the bar put right, what went wrong in each bar over every
+/// run and pass, the notes right of those played, the share right in time of those played In time, and the notes let go early.
+/// Round a loop each pass counts, not the run.
 /// </summary>
 public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? Hard, FixedBar? Fixed, IReadOnlyDictionary<int, BarTrouble> Bars, int Right, int Notes, double? RightInTime, int Early)
 {
-    /// <summary>The bars with something still to fix at the end, the most first: up to three.</summary>
+    /// <summary>
+    /// Every bar with something still to fix at the end, the most first: all of them, so a bar left with a wrong note is found
+    /// however many bars had more notes off the beat or let go early.
+    /// </summary>
     public IReadOnlyList<StillHard> Hards { get; init; } = [];
 
     /// <summary>Its runs summed up, the piece's last bar being <paramref name="lastBar"/>; a run or pass with no notes reached isn't a point.</summary>
@@ -131,7 +134,7 @@ public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? 
         // Still hard: the bars with most to fix in their last times, wrong and missed notes first, then the earlier bar. Fixed: the
         // bar with most to fix at first, played three times or more, that was clean in its last times.
         TroubleKind[] kinds = [TroubleKind.Wrong, TroubleKind.Missed, TroubleKind.Off, TroubleKind.Early, TroubleKind.Slips, TroubleKind.Apart];
-        List<StillHard> hards = [.. standing.Where(s => s.Last.Weight > 0).OrderByDescending(s => s.Last.Weight).ThenByDescending(s => s.Last.Wrong + s.Last.Missed).ThenBy(s => s.Bar).Take(3).Select(s =>
+        List<StillHard> hards = [.. standing.Where(s => s.Last.Weight > 0).OrderByDescending(s => s.Last.Weight).ThenByDescending(s => s.Last.Wrong + s.Last.Missed).ThenBy(s => s.Bar).Select(s =>
         {
             int[] counts = [s.Last.Wrong, s.Last.Missed, s.Last.Off, s.Last.Early, s.Last.Slips, s.Last.Apart];
             return new StillHard(s.Bar, s.Times, s.Plays, kinds[Array.IndexOf(counts, counts.Max())], s.Last, s.Third, s.Bad);

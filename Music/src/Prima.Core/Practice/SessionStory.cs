@@ -294,7 +294,8 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         }
 
         // The bar with most still to fix at the end (its wrong, missed and slipped notes only, while those are what's being
-        // worked on), and the others nearly as bad.
+        // worked on: looked for among every bar left with something to fix, as bars with more off the beat can outweigh it),
+        // and up to two others nearly as bad.
         private StoryLine? Hard(bool notesOnly)
         {
             var hards = review.Hards.Where(h => !notesOnly || h.Last.NotRight > 0).ToList();
@@ -304,7 +305,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             (int Count, string Words)[] kinds = [(last.Wrong, "wrong notes"), (last.Missed, "missed notes"), (last.Slips, "slips put right"), (last.Apart, "chords a key at a time"), .. notesOnly ? [] : new[] { (last.Off, "notes off the beat"), (last.Early, "notes let go early") }];
             var mostly = kinds.MaxBy(k => k.Count).Words;
             var words = hard.Recent == 1 ? $"{Capital(Bar(hard.Bar))}: {mostly} the last time it was played." : $"{Capital(Bar(hard.Bar))}: still going wrong in {hard.Bad} of its last {hard.Recent} times, mostly {mostly}.";
-            var also = hards.Skip(1).Where(o => o.Last.Weight * 2 >= last.Weight).Select(o => o.Bar).ToList();
+            var also = hards.Skip(1).Where(o => o.Last.Weight * 2 >= last.Weight).Take(2).Select(o => o.Bar).ToList();
             return new("Still hard", Tint.Bad, also.Count > 0 ? $"{words} {Capital(Runs(also))} too." : words);
         }
 
@@ -638,6 +639,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             }
             // The tempo something was last played at In time, hands together, in a bar.
             double? LastAt(int bar) => units.LastOrDefault(u => u.InTime && u.Both && u.Covers(bar))?.Run.Tempo;
+            // The bar still going wrong: the one with most to fix of every bar left with a wrong note, as Still hard names it.
             var hard = review.Hards.FirstOrDefault(h => h.Last.NotRight > 0);
             // The last time through; the best of them, when the end of the session went worse.
             var through = Reference;
