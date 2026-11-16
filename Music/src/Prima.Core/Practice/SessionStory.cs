@@ -475,10 +475,12 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         // Times through before the end went worse, when it did (all of them, when none was before it).
         private List<Played> Rested(List<Played> of) => tired && lateFrom is { } from && of.Where(u => u.Run.At <= from).ToList() is { Count: > 0 } before ? before : of;
 
-        // The times through at the tempo most of it was played at; the ones at the end apart, when the end went worse.
+        // The times through at the tempo most of it was played at, or with none at it, at the tempo nearest it (of two as near,
+        // the slower: a step over it has a line of its own), never two tempos as one; the ones at the end apart, when the end
+        // went worse.
         private string Performed()
         {
-            var at = throughs.Where(u => u.Run.Tempo == tempo).ToList() is { Count: > 0 } main ? main : throughs;
+            var at = throughs.GroupBy(u => u.Run.Tempo).OrderBy(g => Math.Abs((g.Key ?? 0) - (tempo ?? 0))).ThenBy(g => g.Key).First().ToList();
             var rested = Rested(at);
             var worn = at.Except(rested).ToList();
             var own = piece.Tempo is { } goes && at[0].Run.Tempo >= PieceStanding.Near * goes ? at[0].Run.Tempo >= goes ? ", the piece's own tempo" : $", near the piece's own {Tempo(goes)}" : "";
