@@ -215,6 +215,30 @@ public class RestoreTests
         Assert.Equal([0, 40], during);
     }
 
+    // What the app doesn't put back (its problem log) is copied and exported as ever, but a restore leaves it as it is.
+    [Fact]
+    public async Task RestoreAsync_LeavesWhatTheAppDoesntPutBack_AsItIs()
+    {
+        using var before = new App();
+        using var store = new TempFolder();
+        using var exports = new TempFolder();
+        var options = Unrestored(before);
+        var copy = await new Syncer(options, [new FolderStore(store.Path)]).CopyAsync(ct: Ct);
+        var export = await new Syncer(options, [new FolderStore(store.Path)]).ExportAsync(exports.Path, Ct);
+        Assert.Contains(copy.Manifest.Files, f => f.Path == "errors.log");
+        using (var archive = ZipFile.OpenRead(export)) Assert.NotNull(archive.GetEntry("errors.log"));
+
+        using var other = new App(empty: true);
+        File.WriteAllText(other.Log, "this install's own problems");
+        var syncer = new Syncer(Unrestored(other), [new FolderStore(other.WorkFolder)]);
+        await syncer.RestoreAsync(Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)), Ct);
+
+        Assert.Equal(40, other.Count("Attempt"));
+        Assert.Equal("this install's own problems", File.ReadAllText(other.Log));
+
+        static SyncOptions Unrestored(App app) => app.Options() with { Items = [.. app.Options().Items.Select(i => i is FileItem ? i with { Restored = false } : i)] };
+    }
+
     [Fact]
     public async Task RestoreAsync_AnotherAppsDatabase_IsRefused()
     {

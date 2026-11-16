@@ -68,15 +68,16 @@ public class PrimaSyncTests
     }
 
     [Fact]
-    public async Task ARestore_OnAFreshInstall_BringsBackEverything()
+    public async Task ARestore_OnAFreshInstall_BringsBackEverything_ButTheProblemLog()
     {
         await using var before = new Tablet();
         await before.FillAsync();
         await before.Sync.CopyAsync(ct: Ct);
 
-        // Prima installed afresh: nothing of its own yet, and the copy before found with the tablet's folder picker.
+        // Prima installed afresh: nothing of its own yet but a problem it kept, and the copy before found with the tablet's folder picker.
         await using var fresh = new Tablet();
         await fresh.Store.GetSettingsAsync();
+        fresh.Problems.Keep("Warning", "Prima.UI.Pages.Library", "The Library took long to open");
         var copy = Assert.Single(await fresh.Sync.FindCopiesAsync(new FolderStore(before.Copies, "Documents/Prima backups/Installed 2026-10-01 090000"), Ct));
         Assert.Equal("Nothing played yet · 1 imported file", copy.Summary);
         await fresh.Sync.RestoreAsync(copy, Ct);
@@ -87,7 +88,9 @@ public class PrimaSyncTests
         Assert.Equal("Gymnopédie No. 1", (await fresh.Store.GetPieceAsync("import-1"))?.Title);
         Assert.Equal(File.ReadAllBytes(Path.Combine(before.Store.FilesPath, "import-1.pdf")), File.ReadAllBytes(Path.Combine(fresh.Store.FilesPath, "import-1.pdf")));
         Assert.Equal(Tablet.Rendering, await fresh.Store.GetConversionArtifactAsync(before.Artifact!, Ct));
-        Assert.Contains(fresh.Problems.Recent(), p => p.Message == "A page took long to draw");
+        // The problem log is in the copy, but a restore leaves this install's as it is.
+        Assert.Contains(copy.Manifest.Files, f => f.Path == "errors.log");
+        Assert.Equal(["The Library took long to open"], fresh.Problems.Recent().Select(p => p.Message));
         // The fresh install keeps a copy of its own of all of it, in the background.
         for (var i = 0; i < 200 && fresh.Sync.Status.Last?.Manifest.Reason != SyncReason.AfterRestore; i++) await Task.Delay(25, Ct);
         Assert.Contains(fresh.Sync.Status.Last!.Manifest.Files, f => f.Path == "library/import-1.pdf");

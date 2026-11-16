@@ -816,15 +816,24 @@ public sealed class Syncer
 
     // ---- Restoring ----
 
-    /// <summary>Each item the copy has that the app keeps, paired; throws when the copy holds nothing of the app's, or a file it lists can't be.</summary>
+    /// <summary>
+    /// Each item the copy has that the app keeps and puts back, paired (one it doesn't put back, a log, is left as it is); throws
+    /// when the copy holds nothing of the app's to put back, or a file it lists can't be.
+    /// </summary>
     private List<(SyncItem Live, SyncManifestItem Copied)> PlanRestore(SyncManifest copy)
     {
         if (!Valid(copy)) throw new SyncException("That copy's list of files isn't one this app can restore from, so nothing was restored.");
         var plan = new List<(SyncItem, SyncManifestItem)>();
         foreach (var copied in copy.Items)
         {
-            if (options.Items.FirstOrDefault(i => i.Name == copied.Name && i.Kind == copied.Kind) is { } live) plan.Add((live, copied));
-            else logger?.LogWarning("A copy's {Item} isn't kept by this app any more, so it isn't restored.", copied.Name);
+            if (options.Items.FirstOrDefault(i => i.Name == copied.Name && i.Kind == copied.Kind) is { } live)
+            {
+                if (live.Restored) plan.Add((live, copied));
+            }
+            else
+            {
+                logger?.LogWarning("A copy's {Item} isn't kept by this app any more, so it isn't restored.", copied.Name);
+            }
         }
         return plan.Count > 0 ? plan : throw new SyncException($"That copy holds nothing {options.App} keeps, so nothing was restored.");
     }

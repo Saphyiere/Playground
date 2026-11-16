@@ -18,6 +18,9 @@ background; checks the app after an update; and puts a copy back, all of it or n
 - **`SyncItem.Custom(name, export)`**: anything else (preferences, say), which the app writes out as files for a copy and reads
   back on restore (`ISyncExport`).
 
+An item `with { Restored = false }` (Prima's problem log) is copied and exported like the rest, but a restore leaves it as it is:
+what went wrong on this install stays.
+
 **Secrets never go in a copy.** `Exclude` names files never read, wherever they turn up (a key file waiting to be taken in), and
 files on their way (`.tmp`, `.partial`) are left out too. `Secrets` gives the secrets themselves (an API key): every file a copy
 reads is searched for each, and a copy that would hold one stops before it writes anything, saying which file held it.
@@ -71,7 +74,8 @@ another runs waits its turn.
    fresh install: no rows in what's `Counted`, settings aside, and no file in its folders). If it can't be taken, nothing is
    restored and `SyncKeepException` says why; `RestoreAsync(copy, keepWhatsHere: false)` restores without it, asked for apart.
 3. Each item's copy goes in at once, and if one can't, those before it go back. A database's journal goes with it.
-4. Only the items the copy has are replaced: a database on its own replaces the database alone. A fresh copy is taken after.
+4. Only the items the copy has, and the app puts back, are replaced: a database on its own replaces the database alone, and a log
+   that isn't `Restored` stays as it is. A fresh copy is taken after.
 
 `KeepAsync(what)` takes a copy and holds it the same way before the app changes the data itself, `what` naming the change as the
 screen says it (Prima's Start over; the same for any other: `SyncHeldFrom.Change`, with `what` as `Why`). Every copy held says

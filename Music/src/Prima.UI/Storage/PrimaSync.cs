@@ -15,7 +15,8 @@ namespace Prima.UI.Storage;
 /// It's restored only into Prima (it has Prima's tables).</item>
 /// <item><c>library</c>: the music imported, and a local collection's PDFs and MIDI, beside the data file.</item>
 /// <item><c>prima.conversion</c>: what reading a PDF's notes made (the systems' pictures and engravings), beside it too.</item>
-/// <item><c>errors.log</c> and <c>errors.old.log</c>: the problems Prima kept.</item>
+/// <item><c>errors.log</c> and <c>errors.old.log</c>: the problems Prima kept, copied and exported to send on, but never put back
+/// by a restore: the tablet's own stay as they are.</item>
 /// </list>
 /// Claude's key lives in the tablet's secure storage, apart from all of these, and <c>claude-key.txt</c> is deleted once taken in;
 /// every file a copy reads is searched for the key all the same, and a copy that would hold it stops before writing anything. The
@@ -69,8 +70,9 @@ public static class PrimaSync
                 SyncItem.Database("prima.db", databasePath) with { RequiredTables = Tables, Counted = Counted },
                 SyncItem.Folder("library", store.FilesPath),
                 SyncItem.Folder("prima.conversion", Path.ChangeExtension(databasePath, ".conversion")),
-                SyncItem.File(ProblemLog.FileName, problems.Path),
-                SyncItem.File(Path.GetFileName(problems.OldPath), problems.OldPath),
+                // The problems are copied and exported, to send on, but a restore leaves this tablet's as they are.
+                SyncItem.File(ProblemLog.FileName, problems.Path) with { Restored = false },
+                SyncItem.File(Path.GetFileName(problems.OldPath), problems.OldPath) with { Restored = false },
             ],
             Exclude = [AssistKey.FileName],
             Secrets = async _ => [.. new[] { await keys.GetAsync(), await WaitingKeyAsync(keyFile.Path) }.OfType<string>()],

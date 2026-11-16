@@ -12,6 +12,12 @@ public abstract record SyncItem
     /// <summary>Where it sits in a copy: a relative path with / between its parts.</summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Whether a restore puts it back. A log isn't put back: what went wrong on this install stays as it is, though copies and
+    /// exports still have it, to send on.
+    /// </summary>
+    public bool Restored { get; init; } = true;
+
     /// <summary>A SQLite database, copied with SQLite's online backup: whole and consistent while the app has it open.</summary>
     public static DatabaseItem Database(string name, string path) => new(name, path);
 

@@ -93,7 +93,7 @@
         </div>
         @if (chosen is { } choice)
         {
-            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key stays as it is. What's here is kept first, held, so the restore can be undone.</p>
+            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key and the problems kept stay as they are. What's here is kept first, held, so the restore can be undone.</p>
             <div class="control-row">
                 <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, true)">Restore this copy</button>
                 @if (unkept == choice)

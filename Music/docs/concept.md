@@ -542,8 +542,9 @@ a copy under way shows its progress on the meter. **Back up now** takes
 one. **Restore from a backup…** lists this install's copies, and with **Choose a folder…** (the tablet's folder picker, opening on
 Documents/Prima backups) the copies of every install in the folder chosen, or with **Choose a file…** an export or a Prima data file
 on its own; choosing one says what it replaces, and **Restore this copy** keeps a copy of what's here first, held, so the restore
-can be undone (not on a fresh install, with nothing of yours yet), then puts all of the copy in place, or nothing if any of it is
-damaged, and opens Prima afresh on App & data, where it says what was restored. If what's here can't be kept, nothing is restored
+can be undone (not on a fresh install, with nothing of yours yet), then puts all of the copy in place but its problems (the
+tablet's own stay), or nothing if any of it is damaged, and opens Prima afresh on App & data, where it says what was restored. If
+what's here can't be kept, nothing is restored
 and it says why, and **Restore without keeping what's here** restores all the same. **Export everything** puts it all in one zip
 for the share sheet (to Drive, or to the PC), which restores like a copy. The copies held stand first, newest first, each saying
 what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over) and when it was
@@ -901,7 +902,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   time, how bad and what said it, then what it said and the rest), so they're there even when the data file isn't.
 - **Copies** of all of it but Claude's key, through the Kit's sync (Kit/Playground.Sync): the data file (`prima.db`, snapshotted
   with SQLite's backup while Prima has it open), the music imported (`library`), what reading a PDF made (`prima.conversion`), and
-  the problem log (`errors.log`, `errors.old.log`). They're in Documents/Prima backups, in a folder for each install named for when
+  the problem log (`errors.log`, `errors.old.log`: copied and exported, but never put back by a restore, which leaves the
+  tablet's own as it is). They're in Documents/Prima backups, in a folder for each install named for when
   Prima was installed: Android lets an app read there only what the same install wrote, so a reinstalled Prima opens the copies of
   the one before with the folder picker. A copy is a manifest (when, which version, why, each table's rows, each file's size, time
   and SHA-256) and each file's content under its fingerprint, so only what changed is written. The three newest copies are kept;
