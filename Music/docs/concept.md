@@ -558,8 +558,10 @@ message) and **Clear…**. Everything Prima logs as a warning or an error goes i
 page that stopped answering, anything thrown that nothing caught (kept as Android closes Prima). They're kept in `errors.log`
 in Prima's folder too (Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even
 when Prima won't open; past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it
-stopped answering at the time, so it keeps what Blazor said in its own storage, and its yellow bar says it ("Prima stopped
-answering taps", why, and that it's kept); Prima writes it in the log the next time it starts, as of when it happened.
+stopped answering at the time, so it keeps what Blazor said just before its yellow bar showed in its own storage, even a line
+it leaves out at any other time (a call back into a page that had gone, say), and never an older problem in its place (with
+nothing said just then, "It didn't say why."); the bar says it ("Prima stopped answering taps", why, and that it's kept); Prima
+writes it in the log the next time it starts, as of when it happened.
 
 ## The sight-reading flow
 
