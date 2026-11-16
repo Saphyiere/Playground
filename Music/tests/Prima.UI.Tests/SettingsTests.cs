@@ -168,6 +168,33 @@ public class SettingsTests
         Assert.Equal(["problems"], host.Browser.ShownSections);
     }
 
+    // Start over clears what was practised and nothing of the Library: the music imported and the collection aren't progress.
+    [Fact]
+    public async Task StartingOverClearsTheProgressAndKeepsTheLibrary()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var session = await host.Store.StartSessionAsync(piece.Id, "standard", DateTimeOffset.Now.AddMinutes(-5));
+        await host.Store.AddAttemptAsync(new Prima.UI.Storage.AttemptRecord(0, DateTimeOffset.Now, today, "piece", "in time", piece.Id, 1, 72, null, null, "[]", null, $"{{\"session\":{session}}}", 0, false, null));
+        await host.Store.SaveTrackAsync("drill:playback", new Prima.UI.Practice.DrillTrack(3, 0.9, 0.9, today));
+        await host.Store.AddMinutesAsync(today, 5);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var view = host.Context.Render<Settings>();
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.Contains("The Library stays as it is"));
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "Cleared. Today starts from the beginning, with the Library as it was.");
+        Assert.Equal([piece.Id], await host.Store.GetPieceIdsAsync());
+        Assert.NotNull(await host.Store.GetPieceAsync(piece.Id));
+        Assert.Empty(await host.Store.GetAttemptsAsync(DateOnly.MinValue));
+        Assert.Empty(await host.Store.GetSessionsAsync(piece.Id));
+        Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
+        Assert.Null(await host.Store.GetTrackAsync<Prima.UI.Practice.DrillTrack>("drill:playback"));
+    }
+
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).
     private static Task Open(IRenderedComponent<Settings> view, string tab) => view.InvokeAsync(() => view.FindAll("[role=tab]").Single(t => t.TextContent == tab).Click());
 

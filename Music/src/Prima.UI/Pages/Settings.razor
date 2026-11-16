@@ -370,7 +370,7 @@ else if (!finder.FoundAny)
         </div>
         @if (confirming || dataNote is not null)
         {
-            <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up now first if you might want it." : dataNote)</p>
+            <p class="section-note" role="status">@(confirming ? "This clears your progress: levels, notes, every run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the settings. Back up now first if you might want it." : dataNote)</p>
         }
     </Setting>
 </SettingsSection>
@@ -633,7 +633,7 @@ else if (!finder.FoundAny)
     private async Task StartOver()
     {
         await Store.StartOverAsync();
-        (confirming, dataNote) = (false, "Cleared. Today starts from the beginning.");
+        (confirming, dataNote) = (false, "Cleared. Today starts from the beginning, with the Library as it was.");
     }
 
     private static readonly int[] Minutes = [5, 10, 15, 20, 30, 45];

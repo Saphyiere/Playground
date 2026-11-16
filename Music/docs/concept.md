@@ -528,8 +528,9 @@ Documents/Prima backups) the copies of every install in the folder chosen, or wi
 on its own; choosing one says what it replaces, and **Restore this copy** puts all of it in place, or nothing if any of it is
 damaged, and opens Prima afresh. **Export everything** puts it all in one zip for the share sheet (to Drive, or to the PC), which
 restores like a copy. A copy kept from before an update that didn't check out stands first, saying what was missing, with
-**Restore it…** and **Let it go**. **Start over** clears levels, notes, history and the streak but keeps the settings, after
-asking. Nothing leaves the tablet unless you send it.
+**Restore it…** and **Let it go**. **Start over** clears your progress after asking: levels, notes, every run and practice day
+(and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the
+settings: the music isn't progress, and only a copy or an export carries it. Nothing leaves the tablet unless you send it.
 
 **Problems:** what went wrong, newest first, each line its time, how bad (Warning, Error, Critical), what said it (a screen, a
 job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (all of them, to paste into a
