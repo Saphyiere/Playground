@@ -102,6 +102,8 @@ public class ProblemLogTests : IDisposable
         Assert.Equal(("Error", "ScreenErrorBoundary"), (kept.Level, kept.Short));
         Assert.Contains("Sequence contains no matching element", kept.Message);
         Assert.Contains("InvalidOperationException", kept.Detail);
+        // See it in Settings opens the tab Problems is on, and brings it into view.
+        Assert.Equal("settings?tab=app&section=problems", view.FindAll("[data-state=screen-stopped] a").Single(a => a.TextContent == "See it in Settings").GetAttribute("href"));
 
         view.Find("[data-state=screen-stopped] .mu-primary").Click();
         view.WaitForElement("button.breaks").Click();

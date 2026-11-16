@@ -1337,11 +1337,12 @@ a {
     color: var(--on-screen-muted);
 }
 
-/* Settings: sections with a heading, a note and their controls. */
+/* Settings: sections with a heading, a note and their controls. A link to one brings it to the top with room above. */
 .settings-section {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    scroll-margin-top: 24px;
 }
 
 .section-title {
@@ -1361,6 +1362,127 @@ a {
     line-height: 28px;
     font-weight: 400;
     letter-spacing: 0.12em;
+    color: var(--accent);
+}
+
+/* Settings' search, beside its heading, and its tabs under it: Studio's pages on a strip of the amber screen, the open one lit like
+   one of its segments; Vinyl's a row of names, the open one in cream on a mustard line. Then the open tab's sections, or what a search
+   found in every tab, each section headed by its tab's name first: on a bit of the screen in Studio, in muted cream in Vinyl. */
+.settings-search {
+    flex: 0 1 400px;
+    min-width: 240px;
+}
+
+.settings-tabs {
+    align-self: flex-start;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 4px;
+    border-radius: var(--radius-display);
+    background: var(--screen);
+    box-shadow: inset 0 0 0 1px var(--screen-edge);
+}
+
+.settings-tab {
+    min-height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    color: var(--on-screen-muted);
+    font-family: var(--mu-print);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.settings-tab[aria-selected="true"] {
+    background: var(--meter-on);
+    color: var(--screen);
+    box-shadow: 0 0 10px var(--meter-on);
+}
+
+.settings-tab:focus-visible {
+    outline-color: var(--on-screen);
+    outline-offset: -4px;
+}
+
+[data-theme="vinyl"] .settings-tabs {
+    align-self: stretch;
+    gap: 4px 32px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 0 -1px 0 var(--seam);
+}
+
+[data-theme="vinyl"] .settings-tab {
+    min-height: 52px;
+    padding: 0;
+    border-radius: 0;
+    color: var(--ink-muted);
+    font-family: var(--font-bebas);
+    font-size: 28px;
+    line-height: 28px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    text-transform: none;
+}
+
+[data-theme="vinyl"] .settings-tab[aria-selected="true"] {
+    background: none;
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+[data-theme="vinyl"] .settings-tab:focus-visible {
+    outline-color: var(--focus);
+    outline-offset: 2px;
+}
+
+/* The sections, spaced as the screen spaces what's on it; those of a tab that isn't open, or that nothing was found in, hidden. */
+.settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+[data-theme="vinyl"] .settings-panel {
+    gap: 28px;
+}
+
+.settings-section[hidden] {
+    display: none;
+}
+
+.settings-found-in {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-key);
+    background: var(--screen);
+    color: var(--on-screen);
+}
+
+.settings-found-sep {
+    color: var(--ink-muted);
+}
+
+[data-theme="vinyl"] .settings-found-in {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--ink-muted);
+}
+
+/* A section named like its tab is headed by the tab alone: in Vinyl, as any section's heading is. */
+[data-theme="vinyl"] .settings-found-in:only-child {
     color: var(--accent);
 }
 

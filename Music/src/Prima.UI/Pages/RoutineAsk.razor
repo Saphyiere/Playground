@@ -116,7 +116,7 @@ else
         @if (problem is not null) { <p class="section-note" role="alert" data-state="request-error">@problem</p> }
         <div class="control-row">
             <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-generate" disabled="@(!CanGenerate)" @onclick="Generate">@(submitting ? "Starting…" : "Generate routine")</button>
-            <a class="mu-btn" data-piano="off" href="settings">Provider settings</a>
+            <a class="mu-btn" data-piano="off" href="settings?tab=claude">Provider settings</a>
         </div>
     </section>
 }
