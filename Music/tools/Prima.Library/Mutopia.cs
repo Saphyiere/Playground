@@ -141,7 +141,7 @@ internal static class Mutopia
         var maintainer = Field("maintainer");
         var credit = $"Typeset{(maintainer.Length > 0 ? $" by {maintainer}" : "")} for the Mutopia Project{(Field("source") is { Length: > 0 } source ? $", from {source}" : "")}; {licence}.";
         var info = number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url;
-        BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, Field("opus"), "pdf", file, midi,
+        BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, Opus(Field("opus")), "pdf", file, midi,
             Pdmx.Hash(Path.Combine(output, file)), Name, info, licence, licenceUrl, credit, Tier.A, null, midi is null ? null : Level(Path.Combine(output, midi), partTitle));
 
         if (!pdf.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
@@ -173,9 +173,16 @@ internal static class Mutopia
         var parts = new List<BundledPiece>();
         using (var zip = ZipFile.OpenRead(pdfs))
         {
-            // In their order, numbers as numbers: "2-…" before "10-…".
-            var entries = zip.Entries.Where(e => e.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            // In their order, numbers as numbers: "2-…" before "10-…". Not the US Letter copies some zips hold beside the A4 ones,
+            // nor a duet's parts beside a piece for two hands. Where the movements come with MIDI, not the PDFs without it either:
+            // the whole suite beside its movements, a set's title page.
+            var entries = zip.Entries.Where(e => e.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                    && !Regex.IsMatch(e.Name, @"(^|[-_])(letter|let)[-_]|four-hands|4-hands|\bduet|primo|secondo", RegexOptions.IgnoreCase))
                 .OrderBy(e => Regex.Replace(e.Name, @"\d+", m => m.Value.PadLeft(4, '0')), StringComparer.Ordinal).ToList();
+            if (entries.Any(e => midiOf.ContainsKey(Regex.Replace(Path.GetFileNameWithoutExtension(e.Name), "-a4$", ""))))
+            {
+                entries = [.. entries.Where(e => midiOf.ContainsKey(Regex.Replace(Path.GetFileNameWithoutExtension(e.Name), "-a4$", "")))];
+            }
             foreach (var entry in entries)
             {
                 var stem = Regex.Replace(Path.GetFileNameWithoutExtension(entry.Name), "-a4$", "");
@@ -189,15 +196,20 @@ internal static class Mutopia
                     await File.WriteAllBytesAsync(Path.Combine(output, midi), bytes);
                 }
                 // The part's name is its file's, less the piece's: "french-suite-3-allemande" is "Allemande". A file named for no
-                // word ("bwv-827-1", "10title-hub") gives the part its number in the piece.
+                // word ("bwv-827-1", "11title-hub") is the piece's movement by its place: "Partita No. 3, movement 1".
                 var name = Regex.Replace(stem.StartsWith(folder, StringComparison.OrdinalIgnoreCase) ? stem[folder.Length..] : stem, "[-_]+", " ").Trim();
                 var words = Regex.Matches(name, @"\p{L}{3,}").Select(m => m.Value.ToLowerInvariant()).Where(w => w is not ("title" or "hub" or "part" or "page" or "bwv")).ToList();
-                var label = words.Count > 0 ? $"{char.ToUpperInvariant(name[0])}{name[1..]}" : $"{entries.IndexOf(entry) + 1}";
-                parts.Add(Piece(partId, $"{title}: {label}", file, midi));
+                var named = words.Count > 0 ? $"{title}: {char.ToUpperInvariant(name[0])}{name[1..]}" : $"{title}, movement {entries.IndexOf(entry) + 1}";
+                parts.Add(Piece(partId, named, file, midi));
             }
         }
         return parts;
     }
+
+    // An opus written one way, as the work a piece is listed under: "Op 28, No 10", "O 27" and "Opus 10, No. 1" are "Op. 28 No. 10",
+    // "Op. 27" and "Op. 10 No. 1"; a catalogue's own (BWV 825, KV 453a, B. 130) stays as it is.
+    private static string Opus(string opus) =>
+        Regex.Replace(Regex.Replace(opus.Trim(), @"^(O|Op|Opus)\.?\s*(?=\d)", "Op. ", RegexOptions.IgnoreCase), @",?\s*\b(No|Nr)\.?\s*(?=\d)", " No. ", RegexOptions.IgnoreCase);
 
     // A piece's level from its MIDI written out as notation, as an import of it would be graded; null when it can't be read.
     private static int? Level(string midi, string title)

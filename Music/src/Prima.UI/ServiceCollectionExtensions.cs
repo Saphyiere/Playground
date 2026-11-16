@@ -17,12 +17,13 @@ public static class ServiceCollectionExtensions
     /// Registers Prima's storage, settings, look, click and way back. The host decides where the database file lives, and registers
     /// its own first: the piano (<see cref="IKeyboard"/>), the system clock (<see cref="IClock"/>), the speaker's click
     /// (<see cref="IClick"/>), files (<see cref="IFiles"/>), the Library's bundled music
-    /// (<see cref="ILibraryBundle"/>), a <see cref="LookSetting"/> if it has parts of its own to dress for the look, and for Claude its
+    /// (<see cref="ILibraryBundle"/>), the speaker a piece's opening plays on without the piano (<see cref="ISpeaker"/>), a
+    /// <see cref="LookSetting"/> if it has parts of its own to dress for the look, and for Claude its
     /// key store (<see cref="IAssistKeyStore"/>), the <see cref="ClaudeKeyFile"/> a key arrives in, and an <see cref="IClaude"/> of its
     /// own if it answers without the API, a <see cref="ProblemLog"/> where what goes wrong is kept, and for the copies of Prima's data
     /// (<see cref="PrimaSync"/>) the store they go in and the system's pickers (Playground.Sync.Android's AddAndroidSync). Without them
-    /// there's no piano, a stopwatch clock, a silent click, no files and no bundle, a key kept in memory, looked for beside the data
-    /// file, the problems kept beside the data file too, and copies in a temporary folder.
+    /// there's no piano, a stopwatch clock, a silent click, no files, no bundle and no speaker, a key kept in memory, looked for beside
+    /// the data file, the problems kept beside the data file too, and copies in a temporary folder.
     /// </summary>
     public static IServiceCollection AddPrima(this IServiceCollection services, string databasePath)
     {
@@ -35,6 +36,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IClick, GridClick>();
         services.TryAddSingleton<IFiles, NoFiles>();
         services.TryAddSingleton<ILibraryBundle, NoBundle>();
+        services.TryAddSingleton<ISpeaker, NoSpeaker>();
+        services.AddSingleton<Library.Openings>();
         // Asking Claude: the key in the host's secure storage (in memory without one), the file a key arrives in, and each call
         // kept in Prima's data file with the piece it was for.
         services.TryAddSingleton<IAssistKeyStore, MemoryKeyStore>();

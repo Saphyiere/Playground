@@ -33,6 +33,8 @@ builder.Services.AddSingleton<ILibraryBundle>(new FolderBundle(Path.Combine(root
 builder.Services.AddSingleton<PreviewFiles>();
 builder.Services.AddSingleton<IFiles>(sp => sp.GetRequiredService<PreviewFiles>());
 builder.Services.AddSingleton<ISystemBars, NoSystemBars>();
+builder.Services.AddSingleton<PreviewSpeaker>();
+builder.Services.AddSingleton<ISpeaker>(sp => sp.GetRequiredService<PreviewSpeaker>());
 // Claude answers from saved replies (PreviewClaude), never the API; the key is kept in memory (AddPrima's default).
 builder.Services.AddSingleton<PreviewClaude>();
 builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
@@ -241,6 +243,8 @@ app.MapGet("/keys/answer", async (bool? right, int? apart, SessionRegistry regis
 // The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
+// What the tablet's speaker was given to play (a piece's opening without the piano), and how often it was stopped.
+app.MapGet("/speaker/played", (PreviewSpeaker speaker) => Results.Text($"stopped {speaker.Stops} times\n{string.Join('\n', speaker.Played.Select(p => $"{p.At:HH:mm:ss} {p.Bytes} bytes"))}"));
 // The next file "picked" for an import: a file on this machine, by path.
 // The stand-in Claude: a key on the tablet or not (one ending a1B2, as in the mock-ups), a key file for Settings to find, how it
 // answers (?delay=ms, ?fail=OutOfCredit&after=2), and three pieces read this month for Settings' ledger.

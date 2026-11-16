@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFiles, AndroidFiles>();
         builder.Services.AddSingleton<ISystemBars, AndroidSystemBars>();
         builder.Services.AddSingleton<ILibraryBundle, AndroidBundle>();
+        builder.Services.AddSingleton<ISpeaker, AndroidSpeaker>();
         builder.Services.AddSingleton<IConversionRenderer, AndroidConversionRenderer>();
         builder.Services.AddSingleton<IConversionHost, AndroidConversionHost>();
         builder.Services.AddSingleton<IRoutineHost, AndroidRoutineHost>();

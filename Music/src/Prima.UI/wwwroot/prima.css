@@ -3548,6 +3548,90 @@ a.mu-btn {
     color: var(--accent);
 }
 
+/* The Library's home: its search across the page, then shelves of ways in (composers, periods, kinds, levels, lists), each a
+   key with how many pieces it holds. A long list starts with the same keys for its groups. */
+.library-filters .text-field.library-search {
+    flex: 1 1 320px;
+    margin-left: 0;
+}
+
+.shelf {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.shelf-chip {
+    min-height: 40px;
+    padding: 0 14px;
+    gap: 8px;
+    font-size: 14px;
+}
+
+[data-theme="vinyl"] .shelf-chip {
+    font-size: 19px;
+}
+
+.shelf-count {
+    font-family: var(--mu-figure);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+[data-theme="vinyl"] .shelf-count {
+    font-size: 17px;
+}
+
+.shelf-more {
+    margin: 12px 0 0;
+    font-size: 14px;
+}
+
+.shelf-more a {
+    color: var(--accent);
+}
+
+.shelf-jump {
+    margin: 4px 0 8px;
+}
+
+/* A row of a list: the key that plays the piece's opening, lit while it plays, then the piece. */
+.piece-item {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    border-top: 1px solid var(--seam);
+}
+
+.piece-item > .piece-row {
+    border-top: none;
+}
+
+.piece-hear {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-family: var(--font-sans);
+    font-size: 15px;
+}
+
+[data-theme="vinyl"] .piece-hear {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    letter-spacing: 0;
+}
+
+.piece-hear[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-accent);
+}
+
 .credits-table td {
     font-size: 13px;
     vertical-align: top;

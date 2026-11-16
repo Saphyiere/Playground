@@ -106,6 +106,36 @@ public sealed class GridClick(IClock clock) : IClick
     public long BeatTime(int beat) => startNs + (long)Math.Round(plan?.Offset(beat) ?? 0);
 }
 
+/// <summary>
+/// The tablet's own speaker, for music without the piano: a MIDI file played by the system's own synthesizer, as a piece's opening
+/// is heard from the Library when no piano is plugged in.
+/// </summary>
+public interface ISpeaker
+{
+    /// <summary>Whether the host can play a MIDI file at all.</summary>
+    bool CanPlay { get; }
+
+    /// <summary>Plays a Standard MIDI File from the start, stopping whatever was playing.</summary>
+    void Play(byte[] midi);
+
+    /// <summary>Stops what's playing, if anything.</summary>
+    void Stop();
+}
+
+/// <summary>No speaker for music: for a host without one.</summary>
+public sealed class NoSpeaker : ISpeaker
+{
+    public bool CanPlay => false;
+
+    public void Play(byte[] midi)
+    {
+    }
+
+    public void Stop()
+    {
+    }
+}
+
 /// <summary>Files outside the app: sending an export somewhere, and picking a file (music to import).</summary>
 public interface IFiles
 {

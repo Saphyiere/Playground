@@ -306,6 +306,8 @@ jitter Keyboard check shows, and the timing offset and spread.
 
 Then, in the **Library** (the first visit stores the collection, a few seconds):
 
+- ▶ beside a piece plays its opening: on the piano with it plugged in, and with it unplugged on the tablet's speaker (Android's
+  own MIDI player, which only the tablet can show). Does it start promptly, and does ■ stop it?
 - Open a piece and turn pages with the soft pedal (on) and the sostenuto pedal (back), if the LP-1 pedal unit is fitted, or with
   C8 and A0. If a pedal does nothing, the piano may have controller messages switched off: hold METRONOME and RHYTHM and press
   C♯4 (manual, p. 54).
