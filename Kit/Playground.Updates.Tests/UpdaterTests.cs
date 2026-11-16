@@ -256,6 +256,60 @@ public class UpdaterTests
         Assert.Equal("The update was cancelled.", updater.Status.Message);
     }
 
+    // Tapped again after Android asked to let the app install apps, or after its installer was cancelled, the file downloaded
+    // and checked before is handed over as it is: one download, however many tries.
+    [Fact]
+    public async Task InstallAsync_TriedAgain_HandsOverTheFileItHas_WithoutDownloadingItAgain()
+    {
+        var (updater, github, device, _) = Make("1.0.5");
+        using var _ = device;
+        github.Release("prima-1.0.7", App);
+        device.Outcome = new InstallOutcome(InstallResult.NeedsPermission, "Allow Prima to install apps, then tap Install again.");
+        var ct = TestContext.Current.CancellationToken;
+        await updater.CheckAsync(ct: ct);
+        await updater.InstallAsync(ct);
+
+        device.Outcome = new InstallOutcome(InstallResult.Handed, "");
+        await updater.InstallAsync(ct);
+        device.Stop("The update was cancelled.");
+        await updater.InstallAsync(ct);
+
+        Assert.Single(github.Requests, r => r.Contains("/releases/download/", StringComparison.Ordinal));
+        Assert.Equal(["signature", "copies of /data/prima.db", "install", "signature", "copies of /data/prima.db", "install", "signature", "copies of /data/prima.db", "install"], device.Calls);
+        Assert.Equal(App, device.Handed);
+        Assert.Equal(UpdateStep.Installing, updater.Status.Step);
+    }
+
+    // The file kept is downloaded again when it's another release's (one of the same size, even), or isn't what was downloaded.
+    [Fact]
+    public async Task InstallAsync_DownloadsAgain_WhenTheFileItHasIsAnotherReleasesOrChanged()
+    {
+        var (updater, github, device, _) = Make("1.0.5");
+        using var _ = device;
+        github.Release("prima-1.0.7", App);
+        var ct = TestContext.Current.CancellationToken;
+        await updater.CheckAsync(ct: ct);
+        await updater.InstallAsync(ct);
+        device.Stop("The update was cancelled.");
+
+        byte[] newer = [.. App.Select(b => (byte)(b ^ 0x5A))];
+        github.Release("prima-1.0.8", newer);
+        await updater.CheckAsync(evenIfRecent: true, ct: ct);
+        await updater.InstallAsync(ct);
+        Assert.Equal(newer, device.Handed);
+        device.Stop("The update was cancelled.");
+
+        var kept = Path.Combine(device.DownloadFolder, "prima.apk");
+        var bytes = await File.ReadAllBytesAsync(kept, ct);
+        bytes[^1] ^= 0xFF;
+        await File.WriteAllBytesAsync(kept, bytes, ct);
+        await updater.InstallAsync(ct);
+
+        Assert.Equal(3, github.Requests.Count(r => r.Contains("/releases/download/", StringComparison.Ordinal)));
+        Assert.Equal(newer, device.Handed);
+        Assert.Equal(UpdateStep.Installing, updater.Status.Step);
+    }
+
     [Theory]
     [InlineData("1.0.12", 12)]
     [InlineData("1.0", null)]

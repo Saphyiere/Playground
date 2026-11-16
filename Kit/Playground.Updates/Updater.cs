@@ -9,7 +9,8 @@ namespace Playground.Updates;
 /// <list type="bullet">
 /// <item><see cref="CheckAsync"/> asks GitHub for the newest release, at most once in 20 hours unless asked again, so an app can
 /// call it each time it starts.</item>
-/// <item><see cref="InstallAsync"/> downloads it, checks it against the size and SHA-256 GitHub gives, checks it's signed with
+/// <item><see cref="InstallAsync"/> downloads it (once: tapped again, after Android asked to let the app install apps or after its
+/// installer was cancelled, it hands over the file it has, checked again), checks it against the size and SHA-256 GitHub gives, checks it's signed with
 /// the installed app's key, keeps a copy of the app's data somewhere an uninstall wouldn't reach (a full one through the app's
 /// <see cref="IUpdateSafeguard"/>, or its data files), and hands it to the device's installer, which asks the person to confirm. A
 /// step that fails stops it there, with nothing installed.</item>
@@ -92,11 +93,20 @@ public sealed class Updater
         if (!await busy.WaitAsync(0, ct)) return;
         try
         {
-            TryEmpty(installer.DownloadFolder);
-            Directory.CreateDirectory(installer.DownloadFolder);
             var file = Path.Combine(installer.DownloadFolder, options.Asset);
-            Set(Status with { Step = UpdateStep.Downloading, Progress = 0, Message = $"Downloading {release.Title}…" });
-            await DownloadAsync(release, file, ct);
+            if (await DownloadedAsync(release, file, ct))
+            {
+                // Downloaded and checked a moment ago, before Android asked to let the app install apps or before its installer was
+                // cancelled: handed over again as it is, not downloaded again.
+                Set(Status with { Step = UpdateStep.Downloading, Progress = 1, Message = $"{release.Title} is downloaded already." });
+            }
+            else
+            {
+                TryEmpty(installer.DownloadFolder);
+                Directory.CreateDirectory(installer.DownloadFolder);
+                Set(Status with { Step = UpdateStep.Downloading, Progress = 0, Message = $"Downloading {release.Title}…" });
+                await DownloadAsync(release, file, ct);
+            }
 
             if (!await installer.SignedLikeInstalledAsync(file))
             {
@@ -184,7 +194,32 @@ public sealed class Updater
             throw new UpdateException("The download doesn't match the fingerprint GitHub gives for it, so nothing was installed; try again.");
         }
         File.Move(part, file, overwrite: true);
+        // Which release the file is, so Install tapped again knows it has it.
+        await File.WriteAllTextAsync(file + ReleaseNote, release.Tag, ct);
         Set(Status with { Progress = 1 });
+    }
+
+    // Beside a finished download, the tag of the release it is.
+    private const string ReleaseNote = ".release";
+
+    /// <summary>
+    /// Whether the file is this release's, downloaded and checked before: noted as that release's as its download finished, the
+    /// size GitHub gives, and the SHA-256 it gives, read again in case the file changed since. Anything else is downloaded afresh.
+    /// </summary>
+    private static async Task<bool> DownloadedAsync(Release release, string file, CancellationToken ct)
+    {
+        try
+        {
+            if (!File.Exists(file) || !File.Exists(file + ReleaseNote)) return false;
+            if (await File.ReadAllTextAsync(file + ReleaseNote, ct) != release.Tag || new FileInfo(file).Length != release.Size) return false;
+            if (release.Sha256 is not { } expected) return true;
+            await using var stream = File.OpenRead(file);
+            return Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct)) == expected;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>A sentence for the screen on what went wrong, or null for a cancellation the caller asked for.</summary>
