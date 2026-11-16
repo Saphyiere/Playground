@@ -149,6 +149,45 @@ public class CopyTests
         Assert.Equal([13, 12, 11, 8, 4], (await syncer.FindCopiesAsync(new FolderStore(folder.Path), Ct)).Select(c => (int)(c.Made - start).TotalDays));
     }
 
+    // Once a week (the first copy seven days or more after the last full check), every piece of content the store holds is read
+    // against its fingerprint: one that no longer matches is written again from the file on the device, and logged. Till then,
+    // content already there is taken as it is.
+    [Fact]
+    public async Task CopyAsync_ReadsWhatTheStoreHoldsOnceAWeek_AndWritesWhatsDamagedAgain()
+    {
+        using var app = new App();
+        using var folder = new TempFolder();
+        var clock = new Clock();
+        var start = clock.Now;
+        var logs = new Logs();
+        var store = new WatchedStore(new FolderStore(folder.Path));
+        var syncer = new Syncer(app.Options(), [store], clock, logs);
+        var first = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(first.Made, first.Manifest.Checked);
+
+        // The PDF's content goes bad in the store, its size the same.
+        var pdf = first.Manifest.Files.Single(f => f.Path == "library/minuet.pdf");
+        var bytes = File.ReadAllBytes(folder["blobs/" + pdf.Sha256]);
+        bytes[100] ^= 0xFF;
+        File.WriteAllBytes(folder["blobs/" + pdf.Sha256], bytes);
+
+        // Six days on, it's taken as it is.
+        clock.Now = start.AddDays(6);
+        store.Clear();
+        var second = await syncer.CopyAsync(ct: Ct);
+        Assert.DoesNotContain("blobs/" + pdf.Sha256, store.Writes);
+        Assert.Equal(first.Made, second.Manifest.Checked);
+
+        // A week after the last check, everything is read, and the PDF is written again from the device's file.
+        clock.Now = start.AddDays(7);
+        store.Clear();
+        var third = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(["blobs/" + pdf.Sha256, SyncPaths.Copy(third.Made)], store.Writes);
+        Assert.Equal(File.ReadAllBytes(app["library/minuet.pdf"]), File.ReadAllBytes(folder["blobs/" + pdf.Sha256]));
+        Assert.Equal(third.Made, third.Manifest.Checked);
+        Assert.Contains(logs.Lines, l => l.StartsWith($"blobs/{pdf.Sha256} in {folder.Path} no longer matches its fingerprint", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task CopyAsync_ThatStopsPartWay_LeavesTheCopyBeforeWhole()
     {

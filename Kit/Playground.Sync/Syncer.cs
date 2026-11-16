@@ -97,7 +97,7 @@ public sealed class Syncer
         {
             if (options.BeforeCopy is { } before) await before();
             // Just after a restore, what the screen says is the restore.
-            return await CopyWithinAsync(reason, update, stores, say: reason != SyncReason.AfterRestore, report, progress, ct);
+            return await CopyWithinAsync(reason, update, stores, say: reason != SyncReason.AfterRestore, check: true, report, progress, ct);
         }, keepMessage: reason == SyncReason.AfterRestore, ct);
 
     /// <summary>
@@ -109,17 +109,17 @@ public sealed class Syncer
         RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
         {
             if (options.BeforeCopy is { } before) await before();
-            var kept = await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, report, ct);
+            var kept = await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, check: true, report, ct);
             Set(s => s with { Message = $"Kept a copy from before {what}, held until you restore it or let it go." });
             return kept;
         }, keepMessage: false, ct);
 
     /// <summary>
     /// Takes a copy into each of <paramref name="into"/> (the app's own store first) within a piece of work already running:
-    /// everything the app keeps gathered once, then written into each. Says what it wrote (when <paramref name="say"/>), and
-    /// shows the app's own copies after.
+    /// everything the app keeps gathered once, then written into each, a store's content all read again first once a week (when
+    /// <paramref name="check"/>). Says what it wrote (when <paramref name="say"/>), and shows the app's own copies after.
     /// </summary>
-    private async Task<StoreCopy> CopyWithinAsync(SyncReason reason, string? update, IReadOnlyList<ISyncStore> into, bool say, Action<string, double> report, IProgress<double>? progress, CancellationToken ct)
+    private async Task<StoreCopy> CopyWithinAsync(SyncReason reason, string? update, IReadOnlyList<ISyncStore> into, bool say, bool check, Action<string, double> report, IProgress<double>? progress, CancellationToken ct)
     {
         var previous = (await CopiesInAsync(Store, ct)).FirstOrDefault();
 
@@ -137,7 +137,7 @@ public sealed class Syncer
             try
             {
                 if (!await store.ConnectAsync(ct)) throw new SyncException($"{store.Name} can't be used just now");
-                var written = await WriteCopyAsync(store, gathering, reason, update, (doing, part) =>
+                var written = await WriteCopyAsync(store, gathering, reason, update, check, (doing, part) =>
                 {
                     report(doing, part);
                     if (store == Store) progress?.Report(0.2 + part * 0.8);
@@ -164,9 +164,9 @@ public sealed class Syncer
     }
 
     /// <summary>A copy of the data as it is into the app's own store alone, held: kept from before a restore, or a change the app makes.</summary>
-    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, Action<string, double> report, CancellationToken ct)
+    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, bool check, Action<string, double> report, CancellationToken ct)
     {
-        var copy = await CopyWithinAsync(reason, null, [Store], say: false, report, null, ct);
+        var copy = await CopyWithinAsync(reason, null, [Store], say: false, check, report, null, ct);
         var held = new SyncHeld(copy.Key, "", why, time.GetUtcNow()) { From = from };
         await HoldAsync(Store, held, ct);
         await ShowOwnAsync(copy, ct);
@@ -231,7 +231,7 @@ public sealed class Syncer
             await RunAsync<SyncCopy?>(SyncStep.Copying, "Getting ready", async report =>
             {
                 if (options.BeforeCopy is { } before) await before();
-                return await CopyWithinAsync(reason, null, stores, say: true, report, null, ct);
+                return await CopyWithinAsync(reason, null, stores, say: true, check: true, report, null, ct);
             }, keepMessage: false, ct, unless: () => !Due());
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -325,12 +325,15 @@ public sealed class Syncer
         _ = CopyQuietlyAsync(SyncReason.AfterRestore);
     }
 
-    /// <summary>What's here, into the app's own store and held, before a restore puts <paramref name="restoring"/> in its place.</summary>
+    /// <summary>
+    /// What's here, into the app's own store and held, before a restore puts <paramref name="restoring"/> in its place. The app's
+    /// data is held still meanwhile, so the week's reading of the store's content waits for the next copy.
+    /// </summary>
     private async Task KeepWhatsHereAsync(SyncCopy restoring, Action<string, double> report, CancellationToken ct)
     {
         try
         {
-            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore,
+            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore, check: false,
                 (_, part) => report("Keeping what's here first", part), ct);
         }
         catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
@@ -584,9 +587,23 @@ public sealed class Syncer
     /// again and written as it is now), then the manifest, then whatever no copy kept needs any more goes. The copy, and how many
     /// files and bytes were written.
     /// </summary>
-    private async Task<(StoreCopy Copy, int Files, long Bytes)> WriteCopyAsync(ISyncStore store, Gathering gathering, SyncReason reason, string? update, Action<string, double> report, CancellationToken ct)
+    private async Task<(StoreCopy Copy, int Files, long Bytes)> WriteCopyAsync(ISyncStore store, Gathering gathering, SyncReason reason, string? update, bool check, Action<string, double> report, CancellationToken ct)
     {
         var have = (await store.ListAsync(SyncPaths.Blobs, ct)).ToDictionary(o => o.Key, o => o.Size, StringComparer.Ordinal);
+        var copies = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).ToList();
+        var made = time.GetUtcNow();
+
+        // Once a week (the first copy seven days or more after the last full check), all the content the store holds is read against
+        // its fingerprints, taking the first half of the bar: one that no longer matches is written again from the app's own file.
+        var checkedAt = copies.Count == 0 ? null : (await ReadManifestAsync(store, copies.Max(StringComparer.Ordinal)!, ct))?.Checked;
+        var write = report;
+        if (check && (checkedAt is null || made - checkedAt >= Week))
+        {
+            await CheckContentAsync(store, have, (doing, part) => report(doing, part / 2), ct);
+            write = (doing, part) => report(doing, 0.5 + part / 2);
+            checkedAt = made;
+        }
+
         var (files, bytes, total) = (0, 0L, 0L);
         for (var round = 0; ; round++)
         {
@@ -604,7 +621,7 @@ public sealed class Syncer
                     {
                         var name = file.Path;
                         await using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(name),
-                            n => report($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
+                            n => write($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
                         await store.WriteAsync(SyncPaths.Blob(file.Sha256), input, ct);
                         have[SyncPaths.Blob(file.Sha256)] = file.Size;
                         files++;
@@ -626,16 +643,40 @@ public sealed class Syncer
 
         // The manifest last, under a name later than every copy's before it, so the newest always sorts last, then what's no longer
         // needed. It's dated now all the same: one taken with the clock ahead names the next ones after it, but doesn't date them.
-        var copies = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).ToList();
-        var made = time.GetUtcNow();
         var named = made.AddTicks(-(made.UtcTicks % TimeSpan.TicksPerMillisecond));
         if (copies.Count > 0 && SyncPaths.TimeOf(copies.Max(StringComparer.Ordinal)!) is { } newest && newest >= named) named = newest.AddMilliseconds(1);
-        var manifest = Manifest(gathering, reason, update, made);
+        var manifest = Manifest(gathering, reason, update, made) with { Checked = checkedAt };
         var key = SyncPaths.Copy(named);
         using (var json = new MemoryStream(manifest.ToJson())) await store.WriteAsync(key, json, ct);
         report("Tidying up", 1);
         await TidyAsync(store, key, manifest, copies, ct);
         return (Described(new StoreCopy(store, key, manifest, null)), files, bytes);
+    }
+
+    /// <summary>
+    /// Reads every piece of content a store holds against its fingerprint (its name). One that doesn't match, or can't be read, is
+    /// logged and left out of what the store has, so a copy whose files have it writes it again from the app's own; a copy that
+    /// needs one the app no longer has can't be restored, and a restore of it stays all or nothing.
+    /// </summary>
+    private async Task CheckContentAsync(ISyncStore store, Dictionary<string, long> have, Action<string, double> report, CancellationToken ct)
+    {
+        var total = Math.Max(1, have.Values.Sum());
+        long done = 0;
+        foreach (var (key, size) in have.ToList())
+        {
+            try
+            {
+                await using var stored = await store.OpenReadAsync(key, ct) ?? throw new FileNotFoundException($"{key} isn't there");
+                await using var input = new CheckedStream(stored, size, key[SyncPaths.Blobs.Length..], () => new SyncChangedException(key),
+                    n => report($"Checking the copies: {SyncText.Size(done += n)} of {SyncText.Size(total)}", Math.Min(1, (double)done / total)));
+                await input.CopyToAsync(Stream.Null, 81920, ct);
+            }
+            catch (IOException e)
+            {
+                have.Remove(key);
+                logger?.LogWarning(e, "{Key} in {Store} no longer matches its fingerprint: it's written again from this device's file if it has it, and a copy that needs it otherwise can't be restored.", key, store.Name);
+            }
+        }
     }
 
     /// <summary>

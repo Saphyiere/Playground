@@ -906,7 +906,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   tablet's own as it is). They're in Documents/Prima backups, in a folder for each install named for when
   Prima was installed: Android lets an app read there only what the same install wrote, so a reinstalled Prima opens the copies of
   the one before with the folder picker. A copy is a manifest (when, which version, why, each table's rows, each file's size, time
-  and SHA-256) and each file's content under its fingerprint, so only what changed is written. The three newest copies are kept;
+  and SHA-256) and each file's content under its fingerprint, so only what changed is written; once a week, everything the folder
+  holds is read again against its fingerprints, and what no longer matches is written again from the tablet's files (and logged,
+  in Problems). The three newest copies are kept;
   besides them, the newest at least a week old, and the oldest younger than that, which comes to be it; and every one held, with
   the content they need. The music imported is kept once for all of them, so each copy costs about a copy of the data file.
   One is taken after practice (a piece's session finished, a routine's activity done) and as Prima starts, when the last is more

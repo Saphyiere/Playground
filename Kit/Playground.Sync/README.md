@@ -45,6 +45,11 @@ manifest dates it now: a copy once taken with the clock ahead doesn't date the o
 read again; a database is snapshotted each time and fingerprinted; and content the store holds already is never written again.
 So a copy after a day's practice writes the database and the manifest, and a copy with nothing changed writes the manifest alone.
 
+**Content is read again once a week.** Content a store holds already is taken by its name and size without being read, so once a
+week (the first copy seven days or more after the last full check, which each manifest carries as `Checked`) a copy first reads
+every piece the store holds against its fingerprint: one that no longer matches is written again from the device's file, and
+logged. One the device no longer has stays as it is, and a restore of a copy that needs it fails whole, as any restore does.
+
 **What a store keeps.** Its three newest copies; besides them, the newest that is at least a week old, and the oldest younger than
 that, which comes to be it (taken every day, the copies would otherwise all go before any was a week old); and every copy held.
 Content any of them needs stays, and the rest goes. A library's files are the same from copy to copy, so they're kept once for all

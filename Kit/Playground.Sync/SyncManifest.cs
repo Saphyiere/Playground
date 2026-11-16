@@ -50,6 +50,12 @@ public sealed record SyncManifest
     /// <summary>For a copy taken before an update, the release it was for ("Prima 1.0.13").</summary>
     public string? Update { get; init; }
 
+    /// <summary>
+    /// When all the content in the store was last read against its fingerprints, which a copy does once a week; carried from copy
+    /// to copy between.
+    /// </summary>
+    public DateTimeOffset? Checked { get; init; }
+
     public IReadOnlyList<SyncManifestItem> Items { get; init; } = [];
 
     public IReadOnlyList<SyncFile> Files { get; init; } = [];
