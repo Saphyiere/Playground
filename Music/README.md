@@ -116,7 +116,8 @@ sources:
 - **asap**: the scores of the ASAP dataset (Bach's Well-Tempered Clavier, Chopin's études, ballades and scherzos, Liszt,
   Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
 - **pdmx**: more of PDMX, public-domain and CC0 piano music whose own composer field names a composer who died before 1931
-  (an uploader's artist field, which names the music a score is linked to, doesn't count), beyond the named works the repo keeps.
+  (an uploader's artist field, which names the music a score is linked to, doesn't count, nor does the surname with someone
+  else's first name, "Michael Schubert"), beyond the named works the repo keeps, and no transcriptions ("Schubert/Liszt").
 - **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY, and CC BY-SA,
   which is share-alike: a tier of its own), each graded from its MIDI, listed under its opus ("Op. 68") with its number in
   its title.

@@ -118,9 +118,11 @@ internal static class Pdmx
     /// field names a composer who died before 1931 (so all they wrote is out of copyright in the US, which a PD tag alone doesn't
     /// make sure of), and credited to that composer. The uploader's artist field never counts: it names the music a score is linked
     /// to (Chopin for Mompou's variations on his prelude, Beethoven for someone's "Für Ludwig"), and a score that names no composer
-    /// of its own isn't kept on it, nor on its title, where a transcriber's own piece can name the one it's after. The works the
-    /// repo's bundle takes from PDMX stay out, and copies of one piece by different users are reduced to the best rated. The archive
-    /// is kept in the cache.
+    /// of its own isn't kept on it, nor on its title, where a transcriber's own piece can name the one it's after. A field that
+    /// gives the surname with someone else's first name or initials ("Michael Schubert", "J.A. Granados") is someone else, and a
+    /// title that joins two composers with a slash ("Schubert/Liszt") is a transcription; a few scores whose field is wrong in a way
+    /// no rule tells are listed (<see cref="Corrected"/>). The works the repo's bundle takes from PDMX stay out, and copies of one
+    /// piece by different users are reduced to the best rated. The archive is kept in the cache.
     /// </summary>
     public static async Task<List<BundledPiece>> FetchMore(HttpClient http, string cache, string output)
     {
@@ -183,6 +185,52 @@ internal static class Pdmx
         ("Johann Wilhelm Hässler", @"h(ä|a|ae)(ss|ß)ler"), ("Domenico Cimarosa", @"cimarosa"),
     }.Select(c => (c.Item1, new Regex(c.Item2, RegexOptions.IgnoreCase)))];
 
+    // Scores whose own composer field is wrong in a way no rule here tells, by their MuseScore score: who wrote each, or null to
+    // leave it out. PDMX is a fixed record (Zenodo 15571083), so the scores don't change under the list.
+    private static readonly Dictionary<string, string?> Corrected = new()
+    {
+        // Liszt's Variation on a Waltz by Diabelli (S.147), his part of the Vaterländischer Künstlerverein: the field names the
+        // waltz's composer, the title and the artist field Liszt.
+        ["6283557"] = "Franz Liszt",
+        // Godowsky's Rigaudon and Menuet after Rameau, from his Renaissance (1906-09): his free arrangements, and he died in 1938.
+        ["6382157"] = null,
+        ["6387080"] = null,
+        // Two examples from Schoenberg's Fundamentals of Musical Composition, Beethoven's and Brahms's music as he quotes it: a field
+        // that describes the example, and not a piece.
+        ["5897141"] = null,
+        ["5897138"] = null,
+    };
+
+    // Someone else of a composer's surname, by first names or initials given before it that aren't the composer's: "Michael
+    // Schubert", "Mario Spindler", "J.A. Granados", "attributed to Immodest Mussorgsky". A name written in another language or more
+    // fully ("Fryderyk", "Peter Ilyich", "Franz Joseph Haydn") is still the composer's: one initial of theirs is enough.
+    private static bool SomeoneElse(string field, string composer, Regex who)
+    {
+        // Named already with a first name or an initial of theirs ("Michael Haydn", "L. Mozart", "Carl Philipp Emanuel"), it's them.
+        var at = who.Match(field);
+        if (!at.Success || Regex.IsMatch(at.Value, @"[\s.]")) return false;
+
+        var theirs = composer.Split(' ')[..^1].Where(n => !Particles.Contains(n)).SelectMany(n => n.Split('-', StringSplitOptions.RemoveEmptyEntries)).Select(Initial).ToHashSet();
+        var given = new List<string>();
+        var from = at.Index;
+        while (given.Count < 3 && Regex.Match(field[..from], $@"(?<!\p{{L}})(?<word>{NameWord})(?<gap>\s*)$") is { Success: true } before
+            && (before.Groups["gap"].Length > 0 || before.Groups["word"].Value.EndsWith('.')) && !Piecelike.IsMatch(before.Groups["word"].Value.TrimEnd('.')))
+        {
+            if (!Particles.Contains(before.Groups["word"].Value)) given.Add(before.Groups["word"].Value);
+            from = before.Index;
+        }
+        // Each word's initials: "J.A." is J and A, "Jean-Philippe" J and P, "Immodest" I.
+        var initials = given.SelectMany(w => w.Split(Regex.IsMatch(w, @"^(\p{Lu}\p{Ll}?\.)+$") ? '.' : '-', StringSplitOptions.RemoveEmptyEntries)).Select(Initial);
+        return given.Count > 0 && !initials.Any(theirs.Contains);
+
+        static char Initial(string name) => char.ToUpperInvariant(Fold(name)[0]);
+    }
+
+    // Two composers' names joined by a slash in a title, the music's and the one who made it a piano piece: a transcription
+    // ("Schubert/Liszt - Ständchen", "Mikhail Glinka/Mily Balakirev: The Lark", "Passacaglia Handel/Halvorsen").
+    private static bool Transcription(string title) =>
+        Regex.Matches(title, @"(?<music>[\p{L}'’-]+)\s*/\s*\p{Lu}\p{L}").Any(m => Composers.Any(c => c.Who.IsMatch(m.Groups["music"].Value)));
+
     // Arrangements and the like, by words in the title or the composer field, as for the bundle, and reductions of orchestral,
     // chamber and stage music, Bach's chorales (Sapp's 370 are in the collection already), and music made from someone else's
     // ("Inspired from Themes by …", an inversion, a major-minor reversal); variations stay here, being some of the music itself.
@@ -213,8 +261,9 @@ internal static class Pdmx
             if (title is null || subtitle is null || field is null) continue;
 
             // The score's own composer, its field read apart where the uploader's editor ran its lines together ("J.S. BachArr. Harry
-            // Allen", "Carl Czerny1791 - 1857") and without a stray backslash ("Georg Friedrich H\andel").
-            var composer = Regex.Replace(Regex.Replace(field.Replace("\\", ""), @"(?<=\p{Ll})(?=\p{Lu})|(?<=\p{L})(?=\d)", " "), @"\s+", " ").Trim();
+            // Allen", "Carl Czerny1791 - 1857", "George Frideric Handelarr.Johan Halvorsen") and without a stray backslash ("Georg
+            // Friedrich H\andel").
+            var composer = Regex.Replace(Regex.Replace(field.Replace("\\", ""), @"(?<=\p{Ll})(?=\p{Lu})|(?<=\p{L})(?=\d)|(?<=\p{Ll})(?=arr\.\s?\p{Lu})", " "), @"\s+", " ").Trim();
             var text = $"{title} {(subtitle == "NA" ? "" : subtitle)}";
             var bars = int.TryParse(F(row, "song_length.bars"), out var b) ? b : 0;
             if (ArrangedMore.IsMatch(text) || ArrangedMore.IsMatch(composer) || bars < 8 || Popular.IsMatch(F(row, "genres"))) continue;
@@ -222,7 +271,13 @@ internal static class Pdmx
             // What the bundle takes from PDMX (its named works, as the bundle chooses them) is the bundle's.
             var who = $"{field} {Repair(F(row, "artist_name")) ?? ""}";
             if (Works.Any(w => w.Who.IsMatch(who) && w.What.IsMatch(text))) continue;
-            if (Composers.FirstOrDefault(c => c.Who.IsMatch(composer)) is not { Name: not null } match) continue;
+
+            // A score this list knows is credited as it says, or left out; any other by its own field, unless the field names someone
+            // else of the composer's surname, or its title two composers, the music's and its transcriber's.
+            var known = Corrected.TryGetValue(Path.GetFileNameWithoutExtension(F(row, "metadata")), out var correction);
+            if (known && correction is null) continue;
+            if ((known ? Composers.First(c => c.Name == correction) : Composers.FirstOrDefault(c => c.Who.IsMatch(composer))) is not { Name: not null } match) continue;
+            if (!known && (SomeoneElse(composer, match.Name, match.Who) || Transcription(title))) continue;
 
             var rating = double.TryParse(F(row, "rating"), System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 0;
             var ratings = int.TryParse(F(row, "n_ratings"), out var n) ? n : 0;

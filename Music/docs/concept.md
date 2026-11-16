@@ -187,16 +187,16 @@ a PDF plays out; this is what came of it.
   rags, Bach's 370 chorales on a grand staff), the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's
   suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Bartók's Bagatelles, and more)
   and ASAP's concert scores (the Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), all CC BY-NC-SA 4.0;
-  more of PDMX's public-domain piano music, each score's own composer one who died before 1931; the rest of the Mutopia
-  Project's keyboard music as PDFs with their MIDI, each PDF at the level its MIDI reads at, those under CC BY-SA share-alike
-  (a tier of their own, as in the bundle); and the Open Hymnal's public-domain hymns, four voices on the grand staff with their
-  verses under the notes, shelved with the chorales. About 2,870 pieces, all keyboard music, prepared like the bundle and
-  packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores
-  its pieces in the background with the same meter, credited like the collection's; those already here take its titles and
-  credits. Each zip names the whole collection it's part of, so importing any one of a collection built again takes out the
+  more of PDMX's public-domain piano music, each score's own composer one who died before 1931, and no transcriptions; the rest
+  of the Mutopia Project's keyboard music as PDFs with their MIDI, each PDF at the level its MIDI reads at, those under CC BY-SA
+  share-alike (a tier of their own, as in the bundle); and the Open Hymnal's public-domain hymns, four voices on the grand staff
+  with their verses under the notes, shelved with the chorales. About 2,860 pieces, all keyboard music, prepared like the bundle
+  and packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip
+  stores its pieces in the background with the same meter, credited like the collection's; those already here take its titles
+  and credits. Each zip names the whole collection it's part of, so importing any one of a collection built again takes out the
   collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled
-  pieces and your own imports are never touched. The Library then holds about 3,170 pieces, so a list is drawn again a second
-  at a time at most while pieces are stored, and the search follows once typing pauses.
+  pieces and your own imports are never touched. The Library then holds about 3,160 pieces, so a list is drawn again a second at
+  a time at most while pieces are stored, and the search follows once typing pauses.
 - **Finding your way** (the Library's home): a search across everything (accents aside: "Dvorak" finds Dvořák), then **Working
   on** (the pieces played in the last month, eight at most, the latest first, each with when it was last played and how that
   run went), then **Near your level**: a few of the pieces to play along with whose most reads from your sight-reading level to
