@@ -182,14 +182,18 @@ export async function render(element, mei, options, dotnet, ownerId) {
     }
 }
 
-// A song's words, a little smaller than Verovio prints lyrics by itself (its lyricSize, in half staff-spaces: 4.5 is a printed
-// song's 11 point on the 7 mm staff, and with a busy tune the words outweigh the notes and spread them): about the 9.5 point a book
-// is set in. Smaller only where a line can't hold its bars' words apart otherwise (a busy song, the tablet upright): small words
-// are read more easily than words run together. Never below the last of these. Verovio sets all of a piece's words at this size
-// (its tempo, directions, the part's name), so a song's go with its lyrics. Prima's own words under notes (a note's name), and
-// everything else's, keep Verovio's size.
-const wordSizes = [3.8, 3.3, 2.9, 2.5];
-const ownWordSize = 4.5;
+// A song's words: their size and the room between them (Verovio's lyricSize and lyricWordSpace, in half staff-spaces), tried in
+// turn until no line's words run together. First a little smaller than Verovio prints lyrics by itself (4.5 is a printed song's
+// 11 point on the 7 mm staff, and with a busy tune the words outweigh the notes and spread them): about the 9.5 point a book is set
+// in, with Verovio's own room, so a song whose words fit is drawn as it always was. Then two and three times the room between
+// words: Verovio fills each line to the brim with bars, and justifying a line a little too full squeezes its words together, at
+// any size (a smaller size only lets more bars onto the line), where the room keeps them apart and makes the bars wider, fewer a
+// line. Only then smaller words, for a bar wider than the line on its own (a busy song, the tablet upright): small words are read
+// more easily than words run together. Verovio sets all of a piece's words at the lyrics' size (its tempo, directions, the
+// part's name), so a song's go with its lyrics. Prima's own words under notes (a note's name), and everything else's, keep
+// Verovio's.
+const songFits = [[3.8, 1.2], [3.8, 2.4], [3.8, 3.6], [3.3, 2.4], [2.9, 2.4], [2.5, 2.4]];
+const ownFit = [4.5, 1.2];
 
 function draw(element, state) {
     const { tk, options } = state;
@@ -240,21 +244,22 @@ function draw(element, state) {
         return;
     }
 
-    // A song's words at the largest size whose lines hold them apart, starting from the size that did on this paper before (a
-    // page turned, say): a passage's bars shared evenly first, then its lines broken where their bars fit, then smaller.
+    // A song's words at the first fit whose lines hold them apart, starting from the one that did on this paper before (a page
+    // turned, say): with a passage's bars shared evenly first, then its lines broken where their bars fit, then the next fit.
     const kind = JSON.stringify([paper, options.measures ?? null]);
-    let size = state.fitted?.kind === kind ? state.fitted.size : 0;
+    let fit = state.fitted?.kind === kind ? state.fitted.fit : 0;
     let even = true;
     let turnedOnly = true;
     for (;;) {
-        const { shared, turned } = lay(element, state, { ...paper, lyricSize: options.words ? wordSizes[size] : ownWordSize }, even);
+        const [lyricSize, lyricWordSpace] = options.words ? songFits[fit] : ownFit;
+        const { shared, turned } = lay(element, state, { ...paper, lyricSize, lyricWordSpace }, even);
         turnedOnly &&= turned;
         if (!options.words || !crowded(music)) break;
         if (shared) even = false;
-        else if (size < wordSizes.length - 1) [size, even] = [size + 1, true];
+        else if (fit < songFits.length - 1) [fit, even] = [fit + 1, true];
         else break;
     }
-    state.fitted = { kind, size };
+    state.fitted = { kind, fit };
     // When each moment of the music is, as laid out last (its time doesn't change with the layout): a page turned keeps its own.
     if (!turnedOnly) state.timemap = tk.renderToTimemap({ includeMeasures: true });
     if (key) {
