@@ -303,9 +303,9 @@ a PDF plays out; this is what came of it.
   every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
   loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
 - **The look back**, once a session is finished, takes the page, and starts with what the session came to, in words. A
-  sentence, then up to five lines, each about one thing, its key lit for good news, red for something to work on and hollow
-  for what's just so. Which lines depends on **the kind of work** the session was, since wrong notes come before timing,
-  and timing before touch:
+  sentence, then up to five lines, each about one thing, and a sixth on how the end went when it went worse (below), its
+  key lit for good news, red for something to work on and hollow for what's just so. Which lines depends on **the kind of
+  work** the session was, since wrong notes come before timing, and timing before touch:
   - **Finding the notes** (half of the notes played were a hand at a time or in Wait for me, or In time with a quarter of
     them wrong): the bars read and how (a hand at a time, together), how far they got hands together or with the click, the
     stretch that moved most, the bar still going wrong, and what stayed since the session before: where a stretch was left
@@ -341,7 +341,8 @@ a PDF plays out; this is what came of it.
   still going wrong a notch slower than it went wrong at, a stretch back where it held, and the whole piece: a notch up over
   90% right in time, a notch down under 80%, else the same again, first thing next time. Timing and touch: the bars where
   the timing goes out two notches slower, then the bars of a marking that hasn't come out. Playing it: the bar that kept
-  slipping, and once through, cold, first thing next time. No two steps are on the same bars. The first of them stays on the
+  slipping, and once through, cold, first thing next time. No two steps are on the same bars in the same hand and mode
+  (the bar in Wait for me and the stretch round it with the click can both be there). The first of them stays on the
   piece's front, under About this piece, as **Next**, with **Start there**; a session that leaves nothing to do leaves none
   there.
 

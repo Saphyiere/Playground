@@ -77,6 +77,50 @@ public class SessionStoryTests
     }
 
     [Fact]
+    public void SomeOfItCameBackWhenALaterGoTodayWasWithinThreePointsOfWhereItWasLeft()
+    {
+        // Left yesterday at 90 of 100; 80 the first go today, and then 88 (two points under), or 86 (four).
+        PieceRun[] yesterday = [Waited(-1440, "right", 1, 8, 100, 1, 82, 90)];
+        string Since(params int[] today) => SessionStory.Of([Waited(2, "right", 1, 8, 100, 2, today)], yesterday, Piece, Today).Lines.Single(l => l.About == "Since yesterday").Words;
+
+        Assert.Equal("Bars 1–8 (right hand) left at 90 of 100, and 80 of 100 the first go today: some of it went, and came back.", Since(80, 88));
+        Assert.Equal("Bars 1–8 (right hand) left at 90 of 100, and 80 of 100 the first go today: some of it went.", Since(80, 86));
+    }
+
+    [Fact]
+    public void TwoStepsMayCoverTheSameBarsInADifferentHandOrMode()
+    {
+        // Bars 1-4 hands together in Wait for me, then with the click, bar 2 going wrong to the end of both.
+        var wrong2 = new BarTrouble(2, 1, 0, 0, 0);
+        PieceRun[] session =
+        [
+            Waited(2, "both", 1, 4, 32, 2, 26, 28, 30) with { Passes = [.. new[] { 26, 28, 30 }.Select(r => new PiecePass(r, 32, null) { Trouble = [wrong2], Seconds = 30 })] },
+            Loop(10, 60, 1, 4, [.. new[] { 0.62, 0.70, 0.75 }.Select(share => new PiecePass(31, 32, share) { Trouble = [wrong2] })]),
+        ];
+
+        var story = SessionStory.Of(session, [], Piece, Today);
+
+        // The bar in Wait for me and the stretch with the click share bars 1-3: steps are kept apart only in the same hand and mode.
+        Assert.Equal([(1, (int?)3, "both", false), (1, 4, "both", true), (5, 8, "right", false)], story.Steps.Select(s => (s.From, s.To, s.Hands, s.InTime)));
+    }
+
+    [Fact]
+    public void WithTheEndGoneWorseThereAreSixLinesFiveAndHowTheEndWent()
+    {
+        // Six times through at 92 over half an hour: bars 5-6 off the beat and bar 9 let go early every time, the last time's
+        // markings not as marked, and the last time through ten points under the three before it.
+        BarTrouble[] trouble = [new(5, 0, 0, 12, 0), new(6, 0, 0, 12, 0), new(9, 0, 0, 0, 30)];
+        MarkPlayed[] marks = [new(Marking.Dynamic, 17, 24, 1, 1, "f"), new(Marking.Staccato, 4, 4, 4, 1), new(Marking.Pedal, 1, 2, 1, 1)];
+        PieceRun[] session = [.. new[] { 0, 5, 10, 15, 20 }.Select(minute => Timed(minute, 92, 500, 512, 0.80, trouble: trouble)), Timed(30, 92, 500, 512, 0.70, trouble: trouble) with { Marked = marks }];
+
+        var story = SessionStory.Of(session, [], Piece, Today);
+
+        Assert.Equal(Work.Shaping, story.Work);
+        Assert.True(story.Tired);
+        Assert.Equal(["Timing", "Loud and soft", "Touch", "Pedal", "Held", "The end"], story.Lines.Select(l => l.About));
+    }
+
+    [Fact]
     public void WithTheNotesMostlyThereItsWhetherItHoldsTogetherAndTheBarStillWrongANotchSlower()
     {
         var wrong21 = new BarTrouble(21, 2, 0, 1, 0);
