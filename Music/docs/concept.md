@@ -465,9 +465,11 @@ a PDF plays out; this is what came of it.
 - **Taking pieces out**: a piece's **Remove from the Library…**, under About this piece, takes it out once asked again, with
   its excerpts and readings, and an import's or a collection's PDF and MIDI. Its runs stay, so its days and the streak still
   count them, and every screen that lists pieces goes on without it. One of Prima's own stays out: the Library doesn't put it
-  back when it stores the collection again. The Library says so in a line at the end of its home, with **Put it back** (**Put
-  them back** for more than one), which stores every one of Prima's own again, as on the first open, with the meter showing how
-  far it's got.
+  back when it stores the collection again. Settings' **Remove library** (Your data, below) takes every piece out at once,
+  Prima's own too, and Prima then puts none of its own in by itself, not even those a newer release brings. The Library says
+  so: when it's empty, in place of everything else, with **Put Prima's pieces back**; otherwise in a line at the end of its
+  home, with **Put them back** (**Put it back** for one removed by hand). Either stores every one of Prima's own again, those
+  removed by hand too, as on the first open, with the meter showing how far it's got.
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
@@ -577,15 +579,31 @@ tablet's own stay), or nothing if any of it is damaged, and opens Prima afresh o
 what's here can't be kept, nothing is restored
 and it says why, and **Restore without keeping what's here** restores all the same. **Export everything** puts it all in one zip
 for the share sheet (to Drive, or to the PC), which restores like a copy. The copies held stand first, newest first, each saying
-what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over) and when it was
-taken, with **Restore it…** and **Let it go** of its own. **Start over** (**Clear my progress**, after asking) takes everything
-Prima keeps about your playing, so it's as on its first open: levels and tracks (the drills', the exercises' and My routine),
-note cards and answers, every run, practice day and session (and so the streak), routines and requests, which sight-reading
-passages have come up, and on each piece what's next, where it was left, the tempo set for it, the hand practiced and when it
-was last opened. The settings stay as they are, and so does the Library, with the music imported and the collection (the music
-isn't progress, and only a copy or an export carries it), and how each piece shows and each screen plays. Then Prima opens on
-its welcome. A copy of everything is kept first, held in Your data; if it can't be, nothing is cleared, and **Clear it without a
-copy** clears all the same. Nothing leaves the tablet unless you send it.
+what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over, Remove library or
+Reset settings) and when it was taken, with **Restore it…** and **Let it go** of its own.
+
+Under them, three keys start afresh, each asked twice: the key, then what goes and what stays, with the key that does it and one
+that leaves it. Each keeps a copy of everything first, held in Your data under its name; if it can't be, nothing is done and it
+says why, and a key of its own does it all the same without a copy (**Clear it without a copy**, **Remove them without a
+copy**, **Reset them without a copy**).
+
+- **Start over** (**Clear my progress**) takes everything Prima keeps about your playing, so it's as on its first open: levels
+  and tracks (the drills', the exercises' and My routine), note cards and answers, every run, practice day and session (and so
+  the streak), routines and requests, which sight-reading passages have come up, and on each piece what's next, where it was
+  left, the tempo set for it, the hand practiced and when it was last opened. The settings stay as they are, and so does the
+  Library, with the music imported and the collection (the music isn't progress, and only a copy or an export carries it), and
+  how each piece shows and each screen plays. Then Prima opens on its welcome.
+- **Remove library** (**Remove every piece**) takes every piece out of the Library, Prima's own too, with their files,
+  readings and excerpts, and what reading a PDF made; Prima puts none of its own back by itself after that (the Library,
+  above, has a key that does). The progress stays, the runs on the pieces that go still counted, and so do the settings. It
+  stays on Settings, saying how many pieces went.
+- **Reset settings** (**Reset the settings**) puts everything on the Settings screen back as a new install has it: the
+  profile, the practice settings, the keyboard's, the timing, the click, the look and the notation, and the welcome to be done
+  again. Claude's key and the copies stay, and so do the progress and the Library, and what's kept elsewhere: the touch Keyboard
+  check measured, how a run's summary was left open, and each piece's view and hand. Then Prima opens on its welcome, which
+  asks for the timing again.
+
+Nothing leaves the tablet unless you send it.
 
 **Problems:** what went wrong, the newest twelve, each line its time, how bad (Warning, Error, Critical), what said it (a
 screen, a job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (every problem
@@ -923,8 +941,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation
   piece keeps where it was left too: its page, the bar it was to start from, its loop's last bar, and the first bar on the
   screen. Imported
-  files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces removed by hand are kept as
-  settings, each by its id, so a copy and a restore carry them, until the Library puts them back.
+  files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces kept out of the Library (all of
+  them after Remove library, and each one removed by hand, by its id) are kept as settings, so a copy and a restore carry them,
+  until the Library puts them back.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
   (Read again's included), and when it was kept.
@@ -951,15 +970,16 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   besides them, the newest at least a week old, and the oldest younger than that, which comes to be it; and every one held, with
   the content they need. The music imported is kept once for all of them, so each copy costs about a copy of the data file.
   One is taken after practice (a piece's session finished, a routine's activity done) and as Prima starts, when the last is more
-  than a day old, but never while a run is being played; before each update, restore and Start over; and when asked. The
+  than a day old, but never while a run is being played; before each update, restore, Start over, Remove library and Reset
+  settings; and when asked. The
   first start after an update checks at once, before any screen can change anything, that the data file opens cleanly and has at
   least the rows of what's the owner's own (the settings, tracks, runs, practice days and sessions, routines, and the pieces
   imported; not the bundled or collection pieces and their excerpts, which Prima takes out and puts back itself), and that every
   file kept beside it (the music imported, what reading a PDF made) is there. If not, the copy from before is held (kept beside
   the newer ones, and beside any held already, until restored or let go); if it can't be held, Settings says so and no copy takes
-  its place until the next start checks again. The copy after the check waits fifteen seconds. A restore and Start over each hold
-  a copy of what was there just before them too; `held.json` lists every copy held, with what it was kept from before and when it
-  was held. Claude's key never goes in one: it's
+  its place until the next start checks again. The copy after the check waits fifteen seconds. A restore, Start over, Remove
+  library and Reset settings each hold a copy of what was there just before them too; `held.json` lists every copy held, with
+  what it was kept from before and when it was held. Claude's key never goes in one: it's
   in secure storage, and every file a copy reads is searched for it, the copy stopping before it writes anything if it's found.
   A file unchanged since the last copy isn't read again while the key is the same; when it changes, every file is read and
   searched afresh. What was last searched for is kept as a mark beside the data file (`prima.searched`, a keyed hash that gives

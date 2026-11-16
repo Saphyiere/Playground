@@ -9,7 +9,8 @@ namespace Prima.UI.Looks;
 /// </summary>
 public class LookSetting(ISettingStore store)
 {
-    private const string Key = "Look";
+    /// <summary>The look's setting in the data file, which Reset settings takes back to none (Studio).</summary>
+    internal const string Key = "Look";
     private Task? loading;
 
     public Look Current { get; private set; } = Look.Studio;

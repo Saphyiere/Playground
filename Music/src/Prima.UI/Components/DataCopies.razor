@@ -2,8 +2,8 @@
    last copy was made, its size and what it holds; how many copies are kept and what they take; Back up now; Restore from a
    backup… (this tablet's copies, or a folder or a file chosen with the tablet's picker, then which copy, and what it replaces,
    what's here being kept first); and Export everything, to send on. The copies held stand first, newest first, each saying what
-   it was kept from before (an update that didn't check out, a restore, Start over) and when, with Restore it… and Let it go of its
-   own. Work goes on in the background, its progress on the meter. *@
+   it was kept from before (an update that didn't check out, a restore, Start over, Remove library, Reset settings) and when, with
+   Restore it… and Let it go of its own. Work goes on in the background, its progress on the meter. *@
 @implements IDisposable
 @inject Syncer Sync
 @inject ISyncPicker Picker
@@ -130,7 +130,7 @@
 
     // What's said under the buttons: what was just picked, or how the last piece of work went, or what the copies are.
     private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
-        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore and Start over. Only what changed is written."
+        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore, Start over, Remove library and Reset settings. Only what changed is written."
         : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
 
     // Why the copies take so little together: the music imported is kept once for them all, so each copy costs about a copy of the
@@ -300,7 +300,8 @@
         }
     }
 
-    // What a held copy was kept from before: an update, a restore, or something done to the data (Start over).
+    // What a held copy was kept from before: an update, a restore, or something done to the data (Start over, Remove library, Reset
+    // settings).
     private static string From(SyncHeld held) => held.From switch
     {
         SyncHeldFrom.Update => $"before the update to {held.Update}",
