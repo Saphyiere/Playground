@@ -92,6 +92,45 @@ public class PrimaSyncTests
         Assert.Contains(fresh.Sync.Status.Last!.Manifest.Files, f => f.Path == "library/import-1.pdf");
     }
 
+    // After an update, only the owner's data is counted: the settings, tracks, runs, practice days and sessions, routines and the
+    // pieces imported, and the library's files as before. The bundled and collection pieces, and their excerpts, aren't.
+    [Fact]
+    public async Task AfterAnUpdate_OnlyTheOwnersDataIsCounted()
+    {
+        Assert.Equal(["Setting", "Track", "Attempt", "PracticeDay", "PracticeSession", "RoutineGeneration", "RoutineDefinition", "RoutineDay", "RoutineExecution", "RoutineAttempt", "Piece"],
+            PrimaSync.Counted.Select(c => c.Table));
+        Assert.Equal(["Piece"], PrimaSync.Counted.Where(c => c.Where is not null).Select(c => c.Table));
+        Assert.Equal("Origin = 'import'", PrimaSync.Counted.Single(c => c.Table == "Piece").Where);
+
+        await using var tablet = new Tablet();
+        await tablet.FillAsync();
+        await tablet.Store.SavePieceAsync(new PieceRecord("collection-1", "collection", "A Minuet", "Bach", null, "pdf", "collection-1.pdf", null, 2, 2, null, 16,
+            null, null, null, null, null, null, 72, null, null, DateTimeOffset.Now, null), null, [new Prima.Core.Library.BundledExcerpt(1, 4, 4, 0.5)]);
+        var store = new FolderStore(tablet.Copies, "Documents/Prima backups");
+        await new Syncer(tablet.Sync.Options with { Version = "1.0.11" }, [store]).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.12", ct: Ct);
+
+        // 1.0.12 takes the collection's piece out, and its excerpts with it: nothing is held.
+        await tablet.Store.DeletePieceAsync("collection-1");
+        var updated = new Syncer(tablet.Sync.Options with { Version = "1.0.12", StartDelay = TimeSpan.Zero }, [store]);
+        await updated.StartAsync(Ct);
+        Assert.True(updated.Status.Held is null, updated.Status.Held?.Why);
+
+        // 1.0.13 loses a piece the owner imported: the copy from before it is held, saying so.
+        await updated.CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.13", ct: Ct);
+        await tablet.Store.DeletePieceAsync("import-1");
+        var later = new Syncer(tablet.Sync.Options with { Version = "1.0.13", StartDelay = TimeSpan.Zero }, [store]);
+        await later.StartAsync(Ct);
+        Assert.Equal("prima.db's Piece (imported) had 1 rows and has 0", later.Status.Held?.Why);
+
+        // And 1.0.14 loses a file of the library: held too.
+        await later.ReleaseHeldAsync(Ct);
+        await later.CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.14", ct: Ct);
+        File.Delete(Path.Combine(tablet.Store.FilesPath, "import-1.pdf"));
+        var last = new Syncer(tablet.Sync.Options with { Version = "1.0.14", StartDelay = TimeSpan.Zero }, [store]);
+        await last.StartAsync(Ct);
+        Assert.Equal("library/import-1.pdf is gone", last.Status.Held?.Why);
+    }
+
     [Fact]
     public async Task YourData_ShowsTheLastCopy_BacksUpNow_AndRestoresTheCopyChosen()
     {

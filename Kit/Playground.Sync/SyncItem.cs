@@ -41,7 +41,25 @@ public sealed record DatabaseItem : SyncItem
     /// </summary>
     public IReadOnlyList<string> RequiredTables { get; init; } = [];
 
+    /// <summary>
+    /// What in it is the person's own, counted in each copy: the first start after an update finds none of it with fewer rows than
+    /// the copy from before had. What the app makes or takes out itself (Prima's bundled pieces) is left out, so it's never taken
+    /// for data lost. Without it, every table is counted.
+    /// </summary>
+    public IReadOnlyList<SyncCount>? Counted { get; init; }
+
     internal override SyncItemKind Kind => SyncItemKind.Database;
+}
+
+/// <summary>
+/// Something in a database that's the person's own, counted in each copy: the rows of a table, or those a condition picks
+/// (<paramref name="Where"/>, as SQL: Prima's imported pieces, <c>Origin = 'import'</c>).
+/// </summary>
+/// <param name="Name">What it's called when one has fewer rows: "Attempt", "Piece (imported)".</param>
+public sealed record SyncCount(string Name, string Table, string? Where = null)
+{
+    /// <summary>Every row of a table.</summary>
+    public static SyncCount Rows(string table) => new(table, table);
 }
 
 /// <summary>A folder at <see cref="Path"/>: every file in it and in the folders in it.</summary>

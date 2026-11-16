@@ -133,16 +133,22 @@ public sealed class Syncer
         }, keepMessage: reason == SyncReason.AfterRestore, ct);
 
     /// <summary>
-    /// What the app does as it starts, in the background after <see cref="SyncOptions.StartDelay"/>. The first time after an
-    /// update, it checks the app's data holds all the copy from before the update did (each database opens cleanly and has every
-    /// table and at least its rows, and every file in its folders is there), and only then takes a fresh copy; one that doesn't check out is held,
-    /// kept whatever copies come after, until it's restored or let go. Otherwise it takes a copy when there's none yet or the last
-    /// is older than <see cref="SyncOptions.RefreshAfter"/>. What goes wrong is in the status, and the log.
+    /// What the app does as it starts, in the background. The first time after an update, it checks at once that the app's data
+    /// holds all of the person's the copy from before the update did (each database opens cleanly and has at least the rows of
+    /// what's counted as theirs, and every file in its folders is there), and only then, after <see cref="SyncOptions.StartDelay"/>,
+    /// takes a fresh copy; one that doesn't check out is held, kept whatever copies come after, until it's restored or let go.
+    /// Otherwise, after the delay, it takes a copy when one is due (<see cref="Due"/>). What goes wrong is in the status, and the log.
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default)
     {
         try
         {
+            await RefreshAsync(ct);
+            var updated = Status.Last is StoreCopy { Manifest: { Reason: SyncReason.BeforeUpdate } before } last && before.Version != options.Version ? last : null;
+            // The check after an update runs at once, before the app's screens can change its data. When it couldn't hold the copy
+            // from before, no copy is taken: it would take that one's place.
+            if (updated is not null && !await CheckAfterUpdateAsync(updated, ct)) return;
+
             if (options.StartDelay > TimeSpan.Zero) await Task.Delay(options.StartDelay, time, ct);
             // What an earlier run left in the work folder, once nothing is using it.
             await gate.WaitAsync(ct);
@@ -154,17 +160,8 @@ public sealed class Syncer
             {
                 gate.Release();
             }
-            await RefreshAsync(ct);
-            if (Status.Last is StoreCopy { Manifest: { Reason: SyncReason.BeforeUpdate } before } last && before.Version != options.Version)
-            {
-                // A copy taken now would take the place of the one from before, which the check couldn't hold.
-                if (!await CheckAfterUpdateAsync(last, ct)) return;
-                await CopyAsync(SyncReason.AfterUpdate, ct: ct);
-            }
-            else if (Due())
-            {
-                await CopyAsync(SyncReason.Scheduled, ct: ct);
-            }
+            if (updated is not null) await CopyAsync(SyncReason.AfterUpdate, ct: ct);
+            else if (Due()) await CopyAsync(SyncReason.Scheduled, ct: ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -397,19 +394,22 @@ public sealed class Syncer
                 {
                     case DatabaseItem database:
                         var tables = new Dictionary<string, long>();
+                        Dictionary<string, long>? counts = null;
                         if (File.Exists(database.Path))
                         {
                             report($"Copying {item.Name} as it is now", 0);
                             var snapshot = Path.Combine(gathering.Work, Guid.NewGuid().ToString("N") + ".db");
                             var changed = new DateTimeOffset(File.GetLastWriteTimeUtc(database.Path));
-                            tables = await Task.Run(() =>
+                            (tables, counts) = await Task.Run(() =>
                             {
                                 SqliteFiles.Snapshot(database.Path, snapshot);
-                                return SqliteFiles.Tables(snapshot);
+                                var counted = database.Counted is null ? null
+                                    : SqliteFiles.Count(snapshot, database.Counted).Where(c => c.Value is not null).ToDictionary(c => c.Key, c => c.Value!.Value, StringComparer.Ordinal);
+                                return (SqliteFiles.Tables(snapshot), counted);
                             }, ct);
                             listed.Add((item.Name, snapshot, changed, true));
                         }
-                        gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Database) { Tables = tables });
+                        gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Database) { Tables = tables, Counts = counts });
                         break;
                     case FolderItem folder:
                         gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Folder));
@@ -629,8 +629,9 @@ public sealed class Syncer
     }
 
     /// <summary>
-    /// What the app's data lacks of a copy, or null when it holds all of it: each database opens cleanly and has every table with at
-    /// least as many rows, and every file in its folders is there. A file on its own (a log) can come and go, and isn't asked after.
+    /// What the app's data lacks of a copy, or null when it holds all of it: each database opens cleanly and has at least the rows
+    /// of what's counted as the person's own (<see cref="DatabaseItem.Counted"/>; without it, every table), and every file in its
+    /// folders is there. A file on its own (a log) can come and go, and isn't asked after.
     /// </summary>
     internal string? Missing(SyncManifest copy)
     {
@@ -643,11 +644,26 @@ public sealed class Syncer
                 case DatabaseItem database when copied.Tables is { Count: > 0 } tables:
                     if (!File.Exists(database.Path)) return $"{copied.Name} is gone";
                     if (SqliteFiles.Problem(database.Path) is { } problem) return $"{copied.Name} doesn't open cleanly: {problem}";
-                    var now = SqliteFiles.Tables(database.Path);
-                    foreach (var (table, rows) in tables)
+                    if (database.Counted is not { } counted)
                     {
-                        if (!now.TryGetValue(table, out var has)) return $"{copied.Name} has lost its {table} table";
-                        if (has < rows) return $"{copied.Name}'s {table} had {rows.ToString("N0", CultureInfo.InvariantCulture)} rows and has {has.ToString("N0", CultureInfo.InvariantCulture)}";
+                        var now = SqliteFiles.Tables(database.Path);
+                        foreach (var (table, rows) in tables)
+                        {
+                            if (!now.TryGetValue(table, out var has)) return $"{copied.Name} has lost its {table} table";
+                            if (has < rows) return Fewer(copied.Name, table, rows, has);
+                        }
+                        break;
+                    }
+                    // Only what's the person's own: by its count in the copy, or in a copy taken before counts were kept, by its
+                    // table's rows when it's counted whole (rows a condition picks can't be told from such a copy).
+                    var found = SqliteFiles.Count(database.Path, counted);
+                    foreach (var count in counted)
+                    {
+                        long? had = copied.Counts is { } kept ? (kept.TryGetValue(count.Name, out var rows) ? rows : null)
+                            : count.Where is null && tables.TryGetValue(count.Table, out var whole) ? whole : null;
+                        if (had is null) continue;
+                        if (found[count.Name] is not { } has) return $"{copied.Name} has lost its {count.Table} table";
+                        if (has < had) return Fewer(copied.Name, count.Name, had.Value, has);
                     }
                     break;
                 case FolderItem folder:
@@ -656,6 +672,9 @@ public sealed class Syncer
             }
         }
         return null;
+
+        static string Fewer(string database, string what, long had, long has) =>
+            $"{database}'s {what} had {had.ToString("N0", CultureInfo.InvariantCulture)} rows and has {has.ToString("N0", CultureInfo.InvariantCulture)}";
     }
 
     // ---- Restoring ----

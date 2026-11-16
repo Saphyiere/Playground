@@ -62,6 +62,33 @@ internal static class SqliteFiles
         return tables;
     }
 
+    /// <summary>What each count finds in a database, by its name: its rows, or null when its table isn't there.</summary>
+    public static Dictionary<string, long?> Count(string database, IEnumerable<SyncCount> counts)
+    {
+        using var connection = Open(database, SqliteOpenMode.ReadOnly);
+        var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var list = connection.CreateCommand())
+        {
+            list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
+            using var reader = list.ExecuteReader();
+            while (reader.Read()) tables.Add(reader.GetString(0));
+        }
+
+        var found = new Dictionary<string, long?>(StringComparer.Ordinal);
+        foreach (var count in counts)
+        {
+            if (!tables.Contains(count.Table))
+            {
+                found[count.Name] = null;
+                continue;
+            }
+            using var rows = connection.CreateCommand();
+            rows.CommandText = $"SELECT COUNT(*) FROM \"{count.Table.Replace("\"", "\"\"", StringComparison.Ordinal)}\"{(count.Where is null ? "" : $" WHERE {count.Where}")}";
+            found[count.Name] = (long)rows.ExecuteScalar()!;
+        }
+        return found;
+    }
+
     /// <summary>What's wrong with a database, in SQLite's words, or null when it opens and its pages check out.</summary>
     public static string? Problem(string database)
     {

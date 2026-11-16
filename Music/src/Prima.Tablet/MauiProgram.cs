@@ -55,8 +55,9 @@ public static class MauiProgram
         KeepWhatNothingCaught(app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Prima.Tablet"));
         // At most once in 20 hours; Settings › Updates shows what it found.
         _ = app.Services.GetRequiredService<Updater>().CheckAsync();
-        // In the background, once the first screen is up: the first start after an update checks the data holds all the copy from
-        // before it did, then copies it afresh; otherwise a copy more than two days old is replaced. Settings › Your data shows it.
+        // In the background: the first start after an update checks at once, before a screen can change anything, that the data
+        // holds all the owner's the copy from before it did, then copies it afresh once the first screen is up; otherwise a copy more
+        // than two days old is replaced. Settings › Your data shows it.
         _ = app.Services.GetRequiredService<Syncer>().StartAsync();
         return app;
     }

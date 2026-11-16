@@ -111,6 +111,64 @@ public class StartTests
         Assert.Equal("prima.db is gone", syncer.Status.Held?.Why);
     }
 
+    // Only what's the person's own is counted after an update: what the app put there itself and takes out (a bundled piece) can go.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_CountsOnlyWhatsThePersonsOwn()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        await new Syncer(Counted(app), [new FolderStore(store.Path)]).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+
+        // The update takes out a piece that isn't the person's: nothing is held.
+        app.Execute("DELETE FROM Piece WHERE Id = 'aria'");
+        var syncer = new Syncer(Counted(app, "1.0.6"), [new FolderStore(store.Path)]);
+        await syncer.StartAsync(Ct);
+        Assert.Null(syncer.Status.Held);
+
+        // The next takes out one of theirs: the copy from before it is held, and says which.
+        await syncer.CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.7", ct: Ct);
+        app.Execute("DELETE FROM Piece WHERE Id = 'minuet'");
+        var later = new Syncer(Counted(app, "1.0.7"), [new FolderStore(store.Path)]);
+        await later.StartAsync(Ct);
+        Assert.Equal("prima.db's Piece (minuets) had 1 rows and has 0", later.Status.Held?.Why);
+    }
+
+    // A copy taken before counts were kept is checked by its tables' rows, for what's counted whole: the rows a condition picks can't
+    // be told from it.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_ChecksACopyTakenBeforeCountsByItsTables()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        await app.Syncer(new FolderStore(store.Path)).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+
+        app.Execute("DELETE FROM Piece WHERE Id = 'minuet'; DELETE FROM Attempt WHERE Id > 30");
+        var syncer = new Syncer(Counted(app, "1.0.6"), [new FolderStore(store.Path)]);
+        await syncer.StartAsync(Ct);
+
+        Assert.Equal("prima.db's Attempt had 40 rows and has 30", syncer.Status.Held?.Why);
+    }
+
+    // The check after an update runs as the app starts, before its screens can change the data; the copy after it keeps its wait.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_ChecksAtOnce_AndCopiesAfterTheWait()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        var before = await app.Syncer(new FolderStore(store.Path)).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+        app.Execute("DELETE FROM Attempt WHERE Id > 10");
+        var syncer = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6") with { StartDelay = TimeSpan.FromMinutes(10) });
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var starting = syncer.StartAsync(stop.Token);
+        for (var i = 0; i < 400 && syncer.Status.Held is null; i++) await Task.Delay(25, Ct);
+
+        Assert.Equal("prima.db's Attempt had 40 rows and has 10", syncer.Status.Held?.Why);
+        Assert.Equal(before.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
+        await stop.CancelAsync();
+        await starting;
+    }
+
     [Fact]
     public async Task StartAsync_AfterAnUpdateThatDidntInstall_TakesItAsAnyCopy()
     {
@@ -204,6 +262,16 @@ public class StartTests
         Assert.Equal(UpdateStep.Failed, updater.Status.Step);
         Assert.Equal("A copy of your data couldn't be kept first (the store went away), so nothing was installed.", updater.Status.Message);
     }
+
+    // The app's options, counting as the person's own the runs and the minuets (as Prima counts its imported pieces, not the bundled).
+    private static SyncOptions Counted(App app, string version = "1.0.5") => app.Options(version) with
+    {
+        Items =
+        [
+            SyncItem.Database("prima.db", app.Database) with { RequiredTables = ["Piece", "Attempt"], Counted = [new("Piece (minuets)", "Piece", "Title LIKE 'Minuet%'"), SyncCount.Rows("Attempt")] },
+            .. app.Options().Items.Skip(1),
+        ],
+    };
 
     [Fact]
     public void AddSync_GivesTheUpdaterItsSafeguard()

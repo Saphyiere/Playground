@@ -11,7 +11,8 @@ background; checks the app after an update; and puts a copy back, all of it or n
 
 - **`SyncItem.Database(name, path)`**: a SQLite database, copied with SQLite's online backup while the app has it open, so the
   copy is whole and consistent whatever the app is writing. Never a copy of the file, which could catch a write half done.
-  `RequiredTables` are the tables that tell it's this app's: a restore refuses a database without them.
+  `RequiredTables` are the tables that tell it's this app's: a restore refuses a database without them. `Counted` is what in it is
+  the person's own (`SyncCount`: a table's rows, or those a condition picks), which the check after an update counts (below).
 - **`SyncItem.Folder(name, path)`**: every file in a folder and the folders in it.
 - **`SyncItem.File(name, path)`**: one file, which needn't be there yet.
 - **`SyncItem.Custom(name, export)`**: anything else (preferences, say), which the app writes out as files for a copy and reads
@@ -79,9 +80,12 @@ The updater ([Playground.Updates](../Playground.Updates/README.md)) takes a full
 `AddSync` registers, before it hands an update to Android's installer: if the copy can't be kept, nothing is installed. Then
 `StartAsync`, called as the app starts:
 
-- **The first start after an update** (the newest copy was taken before an update, on another version) checks the app's data
-  holds all of it: each database opens cleanly and has every table with at least its rows, and every file in its folders is there. Only then is
-  a fresh copy taken, in its place. If it doesn't hold all of it, that copy is **held** (`held.json`, `Status.Held` with why): kept
+- **The first start after an update** (the newest copy was taken before an update, on another version) checks at once, before
+  the app's screens can change anything, that its data holds all of the person's the copy did: each database opens cleanly and
+  has at least the rows of what's `Counted` as theirs (every table, without it), and every file in its folders is there. What the
+  app puts in and takes out itself (Prima's bundled pieces) isn't counted, so it's never taken for data lost; a copy taken before
+  counts were kept is checked by its tables' rows for what's counted whole. Only then, after the wait, is a fresh copy taken,
+  in its place. If it doesn't hold all of it, that copy is **held** (`held.json`, `Status.Held` with why): kept
   whatever copies come after, until it's restored or let go (`ReleaseHeldAsync`). A fresh copy is taken all the same, beside it.
   A later update that loses data too holds its own beside it: a store holds as many as there are (`Status.Holding`, newest
   first, `Status.Held` the newest's), and restoring one lets go of it only when it's held in this install's own store, so one
@@ -90,7 +94,7 @@ The updater ([Playground.Updates](../Playground.Updates/README.md)) takes a full
 - **Otherwise**, a copy is taken when there's none yet, the last is older than `RefreshAfter` (two days), or it's dated after now
   (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
 
-It waits `StartDelay` (15 seconds) first, so the app's first screen isn't slowed.
+A copy waits `StartDelay` (15 seconds) first, so the app's first screen isn't slowed; the check after an update doesn't.
 
 ## Where copies go
 
@@ -124,7 +128,11 @@ shows; copies go to each, and one that can't be used just then (a cloud drive, n
    ```csharp
    services.AddSync(sp => new SyncOptions("Prima")
    {
-       Items = [SyncItem.Database("prima.db", databasePath) with { RequiredTables = ["Setting", "Attempt"] }, SyncItem.Folder("library", filesPath)],
+       Items =
+       [
+           SyncItem.Database("prima.db", databasePath) with { RequiredTables = ["Setting", "Attempt"], Counted = [SyncCount.Rows("Attempt"), new("Piece (imported)", "Piece", "Origin = 'import'")] },
+           SyncItem.Folder("library", filesPath),
+       ],
        Exclude = [AssistKey.FileName],
        Secrets = async _ => [.. new[] { await sp.GetRequiredService<IAssistKeyStore>().GetAsync() }.OfType<string>()],
        Version = sp.GetService<IInstaller>()?.InstalledVersion ?? "",

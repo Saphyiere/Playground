@@ -35,6 +35,18 @@ public static class PrimaSync
     /// <summary>The tables that tell a database is Prima's, which a restore checks for.</summary>
     public static readonly string[] Tables = ["Setting", "Track", "Attempt", "PracticeDay"];
 
+    /// <summary>
+    /// What in the data file is the owner's own, which the first start after an update finds none of with fewer rows than the copy
+    /// from before had: the settings, the tracks, every run, the practice days and sessions, the routines, and the pieces imported.
+    /// The bundled and collection pieces, and their excerpts, aren't: Prima takes out the bundled pieces a new bundle no longer has.
+    /// </summary>
+    public static readonly SyncCount[] Counted =
+    [
+        SyncCount.Rows("Setting"), SyncCount.Rows("Track"), SyncCount.Rows("Attempt"), SyncCount.Rows("PracticeDay"), SyncCount.Rows("PracticeSession"),
+        SyncCount.Rows("RoutineGeneration"), SyncCount.Rows("RoutineDefinition"), SyncCount.Rows("RoutineDay"), SyncCount.Rows("RoutineExecution"), SyncCount.Rows("RoutineAttempt"),
+        new("Piece (imported)", "Piece", "Origin = 'import'"),
+    ];
+
     /// <summary>What Prima syncs, from its services (the store, the problem log, the key and its file, the version installed).</summary>
     public static SyncOptions Options(IServiceProvider services, string databasePath)
     {
@@ -46,7 +58,7 @@ public static class PrimaSync
         {
             Items =
             [
-                SyncItem.Database("prima.db", databasePath) with { RequiredTables = Tables },
+                SyncItem.Database("prima.db", databasePath) with { RequiredTables = Tables, Counted = Counted },
                 SyncItem.Folder("library", store.FilesPath),
                 SyncItem.Folder("prima.conversion", Path.ChangeExtension(databasePath, ".conversion")),
                 SyncItem.File(ProblemLog.FileName, problems.Path),

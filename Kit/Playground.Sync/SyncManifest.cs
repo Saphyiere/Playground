@@ -73,10 +73,15 @@ public sealed record SyncManifest
     }
 }
 
-/// <summary>An item as the copy has it: a database's tables, each with how many rows it had.</summary>
+/// <summary>
+/// An item as the copy has it: a database's tables, each with how many rows it had, and what in it was counted as the person's own
+/// (<see cref="DatabaseItem.Counted"/>), by name.
+/// </summary>
 public sealed record SyncManifestItem(string Name, SyncItemKind Kind)
 {
     public IReadOnlyDictionary<string, long>? Tables { get; init; }
+
+    public IReadOnlyDictionary<string, long>? Counts { get; init; }
 }
 
 /// <summary>A file in a copy: where it sits in it, its size and when it last changed, and the SHA-256 of its content.</summary>
