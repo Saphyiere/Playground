@@ -23,7 +23,11 @@ what went wrong on this install stays.
 
 **Secrets never go in a copy.** `Exclude` names files never read, wherever they turn up (a key file waiting to be taken in), and
 files on their way (`.tmp`, `.partial`) are left out too. `Secrets` gives the secrets themselves (an API key): every file a copy
-reads is searched for each, and a copy that would hold one stops before it writes anything, saying which file held it.
+reads is searched for each, and a copy that would hold one stops before it writes anything, saying which file held it. A file
+whose size and time are the last copy's isn't read again, so it's taken as searched only while the secrets are the ones it was
+searched for: `SecretsMark` is a file of the app's own, outside every item and never in a copy, keeping a mark of the secrets last
+searched for (an HMAC under a key made for it, which gives nothing of them back). When they change (a new key), every file is read
+and searched afresh. Without it, every copy reads every file.
 
 ## How a copy is kept
 

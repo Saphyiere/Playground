@@ -922,6 +922,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   a copy of what was there just before them too; `held.json` lists every copy held, with what it was kept from before and when it
   was held. Claude's key never goes in one: it's
   in secure storage, and every file a copy reads is searched for it, the copy stopping before it writes anything if it's found.
+  A file unchanged since the last copy isn't read again while the key is the same; when it changes, every file is read and
+  searched afresh. What was last searched for is kept as a mark beside the data file (`prima.searched`, a keyed hash that gives
+  nothing of the key back), never in a copy.
   The look's id in the tablet's preferences isn't copied (it's the data file's Look setting again), nor whether Prima has asked to
   show notifications (the install's own).
 

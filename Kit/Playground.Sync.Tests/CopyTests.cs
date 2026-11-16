@@ -275,6 +275,43 @@ public class CopyTests
         Assert.Empty(Directory.GetFileSystemEntries(app.WorkFolder));
     }
 
+    // When the secrets searched for change, every file is read again: a file's size and time say nothing of whether it holds the new
+    // one. What was last searched for is kept as a mark in the app's own data: never in a copy, and nothing a secret can be got
+    // back from.
+    [Fact]
+    public async Task CopyAsync_WhenTheSecretsChange_ReadsEveryFileAgain()
+    {
+        using var app = new App();
+        using var folder = new TempFolder();
+        using var own = new TempFolder();
+        var key = App.Key;
+        var syncer = new Syncer(app.Options() with { Secrets = _ => Task.FromResult<IReadOnlyCollection<string>>([key]), SecretsMark = own["searched"] }, [new FolderStore(folder.Path)]);
+        var first = await syncer.CopyAsync(ct: Ct);
+
+        var mark = File.ReadAllText(own["searched"]);
+        Assert.DoesNotContain(key, mark);
+        Assert.DoesNotContain(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key))), mark, StringComparison.OrdinalIgnoreCase);
+        Assert.All(Directory.EnumerateFiles(folder.Path, "*", SearchOption.AllDirectories), f => Assert.DoesNotContain(mark, File.ReadAllText(f), StringComparison.Ordinal));
+
+        // A new key turns up in a file whose size and time stay as they were.
+        const string NewKey = "sk-ant-api03-ANewKeyThatCameAfterTheLastCopy-abcdef0123";
+        var pdf = app["library/minuet.pdf"];
+        var time = File.GetLastWriteTimeUtc(pdf);
+        var bytes = File.ReadAllBytes(pdf);
+        Encoding.UTF8.GetBytes(NewKey).CopyTo(bytes, 1000);
+        File.WriteAllBytes(pdf, bytes);
+        File.SetLastWriteTimeUtc(pdf, time);
+
+        // While the key is the one searched for, the file is taken by its size and time, unread.
+        var second = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(first.Manifest.Files.Single(f => f.Path == "library/minuet.pdf").Sha256, second.Manifest.Files.Single(f => f.Path == "library/minuet.pdf").Sha256);
+
+        // With the new key, every file is read again, and the copy stops on it.
+        key = NewKey;
+        var error = await Assert.ThrowsAsync<SyncSecretException>(() => syncer.CopyAsync(ct: Ct));
+        Assert.Equal("library/minuet.pdf", error.File);
+    }
+
     [Fact]
     public async Task CopyAsync_FindsASecret_AcrossTheJoinBetweenTwoReads()
     {

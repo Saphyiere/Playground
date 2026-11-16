@@ -52,6 +52,22 @@ public class PrimaSyncTests
         Assert.DoesNotContain(archive.Entries, e => e.FullName.Contains("claude-key", StringComparison.Ordinal));
     }
 
+    // The mark of the key searched for is kept beside the data file, in no item, so it's never in a copy; and it isn't the key.
+    [Fact]
+    public async Task TheMarkOfTheKeySearchedFor_IsKeptBesideTheData_NeverInACopy()
+    {
+        await using var tablet = new Tablet();
+        await tablet.FillAsync();
+        await tablet.Keys.SetAsync(Key);
+
+        await tablet.Sync.CopyAsync(ct: Ct);
+
+        var mark = tablet.Sync.Options.SecretsMark!;
+        Assert.Equal(Path.GetDirectoryName(tablet.Store.DatabasePath), Path.GetDirectoryName(mark));
+        Assert.DoesNotContain(Key, File.ReadAllText(mark));
+        Assert.DoesNotContain(tablet.Sync.Status.Last!.Manifest.Files, f => f.Path.Contains(Path.GetFileName(mark), StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task ACopy_ThatWouldHoldTheKey_StopsBeforeWritingAnything()
     {

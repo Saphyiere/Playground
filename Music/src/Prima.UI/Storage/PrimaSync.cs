@@ -76,6 +76,8 @@ public static class PrimaSync
             ],
             Exclude = [AssistKey.FileName],
             Secrets = async _ => [.. new[] { await keys.GetAsync(), await WaitingKeyAsync(keyFile.Path) }.OfType<string>()],
+            // Beside the data file and in no item: a new key has every file read again, and the mark gives nothing of it back.
+            SecretsMark = Path.ChangeExtension(databasePath, ".searched"),
             Version = services.GetService<IInstaller>()?.InstalledVersion ?? "",
             WorkFolder = Path.Combine(Path.GetTempPath(), "prima-sync", Path.GetFileNameWithoutExtension(databasePath)),
             BeforeCopy = store.FlushAsync,

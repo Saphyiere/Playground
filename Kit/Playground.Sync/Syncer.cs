@@ -503,17 +503,21 @@ public sealed class Syncer
 
     /// <summary>
     /// Everything the app keeps, as files ready to go in a copy: each database snapshotted into the work folder, each item's
-    /// files listed, and each one fingerprinted: with the last copy's fingerprint when its size and time are the same, or read
-    /// now and searched for the secrets. Nothing is written to a store yet, so a secret stops it all before anything is.
+    /// files listed, and each one fingerprinted: with the last copy's fingerprint when its size and time are the same and the
+    /// secrets are the ones last searched for (<see cref="SyncOptions.SecretsMark"/>), or read now and searched for the secrets.
+    /// Nothing is written to a store yet, so a secret stops it all before anything is.
     /// </summary>
     private async Task<Gathering> GatherAsync(SyncManifest? before, Action<string, double> report, CancellationToken ct)
     {
         var secrets = options.Secrets is null ? [] : (await options.Secrets(ct)).Select(s => s.Trim()).Where(s => s.Length >= 8).Select(Encoding.UTF8.GetBytes).ToList();
+        // A file unchanged since the last copy was searched for the secrets then: when they've changed since (a new key), it's read
+        // again, as every file is.
+        var searched = options.Secrets is null || SecretsMark.Matches(options.SecretsMark, secrets);
         var gathering = new Gathering(Directory.CreateDirectory(Path.Combine(options.WorkFolder, Guid.NewGuid().ToString("N"))).FullName, secrets);
         try
         {
             var known = new Dictionary<string, SyncFile>(StringComparer.Ordinal);
-            foreach (var file in before?.Files ?? []) known.TryAdd(file.Path, file);
+            foreach (var file in searched ? before?.Files ?? [] : []) known.TryAdd(file.Path, file);
             var listed = new List<(string Path, string Source, DateTimeOffset? Modified, bool Fresh)>();
             foreach (var item in options.Items)
             {
@@ -573,6 +577,8 @@ public sealed class Syncer
                 }
                 report($"Looking at what changed: {i + 1} of {listed.Count} files", (i + 1.0) / listed.Count);
             }
+            // Every file has now been searched for these secrets: the next copy trusts what hasn't changed since.
+            if (!searched) SecretsMark.Keep(options.SecretsMark, secrets);
             return gathering;
         }
         catch
@@ -1178,13 +1184,15 @@ public sealed class Syncer
         ? Directory.EnumerateFiles(folder, "*", Everything).Where(f => !Excluded(f)).Order(StringComparer.Ordinal)
         : [];
 
-    /// <summary>A file never copied: one the app excludes by name, or one half made (being written, or a restore's).</summary>
+    /// <summary>A file never copied: one the app excludes by name, one half made (being written, or a restore's), or the secrets' mark.</summary>
     private bool Excluded(string file)
     {
         var name = Path.GetFileName(file);
         return options.Exclude.Contains(name, StringComparer.OrdinalIgnoreCase)
             || name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".partial", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(Restoring, StringComparison.Ordinal) || name.EndsWith(Replaced, StringComparison.Ordinal);
+            || name.EndsWith(Restoring, StringComparison.Ordinal) || name.EndsWith(Replaced, StringComparison.Ordinal)
+            // The mark of the secrets searched for is the install's own, wherever it's kept.
+            || (options.SecretsMark is { } mark && string.Equals(Path.GetFullPath(file), Path.GetFullPath(mark), StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Where a file of an item's copy goes under the item's folder.</summary>
