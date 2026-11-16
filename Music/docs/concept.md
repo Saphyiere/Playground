@@ -541,12 +541,17 @@ and the days they were played on, and the files imported), and **Copies kept** h
 a copy under way shows its progress on the meter. **Back up now** takes
 one. **Restore from a backup…** lists this install's copies, and with **Choose a folder…** (the tablet's folder picker, opening on
 Documents/Prima backups) the copies of every install in the folder chosen, or with **Choose a file…** an export or a Prima data file
-on its own; choosing one says what it replaces, and **Restore this copy** puts all of it in place, or nothing if any of it is
-damaged, and opens Prima afresh. **Export everything** puts it all in one zip for the share sheet (to Drive, or to the PC), which
-restores like a copy. A copy kept from before an update that didn't check out stands first, saying what was missing, with
-**Restore it…** and **Let it go**. **Start over** clears your progress after asking: levels, notes, every run and practice day
-(and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the
-settings: the music isn't progress, and only a copy or an export carries it. Nothing leaves the tablet unless you send it.
+on its own; choosing one says what it replaces, and **Restore this copy** keeps a copy of what's here first, held, so the restore
+can be undone (not on a fresh install, with nothing of yours yet), then puts all of the copy in place, or nothing if any of it is
+damaged, and opens Prima afresh on App & data, where it says what was restored. If what's here can't be kept, nothing is restored
+and it says why, and **Restore without keeping what's here** restores all the same. **Export everything** puts it all in one zip
+for the share sheet (to Drive, or to the PC), which restores like a copy. The copies held stand first, newest first, each saying
+what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over) and when it was
+taken, with **Restore it…** and **Let it go** of its own. **Start over** clears your progress after asking: levels, notes, every
+run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection,
+and so do the settings: the music isn't progress, and only a copy or an export carries it. A copy of everything is kept first,
+held in Your data; if it can't be, nothing is cleared, and **Clear it without a copy** clears all the same. Nothing leaves the
+tablet unless you send it.
 
 **Problems:** what went wrong, newest first, each line its time, how bad (Warning, Error, Critical), what said it (a screen, a
 job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (all of them, to paste into a
@@ -908,7 +913,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   imported; not the bundled or collection pieces and their excerpts, which Prima takes out and puts back itself), and that every
   file kept beside it (the music imported, what reading a PDF made) is there. If not, the copy from before is held (kept beside
   the newer ones, and beside any held already, until restored or let go); if it can't be held, Settings says so and no copy takes
-  its place until the next start checks again. The copy after the check waits fifteen seconds. Claude's key never goes in one: it's
+  its place until the next start checks again. The copy after the check waits fifteen seconds. A restore and Start over each hold
+  a copy of what was there just before them too; `held.json` lists every copy held, with what it was kept from before and when it
+  was held. Claude's key never goes in one: it's
   in secure storage, and every file a copy reads is searched for it, the copy stopping before it writes anything if it's found.
   The look's id in the tablet's preferences isn't copied (it's the data file's Look setting again), nor whether Prima has asked to
   show notifications (the install's own).

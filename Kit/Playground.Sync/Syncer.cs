@@ -91,48 +91,85 @@ public sealed class Syncer
     /// <param name="update">For a copy taken before an update, the release it's for.</param>
     /// <param name="progress">How far it is, 0 to 1, reported as it goes on its own thread.</param>
     public Task<SyncCopy> CopyAsync(SyncReason reason = SyncReason.Asked, string? update = null, IProgress<double>? progress = null, CancellationToken ct = default) =>
-        RunAsync(SyncStep.Copying, "Getting ready", async report =>
+        RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
         {
             if (options.BeforeCopy is { } before) await before();
-            var previous = (await CopiesInAsync(Store, ct)).FirstOrDefault();
+            // Just after a restore, what the screen says is the restore.
+            return await CopyWithinAsync(reason, update, stores, say: reason != SyncReason.AfterRestore, report, progress, ct);
+        }, keepMessage: reason == SyncReason.AfterRestore, ct);
 
-            // Reading counts for the first fifth of the bar, writing for the rest.
-            await using var gathering = await GatherAsync(previous?.Manifest, (doing, part) =>
-            {
-                report(doing, part);
-                progress?.Report(part * 0.2);
-            }, ct);
+    /// <summary>
+    /// Keeps a copy of the data as it is, held, before the app changes the data itself: <paramref name="what"/> names the change
+    /// as the screen says it ("Start over"). It's kept whatever copies come after, until it's restored or let go. Throws when it
+    /// couldn't be kept, and the app should then leave its data as it is.
+    /// </summary>
+    public Task<SyncCopy> KeepAsync(string what, CancellationToken ct = default) =>
+        RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
+        {
+            if (options.BeforeCopy is { } before) await before();
+            var kept = await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, report, ct);
+            Set(s => s with { Message = $"Kept a copy from before {what}, held until you restore it or let it go." });
+            return kept;
+        }, keepMessage: false, ct);
 
-            StoreCopy? copy = null;
-            var (files, bytes) = (0, 0L);
-            foreach (var store in stores)
+    /// <summary>
+    /// Takes a copy into each of <paramref name="into"/> (the app's own store first) within a piece of work already running:
+    /// everything the app keeps gathered once, then written into each. Says what it wrote (when <paramref name="say"/>), and
+    /// shows the app's own copies after.
+    /// </summary>
+    private async Task<StoreCopy> CopyWithinAsync(SyncReason reason, string? update, IReadOnlyList<ISyncStore> into, bool say, Action<string, double> report, IProgress<double>? progress, CancellationToken ct)
+    {
+        var previous = (await CopiesInAsync(Store, ct)).FirstOrDefault();
+
+        // Reading counts for the first fifth of the bar, writing for the rest.
+        await using var gathering = await GatherAsync(previous?.Manifest, (doing, part) =>
+        {
+            report(doing, part);
+            progress?.Report(part * 0.2);
+        }, ct);
+
+        StoreCopy? copy = null;
+        var (files, bytes) = (0, 0L);
+        foreach (var store in into)
+        {
+            try
             {
-                try
+                if (!await store.ConnectAsync(ct)) throw new SyncException($"{store.Name} can't be used just now");
+                var written = await WriteCopyAsync(store, gathering, reason, update, (doing, part) =>
                 {
-                    if (!await store.ConnectAsync(ct)) throw new SyncException($"{store.Name} can't be used just now");
-                    var written = await WriteCopyAsync(store, gathering, reason, update, (doing, part) =>
-                    {
-                        report(doing, part);
-                        if (store == Store) progress?.Report(0.2 + part * 0.8);
-                    }, ct);
-                    if (store != Store) continue;
-                    (copy, files, bytes) = written;
-                }
-                catch (Exception e) when (store != Store && e is not OperationCanceledException)
-                {
-                    // Another store (a cloud drive, say) that couldn't take it this time: the app's own has it.
-                    logger?.LogWarning(e, "A copy couldn't go to {Store}: {Message}", store.Name, e.Message);
-                }
+                    report(doing, part);
+                    if (store == Store) progress?.Report(0.2 + part * 0.8);
+                }, ct);
+                if (store != Store) continue;
+                (copy, files, bytes) = written;
             }
+            catch (Exception e) when (store != Store && e is not OperationCanceledException)
+            {
+                // Another store (a cloud drive, say) that couldn't take it this time: the app's own has it.
+                logger?.LogWarning(e, "A copy couldn't go to {Store}: {Message}", store.Name, e.Message);
+            }
+        }
 
-            progress?.Report(1);
+        progress?.Report(1);
+        await ShowOwnAsync(copy, ct);
+        if (say)
+        {
             var said = files == 0 ? "Copied: nothing had changed since the copy before."
                 : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
-            await ShowOwnAsync(copy, ct);
-            // Just after a restore, what the screen says is the restore.
-            Set(s => s with { Message = reason == SyncReason.AfterRestore ? s.Message : said });
-            return (SyncCopy)copy!;
-        }, keepMessage: reason == SyncReason.AfterRestore, ct);
+            Set(s => s with { Message = said });
+        }
+        return copy!;
+    }
+
+    /// <summary>A copy of the data as it is into the app's own store alone, held: kept from before a restore, or a change the app makes.</summary>
+    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, Action<string, double> report, CancellationToken ct)
+    {
+        var copy = await CopyWithinAsync(reason, null, [Store], say: false, report, null, ct);
+        var held = new SyncHeld(copy.Key, "", why, time.GetUtcNow()) { From = from };
+        await HoldAsync(Store, held, ct);
+        await ShowOwnAsync(copy, ct);
+        return Described(new StoreCopy(Store, copy.Key, copy.Manifest, held));
+    }
 
     /// <summary>
     /// What the app does as it starts, in the background. The first time after an update, it checks at once that the app's data
@@ -184,13 +221,19 @@ public sealed class Syncer
         return Status.Last is not { } last || last.Made > now || now - last.Made > options.RefreshAfter;
     }
 
+    /// <summary>Puts a copy's data in place of the app's, keeping what's there first (<see cref="RestoreAsync(SyncCopy, bool, CancellationToken)"/>).</summary>
+    public Task RestoreAsync(SyncCopy copy, CancellationToken ct = default) => RestoreAsync(copy, keepWhatsHere: true, ct);
+
     /// <summary>
     /// Puts a copy's data in place of the app's. Every file is fetched beside where it goes and checked against its fingerprint, and
     /// each database is checked (it opens cleanly, is the app's, and holds what its manifest says), before anything of the app's is
-    /// touched; then, while the app leaves its data alone (<see cref="SyncOptions.WhileRestoring"/>), each item goes in at once, and
-    /// if one can't, those before it go back. Only the items the copy has are replaced. A fresh copy is taken after.
+    /// touched. Then, while the app leaves its data alone (<see cref="SyncOptions.WhileRestoring"/>), a copy of the data as it is
+    /// goes into the app's own store, held until it's restored or let go, so a wrong restore can be undone: unless
+    /// <paramref name="keepWhatsHere"/> is false, or nothing here is the person's yet (a fresh install). If it can't be kept,
+    /// nothing is restored (<see cref="SyncKeepException"/>). Each item then goes in at once, and if one can't, those before it go
+    /// back. Only the items the copy has are replaced. A fresh copy is taken after.
     /// </summary>
-    public async Task RestoreAsync(SyncCopy copy, CancellationToken ct = default)
+    public async Task RestoreAsync(SyncCopy copy, bool keepWhatsHere, CancellationToken ct = default)
     {
         await RunAsync(SyncStep.Restoring, "Fetching the copy", async report =>
         {
@@ -198,16 +241,20 @@ public sealed class Syncer
             var total = Math.Max(1, plan.Sum(p => copy.Manifest.FilesOf(p.Copied.Name).Sum(f => f.Size)));
             long fetched = 0;
             var placements = new List<Placement>();
-            var placed = false;
+            var (keep, placed) = (false, false);
             try
             {
                 foreach (var (live, copied) in plan)
                 {
                     placements.Add(await StageAsync(copy, live, copied, n => report($"Fetching the copy: {SyncText.Size(fetched += n)} of {SyncText.Size(total)}", (double)fetched / total), ct));
                 }
-                report("Putting it in place", 1);
+                keep = keepWhatsHere && !await Task.Run(HoldsNothing, ct);
+                if (keep && options.BeforeCopy is { } before) await before();
                 await (options.WhileRestoring ?? (work => work()))(async () =>
                 {
+                    // Kept with the app's data held still, so nothing it writes falls between what's kept and what's restored.
+                    if (keep) await KeepWhatsHereAsync(copy, report, ct);
+                    report("Putting it in place", 1);
                     await PlaceAsync(placements);
                     placed = true;
                 });
@@ -224,7 +271,7 @@ public sealed class Syncer
 
             // The copy restored isn't held any more when it's this install's own; restoring another, or one held in another folder,
             // leaves this install's held. Letting it go comes after the data is the copy's, so if it can't be, that's all it says.
-            var said = $"Restored the copy from {SyncText.When(copy.Made, time)}.";
+            var said = $"Restored the copy from {SyncText.When(copy.Made, time)}." + (keep ? " What was here is kept, held until you restore it or let it go." : "");
             if (copy.Held is { } held)
             {
                 try
@@ -244,6 +291,50 @@ public sealed class Syncer
 
         // This install's own store gets the data as it now is, in the background.
         _ = CopyQuietlyAsync(SyncReason.AfterRestore);
+    }
+
+    /// <summary>What's here, into the app's own store and held, before a restore puts <paramref name="restoring"/> in its place.</summary>
+    private async Task KeepWhatsHereAsync(SyncCopy restoring, Action<string, double> report, CancellationToken ct)
+    {
+        try
+        {
+            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore,
+                (_, part) => report("Keeping what's here first", part), ct);
+        }
+        catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
+        {
+            throw new SyncKeepException($"What's here couldn't be kept first ({Reason(e)}), so nothing was restored.", e);
+        }
+    }
+
+    /// <summary>
+    /// Whether nothing here is the person's yet (a fresh install): no rows in what each database counts as theirs, settings aside,
+    /// and no file in its folders. A restore then has nothing to keep first. A database that can't be read holds something.
+    /// </summary>
+    private bool HoldsNothing()
+    {
+        try
+        {
+            foreach (var item in options.Items)
+            {
+                switch (item)
+                {
+                    case DatabaseItem database when File.Exists(database.Path):
+                        var rows = database.Counted is { } counted
+                            ? SqliteFiles.Count(database.Path, counted.Where(c => !c.Settings)).Values
+                            : SqliteFiles.Tables(database.Path).Values.Select(v => (long?)v);
+                        if (rows.Any(r => r > 0)) return false;
+                        break;
+                    case FolderItem folder when FilesIn(folder.Path).Any():
+                        return false;
+                }
+            }
+            return true;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

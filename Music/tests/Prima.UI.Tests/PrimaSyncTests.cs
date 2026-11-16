@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Playground.AI.Assist;
@@ -154,16 +155,91 @@ public class PrimaSyncTests
         Assert.Equal("off", view.FindAll("button").Single(b => b.TextContent == "Restore this copy").GetAttribute("data-piano"));
         view.FindAll("button").Single(b => b.TextContent == "Restore this copy").Click();
 
+        // It lands on App & data, where Your data says the copy was restored.
         var navigation = host.Context.Services.GetRequiredService<NavigationManager>();
-        view.WaitForAssertion(() => Assert.EndsWith("/settings", navigation.Uri, StringComparison.Ordinal), TimeSpan.FromSeconds(10));
+        view.WaitForAssertion(() => Assert.EndsWith("/settings?tab=app&section=data", navigation.Uri, StringComparison.Ordinal), TimeSpan.FromSeconds(10));
         var settings = new PrimaSettings();
         await host.Store.LoadAsync(settings);
         Assert.Equal("Ada", settings.Name);
         Assert.Equal("Ada", host.Context.Services.GetRequiredService<PrimaSettings>().Name);
+        var page = host.Context.Render<Prima.UI.Pages.Settings>();
+        page.WaitForAssertion(() => Assert.Contains(page.FindAll("[role=status]"), s => s.TextContent.StartsWith("Restored the copy from ", StringComparison.Ordinal)));
+        Assert.Equal("App & data", page.FindAll("[role=tab][aria-selected=true]").Single().TextContent);
+        Assert.Equal("data", host.Browser.ShownSections.FirstOrDefault() ?? await host.Browser.SectionShown.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct));
 
         // The copy of the data as restored, taken in the background, finishes before the test's data goes.
         for (var i = 0; i < 400 && (sync.Status.Busy || sync.Status.Last?.Manifest.Reason != SyncReason.AfterRestore); i++) await Task.Delay(25, Ct);
         Assert.Equal(SyncReason.AfterRestore, sync.Status.Last?.Manifest.Reason);
+        Directory.Delete(sync.Options.WorkFolder, recursive: true);
+    }
+
+    // Each copy held says what it was kept from before (an update, a restore, Start over) and when, and has Restore and Let go of
+    // its own: letting go of one leaves the others held.
+    [Fact]
+    public async Task YourData_ShowsEachCopyHeld_WhatItsFrom_AndWhen_EachWithRestoreAndLetGo()
+    {
+        await using var host = new ComponentHost();
+        var sync = host.Context.Services.GetRequiredService<Syncer>();
+        var piece = await host.AddPiece();
+        await host.Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), 5);
+        // Kept from before an update that lost the piece; from before a restore; and from before Start over.
+        await new Syncer(sync.Options with { Version = "1.0.11" }, [sync.Store]).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.12", ct: Ct);
+        await host.Store.DeletePieceAsync(piece.Id);
+        // Its start clears a work folder of its own: the host's copies are in the host's (the store when none is registered).
+        var start = Path.Combine(Path.GetTempPath(), $"prima-sync-start-{Guid.NewGuid():N}");
+        await new Syncer(sync.Options with { Version = "1.0.12", StartDelay = TimeSpan.Zero, WorkFolder = start }, [sync.Store]).StartAsync(Ct);
+        await sync.RestoreAsync((await sync.FindCopiesAsync(sync.Store, Ct)).First(c => c.Held is null), Ct);
+        await sync.KeepAsync("Start over", Ct);
+
+        var view = host.Context.Render<DataCopies>();
+
+        var held = (await sync.FindCopiesAsync(sync.Store, Ct)).Where(c => c.Held is not null).ToList();
+        view.WaitForAssertion(() => Assert.Equal(
+            [$"Kept from before Start over · {SyncText.When(held[0].Made)}", $"Kept from before a restore · {SyncText.When(held[1].Made)}", $"Kept from before the update to Prima 1.0.12 · {SyncText.When(held[2].Made)}"],
+            view.FindAll(".copies-held-head").Select(h => h.TextContent)));
+        Assert.All(view.FindAll(".copies-held"), h => Assert.Equal(["Restore it…", "Let it go"], h.QuerySelectorAll("button").Select(b => b.TextContent)));
+        Assert.StartsWith("After the update, Prima's data had less than the copy taken just before it: prima.db's Piece (imported) had 1 rows and has 0.", view.FindAll(".copies-held")[2].QuerySelector(".section-note")!.TextContent);
+
+        // Let go, the restore's is held no more, and the others stay.
+        await view.InvokeAsync(() => view.FindAll(".copies-held")[1].QuerySelectorAll("button").Single(b => b.TextContent == "Let it go").Click());
+        view.WaitForAssertion(() => Assert.Equal(2, view.FindAll(".copies-held").Count));
+        Assert.Equal([SyncHeldFrom.Change, SyncHeldFrom.Update], sync.Status.Holding.Select(c => c.Held!.From));
+
+        // Restore it… chooses that very copy.
+        await view.InvokeAsync(() => view.FindAll(".copies-held")[1].QuerySelectorAll("button").Single(b => b.TextContent == "Restore it…").Click());
+        view.WaitForAssertion(() => Assert.Equal("true", view.FindAll(".copy-choice").Single(c => c.TextContent.Contains("from before the update to Prima 1.0.12", StringComparison.Ordinal)).GetAttribute("aria-pressed")));
+        Directory.Delete(sync.Options.WorkFolder, recursive: true);
+        if (Directory.Exists(start)) Directory.Delete(start, recursive: true);
+    }
+
+    // When what's here can't be kept first, nothing is restored, the note says why, and restoring without keeping it is offered apart.
+    [Fact]
+    public async Task YourData_WhenWhatsHereCantBeKept_OffersToRestoreWithoutIt()
+    {
+        await using var host = new ComponentHost();
+        var sync = host.Context.Services.GetRequiredService<Syncer>();
+        await host.Store.SaveAsync(new PrimaSettings { Name = "Ada" });
+        await host.AddPiece();
+        await sync.CopyAsync(ct: Ct);
+        // Since then, a problem kept with the key in it: no copy can be taken now.
+        await host.Store.SaveAsync(new PrimaSettings { Name = "Someone else" });
+        host.Problems.Keep("Error", "Prima.UI.Pages.Settings", "The key test-key was refused");
+        var view = host.Context.Render<DataCopies>();
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Restore from a backup…").Click());
+        await view.InvokeAsync(() => view.WaitForElement(".copy-choice").Click());
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Restore this copy").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("What's here couldn't be kept first (errors.log holds a secret, which copies never take), so nothing was restored.", view.Find("[role=status]").TextContent));
+        var settings = new PrimaSettings();
+        await host.Store.LoadAsync(settings);
+        Assert.Equal("Someone else", settings.Name);
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Restore without keeping what's here").ClickAsync(new MouseEventArgs()));
+        await host.Store.LoadAsync(settings);
+        Assert.Equal("Ada", settings.Name);
+        Assert.Empty(sync.Status.Holding);
+        for (var i = 0; i < 400 && sync.Status.Busy; i++) await Task.Delay(25, Ct);
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 

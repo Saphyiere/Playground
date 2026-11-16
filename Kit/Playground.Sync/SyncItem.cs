@@ -58,6 +58,12 @@ public sealed record DatabaseItem : SyncItem
 /// <param name="Name">What it's called when one has fewer rows: "Attempt", "Piece (imported)".</param>
 public sealed record SyncCount(string Name, string Table, string? Where = null)
 {
+    /// <summary>
+    /// Settings: counted after an update like the rest, but on their own not something a restore keeps first, since a fresh
+    /// install has some once it's been set up.
+    /// </summary>
+    public bool Settings { get; init; }
+
     /// <summary>Every row of a table.</summary>
     public static SyncCount Rows(string table) => new(table, table);
 }

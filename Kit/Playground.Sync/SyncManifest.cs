@@ -20,6 +20,12 @@ public enum SyncReason
 
     /// <summary>Just after a copy was restored.</summary>
     AfterRestore,
+
+    /// <summary>Just before a restore put another copy in its place: what was there, held, so the restore can be undone.</summary>
+    BeforeRestore,
+
+    /// <summary>Just before the app changed the data itself (Prima's Start over): what was there, held.</summary>
+    BeforeChange,
 }
 
 /// <summary>
@@ -88,10 +94,28 @@ public sealed record SyncManifestItem(string Name, SyncItemKind Kind)
 public sealed record SyncFile(string Path, long Size, DateTimeOffset Modified, string Sha256);
 
 /// <summary>
-/// A copy kept from before an update, after the app's first start with the update didn't hold all of it: kept, whatever copies
-/// come after, until it's restored or let go. A store can hold more than one, each in <c>held.json</c>.
+/// A copy held: kept, whatever copies come after, until it's restored or let go. <see cref="From"/> says what it was kept from
+/// before: an update the app's first start after didn't find all of it in (<see cref="Update"/> the release, <see cref="Why"/>
+/// what was missing), a restore that put another copy in its place (<see cref="Why"/> which), or a change the app made itself
+/// (<see cref="Why"/> names it: "Start over"). A store can hold more than one, each in <c>held.json</c>.
 /// </summary>
-public sealed record SyncHeld(string Copy, string Update, string Why, DateTimeOffset Since);
+public sealed record SyncHeld(string Copy, string Update, string Why, DateTimeOffset Since)
+{
+    public SyncHeldFrom From { get; init; }
+}
+
+/// <summary>What a held copy was kept from before.</summary>
+public enum SyncHeldFrom
+{
+    /// <summary>An update that didn't check out: the only kind there was before restores and the app's changes held copies too.</summary>
+    Update,
+
+    /// <summary>A restore: what was there before it.</summary>
+    Restore,
+
+    /// <summary>A change the app made to the data itself (Prima's Start over): what was there before it.</summary>
+    Change,
+}
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, WriteIndented = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(SyncManifest))]

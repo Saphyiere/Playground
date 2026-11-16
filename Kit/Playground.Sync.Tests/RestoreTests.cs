@@ -37,6 +37,117 @@ public class RestoreTests
         Assert.StartsWith("Restored the copy from ", syncer.Status.Message);
     }
 
+    // A restore keeps what's there first, held until it's restored or let go: so a wrong restore can be undone.
+    [Fact]
+    public async Task RestoreAsync_KeepsWhatsHereFirst_SoItCanBeUndone()
+    {
+        using var before = new App();
+        using var store = new TempFolder();
+        var older = await before.Syncer(new FolderStore(store.Path)).CopyAsync(ct: Ct);
+
+        // This install has more since: five more runs, on a piece of its own.
+        using var app = new App();
+        using var own = new TempFolder();
+        app.Execute("INSERT INTO Piece VALUES ('waltz', 'Waltz')");
+        for (var i = 0; i < 5; i++) app.Execute("INSERT INTO Attempt (Piece, Notes) VALUES ('waltz', 'mine')");
+        var syncer = app.Syncer(new FolderStore(own.Path));
+        await syncer.RestoreAsync(Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)), Ct);
+
+        Assert.Equal(40, app.Count("Attempt"));
+        var kept = Assert.Single(syncer.Status.Holding);
+        Assert.Equal(SyncHeldFrom.Restore, kept.Held!.From);
+        Assert.Equal($"the copy from {SyncText.When(older.Made)} was restored in its place", kept.Held.Why);
+        Assert.Equal(SyncReason.BeforeRestore, kept.Manifest.Reason);
+        Assert.Equal(45, kept.Manifest.Rows("prima.db", "Attempt"));
+        Assert.Equal($"Restored the copy from {SyncText.When(older.Made)}. What was here is kept, held until you restore it or let it go.", syncer.Status.Message);
+
+        // Restoring it undoes the restore.
+        await syncer.RestoreAsync(kept, Ct);
+        Assert.Equal(45, app.Count("Attempt"));
+        Assert.Equal(3, app.Count("Piece"));
+    }
+
+    // Not on a fresh install: nothing there is the person's yet, so nothing is kept first.
+    [Fact]
+    public async Task RestoreAsync_OnAFreshInstall_KeepsNothingFirst()
+    {
+        using var before = new App();
+        using var store = new TempFolder();
+        await before.Syncer(new FolderStore(store.Path)).CopyAsync(ct: Ct);
+
+        using var fresh = new App(empty: true);
+        using var own = new TempFolder();
+        var syncer = fresh.Syncer(new FolderStore(own.Path));
+        await syncer.RestoreAsync(Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)), Ct);
+
+        Assert.Equal(40, fresh.Count("Attempt"));
+        Assert.Empty(syncer.Status.Holding);
+        Assert.DoesNotContain("kept", syncer.Status.Message);
+    }
+
+    // When what's here can't be kept first, nothing is restored and the status says why; restoring without keeping it is asked for
+    // apart.
+    [Fact]
+    public async Task RestoreAsync_WhenWhatsHereCantBeKept_RestoresNothing_UnlessAskedNotToKeepIt()
+    {
+        using var before = new App();
+        using var store = new TempFolder();
+        await before.Syncer(new FolderStore(store.Path)).CopyAsync(ct: Ct);
+        using var app = new App();
+        using var own = new TempFolder();
+        app.Execute("DELETE FROM Attempt WHERE Id > 5");
+        var failing = new WatchedStore(new FolderStore(own.Path)) { FailAt = 1 };
+        var syncer = app.Syncer(failing);
+        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
+
+        var error = await Assert.ThrowsAsync<SyncKeepException>(() => syncer.RestoreAsync(copy, Ct));
+
+        Assert.Equal("What's here couldn't be kept first (the store went away), so nothing was restored.", error.Message);
+        Assert.Equal(error.Message, syncer.Status.Message);
+        Assert.Equal(5, app.Count("Attempt"));
+        Assert.Empty(Directory.GetFileSystemEntries(app.Folder, "*.sync-*", SearchOption.AllDirectories));
+
+        failing.FailAt = null;
+        await syncer.RestoreAsync(copy, keepWhatsHere: false, Ct);
+        Assert.Equal(40, app.Count("Attempt"));
+        Assert.Empty(syncer.Status.Holding);
+    }
+
+    // A change the app makes keeps a copy first, held, named for it. With one kept from before an update and one from before a
+    // restore, each is held on its own, says what it's from and when, and is let go on its own.
+    [Fact]
+    public async Task KeepAsync_HoldsACopyNamedForTheChange_BesideTheOthersHeld()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        var clock = new Clock();
+        var update = await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+        clock.Now = clock.Now.AddMinutes(1);
+        app.Execute("DELETE FROM Attempt WHERE Id > 30");
+        var syncer = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
+        await syncer.StartAsync(Ct);
+        clock.Now = clock.Now.AddMinutes(1);
+        await syncer.RestoreAsync((await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).First(c => c.Held is null), Ct);
+        clock.Now = clock.Now.AddMinutes(1);
+
+        var kept = await syncer.KeepAsync("Start over", Ct);
+
+        Assert.Equal(SyncHeldFrom.Change, kept.Held!.From);
+        Assert.Equal("Start over", kept.Held.Why);
+        Assert.Equal(SyncReason.BeforeChange, kept.Manifest.Reason);
+        Assert.Equal(clock.Now, kept.Made);
+        Assert.Equal([SyncHeldFrom.Change, SyncHeldFrom.Restore, SyncHeldFrom.Update], syncer.Status.Holding.Select(c => c.Held!.From));
+        Assert.Equal(update.Made, syncer.Status.Holding[^1].Made);
+        Assert.Equal("Kept a copy from before Start over, held until you restore it or let it go.", syncer.Status.Message);
+
+        // The restore's is let go alone, and a later start reads the others back.
+        await syncer.ReleaseHeldAsync(syncer.Status.Holding[1], Ct);
+        Assert.Equal([SyncHeldFrom.Change, SyncHeldFrom.Update], syncer.Status.Holding.Select(c => c.Held!.From));
+        var later = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
+        await later.RefreshAsync(Ct);
+        Assert.Equal(syncer.Status.Holding.Select(c => c.Held), later.Status.Holding.Select(c => c.Held));
+    }
+
     [Fact]
     public async Task RestoreAsync_FromACopyWithDamagedContent_ChangesNothing()
     {

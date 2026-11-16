@@ -39,10 +39,11 @@ public static class PrimaSync
     /// What in the data file is the owner's own, which the first start after an update finds none of with fewer rows than the copy
     /// from before had: the settings, the tracks, every run, the practice days and sessions, the routines, and the pieces imported.
     /// The bundled and collection pieces, and their excerpts, aren't: Prima takes out the bundled pieces a new bundle no longer has.
+    /// A restore keeps what's here first unless none of it but the settings has a row (a fresh install has those once it's welcomed).
     /// </summary>
     public static readonly SyncCount[] Counted =
     [
-        SyncCount.Rows("Setting"), SyncCount.Rows("Track"), SyncCount.Rows("Attempt"), SyncCount.Rows("PracticeDay"), SyncCount.Rows("PracticeSession"),
+        SyncCount.Rows("Setting") with { Settings = true }, SyncCount.Rows("Track"), SyncCount.Rows("Attempt"), SyncCount.Rows("PracticeDay"), SyncCount.Rows("PracticeSession"),
         SyncCount.Rows("RoutineGeneration"), SyncCount.Rows("RoutineDefinition"), SyncCount.Rows("RoutineDay"), SyncCount.Rows("RoutineExecution"), SyncCount.Rows("RoutineAttempt"),
         new("Piece (imported)", "Piece", "Origin = 'import'"),
     ];

@@ -9,6 +9,7 @@
 @inject ClaudeKeyFile KeyFile
 @inject Updater Updates
 @inject ProblemLog Problems
+@inject Playground.Sync.Syncer Sync
 @inject IJSRuntime JS
 @using Playground.AI.Assist
 @using Playground.Updates
@@ -356,12 +357,17 @@ else if (!finder.FoundAny)
     <Setting Name="Last copy" Words="Copies kept, Back up now, Restore from a backup, Export everything, backup, backups, a copy, copies, sync, restore, export, zip, Choose a folder, Choose a file, Documents, Prima backups, Claude's key">
         <DataCopies />
     </Setting>
-    <Setting Words="Start over, Clear my progress, Keep it">
+    <Setting Words="Start over, Clear my progress, Clear it without a copy, Keep it">
         <div class="control-row">
             @if (confirming)
             {
-                <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="StartOver">Clear my progress</button>
-                <button type="button" class="mu-btn" @onclick="() => confirming = false">Keep it</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@clearing" @onclick="() => StartOver(true)">Clear my progress</button>
+                @if (notKept is not null)
+                {
+                    @* The copy couldn't be kept first (the note says why): clearing without one is a choice of its own. *@
+                    <button type="button" class="mu-btn" data-piano="off" disabled="@clearing" @onclick="() => StartOver(false)">Clear it without a copy</button>
+                }
+                <button type="button" class="mu-btn" @onclick="() => (confirming, notKept) = (false, null)">Keep it</button>
             }
             else
             {
@@ -370,7 +376,7 @@ else if (!finder.FoundAny)
         </div>
         @if (confirming || dataNote is not null)
         {
-            <p class="section-note" role="status">@(confirming ? "This clears your progress: levels, notes, every run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the settings. Back up now first if you might want it." : dataNote)</p>
+            <p class="section-note" role="status">@(!confirming ? dataNote : notKept is { } why ? $"A copy couldn't be kept first ({why}), so nothing was cleared." : "This clears your progress: levels, notes, every run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the settings. A copy of everything is kept first, held in Your data until you restore it or let it go.")</p>
         }
     </Setting>
 </SettingsSection>
@@ -448,6 +454,9 @@ else if (!finder.FoundAny)
     private string? gradually;
     private bool confirming;
     private string? dataNote;
+    // Start over: why the copy kept first couldn't be, and whether it's clearing now.
+    private string? notKept;
+    private bool clearing;
     // Claude: the key on this tablet, masked; a line on what last happened to it (lit when it works); this month's cost by piece.
     private string? maskedKey;
     private string? keyNote;
@@ -630,10 +639,23 @@ else if (!finder.FoundAny)
         await Save(() => Options.DailyMinutes = minutes);
     }
 
-    private async Task StartOver()
+    // Clears the progress, a copy of everything kept first and held (Your data shows it), unless keeping one failed and the owner
+    // asked to clear it without.
+    private async Task StartOver(bool keep)
     {
+        clearing = true;
+        try
+        {
+            if (keep) await Sync.KeepAsync("Start over");
+        }
+        catch (Exception e)
+        {
+            // Nothing is cleared: the note says why, and clearing without a copy is offered.
+            (notKept, clearing) = (e.Message.TrimEnd('.'), false);
+            return;
+        }
         await Store.StartOverAsync();
-        (confirming, dataNote) = (false, "Cleared. Today starts from the beginning, with the Library as it was.");
+        (confirming, notKept, clearing, dataNote) = (false, null, false, "Cleared. Today starts from the beginning, with the Library as it was.");
     }
 
     private static readonly int[] Minutes = [5, 10, 15, 20, 30, 45];

@@ -29,11 +29,12 @@ A store holds the copies, laid out the same way wherever it is:
 ```
 copies/20261115T153000123Z.json   a copy's manifest, named for when it was taken (UTC), so the newest sorts last
 blobs/3f1c…e9                     each file's content, named by its SHA-256
-held.json                         the copies kept from before an update that didn't check out (below)
+held.json                         the copies held: from before an update that didn't check out, a restore, or a change (below)
 ```
 
 The manifest says what the copy holds: the app and its version, when and why it was taken (`Asked`, `Scheduled`, `BeforeUpdate`,
-`AfterUpdate`, `AfterRestore`), each item (a database with each table's rows), and each file with its size, time and SHA-256. A
+`AfterUpdate`, `AfterRestore`, `BeforeRestore`, `BeforeChange`), each item (a database with each table's rows, and the rows of what's
+`Counted`), and each file with its size, time and SHA-256. A
 copy is named a millisecond after the newest before it when the clock is behind that one, so the newest still sorts last, but its
 manifest dates it now: a copy once taken with the clock ahead doesn't date the ones after it.
 
@@ -60,13 +61,22 @@ another runs waits its turn.
 
 ## Restoring
 
-`RestoreAsync(copy)` puts a copy's data in place of the app's, all of it or none:
+`RestoreAsync(copy)` puts a copy's data in place of the app's, all of it or none, keeping what was there first:
 
 1. Every file is fetched beside where it goes and checked against its fingerprint; each database is checked too (it opens
    cleanly, has its `RequiredTables`, and holds the rows its manifest says). Nothing of the app's is touched yet.
 2. Then, while the app leaves its data alone (`WhileRestoring`: Prima runs it on its database's lane with its connections closed),
-   each item's copy goes in at once, and if one can't, those before it go back. A database's journal goes with it.
-3. Only the items the copy has are replaced: a database on its own replaces the database alone. A fresh copy is taken after.
+   a copy of the data as it is goes into the app's own store, **held** (`SyncHeldFrom.Restore`), so a wrong restore can be undone
+   by restoring it; nothing the app writes can fall between the two. It isn't taken when nothing there is the person's yet (a
+   fresh install: no rows in what's `Counted`, settings aside, and no file in its folders). If it can't be taken, nothing is
+   restored and `SyncKeepException` says why; `RestoreAsync(copy, keepWhatsHere: false)` restores without it, asked for apart.
+3. Each item's copy goes in at once, and if one can't, those before it go back. A database's journal goes with it.
+4. Only the items the copy has are replaced: a database on its own replaces the database alone. A fresh copy is taken after.
+
+`KeepAsync(what)` takes a copy and holds it the same way before the app changes the data itself, `what` naming the change as the
+screen says it (Prima's Start over; the same for any other: `SyncHeldFrom.Change`, with `what` as `Why`). Every copy held says
+what it was kept from before (`SyncHeld.From`: an update, a restore, or a change) and when (its copy's `Made`); `Status.Holding`
+lists them newest first, and `ReleaseHeldAsync(copy)` lets go of one, the others staying held.
 
 `RestoreAsync` throws only when nothing was restored. Once the copy is in place it's restored, whatever comes after: when the copy
 restored was held and can't be let go, or the app's side of `WhileRestoring` fails once the work is done, the status says the copy

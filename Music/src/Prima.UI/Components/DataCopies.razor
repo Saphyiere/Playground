@@ -1,8 +1,9 @@
 @* Settings › Your data: the copies of everything Prima keeps but Claude's key, through the Kit's sync (Storage/PrimaSync). When the
    last copy was made, its size and what it holds; how many copies are kept and what they take; Back up now; Restore from a
-   backup… (this tablet's copies, or a folder or a file
-   chosen with the tablet's picker, then which copy, and what it replaces); and Export everything, to send on. A copy kept from before
-   an update that didn't check out stands first. Work goes on in the background, its progress on the meter. *@
+   backup… (this tablet's copies, or a folder or a file chosen with the tablet's picker, then which copy, and what it replaces,
+   what's here being kept first); and Export everything, to send on. The copies held stand first, newest first, each saying what
+   it was kept from before (an update that didn't check out, a restore, Start over) and when, with Restore it… and Let it go of its
+   own. Work goes on in the background, its progress on the meter. *@
 @implements IDisposable
 @inject Syncer Sync
 @inject ISyncPicker Picker
@@ -13,14 +14,14 @@
 @inject NavigationManager Nav
 @using Playground.Sync
 
-@if (status.Held is { } held)
+@foreach (var kept in status.Holding)
 {
-    <div class="copies-held" role="alert">
-        <p class="copies-held-head"><span class="mu-led"></span>Kept from before the update to @held.Update</p>
-        <p class="section-note">After the update, Prima's data had less than the copy taken just before it: @held.Why. That copy is kept, whatever copies come after, until you restore it or let it go.</p>
+    <div class="copies-held" role="@(kept.Held!.From == SyncHeldFrom.Update ? "alert" : "group")" aria-label="@Head(kept)">
+        <p class="copies-held-head"><span class="mu-led"></span>@Head(kept)</p>
+        <p class="section-note">@Said(kept)</p>
         <div class="control-row">
-            <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="ChooseHeld">Restore it…</button>
-            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="LetGo">Let it go</button>
+            <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="() => ChooseHeld(kept)">Restore it…</button>
+            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="() => LetGo(kept)">Let it go</button>
         </div>
     </div>
 }
@@ -92,9 +93,14 @@
         </div>
         @if (chosen is { } choice)
         {
-            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key stays as it is.</p>
+            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key stays as it is. What's here is kept first, held, so the restore can be undone.</p>
             <div class="control-row">
-                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="Restore">Restore this copy</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, true)">Restore this copy</button>
+                @if (unkept == choice)
+                {
+                    @* What's here couldn't be kept first (the status says why): restoring without it is a choice of its own. *@
+                    <button type="button" class="mu-btn" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, false)">Restore without keeping what's here</button>
+                }
                 <button type="button" class="mu-btn" @onclick="() => chosen = null">Keep what's here</button>
             </div>
         }
@@ -108,6 +114,8 @@
     private bool looking;
     private List<SyncCopy> found = [];
     private SyncCopy? chosen;
+    // The copy whose restore stopped because what's here couldn't be kept first.
+    private SyncCopy? unkept;
     private string? note;
 
     protected override async Task OnInitializedAsync()
@@ -153,7 +161,7 @@
 
     private async Task OpenRestore()
     {
-        (restoring, chosen, note, looking) = (true, null, null, true);
+        (restoring, chosen, unkept, note, looking) = (true, null, null, null, true);
         try
         {
             found = [.. await Sync.FindCopiesAsync(Sync.Store)];
@@ -167,7 +175,7 @@
 
     private void CloseRestore()
     {
-        (restoring, chosen, note) = (false, null, null);
+        (restoring, chosen, unkept, note) = (false, null, null, null);
         ForgetPicked();
     }
 
@@ -183,11 +191,11 @@
         }
     }
 
-    // The copy kept from before an update, chosen, ready to restore.
-    private async Task ChooseHeld()
+    // A copy held, chosen, ready to restore.
+    private async Task ChooseHeld(SyncCopy kept)
     {
         await OpenRestore();
-        chosen = found.FirstOrDefault(c => c.Held is not null);
+        chosen = found.FirstOrDefault(c => c.Held == kept.Held);
     }
 
     private async Task PickFolder()
@@ -240,22 +248,28 @@
     private void Add(IEnumerable<SyncCopy> copies) =>
         found = [.. found.Concat(copies.Where(c => !found.Any(f => f.Made == c.Made && f.Size == c.Size))).OrderByDescending(c => c.Made)];
 
-    private async Task Restore()
+    // Restores the copy chosen, keeping what's here first unless asked not to (once keeping it has failed).
+    private async Task Restore(SyncCopy copy, bool keep)
     {
-        if (chosen is not { } copy) return;
         try
         {
-            await Sync.RestoreAsync(copy);
+            await Sync.RestoreAsync(copy, keep);
+        }
+        catch (SyncKeepException)
+        {
+            // Nothing was restored: what's here couldn't be kept first, the status says why, and restoring without it is offered.
+            unkept = copy;
+            return;
         }
         catch (Exception)
         {
             // Nothing was restored, and the status says why: once a copy is in place the restore doesn't throw, whatever comes after.
             return;
         }
-        // Everything is the copy's now: its settings and look, and every screen drawn afresh.
+        // Everything is the copy's now: its settings and look, and every screen drawn afresh, opening where it says it's restored.
         await Store.LoadAsync(Options);
         await LookSetting.ReloadAsync();
-        Nav.NavigateTo("settings", forceLoad: true);
+        Nav.NavigateTo("settings?tab=app&section=data", forceLoad: true);
     }
 
     private async Task Export()
@@ -274,11 +288,12 @@
         }
     }
 
-    private async Task LetGo()
+    private async Task LetGo(SyncCopy kept)
     {
+        note = null;
         try
         {
-            await Sync.ReleaseHeldAsync();
+            await Sync.ReleaseHeldAsync(kept);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -286,8 +301,27 @@
         }
     }
 
-    // Where a copy is, and whether it's the one from before an update.
-    private string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where} · from before the update to {held.Update}" : copy.Where;
+    // What a held copy was kept from before: an update, a restore, or something done to the data (Start over).
+    private static string From(SyncHeld held) => held.From switch
+    {
+        SyncHeldFrom.Update => $"before the update to {held.Update}",
+        SyncHeldFrom.Restore => "before a restore",
+        _ => $"before {held.Why}",
+    };
+
+    // A held copy's head: what it was kept from before, and when it was taken.
+    private static string Head(SyncCopy kept) => $"Kept from {From(kept.Held!)} · {SyncText.When(kept.Made)}";
+
+    // Why a held copy is kept, and until when.
+    private static string Said(SyncCopy kept) => kept.Held!.From switch
+    {
+        SyncHeldFrom.Update => $"After the update, Prima's data had less than the copy taken just before it: {kept.Held.Why}.",
+        SyncHeldFrom.Restore => $"Everything Prima had when {kept.Held.Why} ({kept.Summary}).",
+        _ => $"Everything Prima had before {kept.Held.Why} ({kept.Summary}).",
+    } + " It's kept, whatever copies come after, until you restore it or let it go.";
+
+    // Where a copy is, and what it was kept from before when it's held.
+    private static string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where} · from {From(held)}" : copy.Where;
 
     // What a restore replaces: everything for a whole copy, the data file alone for a database on its own.
     private static string Replaced(SyncCopy copy) => copy.Manifest.Items.Count == 1 && copy.Manifest.Items[0].Kind == SyncItemKind.Database

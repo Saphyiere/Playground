@@ -209,8 +209,12 @@ public class StartTests
         await syncer.RestoreAsync((await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Single(c => c.Held is not null), Ct);
 
         Assert.Equal(2, app.Count("Piece"));
-        Assert.Null(syncer.Status.Held);
-        Assert.False(File.Exists(store["held.json"]));
+        // The update's copy is held no more; what was here before the restore is, in its place, so the restore can be undone.
+        var holding = Assert.Single(syncer.Status.Holding);
+        Assert.Equal(SyncHeldFrom.Restore, holding.Held!.From);
+        Assert.Equal(SyncHeldFrom.Restore, syncer.Status.Held?.From);
+        Assert.Equal(0, holding.Manifest.Rows("prima.db", "Piece"));
+        Assert.DoesNotContain(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Held?.From == SyncHeldFrom.Update);
     }
 
     [Fact]
