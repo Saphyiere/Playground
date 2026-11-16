@@ -149,7 +149,23 @@
         looking = false;
     }
 
-    private void CloseRestore() => (restoring, chosen, note) = (false, null, null);
+    private void CloseRestore()
+    {
+        (restoring, chosen, note) = (false, null, null);
+        ForgetPicked();
+    }
+
+    // A file picked to restore from is copied in to be read (a database can be 180 MB): it goes once the restore it was for closes.
+    private static void ForgetPicked()
+    {
+        try
+        {
+            if (Directory.Exists(PrimaSync.PickedFolder)) Directory.Delete(PrimaSync.PickedFolder, recursive: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
 
     // The copy kept from before an update, chosen, ready to restore.
     private async Task ChooseHeld()
@@ -262,5 +278,9 @@
         ? "its settings, levels, history and routines (the music imported stays, as this file holds none)"
         : "its settings, levels, history, routines and the music imported";
 
-    public void Dispose() => Sync.Changed -= Changed;
+    public void Dispose()
+    {
+        Sync.Changed -= Changed;
+        ForgetPicked();
+    }
 }

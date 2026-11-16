@@ -88,8 +88,9 @@ shows; copies go to each, and one that can't be used just then (a cloud drive, n
   there without asking and read back what it wrote, and an uninstall doesn't reach it. An app installed again isn't the app that
   wrote the files before: Android won't let it read or replace them by path. So each install keeps its copies in a folder of its
   own, and the copies of an install before are opened with the system's folder picker (`DocumentTreeStore`, through Android's
-  documents provider), which reads whatever folder the person picks. Android 10 and earlier keep copies in the app's own folder,
-  which an uninstall deletes, and say so.
+  documents provider), which reads whatever folder the person picks. The app keeps its access to a picked folder (a persisted
+  grant): what the picker gives lasts only while its screen is up, and a copy is read later, when it's restored. Android 10 and
+  earlier keep copies in the app's own folder, which an uninstall deletes, and say so.
 - **A PC.** Not a store of its own: the device's folder is already one a PC reaches over USB, and adb is the PC's to drive, so the
   PC pulls. [tools/sync/pull-copy.ps1](../../tools/sync/pull-copy.ps1) finds the newest copy over adb, pulls only what the PC
   doesn't have yet, and writes the copy's files out under their own names; `-From` reads a folder copied off in Explorer. A second

@@ -74,9 +74,13 @@ public sealed class AndroidSyncPicker(Context context, string folder) : ISyncPic
         {
             Directory.CreateDirectory(into);
             var path = Path.Combine(into, Path.GetFileName(DocumentTreeStore.DisplayName(context, picked) ?? "picked"));
-            await using var input = context.ContentResolver!.OpenInputStream(picked) ?? throw new IOException("the file picked couldn't be opened");
-            await using var output = File.Create(path);
-            await input.CopyToAsync(output, ct);
+            await using (var input = context.ContentResolver!.OpenInputStream(picked) ?? throw new IOException("the file picked couldn't be opened"))
+            await using (var output = File.Create(path))
+            {
+                await input.CopyToAsync(output, ct);
+            }
+            // The picked file's own time, so a database on its own is dated when it was kept, not when it was picked.
+            if (DocumentTreeStore.LastModified(context, picked) is { } modified) File.SetLastWriteTimeUtc(path, modified.UtcDateTime);
             return path;
         }, ct);
     }

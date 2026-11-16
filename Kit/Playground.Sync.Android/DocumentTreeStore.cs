@@ -47,6 +47,13 @@ public sealed class DocumentTreeStore : ISyncStore
         return cursor is not null && cursor.MoveToFirst() && !cursor.IsNull(0) ? cursor.GetString(0) : null;
     }
 
+    /// <summary>When a picked document was last changed, as its provider says, or null when it doesn't say.</summary>
+    internal static DateTimeOffset? LastModified(Context context, AndroidUri document)
+    {
+        using var cursor = context.ContentResolver!.Query(document, [DocumentsContract.Document.ColumnLastModified], null, null, null);
+        return cursor is not null && cursor.MoveToFirst() && !cursor.IsNull(0) && cursor.GetLong(0) > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(cursor.GetLong(0)) : null;
+    }
+
     public Task<bool> ConnectAsync(CancellationToken ct) => Task.FromResult(true);
 
     public Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct) => Task.Run<IReadOnlyList<StoredObject>>(() =>

@@ -51,7 +51,22 @@ public sealed class SyncPickerActivity : Activity
     protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
-        if (requestCode == Picking) Answer(resultCode == Result.Ok ? data?.Data : null);
+        if (requestCode != Picking) return;
+
+        var picked = resultCode == Result.Ok ? data?.Data : null;
+        if (picked is not null)
+        {
+            // What the picker grants lasts only while this screen does, and it closes now; a folder's copies are read later, as the
+            // person chooses one and restores it. So the app keeps its access to what was picked, as the picker allows.
+            try
+            {
+                ContentResolver!.TakePersistableUriPermission(picked, ActivityFlags.GrantReadUriPermission);
+            }
+            catch (Java.Lang.SecurityException)
+            {
+            }
+        }
+        Answer(picked);
     }
 
     private void Answer(global::Android.Net.Uri? picked)
