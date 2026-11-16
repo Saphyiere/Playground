@@ -3,12 +3,21 @@
 @inject PrimaStore Store
 @inject IFiles Files
 @inject Prima.UI.Library.LibraryPrep Prep
+@inject Prima.UI.Library.Openings Openings
 @inject NavigationManager Nav
+@using Prima.Core.Library
 @using Prima.Core.Practice
 
-<PageTitle>Library · Prima</PageTitle>
+<PageTitle>@(Heading is null ? "Library" : $"{Heading} · Library") · Prima</PageTitle>
 
-<PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import files</button></PageHead>
+@if (Heading is null)
+{
+    <PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import files</button></PageHead>
+}
+else
+{
+    <PageHead Title="@Heading" Kicker="@Kicker"><a class="mu-btn" href="library">Library</a></PageHead>
+}
 
 @if (Prep.Running)
 {
@@ -23,76 +32,216 @@
         <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are below already.</p>
     </section>
 }
-@if (note is not null)
+@if (Openings.Playing is { } hearing && pieces.FirstOrDefault(p => p.Id == hearing) is { } heard)
+{
+    <p class="control-note" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
+}
+else if (note is not null)
 {
     <p class="control-note" role="status">@note</p>
 }
 
 <div class="control-row library-filters">
-    @foreach (var (key, label) in Filters)
+    @if (By is not null and not "composers" and not "pdf")
     {
-        <button type="button" class="mu-toggle" aria-pressed="@(filter == key ? "true" : "false")" @onclick="() => filter = key"><span class="mu-led"></span>@label</button>
+        @foreach (var (key, label) in Formats)
+        {
+            <button type="button" class="mu-toggle" aria-pressed="@(format == key ? "true" : "false")" @onclick="() => format = key"><span class="mu-led"></span>@label</button>
+        }
     }
-    <input class="text-field text-field-short" type="search" placeholder="Title or composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
+    <input class="text-field @(By is null ? "library-search" : "text-field-short")" type="search" placeholder="@(By is null ? "Title or composer" : "Find here")" aria-label="Find a piece" value="@search" @oninput="Typed" />
 </div>
-@if (filter == "near")
-{
-    var (from, to) = NearLevels();
-    var level = (reading ?? ReadingState.Start).Level;
-    var yours = reading is null ? "level 1, where sight-reading starts" : $"your sight-reading level, {level}";
-    <p class="section-note">@(from > level + 2 ? $"Nothing to play along with reads mostly at levels {level} to {level + 2}, up to two above {yours}, so these are the easiest, at level {from}." : $"Pieces to play along with that read mostly at levels {from} to {to}: a piece to learn sits up to two above {yours}.") The PDFs are under PDFs, by level.</p>
-}
 
 @{
-    // A piece's row: its title, a line about it, its level and what it is.
-    RenderFragment<(PieceRecord Piece, string Meta)> row = item => @<li>
-        <a class="piece-row" href="@($"library/{Uri.EscapeDataString(item.Piece.Id)}")">
-            <span class="piece-title">@item.Piece.Title</span>
-            <span class="piece-meta">@item.Meta</span>
-            <span class="piece-level">@(item.Piece.Level is { } l ? (item.Piece.IsPdf && !item.Piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
-            @if (item.Piece.IsPdf || item.Piece.Imported)
+    // A piece's row: the button that plays its opening, then its title, a line about it, its level and what it is.
+    RenderFragment<(PieceRecord Piece, string Meta)> row = item =>
+    {
+        var playing = Openings.Playing == item.Piece.Id;
+        return @<li class="piece-item">
+            @if (Hearable(item.Piece))
             {
-                <span class="piece-tags">@if (item.Piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (item.Piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (item.Piece.Imported) { <span class="piece-tag">Yours</span> }</span>
+                <button type="button" class="mu-btn piece-hear" aria-pressed="@(playing ? "true" : "false")" aria-label="@(playing ? $"Stop {item.Piece.Title}" : $"Hear the opening of {item.Piece.Title}")" @onclick="() => Hear(item.Piece)">@(playing ? "■" : "▶")</button>
             }
-        </a>
-    </li>;
-    // The pieces played in the last month, the latest first, each with when and how its last run went: before everything else,
-    // while nothing is being looked for.
+            else
+            {
+                <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
+            }
+            <a class="piece-row" href="@($"library/{Uri.EscapeDataString(item.Piece.Id)}")">
+                <span class="piece-title">@item.Piece.Title</span>
+                <span class="piece-meta">@item.Meta</span>
+                <span class="piece-level">@(item.Piece.Level is { } l ? (item.Piece.IsPdf && !item.Piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
+                @if (item.Piece.IsPdf || item.Piece.Imported)
+                {
+                    <span class="piece-tags">@if (item.Piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (item.Piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (item.Piece.Imported) { <span class="piece-tag">Yours</span> }</span>
+                }
+            </a>
+        </li>;
+    };
+
+    // A way into the Library: its name and how many pieces are there.
+    RenderFragment<(string Label, int Count, string Href)> chip = item => @<a class="mu-btn shelf-chip" href="@item.Href">@item.Label <span class="shelf-count">@item.Count</span></a>;
     var today = DateOnly.FromDateTime(DateTime.Now);
-    var working = filter != "all" || !string.IsNullOrWhiteSpace(search) ? []
-        : pieces.Where(p => played.TryGetValue(p.Id, out var done) && done.Last.Day >= today.AddDays(-30)).OrderByDescending(p => played[p.Id].Last.At).Take(8).ToList();
-}
-@if (working.Count > 0)
-{
-    <section class="settings-section" aria-labelledby="working-on">
-        <h2 id="working-on" class="section-title">Working on</h2>
-        <ul class="piece-list">
-            @foreach (var piece in working)
-            {
-                var last = played[piece.Id].Last;
-                @row((piece, $"{piece.Composer} · {PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}"))
-            }
-        </ul>
-    </section>
 }
 
-@foreach (var group in Shown().GroupBy(p => p.TypicalLevel ?? p.Level ?? 0).OrderBy(g => g.Key))
+@if (By == "composers")
 {
-    <section class="settings-section" aria-labelledby="@($"level-{group.Key}")">
-        <h2 id="@($"level-{group.Key}")" class="section-title">@(group.Key == 0 ? "Not graded" : $"Level {group.Key}")</h2>
-        <ul class="piece-list">
-            @foreach (var piece in group.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => Numbered.Replace(p.Title, n => n.Value.PadLeft(4, '0')), StringComparer.OrdinalIgnoreCase))
+    // Every composer, listed by surname under its first letter.
+    @foreach (var letter in Composers().GroupBy(c => Initial(c.Name)).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+    {
+        <section class="settings-section" aria-labelledby="@($"letter-{letter.Key}")">
+            <h2 id="@($"letter-{letter.Key}")" class="section-title">@letter.Key</h2>
+            <div class="shelf">
+                @foreach (var (name, count) in letter)
+                {
+                    @chip((name, count, $"library?by=composer&of={Uri.EscapeDataString(name)}"))
+                }
+            </div>
+        </section>
+    }
+}
+else if (By is null && string.IsNullOrWhiteSpace(search))
+{
+    // The pieces played in the last month, the latest first, each with when and how its last run went.
+    var working = pieces.Where(p => played.TryGetValue(p.Id, out var done) && done.Last.Day >= today.AddDays(-30)).OrderByDescending(p => played[p.Id].Last.At).Take(8).ToList();
+    @if (working.Count > 0)
+    {
+        <section class="settings-section" aria-labelledby="working-on">
+            <h2 id="working-on" class="section-title">Working on</h2>
+            <ul class="piece-list">
+                @foreach (var piece in working)
+                {
+                    var last = played[piece.Id].Last;
+                    @row((piece, $"{piece.Composer} · {PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}"))
+                }
+            </ul>
+        </section>
+    }
+
+    var near = Near().ToList();
+    @if (near.Count > 0)
+    {
+        <section class="settings-section" aria-labelledby="near-you">
+            <h2 id="near-you" class="section-title">Near your level</h2>
+            <p class="section-note">@NearNote() A few each day, the ones not opened yet first.</p>
+            <ul class="piece-list">
+                @foreach (var piece in Picks(near, working, today))
+                {
+                    @row((piece, Meta(piece)))
+                }
+            </ul>
+            <p class="shelf-more"><a href="library?by=near">All @near.Count near your level</a></p>
+        </section>
+    }
+
+    var composers = Composers().ToList();
+    @if (composers.Count > 0)
+    {
+        <section class="settings-section" aria-labelledby="by-composer">
+            <h2 id="by-composer" class="section-title">Composers</h2>
+            <div class="shelf">
+                @foreach (var (name, count) in composers.OrderByDescending(c => c.Count).ThenBy(c => Shelves.Surname(c.Name)).Take(12))
+                {
+                    @chip((name, count, $"library?by=composer&of={Uri.EscapeDataString(name)}"))
+                }
+                <a class="mu-btn shelf-chip shelf-all" href="library?by=composers">All @composers.Count composers</a>
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="by-period">
+            <h2 id="by-period" class="section-title">Periods</h2>
+            <div class="shelf">
+                @foreach (var period in Shelves.Periods)
+                {
+                    var count = pieces.Count(p => periodOf[p.Id] == period);
+                    @if (count > 0)
+                    {
+                        @chip((period, count, $"library?by=period&of={Uri.EscapeDataString(period)}"))
+                    }
+                }
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="by-kind">
+            <h2 id="by-kind" class="section-title">Kinds</h2>
+            <div class="shelf">
+                @foreach (var kind in Shelves.Kinds)
+                {
+                    var count = pieces.Count(p => kindOf[p.Id] == kind);
+                    @if (count > 0)
+                    {
+                        @chip((kind, count, $"library?by=kind&of={Uri.EscapeDataString(kind)}"))
+                    }
+                }
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="by-level">
+            <h2 id="by-level" class="section-title">Levels</h2>
+            <p class="section-note">Where most of a piece reads.</p>
+            <div class="shelf">
+                @foreach (var level in pieces.GroupBy(LevelOf).OrderBy(g => g.Key))
+                {
+                    @chip((level.Key == 0 ? "Not graded" : $"Level {level.Key}", level.Count(), $"library?by=level&of={level.Key}"))
+                }
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="by-list">
+            <h2 id="by-list" class="section-title">Lists</h2>
+            <div class="shelf">
+                @chip(("Everything", pieces.Count, "library?by=all"))
+                @if (pieces.Count(p => p.IsPdf) is > 0 and var pdfs)
+                {
+                    @chip(("PDFs", pdfs, "library?by=pdf"))
+                }
+                @if (pieces.Count(p => p.Imported) is > 0 and var yours)
+                {
+                    @chip(("Yours", yours, "library?by=mine"))
+                }
+            </div>
+        </section>
+    }
+}
+else
+{
+    var shown = Shown().ToList();
+    // A composer's pieces by kind (their works are too many and too unevenly named to group by); any other list's by composer,
+    // each with its works together.
+    var groups = By == "composer"
+        ? shown.GroupBy(p => kindOf[p.Id]).OrderBy(g => Shelves.Kinds.ToList().IndexOf(g.Key)).ToList()
+        : shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? "Composer not given" : p.Composer).OrderBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
+    @if (By == "near")
+    {
+        <p class="section-note">@NearNote() The PDFs are under PDFs, by level.</p>
+    }
+    @if (shown.Count > 0)
+    {
+        <p class="section-note">@(shown.Count == 1 ? "1 piece" : $"{shown.Count} pieces")@(groups.Count > 1 ? (By == "composer" ? $" of {groups.Count} kinds" : $" by {groups.Count} composers") : "").</p>
+    }
+    @if (groups.Count > 2)
+    {
+        // Straight to a group, in a long list.
+        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : "Composers")">
+            @foreach (var (group, i) in groups.Select((g, i) => (g, i)))
             {
-                @row((piece, Meta(piece)))
+                <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{i}")">@group.Key <span class="shelf-count">@group.Count()</span></a>
             }
-        </ul>
-    </section>
+        </nav>
+    }
+    @foreach (var (group, i) in groups.Select((g, i) => (g, i)))
+    {
+        <section class="settings-section" aria-labelledby="@($"group-{i}")">
+            <h2 id="@($"group-{i}")" class="section-title">@group.Key</h2>
+            <ul class="piece-list">
+                @foreach (var piece in group.OrderBy(p => p.Work ?? "").ThenBy(p => Numbered.Replace(p.Title, n => n.Value.PadLeft(4, '0')), StringComparer.OrdinalIgnoreCase))
+                {
+                    @row((piece, By == "composer" ? MetaWithoutComposer(piece) : Meta(piece)))
+                }
+            </ul>
+        </section>
+    }
+    @if (pieces.Count > 0 && shown.Count == 0)
+    {
+        <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : ""). </p>
+    }
 }
-@if (pieces.Count > 0 && !Shown().Any())
-{
-    <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : ""). </p>
-}
-else if (pieces.Count == 0 && !Prep.Running)
+@if (pieces.Count == 0 && !Prep.Running)
 {
     <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
 }
@@ -103,26 +252,69 @@ else if (pieces.Count == 0 && !Prep.Running)
     // Titles sort with their numbers as numbers: "No. 2" before "No. 11".
     private static readonly System.Text.RegularExpressions.Regex Numbered = new(@"\d+");
 
-    private static readonly (string Key, string Label)[] Filters = [("all", "Everything"), ("near", "Near my level"), ("notation", "To play along"), ("pdf", "PDFs"), ("mine", "Imported")];
+    private static readonly (string Key, string Label)[] Formats = [("all", "All"), ("notation", "To play along"), ("pdf", "PDFs")];
+
+    /// <summary>What the Library shows: composer, period, kind or level (with <see cref="Of"/>), near, all, pdf, mine or composers; the home when none.</summary>
+    [SupplyParameterFromQuery(Name = "by")]
+    public string? By { get; set; }
+
+    /// <summary>Which composer, period, kind or level.</summary>
+    [SupplyParameterFromQuery(Name = "of")]
+    public string? Of { get; set; }
 
     private List<PieceRecord> pieces = [];
+    // Each piece's period and kind, by its id: worked out once each time the pieces are read.
+    private Dictionary<string, string> periodOf = [];
+    private Dictionary<string, string> kindOf = [];
     // What's been done on each piece that has been played, by its id.
     private Dictionary<string, PieceHistory> played = [];
     private ReadingState? reading;
-    private string filter = "all";
+    private string format = "all";
     private string? search;
     private string? note;
     private DateTime lastLoad;
     private CancellationTokenSource? typing;
     private bool holding;
 
+    private string? Heading => By switch
+    {
+        "composer" or "period" or "kind" => Of,
+        "level" => Of == "0" ? "Not graded" : $"Level {Of}",
+        "near" => "Near your level",
+        "pdf" => "PDFs",
+        "mine" => "Yours",
+        "all" => "Everything",
+        "composers" => "Composers",
+        _ => null,
+    };
+
+    private string Kicker => By switch
+    {
+        "composer" => "Composer",
+        "period" => "Period",
+        "kind" => "Kind",
+        "level" => "Where most of it reads",
+        _ => "Library",
+    };
+
     protected override async Task OnInitializedAsync()
     {
         reading = await Store.GetTrackAsync<ReadingState>("reading");
-        pieces = await Store.GetPiecesAsync();
+        await Load();
         played = (await Store.GetPieceRunsAsync()).GroupBy(r => r.Piece).Select(g => (g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToDictionary(p => p.Key, p => p.Done!);
         Prep.Changed += Changed;
+        Openings.Changed += Heard;
         _ = Prep.EnsureAsync();
+    }
+
+    // Another list of the Library is a new start: its own format and search.
+    protected override void OnParametersSet() => (format, search, note) = ("all", null, null);
+
+    private async Task Load()
+    {
+        pieces = await Store.GetPiecesAsync();
+        periodOf = pieces.ToDictionary(p => p.Id, p => Shelves.Period(p.Composer));
+        kindOf = pieces.ToDictionary(p => p.Id, p => Shelves.Kind(p.Title, p.Work));
     }
 
     // While pieces are stored, the list fills in (and the meter moves) a second at a time at most: with a thousand pieces listed,
@@ -132,9 +324,11 @@ else if (pieces.Count == 0 && !Prep.Running)
         if (DateTime.Now - lastLoad < TimeSpan.FromSeconds(1) && Prep.Running) return;
 
         lastLoad = DateTime.Now;
-        pieces = await Store.GetPiecesAsync();
+        await Load();
         StateHasChanged();
     });
+
+    private void Heard() => _ = InvokeAsync(StateHasChanged);
 
     protected override bool ShouldRender() => !holding;
 
@@ -155,17 +349,65 @@ else if (pieces.Count == 0 && !Prep.Running)
         (holding, search) = (false, e.Value?.ToString());
     }
 
+    // The pieces of the list open, in the format chosen, found by the search; the home's search looks through everything.
     private IEnumerable<PieceRecord> Shown()
     {
-        var (from, to) = filter == "near" ? NearLevels() : default;
-        return pieces.Where(p => filter switch
+        var (from, to) = By == "near" ? NearLevels() : default;
+        return pieces.Where(p => By switch
         {
+            "composer" => p.Composer == Of,
+            "period" => periodOf[p.Id] == Of,
+            "kind" => kindOf[p.Id] == Of,
+            "level" => LevelOf(p).ToString() == Of,
             "near" => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to,
-            "notation" => p.PlaysAlong,
             "pdf" => p.IsPdf,
             "mine" => p.Imported,
             _ => true,
+        }).Where(p => format switch
+        {
+            "notation" => p.PlaysAlong,
+            "pdf" => p.IsPdf,
+            _ => true,
         }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Where most of a piece reads, as its level shelf has it; 0 when it isn't graded.
+    private static int LevelOf(PieceRecord p) => p.TypicalLevel ?? p.Level ?? 0;
+
+    // Every composer with how many pieces, by surname.
+    private IEnumerable<(string Name, int Count)> Composers() => pieces.Where(p => !string.IsNullOrWhiteSpace(p.Composer)).GroupBy(p => p.Composer)
+        .Select(g => (g.Key, g.Count())).OrderBy(c => Shelves.Surname(c.Key), StringComparer.OrdinalIgnoreCase).ThenBy(c => c.Key);
+
+    // A composer's surname's first letter, without its accent: Dvořák under D.
+    private static string Initial(string composer) => Shelves.Surname(composer) is { Length: > 0 } surname
+        ? surname[..1].Normalize(System.Text.NormalizationForm.FormD)[..1].ToUpperInvariant() : "#";
+
+    // The pieces to play along with near your level (Near my level's choice, as before).
+    private IEnumerable<PieceRecord> Near()
+    {
+        var (from, to) = NearLevels();
+        return pieces.Where(p => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to);
+    }
+
+    // A few of them for today: the ones not opened yet first, then a day's own order, so the shelf changes each day.
+    private static IEnumerable<PieceRecord> Picks(List<PieceRecord> near, List<PieceRecord> working, DateOnly today) =>
+        near.Where(p => !working.Contains(p)).OrderBy(p => p.Opened is not null).ThenBy(p => Shuffled(p.Id, today.DayNumber)).Take(6);
+
+    // A number from a piece and a day that's the same each time the Library opens that day (string hashes change from run to run).
+    private static uint Shuffled(string id, int day)
+    {
+        var hash = 2166136261u ^ (uint)day;
+        foreach (var c in id) hash = (hash ^ c) * 16777619u;
+        return hash;
+    }
+
+    private string NearNote()
+    {
+        var (from, to) = NearLevels();
+        var level = (reading ?? ReadingState.Start).Level;
+        var yours = reading is null ? "level 1, where sight-reading starts" : $"your sight-reading level, {level}";
+        return from > level + 2 ? $"Nothing to play along with reads mostly at levels {level} to {level + 2}, up to two above {yours}, so these are the easiest, at level {from}."
+            : $"Pieces to play along with that read mostly at levels {from} to {to}: a piece to learn sits up to two above {yours}.";
     }
 
     // Near my level's levels, for the pieces to play along with (a PDF's level is only about where its collection sits): where most
@@ -178,7 +420,21 @@ else if (pieces.Count == 0 && !Prep.Running)
         return easiest > level + 2 ? (easiest, easiest) : (level, level + 2);
     }
 
+    // This list's own address, for a link to a group in it.
+    private string Here() => Nav.Uri.Split('#')[0];
+
     private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
+
+    // On a composer's own list the composer goes without saying.
+    private static string MetaWithoutComposer(PieceRecord p) => string.Join(" · ", new[] { p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
+
+    // A piece can be heard when it has notes, or a PDF the MIDI it came with.
+    private static bool Hearable(PieceRecord p) => !p.IsPdf || p.HasNotes || p.Midi is not null;
+
+    private async Task Hear(PieceRecord piece)
+    {
+        note = await Openings.ToggleAsync(piece);
+    }
 
     // One piece imported opens; several (or a zip of them) stay here, with a line saying what came in.
     private async Task Import()
@@ -200,12 +456,15 @@ else if (pieces.Count == 0 && !Prep.Running)
             return;
         }
         note = said;
-        pieces = await Store.GetPiecesAsync();
+        await Load();
     }
 
     public void Dispose()
     {
         Prep.Changed -= Changed;
+        Openings.Changed -= Heard;
+        // Leaving the Library (opening a piece, say) stops an opening playing.
+        Openings.Stop();
         typing?.Cancel();
     }
 }

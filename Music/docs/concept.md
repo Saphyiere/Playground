@@ -159,11 +159,7 @@ a PDF plays out; this is what came of it.
 
 - **The collection**: about 240 public-domain and openly licensed pieces, chosen by named works published before 1931: 133
   MuseScore users' engravings through PDMX, as MusicXML, and 104 PDFs with their MIDI from the Mutopia Project. Each is credited
-  as its licence asks (**Where the music comes from**). The list is grouped by level, and filtered to the pieces near your
-  level, those to play along with, PDFs, or your imports. **Near my level** lists the pieces to play along with whose most reads
-  from your sight-reading level to two above it, since a piece to learn sits above what you read at sight; with none there,
-  the easiest there are. PDFs are left to their own list, since a PDF's level is only about where its collection sits. Before the levels, **Working on** has the pieces played in the last month (eight
-  at most), the latest first, each with when it was last played and how that run went. The collection comes prepared, so its first opening only stores it: the Library tool
+  as its licence asks (**Where the music comes from**). The collection comes prepared, so its first opening only stores it: the Library tool
   engraves, grades and cuts each MusicXML piece when the bundle is built, and a collection engraved as one score (Chopin's
   Preludes, Tchaikovsky's album) is split at its final barlines into its pieces ("Children's Album, No. 5"), or where each of
   its pieces starts with its own key or metre and a metronome mark (Kinderszenen, whose pieces end at repeats as often as at
@@ -180,9 +176,26 @@ a PDF plays out; this is what came of it.
   more of PDMX's public-domain piano music; and the rest of the Mutopia Project's keyboard music as PDFs with their MIDI, each
   PDF at the level its MIDI reads at. About 2,650 pieces, all keyboard music, prepared like the bundle and packed in a few
   zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores its pieces in
-  the background with the same meter, credited like the collection's; those already here stay as they are. The list then holds
-  about 2,950 pieces, so it's drawn again a second at a time at most while pieces are stored, and the search follows once
-  typing pauses.
+  the background with the same meter, credited like the collection's; those already here stay as they are. The Library then
+  holds about 2,950 pieces, so a list is drawn again a second at a time at most while pieces are stored, and the search follows
+  once typing pauses.
+- **Finding your way** (the Library's home): a search across everything, then **Working on** (the pieces played in the last
+  month, eight at most, the latest first, each with when it was last played and how that run went), then **Near your level**: a
+  few of the pieces to play along with whose most reads from your sight-reading level to two above it (since a piece to learn
+  sits above what you read at sight; with none there, the easiest there are), the ones not opened yet first and the rest in an
+  order of the day's, so the shelf changes daily, with all of them a tap away. Then the ways in, each a key with how many pieces
+  it holds: **Composers** (the twelve with the most, and all of them by surname under their initials), **Periods** (Baroque,
+  Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer), **Kinds** (sonatas, études, preludes and
+  fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of them
+  is a character piece), **Levels** (where most of a piece reads) and **Lists** (everything, PDFs, your imports). A list opened
+  from one of them can be cut to the pieces to play along with or the PDFs, and searched; a composer's pieces are grouped by
+  kind, any other list's by composer, and a long list starts with a key for each group. PDFs are left to their own list where
+  near your level is concerned, since a PDF's level is only about where its collection sits, or what its MIDI reads at.
+- **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from the start, at the tempo it starts
+  at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is plugged
+  in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it came with;
+  one without MIDI or read notes has nothing to play. One opening at a time: ■ stops it, another's ▶ starts that one instead, and
+  it stops by itself at the opening's end or when the Library is left. A line at the top says what's playing and where.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
