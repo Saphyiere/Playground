@@ -169,7 +169,8 @@ public class SettingsTests
         Assert.Equal(["problems"], host.Browser.ShownSections);
     }
 
-    // Start over clears what was practised and nothing of the Library: the music imported and the collection aren't progress.
+    // Start over clears what was practised and nothing of the Library: the music imported and the collection aren't progress. Then
+    // Prima opens on its welcome (the owner's rule 2, decided 15 November: YourDataTests has the rest of it).
     [Fact]
     public async Task StartingOverClearsTheProgressAndKeepsTheLibrary()
     {
@@ -180,14 +181,15 @@ public class SettingsTests
         await host.Store.AddAttemptAsync(new Prima.UI.Storage.AttemptRecord(0, DateTimeOffset.Now, today, "piece", "in time", piece.Id, 1, 72, null, null, "[]", null, $"{{\"session\":{session}}}", 0, false, null));
         await host.Store.SaveTrackAsync("drill:playback", new Prima.UI.Practice.DrillTrack(3, 0.9, 0.9, today));
         await host.Store.AddMinutesAsync(today, 5);
-        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
 
         await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.Contains("The Library stays as it is"));
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.Contains("The settings and the Library stay as they are"));
         await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
 
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "Cleared. Today starts from the beginning, with the Library as it was.");
+        Assert.Equal("http://localhost/welcome", nav.Uri);
         Assert.Equal([piece.Id], await host.Store.GetPieceIdsAsync());
         Assert.NotNull(await host.Store.GetPieceAsync(piece.Id));
         Assert.Empty(await host.Store.GetAttemptsAsync(DateOnly.MinValue));
@@ -266,7 +268,8 @@ public class SettingsTests
         var sync = host.Context.Services.GetRequiredService<Syncer>();
         await host.AddPiece();
         await host.Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), 5);
-        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
 
         await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
@@ -277,6 +280,9 @@ public class SettingsTests
         var kept = Assert.Single(sync.Status.Holding);
         Assert.Equal((SyncHeldFrom.Change, "Start over"), (kept.Held!.From, kept.Held.Why));
         Assert.Equal(1, kept.Manifest.Rows("prima.db", "PracticeDay"));
+        // Prima went on to its welcome; back in Your data, the copy is there.
+        Assert.Equal("http://localhost/welcome", nav.Uri);
+        nav.NavigateTo("settings?tab=app");
         view.WaitForAssertion(() => Assert.Equal($"Kept from before Start over · {SyncText.When(kept.Made)}", view.Find(".copies-held-head").TextContent));
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
@@ -291,7 +297,8 @@ public class SettingsTests
         await host.Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), 5);
         // A problem kept with the key in it: no copy can be taken.
         host.Problems.Keep("Error", "Prima.UI.Pages.Settings", "The key test-key was refused");
-        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
         await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
 
@@ -299,13 +306,99 @@ public class SettingsTests
 
         Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "A copy couldn't be kept first (errors.log holds a secret, which copies never take), so nothing was cleared.");
         Assert.Single(await host.Store.GetDaysAsync(DateOnly.MinValue));
+        Assert.Equal("http://localhost/settings?tab=app", nav.Uri);
 
         await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear it without a copy").ClickAsync(new MouseEventArgs()));
 
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "Cleared. Today starts from the beginning, with the Library as it was.");
+        Assert.Equal("http://localhost/welcome", nav.Uri);
         Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
         Assert.Empty(sync.Status.Holding);
         if (Directory.Exists(sync.Options.WorkFolder)) Directory.Delete(sync.Options.WorkFolder, recursive: true);
+    }
+
+    // The owner's rule 2, decided 15 November (the review of main at a7ab94d, part 6): Start over takes everything Prima keeps about
+    // the playing, so Prima is as on its first open, with the settings and the Library as they are, and then it goes to the welcome
+    // screen. That's levels and tracks, note cards and answers, every run, practice days and sessions, routines and requests, which
+    // sight-reading passages have come up, and whatever else a first open doesn't have: what's next on each piece, where it was
+    // left, its tempo, the hand practiced, when it was opened.
+    [Fact]
+    public async Task StartOverTakesEverythingAboutThePlayingAsOnAFirstOpen_TheSettingsAndTheLibraryStaying_ThenOpensTheWelcome()
+    {
+        await using var host = new ComponentHost();
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        var options = host.Context.Services.GetRequiredService<PrimaSettings>();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        // The Library: a piece with an excerpt, and the view it shows in.
+        var piece = await host.AddPiece();
+        await host.Store.SavePieceAsync(piece, await host.Store.GetMeiAsync(piece.Id), [new Prima.Core.Library.BundledExcerpt(1, 1, 4, 0.5)]);
+        await host.Store.SetSettingAsync($"Library.View.{piece.Id}", "pages");
+        // The settings, the look among them.
+        (options.Name, options.CountInBars, options.Welcomed) = ("Ana", 2, true);
+        await host.Store.SaveAsync(options);
+        host.Context.Services.GetRequiredService<LookSetting>().Choose(Look.Vinyl);
+        // The playing: levels and tracks, a note card and its answer, a passage, a practice day, a routine followed today and a
+        // request, a sight-reading passage from the piece read, a session on the piece yesterday whose run left something to do
+        // next, and the piece's place, tempo and hand.
+        await host.Store.SaveTrackAsync("reading", Prima.Core.Practice.ReadingState.Start with { Level = 3 });
+        await host.Store.SaveTrackAsync("exercise-routine", new[] { "octave-jump" });
+        await host.Store.SaveAnswerAsync(new Prima.Core.Practice.NoteCard(Prima.Core.Music.Clef.Treble, 60, 2, today, today, today),
+            new Prima.Core.Practice.NoteAnswer(DateTimeOffset.Now, Prima.Core.Music.Clef.Treble, 60, true, 900), 60, "notes");
+        await host.Store.AddAttemptAsync(new Prima.UI.Storage.AttemptRecord(0, DateTimeOffset.Now, today, "passage", null, null, 3, 66, 7, null, "[]", null, "{\"inTime\":0.9}", 0.9, false, null));
+        await host.Store.AddMinutesAsync(today, 12);
+        var routine = RoutineStoreTests.ReadyJob();
+        await host.Store.CreateRoutineJobAsync(routine);
+        await host.Store.AcceptRoutineAsync(routine.Id);
+        await host.Store.GetOrCreateRoutineDayAsync(today);
+        await host.Store.CreateRoutineJobAsync(RoutineStoreTests.ReadyJob());
+        var excerpt = Assert.Single(await host.Store.GetExcerptsAsync(4, 1, today));
+        await host.Store.MarkExcerptReadAsync(excerpt.Id, today);
+        var yesterday = DateTimeOffset.Now.AddDays(-1);
+        var session = await host.Store.StartSessionAsync(piece.Id, "standard", yesterday);
+        await host.Store.AddAttemptAsync(new Prima.UI.Storage.AttemptRecord(0, yesterday.AddMinutes(3), DateOnly.FromDateTime(yesterday.LocalDateTime), "piece", "in time", piece.Id, 1, 72, null, null, "[]", null,
+            System.Text.Json.JsonSerializer.Serialize(new { inTime = 0.0, right = 0, wrong = 1, missed = 0, from = 1, stopped = false, bar = 1, hands = "both", session, took = 12.5, trouble = new[] { new[] { 1, 1, 0, 0, 0, 0, 0, 0 } } }), 0, false, null));
+        await host.Store.SaveSessionAsync(new Prima.UI.Storage.PracticeSession(session, piece.Id, yesterday, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(1), true, yesterday.AddMinutes(3), "standard", yesterday.AddMinutes(5)));
+        await host.Store.SetPieceAsync(piece.Id, tempo: 96, position: "{\"page\":1,\"y\":0,\"from\":1,\"bar\":1}");
+        await host.Store.SetSettingAsync($"Library.Hands.{piece.Id}", "right");
+        // The piece's front says what to do next.
+        host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id)).WaitForElement(".about-next");
+        nav.NavigateTo("settings?tab=app");
+        var view = host.Context.Render<Settings>();
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+
+        // The playing has gone.
+        Assert.Null(await host.Store.GetTrackAsync<Prima.Core.Practice.ReadingState>("reading"));
+        Assert.Null(await host.Store.GetTrackAsync<string[]>("exercise-routine"));
+        Assert.Empty(await host.Store.GetCardsAsync());
+        Assert.Empty(await host.Store.GetAnswersAsync(DateTimeOffset.MinValue));
+        Assert.Empty(await host.Store.GetAttemptsAsync(DateOnly.MinValue));
+        Assert.Empty(await host.Store.GetPieceRunsAsync(piece.Id));
+        Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
+        Assert.Empty(await host.Store.GetSessionsAsync(piece.Id));
+        Assert.Null(await host.Store.GetActiveRoutineAsync());
+        Assert.Empty(await host.Store.GetRoutineJobsNotAcceptedAsync());
+        var read = await host.Store.GetExcerptAsync(excerpt.Id);
+        Assert.NotNull(read);
+        Assert.Equal((0, (DateOnly?)null), (read.Used, read.LastUsed));
+        var opened = await host.Store.GetPieceAsync(piece.Id);
+        Assert.NotNull(opened);
+        Assert.Null(opened.Position);
+        Assert.Null(opened.Tempo);
+        Assert.Null(opened.Opened);
+        var saved = await host.Store.GetSettingsAsync();
+        Assert.False(saved.ContainsKey($"Library.Hands.{piece.Id}"));
+        // The settings and the Library are as they were.
+        Assert.Equal("pages", saved[$"Library.View.{piece.Id}"]);
+        Assert.Equal("vinyl", saved["Look"]);
+        var settings = new PrimaSettings();
+        await host.Store.LoadAsync(settings);
+        Assert.Equal(("Ana", 2, true), (settings.Name, settings.CountInBars, settings.Welcomed));
+        Assert.Equal([piece.Id], await host.Store.GetPieceIdsAsync());
+        Assert.NotNull(await host.Store.GetMeiAsync(piece.Id));
+        // Then the welcome.
+        Assert.Equal("http://localhost/welcome", nav.Uri);
+        Directory.Delete(host.Context.Services.GetRequiredService<Syncer>().Options.WorkFolder, recursive: true);
     }
 
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).

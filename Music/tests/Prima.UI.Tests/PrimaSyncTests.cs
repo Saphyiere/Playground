@@ -315,7 +315,7 @@ public class PrimaSyncTests
         var view = host.Context.Render<DataCopies>();
 
         view.WaitForAssertion(() => Assert.Equal(
-            "Prima keeps a copy of everything but Claude's key in Documents/Prima backups on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore and Start over. Only what changed is written.",
+            "Prima keeps a copy of everything but Claude's key in Documents/Prima backups on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore, Start over, Remove library and Reset settings. Only what changed is written.",
             view.Find("[role=status]").TextContent));
     }
 

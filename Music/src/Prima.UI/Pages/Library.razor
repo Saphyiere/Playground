@@ -255,9 +255,28 @@ else
         <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : ""). </p>
     }
 }
-@if (pieces.Count == 0 && !Prep.Running)
+@* Prima's own pieces taken out (Settings' Remove library, or one by one) stay out until they're put back here: on an empty Library
+   that's the way on, and on the home of one with other pieces a line at the end. *@
+@if (pieces.Count == 0 && !Prep.Running && puttingBack is null)
 {
-    <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
+    @if (ownOut.All)
+    {
+        <p class="page-note">Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself. Import MusicXML, MEI, ABC, MIDI or PDF files, or put Prima's own back.</p>
+        <div class="control-row library-put-back">
+            <button type="button" class="mu-btn mu-primary" @onclick="PutBack">Put Prima's pieces back</button>
+        </div>
+    }
+    else
+    {
+        <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
+    }
+}
+else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null && OwnOut() is { } said)
+{
+    <div class="control-row library-put-back">
+        <p class="section-note">@said</p>
+        <button type="button" class="mu-btn" @onclick="PutBack">@(ownOut is { All: false, Removed.Count: 1 } ? "Put it back" : "Put them back")</button>
+    </div>
 }
 
 <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
@@ -295,6 +314,10 @@ else
     private DateTime lastLoad;
     private CancellationTokenSource? typing;
     private bool holding;
+    // Prima's own pieces kept out of the Library (all of them, after Remove library; or those removed by hand), and putting them
+    // back while it's done.
+    private (bool All, HashSet<string> Removed) ownOut = (false, []);
+    private Task? puttingBack;
 
     private string? Heading => By switch
     {
@@ -335,6 +358,32 @@ else
         pieces = await Store.GetPiecesAsync();
         periodOf = pieces.ToDictionary(p => p.Id, p => Shelves.Period(p.Composer));
         kindOf = pieces.ToDictionary(p => p.Id, p => Shelves.Kind(p.Title, p.Work));
+        ownOut = await Store.GetOwnPiecesOutAsync();
+    }
+
+    // What the home's last line says of Prima's own pieces kept out, when any are.
+    private string? OwnOut() => ownOut switch
+    {
+        { All: true } => "Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself.",
+        { Removed.Count: 1 } => "1 of Prima's own pieces is out of the Library: you removed it, and Prima won't put it back by itself.",
+        { Removed.Count: > 1 and var count } => $"{count} of Prima's own pieces are out of the Library: you removed them, and Prima won't put them back by itself.",
+        _ => null,
+    };
+
+    // Prima's own pieces back in the Library, every one: stored again as on the first open, the meter showing how far it's got.
+    private async Task PutBack()
+    {
+        note = null;
+        var putting = puttingBack = Prep.PutBackAsync();
+        try
+        {
+            await putting;
+        }
+        finally
+        {
+            puttingBack = null;
+            await Load();
+        }
     }
 
     // While pieces are stored, the list fills in (and the meter moves) a second at a time at most: with a thousand pieces listed,

@@ -357,31 +357,37 @@ else if (!finder.FoundAny)
     </Setting>
 </SettingsSection>
 
-@* The copies of everything but Claude's key (DataCopies, through the Kit's sync), then starting over. *@
+@* The copies of everything but Claude's key (DataCopies, through the Kit's sync), then the three keys that start afresh: Start over,
+   Remove library and Reset settings. Each is asked twice, the key and then the one that does it, under what goes and what stays,
+   and keeps a copy of everything first, held in Your data and named for it; when it can't, it says why, and doing it without a
+   copy is a key of its own. *@
 <SettingsSection Tab="app" Id="data" Title="Your data" Note="Everything is on this tablet: settings, levels, notes, every attempt and the music imported. Nothing leaves it unless you send it.">
     <Setting Name="Last copy" Words="Copies kept, Back up now, Restore from a backup, Export everything, backup, backups, a copy, copies, sync, restore, export, zip, Choose a folder, Choose a file, Documents, Prima backups, Claude's key">
         <DataCopies />
     </Setting>
-    <Setting Words="Start over, Clear my progress, Clear it without a copy, Keep it">
-        <div class="control-row">
-            @if (confirming)
+    <Setting Words="@DataKeyWords">
+        <div class="control-row data-keys">
+            @if (asking is { } key)
             {
-                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@clearing" @onclick="() => StartOver(true)">Clear my progress</button>
+                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: true)">@key.Does</button>
                 @if (notKept is not null)
                 {
-                    @* The copy couldn't be kept first (the note says why): clearing without one is a choice of its own. *@
-                    <button type="button" class="mu-btn" data-piano="off" disabled="@clearing" @onclick="() => StartOver(false)">Clear it without a copy</button>
+                    @* The copy couldn't be kept first (the note says why): going ahead without one is a choice of its own. *@
+                    <button type="button" class="mu-btn" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: false)">@key.WithoutCopy</button>
                 }
-                <button type="button" class="mu-btn" @onclick="() => (confirming, notKept) = (false, null)">Keep it</button>
+                <button type="button" class="mu-btn" disabled="@working" @onclick="() => (asking, notKept) = (null, null)">@key.Keep</button>
             }
             else
             {
-                <button type="button" class="mu-btn" @onclick="() => (confirming, dataNote) = (true, null)">Start over…</button>
+                @foreach (var each in DataKeys)
+                {
+                    <button type="button" class="mu-btn" @onclick="() => (asking, dataNote) = (each, null)">@(each.Name)…</button>
+                }
             }
         </div>
-        @if (confirming || dataNote is not null)
+        @if (asking is not null || dataNote is not null)
         {
-            <p class="section-note" role="status">@(!confirming ? dataNote : notKept is { } why ? $"A copy couldn't be kept first ({why}), so nothing was cleared." : "This clears your progress: levels, notes, every run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the settings. A copy of everything is kept first, held in Your data until you restore it or let it go.")</p>
+            <p class="section-note data-keys-note" role="status">@(asking is null ? dataNote : notKept is { } why ? $"A copy couldn't be kept first ({why}), so nothing was {asking.Past}." : asking.Says)</p>
         }
     </Setting>
 </SettingsSection>
@@ -457,11 +463,11 @@ else if (!finder.FoundAny)
     private string? name;
     private string? cue;
     private string? gradually;
-    private bool confirming;
-    private string? dataNote;
-    // Start over: why the copy kept first couldn't be, and whether it's clearing now.
+    // Your data's keys: the one being asked, why the copy kept first couldn't be, whether it's at work, and what it did.
+    private DataKey? asking;
     private string? notKept;
-    private bool clearing;
+    private bool working;
+    private string? dataNote;
     // Claude: the key on this tablet, masked; a line on what last happened to it (lit when it works); this month's cost by piece.
     private string? maskedKey;
     private string? keyNote;
@@ -653,23 +659,68 @@ else if (!finder.FoundAny)
         await Save(() => Options.DailyMinutes = minutes);
     }
 
-    // Clears the progress, a copy of everything kept first and held (Your data shows it), unless keeping one failed and the owner
-    // asked to clear it without.
-    private async Task StartOver(bool keep)
+    /// <summary>
+    /// One of Your data's keys: its name, which the copy it keeps first is held under; the key that does it once it's asked, and
+    /// the one that does it without a copy; the one that leaves things as they are; what it says goes and what stays; and what it
+    /// does, said of nothing when its copy couldn't be kept ("so nothing was cleared").
+    /// </summary>
+    private sealed record DataKey(string Name, string Does, string WithoutCopy, string Keep, string Says, string Past);
+
+    private const string CopyFirst = "A copy of everything is kept first, held in Your data until you restore it or let it go.";
+
+    private static readonly DataKey StartingOver = new("Start over", "Clear my progress", "Clear it without a copy", "Keep it",
+        "This clears everything Prima keeps about your playing: levels, note cards, every run, practice day and session (and so the streak), routines and requests, which sight-reading passages have come up, and on each piece what's next, where you were, its tempo and the hand practiced. The settings and the Library stay as they are, with the music imported and the collection. Then Prima opens on its welcome, as it did the first time. " + CopyFirst,
+        "cleared");
+
+    private static readonly DataKey RemovingLibrary = new("Remove library", "Remove every piece", "Remove them without a copy", "Keep them",
+        "This takes every piece out of the Library, Prima's own too, with their files, readings and excerpts, and Prima won't put its own back by itself: the Library has a key that does. Your progress stays (the runs on the pieces that go still count), and so do the settings. " + CopyFirst,
+        "removed");
+
+    private static readonly DataKey ResettingSettings = new("Reset settings", "Reset the settings", "Reset them without a copy", "Keep them",
+        "This puts everything on this screen back as a new install has it: your name, minutes and cue, the practice and keyboard settings, the timing, the click, the look and the notation. Claude's key and the copies in Your data stay, and so do your progress and the Library. Then Prima opens on its welcome, which asks for the timing again. " + CopyFirst,
+        "reset");
+
+    private static readonly DataKey[] DataKeys = [StartingOver, RemovingLibrary, ResettingSettings];
+
+    // What they're found by: their names, their keys' words, and what they're about.
+    private static readonly string DataKeyWords = string.Join(", ", DataKeys.SelectMany(k => new[] { k.Name, k.Does, k.WithoutCopy, k.Keep }))
+        + ", progress, every piece, Prima's own pieces, the welcome, a new install";
+
+    // Does what the key asked does, a copy of everything kept first and held (Your data shows it), unless keeping one failed and the
+    // owner asked to go ahead without. Start over and Reset settings then open Prima's welcome, as on its first open.
+    private async Task Do(DataKey key, bool keepCopy)
     {
-        clearing = true;
+        working = true;
         try
         {
-            if (keep) await Sync.KeepAsync("Start over");
+            if (keepCopy) await Sync.KeepAsync(key.Name);
         }
         catch (Exception e)
         {
-            // Nothing is cleared: the note says why, and clearing without a copy is offered.
-            (notKept, clearing) = (e.Message.TrimEnd('.'), false);
+            // Nothing is done: the note says why, and going ahead without a copy is offered.
+            (notKept, working) = (e.Message.TrimEnd('.'), false);
             return;
         }
-        await Store.StartOverAsync();
-        (confirming, notKept, clearing, dataNote) = (false, null, false, "Cleared. Today starts from the beginning, with the Library as it was.");
+
+        if (key == RemovingLibrary)
+        {
+            var removed = await Store.RemoveLibraryAsync();
+            (asking, notKept, working, dataNote) = (null, null, false, removed == 0
+                ? "The Library was empty already. Prima won't put its own pieces in by itself now: the Library has a key for that."
+                : $"Took {(removed == 1 ? "1 piece" : $"{removed.ToString("N0", CultureInfo.InvariantCulture)} pieces")} out of the Library. Prima won't put its own back by itself: the Library has a key for that. Your runs on them still count.");
+            return;
+        }
+
+        if (key == StartingOver) await Store.StartOverAsync();
+        else
+        {
+            // Read again, so every screen has them (the look too) as a new install would.
+            await Store.ResetSettingsAsync();
+            await Store.LoadAsync(Options);
+            await LookSetting.ReloadAsync();
+        }
+        (asking, notKept, working) = (null, null, false);
+        Navigation.Open("welcome");
     }
 
     private static readonly int[] Minutes = [5, 10, 15, 20, 30, 45];

@@ -110,6 +110,12 @@ public sealed partial class PrimaStore
     // its own, so with no rows to take one from (a new data file, an id that isn't there) the row can't be read with it.
     private const string NotesRead = "Format = 'pdf' AND Mei IS NOT NULL";
 
+    // Prima's own pieces kept out of the Library, which it doesn't put back by itself: all of them once Remove library took them
+    // out (Settings › Your data), and one removed by hand under its id. Kept among the settings, so a copy and a restore carry
+    // them, and Reset settings, which puts back only what's on the Settings screen, leaves them.
+    private const string OwnPiecesOutKey = "Library.OwnPiecesOut";
+    private const string RemovedKey = "Library.Removed.";
+
     /// <summary>The folder imported files are kept in, beside the data file.</summary>
     public string FilesPath => Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", "library");
 
@@ -139,10 +145,17 @@ public sealed partial class PrimaStore
     /// <summary>The pieces already in the Library, by id: so a bundled piece is prepared once.</summary>
     public Task<HashSet<string>> GetPieceIdsAsync() => RunAsync(async c => (await c.QueryAsync<string>("SELECT Id FROM Piece")).ToHashSet());
 
-    /// <summary>Saves a piece with its MEI (null for a PDF) and its excerpts, replacing any it had.</summary>
-    public Task SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<BundledExcerpt> excerpts) => RunAsync(async c =>
+    /// <summary>
+    /// Saves a piece with its MEI (null for a PDF) and its excerpts, replacing any it had: false, and nothing saved, for one of
+    /// Prima's own that's kept out of the Library (all of them after Remove library, or this one removed by hand), so nothing
+    /// that comes after puts it back (the bundle still being stored, or a reading of it kept).
+    /// </summary>
+    public Task<bool> SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<BundledExcerpt> excerpts) => RunAsync(async c =>
     {
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        if (piece.Origin == "bundle" && await c.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Setting WHERE Key IN (@all, @one)",
+            new { all = OwnPiecesOutKey, one = RemovedKey + piece.Id }, transaction) > 0) return false;
+
         await c.ExecuteAsync($"""
             INSERT INTO Piece ({PieceColumns}, Mei) VALUES (@Id, @Origin, @Title, @Composer, @Work, @Format, @File, @Midi, @Level, @TypicalLevel, @Reasons, @Bars, @Source, @SourceUrl, @Licence, @LicenceUrl, @Credit, @Tier, @Tempo, @Layout, @Position, @Added, @Opened, @mei)
             ON CONFLICT (Id) DO UPDATE SET Title = excluded.Title, Composer = excluded.Composer, Work = excluded.Work, Format = excluded.Format, File = excluded.File, Midi = excluded.Midi,
@@ -156,12 +169,14 @@ public sealed partial class PrimaStore
                 new { piece = piece.Id, first = cut.FirstBar, last = cut.LastBar, level = cut.Level, within = cut.Within }, transaction);
         }
         await transaction.CommitAsync();
+        return true;
     });
 
     /// <summary>
     /// The bundle's pieces, by the id and title each is kept under, against those already here, as one piece of work: their
     /// details from the bundle (a PDF's level comes with them, until its notes are read; a notation piece's is its own), and the bundled pieces it no
-    /// longer has taken out with their excerpts.
+    /// longer has taken out with their excerpts. One removed by hand that the bundle no longer has isn't kept out any more: there's
+    /// nothing of it to put back.
     /// </summary>
     public Task RefreshBundleAsync(IReadOnlyList<(string Id, string Title, BundledPiece Piece)> pieces) => RunAsync(async c =>
     {
@@ -169,6 +184,8 @@ public sealed partial class PrimaStore
         var ids = pieces.Select(p => p.Id).ToList();
         await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece IN (SELECT Id FROM Piece WHERE Origin = 'bundle' AND Id NOT IN @ids)", new { ids }, transaction);
         await c.ExecuteAsync("DELETE FROM Piece WHERE Origin = 'bundle' AND Id NOT IN @ids", new { ids }, transaction);
+        var removed = ids.Select(id => RemovedKey + id).ToList();
+        await c.ExecuteAsync("DELETE FROM Setting WHERE substr(Key, 1, @length) = @prefix AND Key NOT IN @removed", new { length = RemovedKey.Length, prefix = RemovedKey, removed }, transaction);
         foreach (var (id, title, p) in pieces)
         {
             await c.ExecuteAsync("""
@@ -219,21 +236,97 @@ public sealed partial class PrimaStore
         });
 
         // A PDF's file and its MIDI, kept beside the imports, go with it.
-        foreach (var file in gone.Where(p => p.Format == "pdf").SelectMany(p => new[] { p.File, p.Midi }).OfType<string>())
-        {
-            try
-            {
-                File.Delete(Path.Combine(FilesPath, file));
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                // Left where it is: it takes up room, nothing more.
-            }
-        }
+        DeleteFiles(Beside(gone.Where(p => p.Format == "pdf").SelectMany(p => new[] { p.File, p.Midi })));
         return (changed, gone.Count);
     }
 
     public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
+
+    /// <summary>
+    /// Takes a piece out of the Library by hand (its Remove from the Library…), with its excerpts and readings, and an import's or a
+    /// collection's PDF and MIDI kept beside the data file. One of Prima's own stays out from then on: the Library doesn't put it
+    /// back when it stores Prima's pieces again, until it's asked to put them all back. Its runs and practice sessions stay, as
+    /// any piece's that goes do: the days still count them.
+    /// </summary>
+    public async Task RemovePieceAsync(string id)
+    {
+        var gone = await RunAsync(async c =>
+        {
+            await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+            var piece = await c.QuerySingleOrDefaultAsync<(string Origin, string Format, string? File, string? Midi)?>("SELECT Origin, Format, File, Midi FROM Piece WHERE Id = @id", new { id }, transaction);
+            if (piece?.Origin == "bundle")
+            {
+                await c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @at) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value",
+                    new { key = RemovedKey + id, at = Iso(DateTimeOffset.Now) }, transaction);
+            }
+            await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }, transaction);
+            await transaction.CommitAsync();
+            return piece;
+        });
+        if (gone is { Origin: not "bundle", Format: "pdf" } kept) DeleteFiles(Beside([kept.File, kept.Midi]));
+    }
+
+    /// <summary>
+    /// Takes every piece out of the Library (Settings › Your data › Remove library), Prima's own too, as one piece of work: their
+    /// excerpts, readings and what reading a PDF made, and the files of those imported or from a collection. Prima's own are kept
+    /// out from then on: the Library doesn't put them back by itself, as the bundle is stored or a new release brings more, until
+    /// it's asked to (<see cref="PutOwnPiecesBackAsync"/>). The runs and practice sessions on them stay, so the days and the streak
+    /// are as they were, and so does everything else. How many pieces went.
+    /// </summary>
+    public async Task<int> RemoveLibraryAsync()
+    {
+        var (count, files) = await RunAsync(async c =>
+        {
+            await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+            var count = await c.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Piece", transaction: transaction);
+            var files = (await c.QueryAsync<(string? File, string? Midi)>("SELECT File, Midi FROM Piece WHERE Origin <> 'bundle' AND Format = 'pdf'", transaction: transaction))
+                .SelectMany(f => new[] { f.File, f.Midi }).ToList();
+            // A reading's systems and review, and its conversion's jobs, go with their piece (they're its own, by its id).
+            await c.ExecuteAsync("DELETE FROM Excerpt; DELETE FROM PieceReading; DELETE FROM Piece", transaction: transaction);
+            await c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @at) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value",
+                new { key = OwnPiecesOutKey, at = Iso(DateTimeOffset.Now) }, transaction);
+            await transaction.CommitAsync();
+            return (count, files);
+        });
+        DeleteFiles(Beside(files));
+        // What reading the PDFs made (the systems' pictures and engravings), which no piece left has any use for.
+        var made = Path.ChangeExtension(databasePath, ".conversion");
+        if (Directory.Exists(made)) DeleteFiles(Directory.GetFiles(made));
+        return count;
+    }
+
+    /// <summary>
+    /// Which of Prima's own pieces are kept out of the Library, which it doesn't put back by itself: all of them (after Remove
+    /// library), and those removed by hand, by id.
+    /// </summary>
+    public Task<(bool All, HashSet<string> Removed)> GetOwnPiecesOutAsync() => RunAsync(async c =>
+    {
+        var keys = (await c.QueryAsync<string>("SELECT Key FROM Setting WHERE Key = @all OR substr(Key, 1, @length) = @prefix",
+            new { all = OwnPiecesOutKey, length = RemovedKey.Length, prefix = RemovedKey })).ToList();
+        return (keys.Contains(OwnPiecesOutKey), keys.Where(k => k != OwnPiecesOutKey).Select(k => k[RemovedKey.Length..]).ToHashSet());
+    });
+
+    /// <summary>Lets every one of Prima's own pieces back into the Library, those removed by hand too: the Library stores them again.</summary>
+    public Task PutOwnPiecesBackAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Setting WHERE Key = @all OR substr(Key, 1, @length) = @prefix",
+        new { all = OwnPiecesOutKey, length = RemovedKey.Length, prefix = RemovedKey }));
+
+    // Pieces' files in the Library's folder, by their names.
+    private IEnumerable<string> Beside(IEnumerable<string?> names) => names.OfType<string>().Select(name => Path.Combine(FilesPath, name));
+
+    // Files that go with what was taken out, each left where it is if it can't go: it takes up room, nothing more.
+    private static void DeleteFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+    }
 
     /// <summary>A PDF's reading: waiting to be reviewed, or kept; null when it has none.</summary>
     public Task<PieceReading?> GetReadingAsync(string piece) => RunAsync(async c => (await c.QuerySingleOrDefaultAsync<(string Piece, string Result, string Saved, string? Kept)?>(

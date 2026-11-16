@@ -440,26 +440,25 @@ else
                     <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture) from @piece.File.</li>
                 }
             </ul>
-            @if (piece.Origin != "bundle" || piece.IsPdf && mei is not null && pdfBytes is not null)
+            <div class="control-row">
+                @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
+                {
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="ReadTheNotes">Convert PDF again</button>
+                }
+                @if (removing)
+                {
+                    <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
+                    <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
+                }
+                else
+                {
+                    <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
+                }
+            </div>
+            @* One of Prima's own goes as an import does, and stays out: Prima doesn't put it back by itself. *@
+            @if (removing && piece.Origin == "bundle")
             {
-                <div class="control-row">
-                    @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
-                    {
-                        <button type="button" class="mu-btn" data-piano="off" @onclick="ReadTheNotes">Convert PDF again</button>
-                    }
-                    @if (piece.Origin == "bundle")
-                    {
-                    }
-                    else if (removing)
-                    {
-                        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
-                        <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
-                    }
-                    else
-                    {
-                        <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
-                    }
-                </div>
+                <p class="section-note" role="status">One of Prima's own pieces: it stays out of the Library, and Prima won't put it back by itself (the Library has a key that puts Prima's own back). Your runs on it still count.</p>
             }
         </section>
         @if (stage == Stage.Practice && clock is { Paused: true } && !Pdf)
@@ -1744,14 +1743,11 @@ else
         hearing = true;
     }
 
+    // Out of the Library with its excerpts and readings, and the files a PDF that isn't Prima's own keeps beside the imports; one of
+    // Prima's own stays out.
     private async Task Remove()
     {
-        // A PDF that isn't the bundle's keeps its file, and maybe its MIDI, beside the imports.
-        if (piece is { IsPdf: true } && piece.Origin != "bundle")
-        {
-            foreach (var file in new[] { piece.File, piece.Midi }.OfType<string>()) File.Delete(Path.Combine(Store.FilesPath, file));
-        }
-        await Store.DeletePieceAsync(Id);
+        await Store.RemovePieceAsync(Id);
         Nav.NavigateTo("library");
     }
 

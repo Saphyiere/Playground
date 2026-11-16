@@ -4,6 +4,7 @@ using Dapper;
 using Microsoft.Data.Sqlite;
 using Playground.Kit;
 using Prima.Core.Timing;
+using Prima.UI.Looks;
 
 namespace Prima.UI.Storage;
 
@@ -99,6 +100,23 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.PassWaits = saved.GetValueOrDefault(PassWaitsKey) == "true";
         settings.RunAgain = saved.GetValueOrDefault(RunAgainKey) == "true";
     }
+
+    /// <summary>
+    /// Reset settings: everything on the Settings screen back to how a new install has it, as one piece of work: the profile, the
+    /// practice settings, the keyboard's, the timing, the click, the look and the notation, and the welcome to be done again (a new
+    /// install's first open). Read them again (<see cref="LoadAsync"/>) to have them. Claude's key isn't here (it's in the tablet's
+    /// secure storage), nor are the copies; and the rest stays: the touch Keyboard check measured, how a run's summary was left, each
+    /// piece's view and hand, how each screen plays, the Library's own choices, the progress.
+    /// </summary>
+    public Task ResetSettingsAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Setting WHERE Key IN @keys", new
+    {
+        keys = new[]
+        {
+            NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey,
+            SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, ClickVolumeKey,
+            LookSetting.Key, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
+        },
+    }));
 
     /// <summary>Saves every setting in <paramref name="settings"/>, as one piece of work.</summary>
     public Task SaveAsync(PrimaSettings settings) => RunAsync(async c =>
