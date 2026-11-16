@@ -21,8 +21,11 @@ public static class Opening
         var changes = score.TempoChanges();
         var perMinute = changes.Count > 0 && changes[0] is { Index: 0, Tick: 0 } first ? first.PerMinute : score.MainTempo() ?? 80;
         var secondsPerTick = 60 / perMinute / Ticks.Quarter;
+        // The notes are timed from the first full bar's downbeat, so a pickup's come before it: the opening starts with the first
+        // bar, upbeat and all.
+        var from = score.BarStarts().Select(b => b.Start).FirstOrDefault();
         return [.. score.Expected()
-            .Select(n => new FileNote(n.Midi, n.Tick * secondsPerTick, (n.Tick + n.Length) * secondsPerTick, 72))
+            .Select(n => new FileNote(n.Midi, (n.Tick - from) * secondsPerTick, (n.Tick - from + n.Length) * secondsPerTick, 72))
             .Where(n => n.Start < seconds)
             .Select(n => n with { End = Math.Min(n.End, seconds + Ring) })
             .OrderBy(n => n.Start)

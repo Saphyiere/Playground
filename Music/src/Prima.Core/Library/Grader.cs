@@ -30,10 +30,13 @@ public static class Grader
         // Every note with where it sits: bar start, staff, the clef in force, and its event.
         var clefs = new Dictionary<int, Clef> { [1] = Clef.Treble, [2] = Clef.Bass };
         var notes = new List<(long At, int Staff, Clef Clef, Notes Event, Meter Meter)>();
+        // A staff with no keys to play in it, like a drum part's (its notes are kept only as their time), isn't read by the pianist:
+        // its own rests, and any tuplet on its unseen notes, don't grade the music.
+        var keyed = score.Bars.SelectMany(b => b.Voices).Where(v => v.Events.OfType<Notes>().Any()).Select(v => v.Staff).ToHashSet();
         var barStart = 0L;
         foreach (var (bar, _, meter) in signatures)
         {
-            foreach (var voice in bar.Voices)
+            foreach (var voice in bar.Voices.Where(v => keyed.Contains(v.Staff)))
             {
                 foreach (var e in voice.Events)
                 {

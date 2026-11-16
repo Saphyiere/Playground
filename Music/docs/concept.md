@@ -432,7 +432,8 @@ a PDF plays out; this is what came of it.
   heard on the piano and scrolled at its tempo. One piece imported opens; several stay in the Library with a line saying
   what came in and what couldn't: a file that can't be read is named there, whatever it trips on, and the others still come
   in. A part with no pitches, like a drum kit's, is printed with the piece but has no keys to play: its notes only keep their
-  time. A MIDI file is written out as notation first, since it holds
+  time, and its own rests and marks (its loud and soft) aren't the pianist's to read, so they don't change the piece's level
+  or how its playing is judged. A MIDI file is written out as notation first, since it holds
   when notes sound, not how they're written: the hands from its tracks (or middle C), the bars from its time signatures, the
   key from its signature or its notes, each beat snapped to sixteenths, thirty-seconds or triplets, a hand's held notes as a
   second voice, ties across beats and barlines, and its first tempo kept, unprinted, as the piece's own. Notation software lets each note go a little before its written end (a file

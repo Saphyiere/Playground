@@ -12,7 +12,7 @@ namespace Prima.Core.Music;
 /// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A note under an 8va, 15ma or 8vb line is read
 /// at the octave it sounds (its oct.ges, which Verovio writes from MusicXML), keeping the one it's printed in as the tone's
 /// <see cref="Tone.Ottava"/>; the line itself Verovio engraves. A note without a pitch, like a drum part's, isn't played: it takes
-/// its time as an unseen rest. A piece's slurs, dynamics, hairpins, pedal
+/// its time as an unseen rest, and the drum part's own marks aren't read. A piece's slurs, dynamics, hairpins, pedal
 /// marks and ornaments are read as its <see cref="Score.FileMarks"/>, for judging how it's played; Verovio engraves them from
 /// the MEI itself.
 /// </summary>
@@ -39,6 +39,8 @@ public static class MeiReader
         // Each bar's metre, and the marks the bars hold beside their staves (slurs, dynamics, pedal…), placed once all are read.
         var meters = new List<Meter>();
         var controls = new List<(int Bar, XElement Mark)>();
+        // The staves with notes that have no pitch: a drum part's.
+        var unpitched = new HashSet<int>();
         Key? newKey = null;
         Meter? newMeter = null;
         var number = 0;
@@ -65,6 +67,7 @@ public static class MeiReader
                     reader.ReadChildren(layer, 1, 1);
                     voices.Add(new Voice(staffNumber, reader.Events, (int?)layer.Attribute("n") ?? 1));
                     length = Math.Max(length, reader.Tick);
+                    if (reader.Unpitched) unpitched.Add(staffNumber);
                 }
             }
 
@@ -107,6 +110,8 @@ public static class MeiReader
         // The marks: on a note (startid), or by the beat (tstamp, the metre's beats from 1), tied to the note at or before it on its
         // staff with the ticks between; an end the same way (endid, or tstamp2: "2m+3" is two bars on, beat 3).
         var fileMarks = new List<Mark>();
+        // A drum part: a staff whose notes have no pitch, with no key to play anywhere on it.
+        unpitched.ExceptWith(bars.SelectMany(b => b.Voices).Where(v => v.Events.OfType<Notes>().Any()).Select(v => v.Staff));
         foreach (var (index, control) in controls)
         {
             // A roll's sign names what it's on: a chord or a note each, in one staff or both.
@@ -118,6 +123,8 @@ public static class MeiReader
             }
 
             var staves = ((string?)control.Attribute("staff") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(n => int.Parse(n, CultureInfo.InvariantCulture)).ToList();
+            // A drum part's own mark (its loud and soft) is left to it: on the piano's notes it would be judged as the pianist's.
+            if (staves.Count > 0 && staves.All(unpitched.Contains)) continue;
             if (Place(index, (string?)control.Attribute("startid"), (string?)control.Attribute("tstamp")) is not { } start) continue;
 
             var ahead = Regex.Match((string?)control.Attribute("tstamp2") ?? "", @"^(\d+)m\+([\d.]+)$");
@@ -217,6 +224,9 @@ public static class MeiReader
 
         public int Tick { get; private set; }
 
+        /// <summary>Whether a note without a pitch (a drum's) was read.</summary>
+        public bool Unpitched { get; private set; }
+
         public void ReadChildren(XElement parent, int actual, int normal, Tuplet? tuplet = null, bool grace = false)
         {
             foreach (var child in parent.Elements())
@@ -260,6 +270,7 @@ public static class MeiReader
             {
                 if (length > 0) Events.Add(new Rest(IdOf(element), Tick, length) { Tuplet = tuplet, Hidden = true });
                 Tick += length;
+                Unpitched = true;
                 return;
             }
 
