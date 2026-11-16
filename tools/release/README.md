@@ -28,6 +28,11 @@ installs over the apps on the devices. Here a build on Windows stops instead: pu
 it somewhere safe, since GitHub never shows its secret again. (A cloud session's builds are signed with a debug key of that
 machine's own; they never reach the devices.)
 
+Local builds are fixed to that file's alias and passwords (`androiddebugkey`, `android`), while the workflow takes its key store,
+alias and passwords from its secrets. So moving the releases to another key means changing Directory.Build.targets with it, and
+`PlaygroundSigningSha256` in Directory.Build.props: otherwise every build from the PC would stop at the install guard, and no
+release would install over a Debug build or the other way round.
+
 ## Installing from the PC
 
 On 15 November 2026, a Release build installed from the PC (`dotnet build -c Release -t:Install`) erased Prima's data on the
@@ -45,15 +50,20 @@ another key, or with a lower versionCode than the device's copy. No setting turn
   when the device's copy is signed with another key (the message names both), has a newer versionCode, or the build would install
   a bundle or has `AndroidPreserveUserData` set to false. Before any of that, and whatever the device holds, it stops an install
   that isn't signed with the devices' key (its certificate's SHA-256 against `PlaygroundSigningSha256`), naming both keys: a key
-  store made afresh while the file was missing would otherwise put a copy on a device that no release could update. Beyond that,
-  with no device connected, or the app not on it, it does nothing. It
+  store made afresh while the file was missing would otherwise put a copy on a device that no release could update. Where it
+  can't check, it refuses too, saying what to do: adb won't start or answer, no device is ready or more than one is, or the built
+  manifest is missing. `-p:PlaygroundInstallUnchecked=true` lets one install through without the check, with a warning that says
+  so. With the app not on the device there's nothing to compare, and the install goes ahead. It
   reads the device's copy with `adb shell dumpsys package`, which gives its key as a short hash of the certificate
   (`signatures:[12828f8f]` for the devices' key), and the build's key with `apksigner`. When those don't match, it pulls the app
   file from the device and reads its key with `apksigner` before deciding. If it stops a deploy, build with the key the device's
   copy has; to replace the app anyway, back up its data, uninstall it from the device yourself, and deploy again.
 - **Release is never built or installed on the PC.** A release is what the workflow builds, tests, signs and tags from what's on
-  GitHub, and the apps update themselves from it. To try a change on a device, back up the app's data, then deploy a Debug build
-  from Visual Studio: it installs over a release and keeps the data, and the next release installs over it the same way.
+  GitHub, and the apps update themselves from it. An app's Release build on Windows stops before anything is built
+  ([Directory.Build.targets](../../Directory.Build.targets)), unless its command line gives its own signing, as the workflow's
+  does; `-p:PlaygroundAllowReleaseBuild=true` allows one anyway. To try a change on a device, back up the app's data, then deploy
+  a Debug build from Visual Studio: it installs over a release and keeps the data, and the next release installs over it the
+  same way.
 
 ## Once: give GitHub the key
 

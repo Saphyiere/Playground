@@ -74,6 +74,9 @@ public class PlaygroundInstallGuard : Task
     /// <summary>The key store the build signed with, named when it isn't the devices' key.</summary>
     public string KeyStore { get; set; }
 
+    /// <summary>"true" (PlaygroundInstallUnchecked) to let one install through where the guard can't check, rather than refuse it.</summary>
+    public string Unchecked { get; set; }
+
     const int TimedOut = -1;
     const int NotStarted = int.MinValue;
 
@@ -107,22 +110,23 @@ public class PlaygroundInstallGuard : Task
 
         // adb's server first, without reading what it writes, so no command below starts it and then waits on it.
         string output;
-        Run(Adb, "start-server", 60, false, out output);
+        if (Run(Adb, "start-server", 60, false, out output) == NotStarted)
+            return CantCheck("adb couldn't be started (" + Adb + "), so the install guard can't tell whether installing " + app + " would " +
+                "erase its data. Nothing was installed. Check the Android SDK's platform-tools are installed and try again.");
 
         string state;
         if (Run(Adb, Args("get-state"), 30, true, out state) == TimedOut)
-            return Stop("adb didn't answer (get-state: " + state + "), so the install guard can't tell whether installing " + app +
-                " would erase its data. Nothing was installed.");
+            return CantCheck("adb didn't answer (get-state: " + state + "), so the install guard can't tell whether installing " + app +
+                " would erase its data. Nothing was installed. Try again; if it keeps happening, `adb kill-server` first.");
         if (state.IndexOf("more than one device", StringComparison.OrdinalIgnoreCase) >= 0)
-            return Stop("More than one device is connected, and the install guard can't tell which one " + app + " would be installed on. " +
+            return CantCheck("More than one device is connected, and the install guard can't tell which one " + app + " would be installed on. " +
                 "Nothing was installed. Choose one: the device list in Visual Studio, or -p:AdbTarget=\"-s <serial>\" on the command line " +
                 "(adb devices lists the serials).");
+        // With no device ready the guard can't see the copy it would replace, so the install doesn't go ahead blind.
         if (!Regex.IsMatch(state, @"^device\s*$", RegexOptions.Multiline))
-        {
-            Log.LogMessage(MessageImportance.Normal, "Install guard: no device is ready ({0}), so there's no copy of {1} to compare with.",
-                OneLine(state), app);
-            return true;
-        }
+            return CantCheck("No device is ready for " + app + " (" + OneLine(state) + "), so the install guard can't compare it with the copy " +
+                "on the device. Nothing was installed. Connect the device, unlock it and allow USB debugging (adb devices should list it as " +
+                "device), then try again.");
 
         string model;
         if (Run(Adb, Args("shell getprop ro.product.model"), 30, true, out model) == 0 && OneLine(model).Length > 0)
@@ -130,8 +134,8 @@ public class PlaygroundInstallGuard : Task
 
         string dump;
         if (Run(Adb, Args("shell dumpsys package " + PackageName), 60, true, out dump) != 0)
-            return Stop("adb couldn't read the apps on " + device + " (dumpsys package: " + OneLine(dump) + "), so the install guard can't " +
-                "tell whether installing " + app + " would erase its data. Nothing was installed.");
+            return CantCheck("adb couldn't read the apps on " + device + " (dumpsys package: " + OneLine(dump) + "), so the install guard " +
+                "can't tell whether installing " + app + " would erase its data. Nothing was installed. Try again.");
         Match header = Regex.Match(dump, @"^[ \t]*Package \[" + Regex.Escape(PackageName) + @"\]", RegexOptions.Multiline);
         if (!header.Success)
         {
@@ -154,6 +158,10 @@ public class PlaygroundInstallGuard : Task
 
         Match installedVersion = Regex.Match(entry, @"versionCode=(\d+)");
         long builtVersion = BuiltVersionCode();
+        if (builtVersion < 0 && !CantCheck("The built AndroidManifest.xml isn't there (" + ManifestFile + "), so the install guard can't " +
+                "compare " + app + "'s versionCode with the copy on " + device + ": a lower one would make .NET for Android uninstall the app, " +
+                "erasing its data. Nothing was installed. Build it again (a full build, not only the install), then install."))
+            return false;
         if (installedVersion.Success && builtVersion >= 0 && long.Parse(installedVersion.Groups[1].Value) > builtVersion)
             return Stop(app + " on " + device + " has versionCode " + installedVersion.Groups[1].Value + ", newer than this build's " +
                 builtVersion + ". Android refuses a lower versionCode as an update, and .NET for Android would then uninstall the app, " +
@@ -206,6 +214,19 @@ public class PlaygroundInstallGuard : Task
     {
         Log.LogError(message);
         return false;
+    }
+
+    // Where the guard can't check, it refuses, saying what to do, unless the build is told once to go ahead without the check: then
+    // it goes ahead, saying so. true to go on with the install.
+    bool CantCheck(string message)
+    {
+        if (string.Equals(Unchecked, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.LogWarning(message.Replace(" Nothing was installed.", "") + " Installing anyway, without the guard's check, as " +
+                "PlaygroundInstallUnchecked asks.");
+            return true;
+        }
+        return Stop(message + " To install anyway, once, without this check: -p:PlaygroundInstallUnchecked=true.");
     }
 
     string Args(string command)

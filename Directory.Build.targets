@@ -47,6 +47,17 @@
     <Error Text="The devices' signing key isn't on this PC: $(PlaygroundSigningKeyStore). Every Playground app is signed with it, and an app signed with any other key won't install over the copy on a device, so nothing was signed. Put the file back from your backup (tools/release/README.md, One key for every build)." />
   </Target>
 
+  <!--
+    Release isn't built on the PC: a release is what the Release workflow builds, tests and signs from GitHub, and the apps update
+    themselves from it (tools/release/README.md). A Release build installed from here once erased Prima's data (an app bundle,
+    uninstalled first), and one built here proves nothing the workflow's doesn't. So an app's Release build on Windows stops before
+    anything is built, unless its command line gives its own signing, as the workflow's does, or it's allowed once.
+  -->
+  <Target Name="PlaygroundNoReleaseOnThePc" BeforeTargets="BeforeBuild"
+          Condition="'$(AndroidApplication)' == 'true' and '$(Configuration)' == 'Release' and '$(OS)' == 'Windows_NT' and '$(PlaygroundSigningGiven)' != 'true' and '$(PlaygroundAllowReleaseBuild)' != 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Text="$(MSBuildProjectName) isn't built as Release on the PC: a release is what the Release workflow builds, tests and signs from GitHub, and the apps update themselves from it (tools/release/README.md). A Release build installed from here once erased Prima's data. To try a change on a device, build Debug. To build Release here anyway, once: -p:PlaygroundAllowReleaseBuild=true." />
+  </Target>
+
   <!-- Stops an install that would erase an app's data on the device. -->
   <Import Project="$(MSBuildThisFileDirectory)tools/build/InstallGuard.targets" Condition="'$(AndroidApplication)' == 'true'" />
 

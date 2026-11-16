@@ -45,6 +45,7 @@
         DevicesKeySha256="$(PlaygroundSigningSha256)"
         CheckDevicesKey="$(_PlaygroundCheckDevicesKey)"
         KeyStore="$(AndroidSigningKeyStore)"
+        Unchecked="$(PlaygroundInstallUnchecked)"
         PreserveUserData="$(AndroidPreserveUserData)" />
   </Target>
 
