@@ -145,7 +145,8 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
     }
 
     public async Task<RoutineGenerationJob?> GetJobAsync(string id) { await recovered; return await store.GetRoutineJobAsync(id); }
-    public async Task<IReadOnlyList<RoutineGenerationJob>> RecentAsync() { await recovered; return await store.GetRoutineJobsAsync(); }
+    /// <summary>The requests that aren't routines yet, newest first: every one, however many were accepted after it.</summary>
+    public async Task<IReadOnlyList<RoutineGenerationJob>> RecentAsync() { await recovered; return await store.GetRoutineJobsNotAcceptedAsync(); }
 
     public async Task RunAsync(string id, CancellationToken hostStopped = default)
     {

@@ -25,8 +25,13 @@ public sealed partial class PrimaStore
     public Task<RoutineGenerationJob?> GetRoutineJobAsync(string id) => RunAsync(async c =>
         ReadRoutine<RoutineGenerationJob>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineGeneration WHERE Id = @id", new { id })));
 
-    public Task<List<RoutineGenerationJob>> GetRoutineJobsAsync() => RunAsync(async c =>
-        (await c.QueryAsync<string>("SELECT Data FROM RoutineGeneration ORDER BY Updated DESC LIMIT 30")).Select(d => ReadRoutine<RoutineGenerationJob>(d)!).ToList());
+    /// <summary>
+    /// Every request that isn't a routine yet, newest first. All of them, not the last few updated: accepting a request updates it,
+    /// so a few taken from all would let one still waiting drop off behind the routines accepted after it.
+    /// </summary>
+    public Task<List<RoutineGenerationJob>> GetRoutineJobsNotAcceptedAsync() => RunAsync(async c =>
+        (await c.QueryAsync<string>("SELECT Data FROM RoutineGeneration WHERE State <> @accepted ORDER BY Updated DESC", new { accepted = (int)RoutineGenerationState.Accepted }))
+            .Select(d => ReadRoutine<RoutineGenerationJob>(d)!).ToList());
 
     public Task CreateRoutineJobAsync(RoutineGenerationJob job) => RunAsync(c => c.ExecuteAsync(
         "INSERT INTO RoutineGeneration(Id,Revision,State,Updated,Data) VALUES(@Id,@Revision,@state,@updated,@data)",

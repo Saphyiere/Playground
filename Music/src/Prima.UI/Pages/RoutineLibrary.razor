@@ -126,7 +126,7 @@ else
             active = await Routines.ActiveAsync();
             day = active is null ? null : await Routines.TodayAsync();
             routines = await Routines.RoutinesAsync();
-            asked = [.. (await Routines.RecentAsync()).Where(j => j.State != RoutineGenerationState.Accepted)];
+            asked = await Routines.RecentAsync();
             practiced = await Routines.LastPracticedAsync();
         }
         catch (Exception error)

@@ -458,9 +458,10 @@ and switch between them. **Ask for routine** in its head asks for another (Exerc
 
 - **Following**: the routine Today has, with its minutes, activities and how many are done today, **Practice it** (My routine,
   its activities to start) and **Use the standard daily plan**. With none followed, Today has the daily plan.
-- **Asked for**: requests that aren't routines yet, newest first, each with what it's called, where it is (Asking Claude…,
-  Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and when. Each opens the request: its
-  proposal to look over and use, or why it didn't finish and **Retry request**. The list follows a request as it changes.
+- **Asked for**: every request that isn't a routine yet, however many are accepted after it, newest first, each with what it's
+  called, where it is (Asking Claude…, Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and
+  when. Each opens the request: its proposal to look over and use, or why it didn't finish and **Retry request**. The list
+  follows a request as it changes.
 - **Your routines**: every routine accepted, newest first, an adjusted one too (Adjusted), each a card with its minutes and
   activities, its summary, its activities by name, when it was accepted and last practiced, and its piece. **Follow** makes it
   the one Today has; the one followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its
