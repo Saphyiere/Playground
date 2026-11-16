@@ -59,7 +59,10 @@ public sealed record Notes(string Id, int Start, int Length, IReadOnlyList<Tone>
 
 public sealed record Rest(string Id, int Start, int Length) : Event(Start, Length)
 {
-    /// <summary>Takes the time without printing a rest: for a hand that's silent in a pickup, or a drill item's empty staff.</summary>
+    /// <summary>
+    /// Takes the time without printing a rest: for a hand that's silent in a pickup, a drill item's empty staff, or a note read from
+    /// a file with no key to play (a drum's).
+    /// </summary>
     public bool Hidden { get; init; }
 }
 

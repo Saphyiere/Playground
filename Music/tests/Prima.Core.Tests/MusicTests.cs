@@ -324,6 +324,39 @@ public class MusicTests
         Assert.Equal("Fixture", read.Title);
     }
 
+    // A piano piece with a drum part under it, as Verovio writes one from MusicXML: the drum's notes have no pitch, only a place on
+    // their staff (loc). An eighth on the snare, an eighth rest, a grace note (a flam) and a quarter of bass drum and cymbal.
+    private const string WithADrumPart = """
+        <mei xmlns="http://www.music-encoding.org/ns/mei"><music><body><mdiv><score>
+        <scoreDef meter.count="2" meter.unit="4" key.sig="0"><staffGrp>
+        <staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp>
+        <staffDef n="3" lines="5" clef.shape="perc"/>
+        </staffGrp></scoreDef>
+        <section>
+        <measure n="1">
+        <staff n="1"><layer n="1"><note xml:id="a" pname="e" oct="5" dur="4"/><note xml:id="b" pname="d" oct="5" dur="4"/></layer></staff>
+        <staff n="2"><layer n="1"><note xml:id="c" pname="c" oct="3" dur="2"/></layer></staff>
+        <staff n="3"><layer n="1">
+        <note xml:id="d" loc="5" dur="8" stem.dir="up"/><rest xml:id="e" dur="8"/><note xml:id="f" loc="5" dur="8" grace="acc"/>
+        <chord xml:id="g" dur="4"><note xml:id="g1" loc="1"/><note xml:id="g2" loc="9" head.shape="x"/></chord>
+        </layer></staff>
+        </measure>
+        </section></score></mdiv></body></music></mei>
+        """;
+
+    [Fact]
+    public void ADrumPartsNotesArentPlayedButKeepTheirTime()
+    {
+        var read = MeiReader.Read(WithADrumPart);
+
+        // Only the piano's notes are played: C3 under E5 and D5.
+        Assert.Equal([(0L, 48), (0, 76), (480, 74)], read.Expected().Select(n => (n.Tick, n.Midi)));
+        // The drum's take their time unseen, as a hand's silent space would, around its own rest; the grace note takes none.
+        var drums = read.Bars[0].Voices.Single(v => v.Staff == 3).Events.OfType<Rest>();
+        Assert.Equal([("d", 0, 240, true), ("e", 240, 240, false), ("g", 480, 480, true)], drums.Select(r => (r.Id, r.Start, r.Length, r.Hidden)));
+        Assert.Null(read.Bars[0].Length);
+    }
+
     // An 8va line over a bar's last three notes and a chord, as Verovio writes it from MusicXML: each note under it printed in its
     // written octave (oct) with the one it sounds in (oct.ges). F♯5 comes before the line, F5 in the bar after.
     private const string UnderAn8va = """
