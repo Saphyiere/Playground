@@ -153,6 +153,12 @@
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize == 0)" @onclick="() => Save(() => Options.SheetSize = 0)"><span class="mu-led"></span>Printed</button>
         <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize > 0)" @onclick="() => Save(() => Options.SheetSize = 1)"><span class="mu-led"></span>Larger</button>
     </div>
+    <div class="control-row">
+        <span class="control-label">Lyrics</span>
+        <button type="button" class="mu-toggle" aria-pressed="@On(Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = true)"><span class="mu-led"></span>On</button>
+        <button type="button" class="mu-toggle" aria-pressed="@On(!Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = false)"><span class="mu-led"></span>Off</button>
+    </div>
+    <p class="section-note">A song's words, under its notes, each verse and each voice's on a line of its own. Off, a song's sheet is the music alone. A song's options have it too.</p>
     <Sheet Mei="@Sample" Class="settings-sheet" />
 </section>
 

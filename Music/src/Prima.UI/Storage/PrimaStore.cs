@@ -30,6 +30,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string PianoButtonsKey = "Keyboard.PianoButtons";
     private const string MusicFontKey = "Notation.Font";
     private const string SheetSizeKey = "Notation.SheetSize";
+    private const string LyricsKey = "Notation.Lyrics";
     private const string NameKey = "Profile.Name";
     private const string MinutesKey = "Profile.DailyMinutes";
     private const string CueKey = "Profile.Cue";
@@ -78,6 +79,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.PianoButtons = saved.GetValueOrDefault(PianoButtonsKey) != "false";
         settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? defaults.MusicFont;
         settings.SheetSize = (int?)Number(SheetSizeKey) ?? defaults.SheetSize;
+        settings.Lyrics = saved.GetValueOrDefault(LyricsKey) != "false";
         settings.Name = saved.GetValueOrDefault(NameKey) ?? defaults.Name;
         settings.DailyMinutes = (int?)Number(MinutesKey) ?? defaults.DailyMinutes;
         settings.Cue = saved.GetValueOrDefault(CueKey) ?? defaults.Cue;
@@ -113,6 +115,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (PianoButtonsKey, settings.PianoButtons ? "true" : "false"),
             (MusicFontKey, settings.MusicFont),
             (SheetSizeKey, settings.SheetSize.ToString(CultureInfo.InvariantCulture)),
+            (LyricsKey, settings.Lyrics ? "true" : "false"),
             (NameKey, settings.Name),
             (MinutesKey, settings.DailyMinutes.ToString(CultureInfo.InvariantCulture)),
             (CueKey, settings.Cue),

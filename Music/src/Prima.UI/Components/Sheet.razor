@@ -60,13 +60,30 @@
 
     [Parameter] public EventCallback<SheetSymbol> OnSymbolTapped { get; set; }
 
+    /// <summary>
+    /// The words under the notes are Prima's own (a note's name, a count, as the glossary prints them), not a song's lyrics: they're
+    /// printed as written, at Verovio's size, whatever Settings says about lyrics.
+    /// </summary>
+    [Parameter] public bool Names { get; set; }
+
+    /// <summary>
+    /// Whether a song's words are printed under its notes; null follows Settings. A page that turns them on and off beside its
+    /// sheet (a piece's Options) passes the setting, so the sheet is drawn again when it changes.
+    /// </summary>
+    [Parameter] public bool? Lyrics { get; set; }
+
     private bool explained;
+
+    // The music as Verovio is given it (SongWords), kept for the MEI and the lyrics setting it was made for: a page turned, or the
+    // sheet drawn again at another size, needn't make it again.
+    private (string Mei, bool Lyrics, string Music)? prepared;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (disposed) return;
         var size = Settings.SheetSize switch { < 0 => 0.85, > 0 => 1.2, _ => 1.0 };
-        var key = $"{Mei.Length}|{Mei.GetHashCode()}|{Layout}|{Scale}|{Page}|{Header}|{Measures}|{Settings.MusicFont}|{size}";
+        var lyrics = Names || (Lyrics ?? Settings.Lyrics);
+        var key = $"{Mei.Length}|{Mei.GetHashCode()}|{Layout}|{Scale}|{Page}|{Header}|{Measures}|{Settings.MusicFont}|{size}|{lyrics}";
         if (key == drawn)
         {
             if (module is null || explained == Explain) return;
@@ -92,9 +109,14 @@
                 module = imported;
             }
             if (disposed || drawn != key) return;
+            var music = await MusicAsync(lyrics);
+            if (disposed || drawn != key) return;
             self ??= DotNetObjectReference.Create(this);
             var onsets = Onsets?.Select(o => new object[] { o.Id, o.Quarter }).ToArray();
-            await module.InvokeVoidAsync("render", element, Mei, new { layout = Layout, staffMm = StaffMm * size * Scale, font = Settings.MusicFont, page = Page, header = Header, measures = Measures, onsets, explain = Explain }, self, ownerId);
+            // A song's words to print: Verovio sets them a little smaller than its own lyrics, and smaller still where a line can't
+            // hold them apart.
+            var words = !Names && lyrics && music.Contains("<verse", StringComparison.Ordinal);
+            await module.InvokeVoidAsync("render", element, music, new { layout = Layout, staffMm = StaffMm * size * Scale, font = Settings.MusicFont, page = Page, header = Header, measures = Measures, onsets, explain = Explain, words }, self, ownerId);
         }
         catch (JSDisconnectedException)
         {
@@ -102,6 +124,19 @@
         catch (Exception e) when (disposed && e is JSException or ObjectDisposedException)
         {
         }
+    }
+
+    // The music for Verovio: Prima's own names under notes as written; a piece's song words each on a line of their own, or left off
+    // when Settings hides them (SongWords). A long piece's MEI is made ready away from the screen's thread.
+    private async Task<string> MusicAsync(bool lyrics)
+    {
+        if (Names) return Mei;
+        if (prepared is { } kept && ReferenceEquals(kept.Mei, Mei) && kept.Lyrics == lyrics) return kept.Music;
+
+        var mei = Mei;
+        var music = mei.Length < 100_000 ? SongWords.Prepare(mei, lyrics) : await Task.Run(() => SongWords.Prepare(mei, lyrics));
+        prepared = (mei, lyrics, music);
+        return music;
     }
 
     [JSInvokable]

@@ -21,7 +21,7 @@ function toolkit() {
         const script = document.createElement("script");
         script.src = "_content/Prima.UI/verovio/verovio-toolkit-wasm.js";
         script.onload = () => {
-            const ready = () => resolve(new verovio.toolkit());
+            const ready = () => resolve(withTextFont(new verovio.toolkit()));
             if (verovio.module.calledRun) ready();
             else verovio.module.onRuntimeInitialized = ready;
         };
@@ -29,6 +29,37 @@ function toolkit() {
         document.head.appendChild(script);
     });
     return toolkitPromise;
+}
+
+// The words in the music (a song's lyrics, directions, the tempo, fingering) are set in Liberation Serif, the face Verovio measures
+// them by and carries with it, so they're drawn as wide as it spaced them for. Left to the device's own serif they weren't: Android
+// has no Times, and its serif is wider and taller, so a song's syllables ran into each other. Verovio puts the face's four styles
+// in every drawing (380 KB): they're taken from a first small one and given to the page once, and left out of each drawing after.
+let textFont = false;
+async function withTextFont(tk) {
+    try {
+        tk.setOptions({ fontTextLiberation: true });
+        tk.loadData('<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.0"><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="4" dur="1"><verse n="1"><syl>a</syl></verse></note></layer></staff><dir staff="1" tstamp="1">a <rend fontweight="bold">b</rend></dir><tempo staff="1" tstamp="1">a</tempo></measure></section></score></mdiv></body></music></mei>');
+        const faces = [...tk.renderToSVG(1).matchAll(/@font-face\s*\{([^}]*)\}/g)].map(m => m[1]).filter(face => /font-family:\s*"Liberation"/.test(face));
+        const added = faces.map(face => {
+            const data = atob(face.match(/base64,([A-Za-z0-9+/=]+)/)[1]);
+            const bytes = Uint8Array.from(data, c => c.charCodeAt(0));
+            const font = new FontFace("Liberation", bytes, { weight: face.match(/font-weight:\s*(\w+)/)?.[1] ?? "normal", style: face.match(/font-style:\s*(\w+)/)?.[1] ?? "normal" });
+            document.fonts.add(font);
+            return font.load();
+        });
+        await Promise.all(added);
+        textFont = added.length === 4;
+    } catch {
+        // Then each drawing keeps the faces Verovio puts in it.
+    }
+    tk.resetOptions();
+    return tk;
+}
+
+// A drawing without the text faces Verovio put in it, once the page has them.
+function withoutTextFaces(svg) {
+    return textFont ? svg.replace(/@font-face\s*\{[^}]*font-family:\s*"Liberation"[^}]*\}/g, "") : svg;
 }
 
 // Imported and bundled music in, MEI out: a toolkit of its own, so a conversion never disturbs a sheet on screen. `kind` is the
@@ -68,7 +99,7 @@ export async function engrave(mei, width) {
         svgViewBox: true,
         svgHtml5: true,
     });
-    if (!engraver.loadData(withoutVerses(mei))) throw new Error("Verovio couldn't read the reading.");
+    if (!engraver.loadData(mei)) throw new Error("Verovio couldn't read the reading.");
     const svg = engraver.renderToSVG(1);
 
     // Laid out off screen at the width asked, to find the bars, then drawn on white into a PNG of that width.
@@ -111,8 +142,9 @@ export function pixelsPerMm() {
 }
 
 // Engraves `mei` into the sheet: options are layout ("line": a passage, its systems as wide as the sheet; "scroll": a whole
-// piece down one sheet; "page": one page the sheet's size), staffMm, font, page and header. Redraws by itself when the sheet's
-// width changes, and tells .NET when it has painted.
+// piece down one sheet; "page": one page the sheet's size), staffMm, font, page, header, and words (the music has a song's words
+// to print: .NET has given each a line of its own, SongWords). Redraws by itself when the sheet's width changes, and tells .NET
+// when it has painted.
 export async function render(element, mei, options, dotnet, ownerId) {
     if (!element?.isConnected) return;
     if (ownerId) renderOwners.set(ownerId, element);
@@ -122,8 +154,8 @@ export async function render(element, mei, options, dotnet, ownerId) {
     if (!element.isConnected || renderRequests.get(element) !== request) return;
     const state = sheets.get(element) ?? { number: ++sheetCount, moves: [], kept: new Map() };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's), and so
-    // do the drawings kept of it. What Verovio is given is the music without its verses.
-    if (state.mei !== mei) Object.assign(state, { marks: null, music: withoutVerses(mei), kept: new Map() });
+    // do the drawings kept of it and the size its words were fitted at.
+    if (state.mei !== mei) Object.assign(state, { marks: null, music: mei, kept: new Map(), fitted: null });
     Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay"), line: [...element.children].find(c => c.classList.contains("sheet-cursor")) });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
@@ -150,6 +182,15 @@ export async function render(element, mei, options, dotnet, ownerId) {
     }
 }
 
+// A song's words, a little smaller than Verovio prints lyrics by itself (its lyricSize, in half staff-spaces: 4.5 is a printed
+// song's 11 point on the 7 mm staff, and with a busy tune the words outweigh the notes and spread them): about the 9.5 point a book
+// is set in. Smaller only where a line can't hold its bars' words apart otherwise (a busy song, the tablet upright): small words
+// are read more easily than words run together. Never below the last of these. Verovio sets all of a piece's words at this size
+// (its tempo, directions, the part's name), so a song's go with its lyrics. Prima's own words under notes (a note's name), and
+// everything else's, keep Verovio's size.
+const wordSizes = [3.8, 3.3, 2.9, 2.5];
+const ownWordSize = 4.5;
+
 function draw(element, state) {
     const { tk, options } = state;
     const music = element.querySelector(".sheet-music");
@@ -164,8 +205,7 @@ function draw(element, state) {
     // Fingering is printed over the top staff, and a mark's words (the name of a wrong key) go over the fingering: a deeper
     // top margin leaves them room there, over their own note.
     const fingered = /<fing[\s>]/.test(state.music);
-    const previous = state.loaded;
-    state.loaded = {
+    const paper = {
         font: options.font,
         scale: 100,
         pageWidth: Math.max(600, Math.round(state.width * unitsPerPx)),
@@ -181,11 +221,12 @@ function draw(element, state) {
         pageMarginBottom: 24,
         svgViewBox: true,
         svgHtml5: true,
+        fontTextLiberation: true,
     };
     // The whole piece at a size it was drawn at before (out of full screen, or the tablet turned back): the drawing kept then
     // goes back on the paper, rather than the piece being laid out and drawn again, which on a long piece takes seconds. The
     // last three sizes' drawings are kept.
-    const key = options.layout === "scroll" ? JSON.stringify([state.loaded, options.measures ?? null, options.page ?? 1]) : null;
+    const key = options.layout === "scroll" ? JSON.stringify([paper, options.measures ?? null, options.page ?? 1, !!options.words]) : null;
     const kept = key ? state.kept.get(key) : null;
     if (kept) {
         state.kept.delete(key);
@@ -194,40 +235,88 @@ function draw(element, state) {
         music.querySelectorAll("[class*='mark-']").forEach(n => n.classList.remove(...markKinds));
         // The engraver still has the size laid out last: anything asked of it, or drawn next, lays this one out first.
         if (tk.current === state.number) tk.current = 0;
-        Object.assign(state, { pages: kept.pages, timemap: kept.timemap, laidOut: null });
+        Object.assign(state, { pages: kept.pages, timemap: kept.timemap, loaded: kept.loaded, laidOut: null });
         finish(element, state);
         return;
     }
 
+    // A song's words at the largest size whose lines hold them apart, starting from the size that did on this paper before (a
+    // page turned, say): a passage's bars shared evenly first, then its lines broken where their bars fit, then smaller.
+    const kind = JSON.stringify([paper, options.measures ?? null]);
+    let size = state.fitted?.kind === kind ? state.fitted.size : 0;
+    let even = true;
+    let turnedOnly = true;
+    for (;;) {
+        const { shared, turned } = lay(element, state, { ...paper, lyricSize: options.words ? wordSizes[size] : ownWordSize }, even);
+        turnedOnly &&= turned;
+        if (!options.words || !crowded(music)) break;
+        if (shared) even = false;
+        else if (size < wordSizes.length - 1) [size, even] = [size + 1, true];
+        else break;
+    }
+    state.fitted = { kind, size };
+    // When each moment of the music is, as laid out last (its time doesn't change with the layout): a page turned keeps its own.
+    if (!turnedOnly) state.timemap = tk.renderToTimemap({ includeMeasures: true });
+    if (key) {
+        state.kept.set(key, { drawing: [...music.childNodes], pages: state.pages, timemap: state.timemap, loaded: state.loaded });
+        if (state.kept.size > 3) state.kept.delete(state.kept.keys().next().value);
+    }
+    finish(element, state);
+}
+
+// Lays the music out with these options and draws the page showing. Returns whether a passage's bars were shared evenly between
+// its lines (only when `even` allows it), and whether the layout was the one the toolkit had, only another page of it drawn.
+function lay(element, state, loaded, even) {
+    const { tk, options } = state;
+    const music = element.querySelector(".sheet-music");
+    const previous = state.loaded;
+    state.loaded = loaded;
     // Another page of music laid out already (a page turn): only that page is drawn, the toolkit keeping the layout it has.
     // Anything else (other music or bars, another size or option, or the toolkit given another sheet's) is laid out afresh.
-    const laid = state.tk.current === state.number && state.laidOut === state.music && state.laidBars === options.measures;
-    const turned = laid && JSON.stringify(previous) === JSON.stringify(state.loaded);
+    const laid = tk.current === state.number && state.laidOut === state.music && state.laidBars === options.measures;
+    const turned = laid && JSON.stringify(previous) === JSON.stringify(loaded);
     if (!turned) {
-        tk.setOptions(state.loaded);
+        tk.setOptions(loaded);
         load(tk, state, state.music);
         state.pages = tk.getPageCount();
     }
     [state.laidOut, state.laidBars] = [state.music, options.measures];
-    music.innerHTML = tk.renderToSVG(Math.min(options.page ?? 1, state.pages));
+    music.innerHTML = withoutTextFaces(tk.renderToSVG(Math.min(options.page ?? 1, state.pages)));
     // A passage's bars are shared evenly between its systems, so the last one isn't left with a bar on its own. Not a whole
     // piece's ("scroll"): its bars differ too much for a line of each to hold as many, and the full ones would be squeezed. Its
     // lines break where the bars fit, and a last line that's short keeps its bars' own widths.
     const systems = music.querySelectorAll(".system");
     const bars = music.querySelectorAll(".measure").length;
-    if (options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
+    let shared = false;
+    if (even && options.layout === "line" && systems.length > 1 && systems[systems.length - 1].querySelectorAll(".measure").length < Math.ceil(bars / systems.length) - 1) {
         tk.setOptions({ breaks: "encoded" });
         load(tk, state, withSystemBreaks(state.music, Math.ceil(bars / systems.length), firstMeasure(options)));
         state.pages = tk.getPageCount();
-        music.innerHTML = tk.renderToSVG(1);
+        music.innerHTML = withoutTextFaces(tk.renderToSVG(1));
         state.laidOut = null;
+        shared = true;
     }
-    if (!turned) state.timemap = tk.renderToTimemap({ includeMeasures: true });
-    if (key) {
-        state.kept.set(key, { drawing: [...music.childNodes], pages: state.pages, timemap: state.timemap });
-        if (state.kept.size > 3) state.kept.delete(state.kept.keys().next().value);
+    return { shared, turned };
+}
+
+// Whether a song's words run into each other anywhere on the page: on a line of them (the syllables sharing a baseline), one
+// starting before the one before it has ended and left a pixel's room. Verovio leaves a word's space between words and a
+// hyphen's between syllables, so touching means the line was squeezed. Measured as drawn, in the face they're set in; each line
+// is one verse on one system.
+function crowded(music) {
+    const lines = new Map();
+    for (const syllable of music.querySelectorAll(".syl text")) {
+        const r = syllable.getBoundingClientRect();
+        if (r.width === 0) continue;
+        const line = Math.round(r.bottom);
+        if (!lines.has(line)) lines.set(line, []);
+        lines.get(line).push(r);
     }
-    finish(element, state);
+    for (const line of lines.values()) {
+        line.sort((a, b) => a.left - b.left);
+        for (let i = 1; i < line.length; i++) if (line[i].left < line[i - 1].right + 1) return true;
+    }
+    return false;
 }
 
 // New paper, drawn or put back: what was drawn over the old one goes, and so does what was found on it (each id's place, the
@@ -256,19 +345,6 @@ function load(tk, state, mei) {
 
 function firstMeasure(options) {
     return options.measures ? parseInt(options.measures, 10) - 1 : 0;
-}
-
-// The MEI without a song's verses, where an import kept them as words under the music (a whole verse to a direction): they'd
-// lie over each other and stretch their bars to fit, and they're not for playing. The directions a player reads (dolce,
-// cresc., rit., D.C. al Fine) are short, and stay.
-function withoutVerses(mei) {
-    if (!mei.includes("<dir")) return mei;
-    const ns = "http://www.music-encoding.org/ns/mei";
-    const doc = new DOMParser().parseFromString(mei, "application/xml");
-    const verses = [...doc.getElementsByTagNameNS(ns, "dir")].filter(d => d.textContent.trim().length > 60);
-    if (verses.length === 0) return mei;
-    for (const verse of verses) verse.remove();
-    return new XMLSerializer().serializeToString(doc);
 }
 
 // The MEI with a system break before every `perSystem`th bar, counting from the first shown.
@@ -880,11 +956,11 @@ function label(element, state, text, x, y, kind = "sheet-label", forId = null) {
         t.appendChild(s);
     });
     overlay.appendChild(t);
-    // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering),
-    // which are found once for the music as it's drawn.
+    // In the way: the marks' words already there, and the music's own (a figure's named first note, a dynamic, the fingering, a
+    // song's words over a lower staff), which are found once for the music as it's drawn.
     if (!state.words) {
         const sheet = element.getBoundingClientRect();
-        state.words = [...element.querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+        state.words = [...element.querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing, .sheet-music .syl text")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
     }
     const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint")].filter(o => o !== t).map(o => o.box), ...state.words];
     // The words are measured once and their box moved with them: measuring again after each move, and against every other
