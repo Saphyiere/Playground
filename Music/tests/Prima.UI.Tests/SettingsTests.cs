@@ -164,7 +164,7 @@ public class SettingsTests
         Assert.Equal("App & data", Selected(view));
         Assert.Contains("The screen at /library stopped: no strip", view.Find("#problems").TextContent);
         // Once the page has what it reads as it opens, so nothing drawn above it moves it after.
-        Assert.Equal("problems", await host.Browser.SectionShown.Task.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal("problems", await host.Browser.SectionShown.Task.WaitAsync(TimeSpan.FromSeconds(10), Xunit.TestContext.Current.CancellationToken));
         Assert.Equal(["problems"], host.Browser.ShownSections);
     }
 
