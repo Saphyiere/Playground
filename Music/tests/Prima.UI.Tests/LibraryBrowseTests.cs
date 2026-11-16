@@ -155,6 +155,29 @@ public class LibraryBrowseTests
         Assert.Empty(speaker.Played);
     }
 
+    // The owner's rule 27, decided 15 November (the review of main at a7ab94d, part 5): the Library's search folds accents, so
+    // "Dvorak" finds Dvořák, on the home and on All composers.
+    [Fact]
+    public async Task TheLibrarysSearchFoldsAccentsSoDvorakFindsDvorak()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        await Add(host, "humoresque", "Antonín Dvořák", "Humoresque, Op. 101 No. 7", "Humoresques");
+        var view = host.Context.Render<Pages.Library>();
+        view.WaitForAssertion(() => Assert.Contains("Composers", view.FindAll(".section-title").Select(h => h.TextContent)));
+
+        await view.InvokeAsync(() => view.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "Dvorak" }));
+
+        view.WaitForAssertion(() => Assert.Equal(["Humoresque, Op. 101 No. 7"], view.FindAll(".piece-title").Select(t => t.TextContent)), TimeSpan.FromSeconds(3));
+
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composers");
+        var composers = host.Context.Render<Pages.Library>();
+        composers.WaitForAssertion(() => Assert.Equal(4, composers.FindAll(".shelf-chip").Count));
+        await composers.InvokeAsync(() => composers.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "dvorak" }));
+
+        composers.WaitForAssertion(() => Assert.Equal(["Antonín Dvořák 1"], composers.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())), TimeSpan.FromSeconds(3));
+    }
+
     private static async Task WaitFor(Func<bool> condition)
     {
         for (var waited = 0; !condition(); waited += 20)

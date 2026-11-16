@@ -80,4 +80,52 @@ public class BrowsingTests
             Assert.Equal(wrote.Velocity, back.Velocity);
         }
     }
+
+    // The owner's rules for the shelves and openings, decided 15 November (the review of main at a7ab94d, part 5).
+
+    // 22. The known double surnames are read whole (Vaughan Williams, Mendelssohn Bartholdy at least), and a name written
+    // "Surname, First" or ending "Jr." is read right.
+    [Theory]
+    [InlineData("Ralph Vaughan Williams", "Vaughan Williams")]
+    [InlineData("Felix Mendelssohn Bartholdy", "Mendelssohn Bartholdy")]
+    [InlineData("Bach, Johann Sebastian", "Bach")]
+    [InlineData("Vaughan Williams, Ralph", "Vaughan Williams")]
+    [InlineData("John Philip Sousa Jr.", "Sousa")]
+    [InlineData("John Philip Sousa, Jr.", "Sousa")]
+    [InlineData("Strauss II, Johann", "Strauss")]
+    public void KnownDoubleSurnamesAreReadWholeAndANameWrittenSurnameFirstOrEndingJrIsReadRight(string composer, string surname) =>
+        Assert.Equal(surname, Shelves.Surname(composer));
+
+    // 23. Periods, by name: Hans Leo Hassler with the earliest shelf there is, the hymn composer William G. Fischer in Romantic,
+    // Johann Christoph Friedrich Bach in Classical, Richard Strauss in the shelf after Romantic if there is one.
+    [Fact]
+    public void HasslerFischerJCFBachAndRichardStraussAreShelvedByTheirOwnNames()
+    {
+        Assert.Equal(Shelves.Periods[0], Shelves.Period("Hans Leo Hassler"));
+        Assert.Equal("Romantic", Shelves.Period("William G. Fischer"));
+        Assert.Equal("Romantic", Shelves.Period("William Gustavus Fischer"));
+        Assert.Equal("Classical", Shelves.Period("Johann Christoph Friedrich Bach"));
+        Assert.Equal(Shelves.Periods[Shelves.Periods.ToList().IndexOf("Romantic") + 1], Shelves.Period("Richard Strauss"));
+        // Their namesakes keep theirs.
+        Assert.Equal("Classical", Shelves.Period("Johann Wilhelm Hässler"));
+        Assert.Equal("Baroque", Shelves.Period("Johann Caspar Ferdinand Fischer"));
+        Assert.Equal("Romantic", Shelves.Period("Johann Strauss II"));
+        Assert.Equal("Baroque", Shelves.Period("Johann Sebastian Bach"));
+    }
+
+    // 24. Fantasies, capriccios and toccatas come out of "Preludes and fugues" into the kind that suits each; "Cake-walk" is read
+    // as a cakewalk, and "Doctor Gradus ad Parnassum" isn't an étude.
+    [Theory]
+    [InlineData("Fantasia in C minor, K. 475", "Piano pieces", "Character pieces")]
+    [InlineData("Rondo a Capriccio", "Op. 129", "Character pieces")]
+    [InlineData("Toccata in C major, Op. 7", "Piano pieces", "Character pieces")]
+    [InlineData("Bagatelle, Op. 6 No. 7 (Allegretto molto capriccioso)", "14 Bagatelles, Op. 6", "Character pieces")]
+    [InlineData("Polonaise-Fantasie (F. Op.61)", null, "Dances")]
+    [InlineData("Fantasia and Fugue in C minor, Wq. 119/7", "Keyboard works", "Preludes and fugues")]
+    [InlineData("Toccata & Fugue in D minor BWV 565", null, "Preludes and fugues")]
+    [InlineData("Golliwogg's Cake-walk", "Children's Corner", "Dances")]
+    [InlineData("Doctor Gradus ad Parnassum", "Children's Corner", "Character pieces")]
+    [InlineData("Gradus ad Parnassum, No. 1", null, "Études")]
+    public void FantasiesCapricciosAndToccatasGoWhereTheySuitACakeWalkIsADanceAndDoctorGradusIsntAnEtude(string title, string? work, string kind) =>
+        Assert.Equal(kind, Shelves.Kind(title, work));
 }

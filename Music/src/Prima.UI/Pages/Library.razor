@@ -86,7 +86,7 @@ else if (note is not null)
 @if (By == "composers")
 {
     // Every composer, listed by surname under its first letter; Find here leaves the ones whose names have what's typed.
-    var found = Composers().Where(c => string.IsNullOrWhiteSpace(search) || c.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+    var found = Composers().Where(c => string.IsNullOrWhiteSpace(search) || Shelves.Finds(c.Name, search)).ToList();
     @foreach (var letter in found.GroupBy(c => Initial(c.Name)).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
     {
         <section class="settings-section" aria-labelledby="@($"letter-{letter.Key}")">
@@ -369,7 +369,8 @@ else
         (holding, search) = (false, e.Value?.ToString());
     }
 
-    // The pieces of the list open, in the format chosen, found by the search; the home's search looks through everything.
+    // The pieces of the list open, in the format chosen, found by the search (accents aside: "Dvorak" finds Dvořák); the home's
+    // search looks through everything.
     private IEnumerable<PieceRecord> Shown()
     {
         var (from, to) = By == "near" ? NearLevels() : default;
@@ -388,7 +389,7 @@ else
             "notation" => p.PlaysAlong,
             "pdf" => p.IsPdf,
             _ => true,
-        }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+        }).Where(p => string.IsNullOrWhiteSpace(search) || Shelves.Finds($"{p.Title} {p.Composer} {p.Work}", search));
     }
 
     // Where most of a piece reads, as its level shelf has it; 0 when it isn't graded.

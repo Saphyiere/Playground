@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Prima.Core.Library;
@@ -17,22 +19,30 @@ public static class Shelves
     public static readonly IReadOnlyList<string> Kinds = ["Sonatas", "Études", "Preludes and fugues", "Dances", "Character pieces", "Chorales and hymns", "Variations"];
 
     // Each period's composers, as the Library and imports name them. Earlier lines win: the teaching composers before their
-    // periods, C. P. E., J. C. and W. F. Bach (Classical) before their father (Baroque).
+    // periods, C. P. E., J. C., J. C. F. and W. F. Bach (Classical) before their father (Baroque), and first of all the few whose
+    // name another composer's pattern would take: Hans Leo Hassler, older than any shelf, with the earliest there is (not with
+    // J. W. Hässler), the hymn composer William G. Fischer with the Romantics (not with J. C. F. Fischer), and Richard Strauss
+    // after them (not with Johann).
     private static readonly (string Period, Regex Who)[] Composers =
     [
         .. new (string, string)[]
         {
+            ("Baroque", @"\bhans leo h(ä|a|ae)(ss|ß)ler\b|\bh(ä|a|ae)(ss|ß)ler,\s*hans leo\b"),
+            ("Romantic", @"\bwilliam (g\.?|gustavus) fischer\b|\bfischer,\s*william\b"),
+            ("1890–1930", @"\brichard strauss\b|\bstrauss,\s*richard\b"),
             ("Teaching pieces", @"czerny|burgm(ü|u|ue)ller|gurlitt|lemoine|duvernoy|k(ö|o|oe)hler|\bbeyer\b|bertini|streabbog|gobbaerts|\bhanon\b|spindler|lichner|concone|l(o|ö)e?schhorn|\bbehr\b|oesten|wohlfahrt|ellmenreich|\bt(ü|u)rk\b|le couppey|\bbiehl\b"),
             ("Ragtime", @"joplin|turpin|scott hayden|james scott|joseph lamb|charles hunter|\bsousa\b"),
             ("1890–1930", @"debussy|\bsatie\b|\bravel\b|scriabin|skryabin|rachmaninoff|rachmaninov|bart(ó|o)k|poulenc|prokofiev|jan(á|a)(č|c)ek|\breger\b|busoni|medtner|glazunov|stanchinsky|lyapunov|liapunov|granados|alb(é|e)niz|chaminade|\belgar\b"),
-            ("Classical", @"c\.?\s?p\.?\s?e\.?\s?bach|carl philipp emanuel|j\.?\s?c\.?\s?bach|johann christian bach|friedemann|\bhaydn|mozart|clementi|ko(ž|z)eluc?h|dussek|dus(í|i)k|kuhlau|diabelli|beethoven|pleyel|vanhal|wanhal|\bbenda\b|\bneefe\b|h(ä|a|ae)(ss|ß)ler|cimarosa|antonio soler|kirnberger|johann andr(é|e)|james hook|eberhardt? m(ü|u)ller|\bhummel\b|\bcramer\b"),
+            ("Classical", @"c\.?\s?p\.?\s?e\.?\s?bach|carl philipp emanuel|j\.?\s?c\.?\s?bach|johann christian bach|j\.?\s?c\.?\s?f\.?\s?bach|johann christoph friedrich bach|friedemann|\bhaydn|mozart|clementi|ko(ž|z)eluc?h|dussek|dus(í|i)k|kuhlau|diabelli|beethoven|pleyel|vanhal|wanhal|\bbenda\b|\bneefe\b|h(ä|a|ae)(ss|ß)ler|cimarosa|antonio soler|kirnberger|johann andr(é|e)|james hook|eberhardt? m(ü|u)ller|\bhummel\b|\bcramer\b"),
             ("Romantic", @"schubert|mendelssohn|\bhensel\b|chopin|schumann|\bliszt\b|\bbrahms\b|john field|\bweber\b|\bgrieg\b|tchaikovsk|tschaikowsk|mussorgsk|moussorgsk|borodin|rimsky|balakirev|glinka|dvo(ř|r)(á|a)k|smetana|\balkan\b|\bheller\b|moscheles|thalberg|henselt|\braff\b|reinecke|godard|chabrier|c(é|e)sar franck|saint-sa(ë|e)ns|\bbizet\b|gounod|massenet|\bwagner\b|\bverdi\b|moszkowski|arensky|lyadov|liadov|gottschalk|macdowell|blumenthal|adolphe adam|minkus|\bstrauss\b|rubinstein|\bascher\b|faur(é|e)\b|peja(č|c)evi|\bpease\b|yaniewicz|\bcui\b"),
             ("Baroque", @"\bbach\b|h(a|ä|ae)ndel|scarlatti|couperin|rameau|purcell|telemann|pachelbel|frescobaldi|sweelinck|froberger|buxtehude|\bbyrd\b|gibbons|john bull|\bfischer\b|daquin|\broyer\b|kuhnau|petzold|zipoli|muffat|corelli|vivaldi|\bb(ö|o)hm\b"),
         }.Select(c => (c.Item1, new Regex(c.Item2, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))),
     ];
 
     // Each kind by words in a piece's title or work; earlier lines win, so a sonata's minuet is a sonata's and a suite's
-    // allemande a dance.
+    // allemande a dance. A fantasy, a capriccio or a toccata is none of the forms by its name: it goes by what else its title
+    // says (a fantasy and fugue with the fugues, a polonaise-fantasy with the dances), and otherwise with the character pieces.
+    // Debussy's Doctor Gradus ad Parnassum makes fun of Clementi's studies; it isn't one.
     private static readonly (string Kind, Regex What)[] KindWords =
     [
         .. new (string, string)[]
@@ -40,9 +50,9 @@ public static class Shelves
             ("Chorales and hymns", @"\bchorales?\b|\bchoral\b|\bhymn|\bpsalm"),
             ("Sonatas", @"sonat"),
             ("Variations", @"variat|chaconne|passacaglia"),
-            ("Études", @"[ée]tude|\bstud(y|ies)\b|exercise|übung|uebung|school of|gradus"),
-            ("Preludes and fugues", @"prelud|pr(é|e)lude|pr(ä|ae|a)eludium|praeambulum|\bfug(ue|a|hetta|ato)\b|invention|sinfonia|fantasi|ricercar|recercar|capriccio|canzon|\bcanon\b|contrapunctus|well-tempered|toccat"),
-            ("Dances", @"waltz|valse|walzer|mazur|minuet|menuet|polonaise|polacca|gavott|bourr|sarabande|gigue|\bgiga\b|allemande|courante|corrente|polka|tarant|l(ä|a)ndler|(é|e)cossaise|galop|\bmarch|\bmarche\b|\brags?\b|ragtime|cakewalk|two-step|bolero|sicilian|passepied|rigaudon|hornpipe|\bjig\b|musette|tango|habanera|cz(á|a)rd(á|a)s|\bdance|\bdanse|\btanz|loure|forlane|anglaise|contredanse|quadrille|schottische|seguidilla|\bjota\b"),
+            ("Études", @"[ée]tude|\bstud(y|ies)\b|exercise|übung|uebung|school of|(?<!doctor )gradus"),
+            ("Preludes and fugues", @"prelud|pr(é|e)lude|pr(ä|ae|a)eludium|praeambulum|\bfug(ue|a|hetta|ato)\b|invention|sinfonia|ricercar|recercar|canzon|\bcanon\b|contrapunctus|well-tempered"),
+            ("Dances", @"waltz|valse|walzer|mazur|minuet|menuet|polonaise|polacca|gavott|bourr|sarabande|gigue|\bgiga\b|allemande|courante|corrente|polka|tarant|l(ä|a)ndler|(é|e)cossaise|galop|\bmarch|\bmarche\b|\brags?\b|ragtime|cake-?\s?walk|two-step|bolero|sicilian|passepied|rigaudon|hornpipe|\bjig\b|musette|tango|habanera|cz(á|a)rd(á|a)s|\bdance|\bdanse|\btanz|loure|forlane|anglaise|contredanse|quadrille|schottische|seguidilla|\bjota\b"),
         }.Select(k => (k.Item1, new Regex(k.Item2, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))),
     ];
 
@@ -54,16 +64,34 @@ public static class Shelves
     public static string Kind(string title, string? work) =>
         KindWords.FirstOrDefault(k => k.What.IsMatch(title) || work is not null && k.What.IsMatch(work)).Kind ?? "Character pieces";
 
+    // Surnames of two words that are one name, read whole: Ralph Vaughan Williams is listed under V, not W.
+    private static readonly string[] TwoWordSurnames = ["Vaughan Williams", "Mendelssohn Bartholdy", "Coleridge Taylor", "Rimsky Korsakov", "Saint Saëns", "Saint Saens"];
+
     /// <summary>
-    /// The name a composer is listed by: the surname ("Ludwig van Beethoven" is Beethoven, "Johann Strauss II" Strauss), and for
-    /// "Bach and others" the first name given.
+    /// The name a composer is listed by: the surname ("Ludwig van Beethoven" is Beethoven, "Johann Strauss II" and "John Philip
+    /// Sousa, Jr." Strauss and Sousa), the known surnames of two words whole ("Ralph Vaughan Williams" is Vaughan Williams), a name
+    /// written surname first by what's before its comma ("Bach, Johann Sebastian"), and for "Bach and others" the first name given.
     /// </summary>
     public static string Surname(string? composer)
     {
         if (string.IsNullOrWhiteSpace(composer)) return "";
 
-        var name = Regex.Replace(composer, @"\s+(and|&|und)\s+.*$|\s*\(.*\)\s*$", "", RegexOptions.IgnoreCase).Trim();
-        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => !Regex.IsMatch(w, @"^(I{1,3}|IV|Jr\.?|Sr\.?)$")).ToList();
-        return words.Count == 0 ? name : words[^1];
+        var name = Bare(Regex.Replace(composer, @"\s+(and|&|und)\s+.*$|\s*\(.*\)\s*$", "", RegexOptions.IgnoreCase));
+        if (name.IndexOf(',') is > 0 and var comma) return Bare(name[..comma]);
+        if (TwoWordSurnames.FirstOrDefault(s => name.Equals(s, StringComparison.OrdinalIgnoreCase) || name.EndsWith(" " + s, StringComparison.OrdinalIgnoreCase)) is { } whole)
+            return name[^whole.Length..];
+
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length == 0 ? name : words[^1];
+
+        // A generation after a name (Jr., Sr., II), with a comma before it or not, isn't part of it.
+        static string Bare(string name) => Regex.Replace(name.Trim(), @"(,?\s+(I{1,3}|IV|Jr\.?|Sr\.?))+$", "").Trim();
     }
+
+    /// <summary>Whether a search finds what's typed in a piece's words: big or small letters and accents aside, so "Dvorak" finds Dvořák.</summary>
+    public static bool Finds(string words, string typed) => Plain(words).Contains(Plain(typed.Trim()), StringComparison.OrdinalIgnoreCase);
+
+    // The letters without their accents, as the Library's letter keys take them: ř is r, é e.
+    private static string Plain(string text) =>
+        string.Concat(text.Normalize(NormalizationForm.FormD).Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark));
 }

@@ -185,21 +185,27 @@ a PDF plays out; this is what came of it.
   its pieces in the background with the same meter, credited like the collection's; those already here stay as they are. The
   Library then holds about 3,250 pieces, so a list is drawn again a second at a time at most while pieces are stored, and the
   search follows once typing pauses.
-- **Finding your way** (the Library's home): a search across everything, then **Working on** (the pieces played in the last
-  month, eight at most, the latest first, each with when it was last played and how that run went), then **Near your level**: a
-  few of the pieces to play along with whose most reads from your sight-reading level to two above it (since a piece to learn
-  sits above what you read at sight; with none there, the easiest there are), the ones not opened yet first and the rest in an
-  order of the day's, so the shelf changes daily, with all of them a tap away. Then the ways in, each a key with how many
-  pieces it holds: **Composers** (the twelve with the most, and all of them by surname under their initials), **Periods**
-  (Baroque, Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer), **Kinds** (sonatas, études,
-  preludes and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's
-  none of them is a character piece), **Levels** (where most of a piece reads) and **Lists** (everything, PDFs, your imports).
-  With no piece naming a composer (imported MIDI files and PDFs, say) there's no Composers, and the other ways in are there all
-  the same. A list opened from one of them can be cut to the pieces to play along with or the PDFs, and searched, All composers
-  by name; a composer's pieces are grouped by kind, any other list's by composer, and a long list starts with a key for each
-  group, or, past twelve composers, for each letter their surnames start with; the pieces without a composer are a group of
-  their own there, with a key of their own, and aren't counted as a composer. PDFs are left to their own list where near your
-  level is concerned, since a PDF's level is only about where its collection sits, or what its MIDI reads at.
+- **Finding your way** (the Library's home): a search across everything (accents aside: "Dvorak" finds Dvořák), then **Working
+  on** (the pieces played in the last month, eight at most, the latest first, each with when it was last played and how that
+  run went), then **Near your level**: a few of the pieces to play along with whose most reads from your sight-reading level to
+  two above it (since a piece to learn sits above what you read at sight; with none there, the easiest there are), the ones not
+  opened yet first and the rest in an order of the day's, so the shelf changes daily, with all of them a tap away. Then the
+  ways in, each a key with how many pieces it holds: **Composers** (the twelve with the most, and all of them by surname under
+  their initials: a surname of two words whole, so Ralph Vaughan Williams is under V and Mendelssohn Bartholdy under M, a name
+  written surname first by what's before its comma, and "Jr." or "II" after a name no part of it), **Periods** (Baroque,
+  Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer, a few by their own names where a namesake's
+  would mislead: Hans Leo Hassler, older than any of them, with the Baroque, the hymn writer William G. Fischer with the
+  Romantics, J. C. F. Bach with his brothers in Classical, Richard Strauss in 1890–1930), **Kinds** (sonatas, études, preludes
+  and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of
+  them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says more, as a fantasy and fugue
+  or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum isn't an étude), **Levels**
+  (where most of a piece reads) and **Lists** (everything, PDFs, your imports). With no piece naming a composer (imported MIDI
+  files and PDFs, say) there's no Composers, and the other ways in are there all the same. A list opened from one of them can
+  be cut to the pieces to play along with or the PDFs, and searched, All composers by name; a composer's pieces are grouped by
+  kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each
+  letter their surnames start with; the pieces without a composer are a group of their own there, with a key of their own, and
+  aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
+  about where its collection sits, or what its MIDI reads at.
 - **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from the start, at the tempo it starts
   at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is
   plugged in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it
