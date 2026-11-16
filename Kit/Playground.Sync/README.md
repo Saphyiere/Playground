@@ -41,7 +41,8 @@ So a copy after a day's practice writes the database and the manifest, and a cop
 **A copy that stops part way changes nothing.** Content goes first, each piece whole or not at all (written under a temporary name,
 then renamed), then the manifest, then the copies before and the content only they needed. Until the manifest is there, the copy
 before is the copy; whatever the one that stopped had written is found and kept by the next. A file that changes as it's being
-copied (a log written to) is fingerprinted again and copied as it is now.
+copied (a log written to) is fingerprinted again and copied as it is now, and one that goes meanwhile (the log turned over, a
+piece taken out of the Library) is left out of it, the rest copied. A manifest without its lists of items and files isn't a copy.
 
 **In the background, one at a time.** Each piece of work runs on the thread pool; `Status` says what it's doing and how far
 (`Progress`, a sentence and a fraction), and `Changed` is raised from whatever thread the work is on. A copy asked for while
@@ -62,7 +63,9 @@ an install before, or one pushed from a PC), an export, or a database file on it
 kept whole (`OpenFileAsync`).
 
 `ExportAsync(folder)` writes everything into one archive to send on: the files under their own names and the manifest beside
-them. It restores like any copy.
+them, each fingerprinted and searched for the secrets again as it goes in, so one written to meanwhile goes in as it is then. It's
+named for the time on the device (`Prima 2026-11-15 1530.zip`), in the same digits whatever its calendar, and restores like any
+copy.
 
 ## Updates
 

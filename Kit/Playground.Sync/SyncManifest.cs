@@ -61,7 +61,10 @@ public sealed record SyncManifest
     {
         try
         {
-            return JsonSerializer.Deserialize(json, SyncJson.Default.SyncManifest);
+            // One without its lists, or with a file or an item that has no name, isn't a copy (a file edited by hand, or another
+            // program's): it's left out like one that can't be read.
+            return JsonSerializer.Deserialize(json, SyncJson.Default.SyncManifest) is { Items: not null, Files: not null } manifest
+                && manifest.Items.All(i => i is { Name: not null }) && manifest.Files.All(f => f is { Path: not null, Sha256: not null }) ? manifest : null;
         }
         catch (JsonException)
         {

@@ -222,7 +222,8 @@ public sealed class Syncer
             if (options.BeforeCopy is { } before) await before();
             await using var gathering = await GatherAsync(null, (doing, part) => report(doing, part * 0.3), ct);
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, $"{options.App} {SyncText.Local(time.GetUtcNow(), time):yyyy-MM-dd HHmm}.zip");
+            // Named for the time where the device is, written the same way whatever its calendar.
+            var path = Path.Combine(folder, $"{options.App} {SyncText.Local(time.GetUtcNow(), time).ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture)}.zip");
             var partial = path + ".partial";
             var total = Math.Max(1, gathering.Files.Sum(f => f.Size));
             long done = 0;
@@ -232,16 +233,34 @@ public sealed class Syncer
                 {
                     using var output = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
                     using var archive = new ZipArchive(output, ZipArchiveMode.Create);
+                    var written = new List<Gathered>();
                     foreach (var file in gathering.Files)
                     {
-                        var entry = archive.CreateEntry(file.Path, CompressionLevel.Fastest);
-                        // A zip keeps times from 1980 on.
-                        entry.LastWriteTime = file.Modified.Year < 1980 ? new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero) : file.Modified;
-                        using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(file.Path),
-                            n => report($"Writing the archive: {SyncText.Size(done += n)} of {SyncText.Size(total)}", 0.3 + 0.7 * done / total));
-                        using var content = entry.Open();
-                        input.CopyTo(content);
+                        // Each file is fingerprinted and searched again as it goes in, as it is then: one written to since it was
+                        // looked at (the problem log, say) goes in as it is now, and one gone since is left out.
+                        FileStream input;
+                        try
+                        {
+                            input = Open(file.Source);
+                        }
+                        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+                        {
+                            continue;
+                        }
+                        using (input)
+                        {
+                            var modified = file.Fresh ? file.Modified : new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source));
+                            var entry = archive.CreateEntry(file.Path, CompressionLevel.Fastest);
+                            // A zip keeps times from 1980 on.
+                            entry.LastWriteTime = modified.Year < 1980 ? new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero) : modified;
+                            using var content = entry.Open();
+                            var (size, sha256) = Scan(input, content, file.Path, gathering.Secrets,
+                                n => report($"Writing the archive: {SyncText.Size(done += n)} of {SyncText.Size(total)}", 0.3 + 0.7 * Math.Min(1, (double)done / total)), ct);
+                            written.Add(file with { Size = size, Modified = modified, Sha256 = sha256 });
+                        }
                     }
+                    gathering.Files.Clear();
+                    gathering.Files.AddRange(written);
                     var manifest = Manifest(gathering, SyncReason.Asked, null, time.GetUtcNow());
                     using var json = archive.CreateEntry(SyncPaths.ExportManifest, CompressionLevel.Fastest).Open();
                     json.Write(manifest.ToJson());
@@ -284,7 +303,7 @@ public sealed class Syncer
 
         if (!SqliteFiles.IsDatabase(start) || options.Items.OfType<DatabaseItem>().ToList() is not [var database]) return null;
         if (SqliteFiles.Problem(path) is not null) return null;
-        var file = Fingerprint(database.Name, path, new DateTimeOffset(File.GetLastWriteTimeUtc(path)), [], ct);
+        var file = Fingerprint(database.Name, path, new DateTimeOffset(File.GetLastWriteTimeUtc(path)), false, [], ct);
         var alone = new SyncManifest
         {
             App = options.App,
@@ -316,7 +335,8 @@ public sealed class Syncer
         var gathering = new Gathering(Directory.CreateDirectory(Path.Combine(options.WorkFolder, Guid.NewGuid().ToString("N"))).FullName, secrets);
         try
         {
-            var known = before?.Files.ToDictionary(f => f.Path, StringComparer.Ordinal) ?? [];
+            var known = new Dictionary<string, SyncFile>(StringComparer.Ordinal);
+            foreach (var file in before?.Files ?? []) known.TryAdd(file.Path, file);
             var listed = new List<(string Path, string Source, DateTimeOffset? Modified, bool Fresh)>();
             foreach (var item in options.Items)
             {
@@ -359,11 +379,18 @@ public sealed class Syncer
             for (var i = 0; i < listed.Count; i++)
             {
                 var (path, source, changedAt, fresh) = listed[i];
-                var info = new FileInfo(source);
-                var modified = changedAt ?? new DateTimeOffset(info.LastWriteTimeUtc);
-                gathering.Files.Add(!fresh && known.TryGetValue(path, out var was) && was.Size == info.Length && was.Modified == modified
-                    ? new Gathered(path, source, was.Size, modified, was.Sha256)
-                    : await Task.Run(() => Fingerprint(path, source, modified, secrets, ct), ct));
+                try
+                {
+                    var info = new FileInfo(source);
+                    var modified = changedAt ?? new DateTimeOffset(info.LastWriteTimeUtc);
+                    gathering.Files.Add(!fresh && known.TryGetValue(path, out var was) && was.Size == info.Length && was.Modified == modified
+                        ? new Gathered(path, source, was.Size, modified, was.Sha256, fresh)
+                        : await Task.Run(() => Fingerprint(path, source, modified, fresh, secrets, ct), ct));
+                }
+                catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+                {
+                    // Gone since it was listed (the problem log turned over, a piece taken out of the Library): not in the copy.
+                }
                 report($"Looking at what changed: {i + 1} of {listed.Count} files", (i + 1.0) / listed.Count);
             }
             return gathering;
@@ -396,18 +423,26 @@ public sealed class Syncer
             {
                 try
                 {
-                    var name = file.Path;
-                    await using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(name),
-                        n => report($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
-                    await store.WriteAsync(SyncPaths.Blob(file.Sha256), input, ct);
-                    have[SyncPaths.Blob(file.Sha256)] = file.Size;
-                    files++;
+                    try
+                    {
+                        var name = file.Path;
+                        await using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(name),
+                            n => report($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
+                        await store.WriteAsync(SyncPaths.Blob(file.Sha256), input, ct);
+                        have[SyncPaths.Blob(file.Sha256)] = file.Size;
+                        files++;
+                    }
+                    catch (SyncChangedException)
+                    {
+                        // Changed since it was fingerprinted (a log written to, say): fingerprinted again, to be written as it is now.
+                        var again = await Task.Run(() => Fingerprint(file.Path, file.Source, new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source)), file.Fresh, gathering.Secrets, ct), ct);
+                        gathering.Files[gathering.Files.FindIndex(f => f.Path == file.Path)] = again;
+                    }
                 }
-                catch (SyncChangedException)
+                catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
                 {
-                    // Changed since it was fingerprinted (a log written to, say): fingerprinted again, to be written as it is now.
-                    var again = await Task.Run(() => Fingerprint(file.Path, file.Source, new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source)), gathering.Secrets, ct), ct);
-                    gathering.Files[gathering.Files.FindIndex(f => f.Path == file.Path)] = again;
+                    // Gone since it was looked at (the problem log turned over, a piece taken out of the Library): the copy has the rest.
+                    gathering.Files.RemoveAll(f => f.Path == file.Path);
                 }
             }
         }
@@ -455,30 +490,42 @@ public sealed class Syncer
         Files = [.. gathering.Files.Select(f => new SyncFile(f.Path, f.Size, f.Modified, f.Sha256))],
     };
 
-    /// <summary>Reads a file whole for its SHA-256, searching it for each secret as it goes (across the joins between reads too).</summary>
-    private static Gathered Fingerprint(string path, string source, DateTimeOffset modified, IReadOnlyList<byte[]> secrets, CancellationToken ct)
+    /// <summary>Reads a file whole for its SHA-256, searching it for each secret as it goes.</summary>
+    private static Gathered Fingerprint(string path, string source, DateTimeOffset modified, bool fresh, IReadOnlyList<byte[]> secrets, CancellationToken ct)
+    {
+        using var input = Open(source);
+        var (size, sha256) = Scan(input, null, path, secrets, null, ct);
+        return new Gathered(path, source, size, modified, sha256, fresh);
+    }
+
+    /// <summary>
+    /// Reads <paramref name="input"/> to its end for its size and SHA-256, searching it for each secret as it goes (across the joins
+    /// between reads too), and writing what's been searched on to <paramref name="output"/> when there's one. A secret found stops it.
+    /// </summary>
+    private static (long Size, string Sha256) Scan(Stream input, Stream? output, string path, IReadOnlyList<byte[]> secrets, Action<int>? read, CancellationToken ct)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var overlap = secrets.Count == 0 ? 0 : secrets.Max(s => s.Length) - 1;
         var buffer = new byte[81920 + overlap];
         var carried = 0;
         long size = 0;
-        using var input = Open(source);
-        int read;
-        while ((read = input.Read(buffer, carried, 81920)) > 0)
+        int count;
+        while ((count = input.Read(buffer, carried, 81920)) > 0)
         {
             ct.ThrowIfCancellationRequested();
-            hash.AppendData(buffer, carried, read);
-            size += read;
-            var seen = buffer.AsSpan(0, carried + read);
+            hash.AppendData(buffer, carried, count);
+            size += count;
+            var seen = buffer.AsSpan(0, carried + count);
             foreach (var secret in secrets)
             {
                 if (seen.IndexOf(secret) >= 0) throw new SyncSecretException(path);
             }
+            output?.Write(buffer, carried, count);
+            read?.Invoke(count);
             carried = Math.Min(overlap, seen.Length);
             seen[^carried..].CopyTo(buffer);
         }
-        return new Gathered(path, source, size, modified, Convert.ToHexStringLower(hash.GetHashAndReset()));
+        return (size, Convert.ToHexStringLower(hash.GetHashAndReset()));
     }
 
     // ---- After an update ----
@@ -831,8 +878,11 @@ public sealed class Syncer
         }
     }
 
-    /// <summary>A file to go in a copy: where it sits in it, where it's read from now, and its size, time and fingerprint.</summary>
-    private sealed record Gathered(string Path, string Source, long Size, DateTimeOffset Modified, string Sha256);
+    /// <summary>
+    /// A file to go in a copy: where it sits in it, where it's read from now, and its size, time and fingerprint. A fresh one (a
+    /// database's snapshot, what the app wrote out) is the copy's own, made in the work folder, and keeps the time it was given.
+    /// </summary>
+    private sealed record Gathered(string Path, string Source, long Size, DateTimeOffset Modified, string Sha256, bool Fresh);
 
     /// <summary>A copy's files as gathered, and the work folder its snapshots are in, deleted with it.</summary>
     private sealed class Gathering(string work, IReadOnlyList<byte[]> secrets) : IAsyncDisposable
