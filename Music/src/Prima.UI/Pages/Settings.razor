@@ -3,8 +3,6 @@
 @inject IKeyboard Keyboard
 @inject PrimaSettings Options
 @inject PrimaStore Store
-@inject IFiles Files
-@inject NavigationManager Nav
 @inject IClaude Claude
 @inject IAssistKeyStore Keys
 @inject ClaudeKeyFile KeyFile
@@ -252,7 +250,7 @@
 
 <section class="settings-section" aria-labelledby="updates-heading">
     <h2 id="updates-heading" class="section-title">Updates</h2>
-    <p class="section-note">New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a copy of it in Downloads first, in case.</p>
+    <p class="section-note">New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a full copy of it first (Your data, below), in case.</p>
     <div class="control-row">
         <span class="control-label">This tablet</span>
         <span class="key-figure">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
@@ -288,10 +286,9 @@
 
 <section class="settings-section" aria-labelledby="data-heading">
     <h2 id="data-heading" class="section-title">Your data</h2>
-    <p class="section-note">Everything is in one file on this tablet: settings, levels, notes and every attempt. Nothing leaves it unless you send it.</p>
+    <p class="section-note">Everything is on this tablet: settings, levels, notes, every attempt and the music imported. Nothing leaves it unless you send it.</p>
+    <DataCopies />
     <div class="control-row">
-        <button type="button" class="mu-btn" @onclick="BackUp">Back up</button>
-        <button type="button" class="mu-btn" @onclick="Restore">Restore a backup</button>
         @if (confirming)
         {
             <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="StartOver">Clear my progress</button>
@@ -302,7 +299,10 @@
             <button type="button" class="mu-btn" @onclick="() => (confirming, dataNote) = (true, null)">Start over…</button>
         }
     </div>
-    <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up first if you might want it." : dataNote ?? "Back up opens the share sheet, to save the file to Drive or send it to the PC.")</p>
+    @if (confirming || dataNote is not null)
+    {
+        <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up now first if you might want it." : dataNote)</p>
+    }
 </section>
 
 @* What went wrong, newest first, as Prima kept it: a screen that stopped, the page that stopped answering, a job that failed. Each
@@ -498,30 +498,6 @@
         var lastWeek = await Store.GetDaysAsync(DateOnly.FromDateTime(DateTime.Now).AddDays(-7));
         gradually = Prima.Core.Practice.DailyPlan.GoGradually(minutes, lastWeek.Sum(d => d.Minutes) / 7);
         await Save(() => Options.DailyMinutes = minutes);
-    }
-
-    private async Task BackUp()
-    {
-        await Store.FlushAsync();
-        dataNote = await Files.OfferAsync(Store.DatabasePath, "Prima backup") ? "Backed up." : "Backing up works on the tablet.";
-    }
-
-    private async Task Restore()
-    {
-        if (await Files.PickAsync() is not { } picked)
-        {
-            dataNote = "No backup chosen.";
-            return;
-        }
-
-        if (!await Store.RestoreAsync(picked.Data))
-        {
-            dataNote = $"{picked.Name} isn't a Prima backup; nothing changed.";
-            return;
-        }
-
-        await Store.LoadAsync(Options);
-        Nav.NavigateTo("", forceLoad: true);
     }
 
     private async Task StartOver()

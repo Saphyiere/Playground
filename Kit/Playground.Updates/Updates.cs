@@ -2,14 +2,15 @@ namespace Playground.Updates;
 
 /// <summary>
 /// Where an app's updates come from: the tag its releases go by (<c>prima</c>, for <c>prima-1.0.N</c>), the file it installs from
-/// each (<c>prima.apk</c>), and the repo. <see cref="DataFiles"/> are copied to <see cref="BackupFolder"/>, somewhere an uninstall
-/// wouldn't reach, before an update installs.
+/// each (<c>prima.apk</c>), and the repo. Before an update installs, the app's <see cref="IUpdateSafeguard"/> takes a full copy of
+/// its data, when it has one (an app that syncs its data, through Playground.Sync); otherwise <see cref="DataFiles"/> are copied to
+/// <see cref="BackupFolder"/>, somewhere an uninstall wouldn't reach.
 /// </summary>
 public sealed record UpdateOptions(string Tag, string Asset)
 {
     public string Repository { get; init; } = "saphyiere/playground";
 
-    /// <summary>The app's data, its database say, copied before an update installs.</summary>
+    /// <summary>The app's data, its database say, copied before an update installs, for an app without an <see cref="IUpdateSafeguard"/>.</summary>
     public IReadOnlyList<string> DataFiles { get; init; } = [];
 
     /// <summary>The folder the copies go in, under Downloads on Android: "Prima backups".</summary>
@@ -73,6 +74,20 @@ public interface IInstaller
 
     /// <summary>Raised when the device's installer stops without installing (the person cancelled, say), with a sentence on why.</summary>
     event Action<string>? Stopped;
+}
+
+/// <summary>
+/// What keeps an app's data safe across an update: a full copy of it, taken just before the update installs, which the app checks
+/// against itself the first time it starts after. An app that syncs its data registers one (Playground.Sync's AddSync does); the
+/// updater then uses it in place of <see cref="UpdateOptions.DataFiles"/>.
+/// </summary>
+public interface IUpdateSafeguard
+{
+    /// <summary>
+    /// Takes a full copy of the app's data before <paramref name="release"/> installs, reporting its progress (0 to 1), and says
+    /// where it is, for the screen. Throws when it can't, and then nothing is installed.
+    /// </summary>
+    Task<string> KeepBeforeUpdateAsync(Release release, IProgress<double>? progress, CancellationToken ct);
 }
 
 /// <summary>A step of an update that failed in a way the person should hear about, in a sentence for the screen.</summary>

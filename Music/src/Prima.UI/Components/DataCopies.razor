@@ -1,0 +1,266 @@
+@* Settings › Your data: the copies of everything Prima keeps but Claude's key, through the Kit's sync (Storage/PrimaSync). When the
+   last copy was made, its size and what it holds; Back up now; Restore from a backup… (this tablet's copies, or a folder or a file
+   chosen with the tablet's picker, then which copy, and what it replaces); and Export everything, to send on. A copy kept from before
+   an update that didn't check out stands first. Work goes on in the background, its progress on the meter. *@
+@implements IDisposable
+@inject Syncer Sync
+@inject ISyncPicker Picker
+@inject IFiles Files
+@inject PrimaStore Store
+@inject PrimaSettings Options
+@inject LookSetting LookSetting
+@inject NavigationManager Nav
+@using Playground.Sync
+
+@if (status.Held is { } held)
+{
+    <div class="copies-held" role="alert">
+        <p class="copies-held-head"><span class="mu-led"></span>Kept from before the update to @held.Update</p>
+        <p class="section-note">After the update, Prima's data had less than the copy taken just before it: @held.Why. That copy is kept, whatever copies come after, until you restore it or let it go.</p>
+        <div class="control-row">
+            <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="ChooseHeld">Restore it…</button>
+            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="LetGo">Let it go</button>
+        </div>
+    </div>
+}
+
+<div class="control-row">
+    <span class="control-label">Last copy</span>
+    @if (status.Last is { } last)
+    {
+        <span class="key-figure">@SyncText.When(last.Made)</span>
+        <span class="control-note">@SyncText.Size(last.Size) · @last.Summary</span>
+    }
+    else
+    {
+        <span class="key-figure none">@(status.Known ? "None yet" : "…")</span>
+    }
+</div>
+<div class="control-row">
+    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@(status.Step == SyncStep.Copying ? "Copying…" : "Back up now")</button>
+    <button type="button" class="mu-btn" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
+    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="Export">@(status.Step == SyncStep.Exporting ? "Exporting…" : "Export everything")</button>
+</div>
+@if (status.Progress is { } progress)
+{
+    var percent = (int)Math.Round(progress.Fraction * 100);
+    <div class="copies-progress" aria-live="polite">
+        <p class="mu-meter-head"><span>@progress.Doing</span><span>@percent%</span></p>
+        <div class="mu-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="@progress.Doing">
+            @for (var i = 0; i < 20; i++)
+            {
+                <span class="@(i < (int)Math.Round(progress.Fraction * 20) ? "on" : "")"></span>
+            }
+        </div>
+    </div>
+}
+@if (restoring)
+{
+    <div class="copies-restore">
+        @if (found.Count == 0)
+        {
+            <p class="section-note">@(looking ? "Looking for copies…" : $"This tablet has no copy of its own yet. Choose the folder copies are in ({Sync.Store.Name}, a folder for each time Prima was installed), or an export.")</p>
+        }
+        else
+        {
+            <ul class="copies-list" aria-label="Copies to restore">
+                @foreach (var copy in found)
+                {
+                    <li>
+                        <button type="button" class="copy-choice" aria-pressed="@(chosen == copy ? "true" : "false")" @onclick="() => chosen = copy">
+                            <span class="mu-led"></span>
+                            <span class="copy-when">@SyncText.When(copy.Made)</span>
+                            <span class="copy-what">@SyncText.Size(copy.Size) · @copy.Summary</span>
+                            <span class="copy-where">@Where(copy)</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        <div class="control-row">
+            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="PickFolder">Choose a folder…</button>
+            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="PickFile">Choose a file…</button>
+            <button type="button" class="mu-btn" @onclick="CloseRestore">Cancel</button>
+        </div>
+        @if (chosen is { } choice)
+        {
+            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key stays as it is.</p>
+            <div class="control-row">
+                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="Restore">Restore this copy</button>
+                <button type="button" class="mu-btn" @onclick="() => chosen = null">Keep what's here</button>
+            </div>
+        }
+    </div>
+}
+<p class="section-note" role="status">@Note</p>
+
+@code {
+    private SyncStatus status = null!;
+    private bool restoring;
+    private bool looking;
+    private List<SyncCopy> found = [];
+    private SyncCopy? chosen;
+    private string? note;
+
+    protected override async Task OnInitializedAsync()
+    {
+        status = Sync.Status;
+        Sync.Changed += Changed;
+        // The copies in this tablet's folder are read once, as Settings first opens.
+        if (!status.Known) await Sync.RefreshAsync();
+        status = Sync.Status;
+    }
+
+    // What's said under the buttons: what was just picked, or how the last piece of work went, or what the copies are.
+    private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
+        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: every two days, and before each update. Only what changed is written."
+        : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
+
+    private void Changed(SyncStatus now) => _ = InvokeAsync(() =>
+    {
+        status = now;
+        StateHasChanged();
+    });
+
+    private async Task BackUpNow()
+    {
+        note = null;
+        try
+        {
+            await Sync.CopyAsync();
+        }
+        catch (Exception)
+        {
+            // The status says why, and the problem log has it.
+        }
+    }
+
+    private async Task OpenRestore()
+    {
+        (restoring, chosen, note, looking) = (true, null, null, true);
+        try
+        {
+            found = [.. await Sync.FindCopiesAsync(Sync.Store)];
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"This tablet's copies couldn't be read: {e.Message}";
+        }
+        looking = false;
+    }
+
+    private void CloseRestore() => (restoring, chosen, note) = (false, null, null);
+
+    // The copy kept from before an update, chosen, ready to restore.
+    private async Task ChooseHeld()
+    {
+        await OpenRestore();
+        chosen = found.FirstOrDefault(c => c.Held is not null);
+    }
+
+    private async Task PickFolder()
+    {
+        note = null;
+        try
+        {
+            var stores = await Picker.PickFolderAsync(CancellationToken.None);
+            if (stores.Count == 0)
+            {
+                note = "No folder of copies chosen.";
+                return;
+            }
+            var copies = new List<SyncCopy>();
+            foreach (var store in stores) copies.AddRange(await Sync.FindCopiesAsync(store));
+            if (copies.Count == 0) note = "That folder holds no copies of Prima's.";
+            Add(copies);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            note = $"That folder couldn't be read: {e.Message}";
+        }
+    }
+
+    private async Task PickFile()
+    {
+        note = null;
+        try
+        {
+            if (await Picker.PickFileAsync(PrimaSync.PickedFolder, CancellationToken.None) is not { } path)
+            {
+                note = "No file chosen.";
+                return;
+            }
+            if (await Sync.OpenFileAsync(path) is not { } copy)
+            {
+                note = $"{Path.GetFileName(path)} isn't a copy of Prima's: an export (a .zip) or a Prima database (.db) is.";
+                return;
+            }
+            Add([copy]);
+            chosen = found.FirstOrDefault(c => c.Made == copy.Made && c.Size == copy.Size);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"That file couldn't be read: {e.Message}";
+        }
+    }
+
+    // Copies found, newest first, each once (a folder chosen may hold this tablet's own).
+    private void Add(IEnumerable<SyncCopy> copies) =>
+        found = [.. found.Concat(copies.Where(c => !found.Any(f => f.Made == c.Made && f.Size == c.Size))).OrderByDescending(c => c.Made)];
+
+    private async Task Restore()
+    {
+        if (chosen is not { } copy) return;
+        try
+        {
+            await Sync.RestoreAsync(copy);
+        }
+        catch (Exception)
+        {
+            // Nothing changed, and the status says why.
+            return;
+        }
+        // Everything is the copy's now: its settings and look, and every screen drawn afresh.
+        await Store.LoadAsync(Options);
+        await LookSetting.ReloadAsync();
+        Nav.NavigateTo("settings", forceLoad: true);
+    }
+
+    private async Task Export()
+    {
+        note = null;
+        try
+        {
+            // The export before, if it's still in the cache, makes way.
+            if (Directory.Exists(PrimaSync.ExportFolder)) Directory.Delete(PrimaSync.ExportFolder, recursive: true);
+            var path = await Sync.ExportAsync(PrimaSync.ExportFolder);
+            if (!await Files.OfferAsync(path, "Everything in Prima")) note = $"{Sync.Status.Message} On the tablet the share sheet opens to send it on; here it's in {path}.";
+        }
+        catch (Exception)
+        {
+            // The status says why.
+        }
+    }
+
+    private async Task LetGo()
+    {
+        try
+        {
+            await Sync.ReleaseHeldAsync();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"It couldn't be let go: {e.Message}";
+        }
+    }
+
+    // Where a copy is, and whether it's the one from before an update.
+    private string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where} · from before the update to {held.Update}" : copy.Where;
+
+    // What a restore replaces: everything for a whole copy, the data file alone for a database on its own.
+    private static string Replaced(SyncCopy copy) => copy.Manifest.Items.Count == 1 && copy.Manifest.Items[0].Kind == SyncItemKind.Database
+        ? "its settings, levels, history and routines (the music imported stays, as this file holds none)"
+        : "its settings, levels, history, routines and the music imported";
+
+    public void Dispose() => Sync.Changed -= Changed;
+}

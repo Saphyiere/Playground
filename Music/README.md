@@ -170,8 +170,9 @@ ignored `artifacts/` rather than in the repository. The offline evaluator is `to
 3. Visual Studio: set **Prima.Tablet** as the startup project, pick the tablet in the device dropdown, and press F5.
    CLI: `dotnet build src/Prima.Tablet -t:Run`
 
-**Back up before installing from Visual Studio** (Settings › Your data › Back up). A Release install from Visual Studio has
-wiped Prima's data before, and .NET's Android tooling has a known bug that can do it in Debug too
+**Back up before installing from Visual Studio** (Settings › Your data › Back up now; Prima keeps a copy every two days and
+before each update too, below). A Release install from Visual Studio has wiped Prima's data before, and .NET's Android tooling
+has a known bug that can do it in Debug too
 ([dotnet/android#9627](https://github.com/dotnet/android/issues/9627)). For the copy you use day to day, take a release from
 GitHub (below), or build Release and install it with `adb install -r`. That replaces the app and keeps its data, or stops with
 an error and changes nothing:
@@ -197,6 +198,36 @@ so its releases are too; the app holds nothing secret (Claude's key is only ever
 **On the tablet:** open the release in the tablet's browser, download `prima.apk` and open it. Android asks once to let the
 browser install apps, then offers **Update**. An app signed with any other key can't install over Prima: Android refuses and
 changes nothing.
+
+## Your data: copies, and getting them back
+
+Prima keeps a copy of everything but Claude's key (the data file, the music imported, what reading a PDF made, the problem log)
+in **Documents/Prima backups** on the tablet, a folder for each time Prima was installed: as it starts when the last copy is more
+than two days old, before each update, and on **Back up now** in Settings › Your data. Uninstalling Prima doesn't touch it. Only
+what changed is written, so a copy takes seconds.
+
+**To get it back** (after a reinstall, or to go back): Settings › Your data › **Restore from a backup…** lists this install's
+copies. **Choose a folder…** opens the tablet's folder picker on Documents/Prima backups: choose that folder, **Use this folder**
+and **Allow**, and the copies of every install in it are listed. **Choose a file…** takes an export, or a Prima data file on its
+own (an older backup, such as one in Download/Prima backups, which restores the data file alone). Choose a copy, and **Restore this
+copy** replaces everything with it. Then push Claude's key again: it's never in a copy.
+
+**On the PC**, with the tablet plugged in (`adb devices` lists it):
+
+```powershell
+pwsh ../tools/sync/pull-copy.ps1
+```
+
+It pulls the newest copy into Documents\Prima copies on the PC (all of it the first time, then only what's new), and writes its
+files out under their own names, checked: `Prima 2026-11-15 1530\prima.db`, `library\…`, `errors.log`. Windows PowerShell runs it
+too. `-From` reads a folder copied off in Windows Explorer instead (Internal shared storage › Documents › Prima backups). To put a
+copy back, push its folder from the store the script keeps, then choose Documents/Prima backups in Restore from a backup…:
+
+```powershell
+adb push "$HOME\Documents\Prima copies\store\Installed 2026-10-01 090000" "/sdcard/Documents/Prima backups/From the PC"
+```
+
+**Export everything** puts it all in one zip for the share sheet (to Drive, or the PC); it restores like any copy.
 
 ## Claude's key
 

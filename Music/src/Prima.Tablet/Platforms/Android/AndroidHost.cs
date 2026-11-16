@@ -9,15 +9,13 @@ public sealed class AndroidClock : IClock
     public long NowNs => JavaSystem.NanoTime();
 }
 
-/// <summary>The tablet's share sheet for backups, and its file picker for restoring and importing (one file, or several at once).</summary>
+/// <summary>The tablet's share sheet for exports, and its file picker for importing (one file, or several at once).</summary>
 public sealed class AndroidFiles : IFiles
 {
     public async Task<bool> OfferAsync(string path, string title)
     {
-        // A dated copy in the cache, so the share sheet gets a whole file with a name that says what it is.
-        var copy = Path.Combine(FileSystem.CacheDirectory, $"prima-{DateTime.Now:yyyy-MM-dd}.db");
-        File.Copy(path, copy, overwrite: true);
-        await Share.Default.RequestAsync(new ShareFileRequest { Title = title, File = new ShareFile(copy) });
+        // An export: a whole file in the cache already, named for what it is ("Prima 2026-11-15 1530.zip").
+        await Share.Default.RequestAsync(new ShareFileRequest { Title = title, File = new ShareFile(path) });
         return true;
     }
 

@@ -3,6 +3,7 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Playground.AI.Assist;
+using Playground.Sync;
 using Playground.Updates;
 using System.Text.Json;
 using Prima.Core.Generation;
@@ -35,9 +36,21 @@ builder.Services.AddSingleton<ISystemBars, NoSystemBars>();
 // Claude answers from saved replies (PreviewClaude), never the API; the key is kept in memory (AddPrima's default).
 builder.Services.AddSingleton<PreviewClaude>();
 builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
+// Copies of the data (Kit/Playground.Sync, Storage/PrimaSync): in "copies" beside the preview's data, a folder for this install as
+// the tablet keeps them in Documents/Prima backups, and the folder picker finds every install's in it. A clock that can be set back,
+// for a copy days old; no wait as the preview starts. /copies/{scenario} sets one up.
+var copies = Path.Combine(AppContext.BaseDirectory, "copies");
+var clock = new PreviewClock();
+builder.Services.AddSingleton(clock);
+builder.Services.AddSingleton<TimeProvider>(clock);
+builder.Services.AddSingleton(new PreviewStore(new FolderStore(Path.Combine(copies, "Installed 2026-10-01 090000"), $"Documents/{PrimaSync.Folder}")));
+builder.Services.AddSingleton<ISyncStore>(sp => sp.GetRequiredService<PreviewStore>());
+builder.Services.AddSingleton(new PreviewPicker(copies));
+builder.Services.AddSingleton<ISyncPicker>(sp => sp.GetRequiredService<PreviewPicker>());
+builder.Services.AddSingleton(sp => PrimaSync.Options(sp, dbPath) with { StartDelay = TimeSpan.Zero });
 builder.Services.AddPrima(dbPath);
 // Updates: GitHub and the tablet stood in for (Kit/Playground.Updates); /updates/{scenario} sets what's installed and what's out.
-builder.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk") { DataFiles = [dbPath], BackupFolder = "Prima backups" }, "Prima");
+builder.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk"), "Prima");
 
 var app = builder.Build();
 // An address no page has shows the app's own not-found page, as the tablet's router does.
@@ -272,6 +285,65 @@ app.MapGet("/updates/{scenario}", async (string scenario, StandInUpdates standIn
     await updates.CheckAsync(evenIfRecent: true);
     return Results.Text($"{updates.Status.Step}: {updates.Status.Message}");
 });
+// Copies of the data, for Settings › Your data: "none" (no copy yet), "fresh" (one just now), "old" (one three days old, which the
+// next start replaces), "held" (an update to 1.0.12 whose first start found runs missing: the copy from before is kept), "other" (a
+// copy an install before this one kept, which the folder picker finds), "busy" (a copy writing slowly, to see its progress; "fast"
+// lets it finish). /copies/file?path= is the next file the picker picks.
+app.MapGet("/copies/{scenario}", async (string scenario, Syncer sync, PreviewStore store, PreviewClock time) =>
+{
+    switch (scenario)
+    {
+        case "none":
+            if (Directory.Exists(copies)) Directory.Delete(copies, recursive: true);
+            break;
+        case "fresh":
+            await sync.CopyAsync();
+            break;
+        case "old":
+            time.Offset = TimeSpan.FromDays(-3);
+            try { await sync.CopyAsync(SyncReason.Scheduled); }
+            finally { time.Offset = TimeSpan.Zero; }
+            break;
+        case "held":
+            // Taken on 1.0.11 just before the update; the update's first start then finds half the runs gone.
+            await sync.CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.12");
+            var manifest = Directory.GetFiles(Path.Combine(store.Folder.Root, "copies"), "*.json").Order(StringComparer.Ordinal).Last();
+            File.WriteAllText(manifest, File.ReadAllText(manifest).Replace($"\"version\": \"{sync.Options.Version}\"", "\"version\": \"1.0.11\""));
+            using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
+            {
+                connection.Open();
+                new SqliteCommand("DELETE FROM Attempt WHERE Id % 2 = 0", connection).ExecuteNonQuery();
+            }
+            await sync.StartAsync();
+            break;
+        case "other":
+            time.Offset = TimeSpan.FromDays(-13);
+            try { await new Syncer(sync.Options, [new FolderStore(Path.Combine(copies, "Installed 2026-09-12 181500"), $"Documents/{PrimaSync.Folder}/Installed 2026-09-12 181500")], time).CopyAsync(SyncReason.Scheduled); }
+            finally { time.Offset = TimeSpan.Zero; }
+            break;
+        case "busy":
+            store.Slow = true;
+            using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
+            {
+                connection.Open();
+                new SqliteCommand($"INSERT INTO Setting (Key, Value) VALUES ('Preview.Touched', '{DateTime.UtcNow:O}') ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value", connection).ExecuteNonQuery();
+            }
+            _ = sync.CopyAsync();
+            return Results.Text("copying slowly");
+        case "fast":
+            store.Slow = false;
+            return Results.Text("copying at full speed");
+        default:
+            return Results.Text("none, fresh, old, held, other, busy or fast");
+    }
+    await sync.RefreshAsync();
+    return Results.Text($"{scenario}: {sync.Status.Last?.Made:O} {sync.Status.Message}");
+});
+app.MapGet("/copies/file", (string path, PreviewPicker picker) =>
+{
+    picker.NextFile = File.Exists(path) ? path : null;
+    return Results.Text(picker.NextFile is null ? "no such file" : $"next pick: {Path.GetFileName(path)}");
+});
 app.MapGet("/files/next", (string[] path, PreviewFiles files) =>
 {
     files.Next = [.. path.Where(File.Exists).Select(p => (Path.GetFileName(p), File.ReadAllBytes(p)))];
@@ -450,6 +522,98 @@ static class Seeds
             cards[(clef, midi)] = card;
             await store.SaveAnswerAsync(card, new NoteAnswer(new DateTimeOffset(at.AddSeconds(i * 6)), clef, midi, right, ms), right ? midi : midi + 2, "notes");
         }
+    }
+}
+
+/// <summary>The preview's clock: the real one, set back by /copies/old for a copy days old.</summary>
+sealed class PreviewClock : TimeProvider
+{
+    public TimeSpan Offset { get; set; }
+
+    public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + Offset;
+}
+
+/// <summary>The preview's own copies, in a folder; slowed by /copies/busy, a little at a time, so a copy's progress can be seen.</summary>
+sealed class PreviewStore(FolderStore folder) : ISyncStore
+{
+    public FolderStore Folder => folder;
+
+    public bool Slow { get; set; }
+
+    public string Name => folder.Name;
+
+    public bool SurvivesUninstall => folder.SurvivesUninstall;
+
+    public Task<bool> ConnectAsync(CancellationToken ct) => folder.ConnectAsync(ct);
+
+    public Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct) => folder.ListAsync(prefix, ct);
+
+    public Task<Stream?> OpenReadAsync(string key, CancellationToken ct) => folder.OpenReadAsync(key, ct);
+
+    public Task WriteAsync(string key, Stream content, CancellationToken ct) => folder.WriteAsync(key, Slow ? new Trickle(content, this) : content, ct);
+
+    public Task DeleteAsync(string key, CancellationToken ct) => folder.DeleteAsync(key, ct);
+
+    /// <summary>A stream read 16 KB at a time, two fifths of a second apart, while the store is slow.</summary>
+    private sealed class Trickle(Stream inner, PreviewStore store) : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => inner.Length;
+
+        public override long Position { get => inner.Position; set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, Math.Min(count, 16384));
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (store.Slow) await Task.Delay(400, cancellationToken);
+            return await inner.ReadAsync(buffer[..Math.Min(buffer.Length, 16384)], cancellationToken);
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+}
+
+/// <summary>
+/// The preview's pickers: the folder picker picks the whole of "copies" (a folder for each install, as Documents/Prima backups is
+/// on the tablet), and the file picker the file /copies/file named, once.
+/// </summary>
+sealed class PreviewPicker(string root) : ISyncPicker
+{
+    public string? NextFile { get; set; }
+
+    public Task<IReadOnlyList<ISyncStore>> PickFolderAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<ISyncStore>>(Directory.Exists(root)
+        ? [.. Directory.GetDirectories(root).Where(d => Directory.Exists(Path.Combine(d, "copies"))).Order(StringComparer.Ordinal)
+            .Select(d => new FolderStore(d, $"Documents/{PrimaSync.Folder}/{Path.GetFileName(d)}"))]
+        : []);
+
+    public Task<string?> PickFileAsync(string folder, CancellationToken ct)
+    {
+        if (NextFile is not { } picked) return Task.FromResult<string?>(null);
+        NextFile = null;
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, Path.GetFileName(picked));
+        File.Copy(picked, path, overwrite: true);
+        return Task.FromResult<string?>(path);
     }
 }
 

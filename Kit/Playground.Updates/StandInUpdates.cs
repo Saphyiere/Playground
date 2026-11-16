@@ -133,7 +133,7 @@ public static class StandInUpdatesExtensions
         services.AddSingleton(standIn);
         services.AddSingleton<IInstaller>(standIn);
         services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton(provider => new Updater(options, standIn, provider.GetRequiredService<TimeProvider>(), standIn));
+        services.AddSingleton(provider => new Updater(options, standIn, provider.GetRequiredService<TimeProvider>(), standIn, provider.GetService<IUpdateSafeguard>()));
         return services;
     }
 }

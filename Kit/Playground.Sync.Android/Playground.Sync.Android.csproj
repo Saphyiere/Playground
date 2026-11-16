@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Android's side of the apps' copies (Playground.Sync): this install's folder in the device's shared Documents, which an uninstall
+    doesn't reach, and the system's folder and file pickers, through which a reinstalled app opens the copies an install before it
+    kept (Android 11 and later let an app read by path only what it wrote itself). An app's host references it and calls
+    AddAndroidSync. It puts its picker's activity into the app's manifest itself.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Playground.Sync\Playground.Sync.csproj" />
+  </ItemGroup>
+
+</Project>
