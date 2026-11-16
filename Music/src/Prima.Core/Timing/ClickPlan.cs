@@ -87,8 +87,15 @@ public sealed record ClickPlan(double Bpm, int BeatsPerBar, int CountInBars = 1,
         return FirstMusicBeat + index + (musicBeat - places[index]) / music[index].Beats;
     }
 
-    /// <summary>Whether beat <paramref name="beat"/> is heard.</summary>
-    public bool Sounds(int beat) => Stage switch
+    /// <summary>
+    /// Where the music ends, in the run's beats from its beat 0 (as <see cref="BeatOf"/> takes them): no beat that starts there or
+    /// after is heard, though the beats go on for the run to time a late last note. Null: the click goes on until it's stopped, as
+    /// the Metronome's does.
+    /// </summary>
+    public double? End { get; init; }
+
+    /// <summary>Whether beat <paramref name="beat"/> is heard: as the stage says, and only while the music lasts.</summary>
+    public bool Sounds(int beat) => (End is not { } end || beat < BeatOf(end) - 1e-6) && Stage switch
     {
         ClickStage.Throughout => true,
         ClickStage.CountInOnly => beat < FirstMusicBeat,

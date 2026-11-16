@@ -125,7 +125,9 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   or "Più lento" with the tempo the file plays it at), the click goes at it in proportion to the tempo you set, which is the
   one the piece mostly goes at: at 72 where it mostly goes at ♩ = 120, a bar marked ♩ = 60 goes at 36, and a written-out
   ritardando slows a beat at a time. A bar played again has its own tempo again, and the count-in has the first bar's metre
-  and tempo. The cursor keeps to the same beats, and a note's timing is judged as a share of the beat it was played in.
+  and tempo. The cursor keeps to the same beats, and a note's timing is judged as a share of the beat it was played in. The
+  click stops where the music does: its last click is the beat the last note ends in, and the run waits one more beat, silent,
+  so a late last note still counts, before the summary.
 - **Wait for me**: no click and no count-in. The cursor waits at each note or chord until its keys are played. Notes written
   together, a chord in one hand or both hands at once, go down **together**: in any order, the first key to the last within
   0.15 of a second. Played a key at a time, which finds the chord but doesn't play it, its notes turn amber, "together" shows

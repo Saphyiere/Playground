@@ -15,8 +15,9 @@ public enum Phase
 
 /// <summary>
 /// A timed run with the click: a count-in, then the music, the click never waiting. It collects what the piano sends (each note
-/// from key down to key up, with its timestamps), plays the piano's own part if there is one (Duet, Hear first, Listen and play
-/// back), and ends a beat after the music does. Beats are counted from bar 1's downbeat; a pickup's are negative.
+/// from key down to key up, with its timestamps), and plays the piano's own part if there is one (Duet, Hear first, Listen and
+/// play back). The click stops where the music does, and the run ends a beat later, so a late last note still counts. Beats are
+/// counted from bar 1's downbeat; a pickup's are negative.
 /// </summary>
 public sealed class PlaySession : IDisposable
 {
@@ -94,6 +95,8 @@ public sealed class PlaySession : IDisposable
         }
         held.Clear();
         beatTimes = null;
+        // The click is heard until the music's end; its beats go on, silent, for the beat the run waits after it.
+        plan = plan with { End = beats };
         (Plan, Expected, endBeat, lateNs) = (plan, expected, beats, (long)(lateMs * 1e6));
         registry.Current = this;
         click.Start(plan);

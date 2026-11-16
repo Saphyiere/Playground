@@ -127,6 +127,29 @@ public class TimingTests
         Assert.Equal([true, false, false, true, false, false], Enumerable.Range(0, 6).Select(plan.Accent));
     }
 
+    [Fact]
+    public void TheClickFallsSilentWhereTheMusicEnds()
+    {
+        // Two bars of 4/4 after a bar of count-in: the music is beats 4 to 11, and it ends where beat 12 would start.
+        var plan = new ClickPlan(72, 4) { End = 8 };
+
+        Assert.All(Enumerable.Range(0, 12), beat => Assert.True(plan.Sounds(beat)));
+        Assert.False(plan.Sounds(12));
+        Assert.False(plan.Sounds(13));
+        // Its beats go on, for the run to time a late last note.
+        Assert.Equal(12 * 60e9 / 72, plan.Offset(12), 3);
+        // Music that ends part of the way through a beat keeps that beat's click, and none after it.
+        var offBeat = plan with { End = 7.5 };
+        Assert.True(offBeat.Sounds(11));
+        Assert.False(offBeat.Sounds(12));
+        // With the music's own beats, its end is found among them: three beats of count-in, then three of the music.
+        var own = new ClickPlan(60, 3) { Music = [new(0, 1, 1e9, true), new(1, 1, 2e9, false), new(2, 1, 1e9, false)], End = 3 };
+        Assert.Equal([true, true, true, true, true, true, false, false], Enumerable.Range(0, 8).Select(own.Sounds));
+        // The count-in-only stage stays silent after the count-in, and a click with no end, the Metronome's, goes on.
+        Assert.Equal([true, true, true, false, false], Enumerable.Range(0, 5).Select((own with { Stage = ClickStage.CountInOnly }).Sounds));
+        Assert.True(new ClickPlan(72, 4).Sounds(1000));
+    }
+
     [Theory]
     [InlineData(21, "A0")]
     [InlineData(60, "C4")]

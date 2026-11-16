@@ -125,6 +125,40 @@ public class RoutinePlayerTests
         Assert.True(saved);
     }
 
+    // The click stops where the music does. The run waits a beat after the music for a late last note and stopped the click
+    // only then, on the next beat, so the two beats after the last bar were always clicked.
+    [Fact]
+    public async Task TheClickStopsWithTheMusicThoughTheRunWaitsABeatForALateLastNote()
+    {
+        await using var host = new PlayerHost();
+        // Two bars of 4/4: four quarters, then a whole note to the end.
+        var score = new Score(new Prima.Core.Music.Key(0), new Meter(4, 4), [
+            new Bar(1, [new Voice(1, Enumerable.Range(0, 4).Select(i =>
+                (Prima.Core.Music.Event)new Notes($"q{i}", i * Ticks.Quarter, Ticks.Quarter, [new Tone($"tq{i}", new Spelled(Step.C, 0, 4))])).ToArray())]),
+            new Bar(2, [new Voice(1, [new Notes("w", 0, Ticks.Whole, [new Tone("tw", new Spelled(Step.G, 0, 4))])])]),
+        ]);
+        var sheet = host.Context.Render<Sheet>(p => p.Add(c => c.Mei, MeiWriter.Write(score)));
+        var view = host.Context.Render<PlayAlong>(p => p.Add(c => c.Name, "click-end-test").Add(c => c.Music, new PlayMusic(score, score.Expected()))
+            .Add(c => c.SheetOf, () => sheet.Instance).Add(c => c.Tempo, 72).Add(c => c.Ask, PlayMode.InTime));
+        await view.InvokeAsync(() => view.Instance.Start());
+        var run = host.Context.Services.GetRequiredService<SessionRegistry>().Current!;
+        var plan = host.Context.Services.GetRequiredService<Click>().Plan!;
+        var first = plan.FirstMusicBeat;
+
+        // The count-in and the music's eight beats are clicked, and the two beats after it aren't.
+        Assert.All(Enumerable.Range(0, first + 8), beat => Assert.True(plan.Sounds(beat), $"beat {beat} is clicked"));
+        Assert.False(plan.Sounds(first + 8));
+        Assert.False(plan.Sounds(first + 9));
+
+        // The run still waits out the beat after the music, in silence, before it ends.
+        host.Clock.NowNs = run.TimeAt(8.9);
+        await Task.Delay(200, Xunit.TestContext.Current.CancellationToken);
+        Assert.NotEqual(Phase.Done, run.Phase);
+        host.Clock.NowNs = run.TimeAt(9);
+        for (var waited = 0; run.Phase != Phase.Done && waited < 10_000; waited += 20) await Task.Delay(20, Xunit.TestContext.Current.CancellationToken);
+        Assert.Equal(Phase.Done, run.Phase);
+    }
+
     [Fact]
     public async Task ARunMovedToAnotherBarKeepsTheBarPlaying()
     {
