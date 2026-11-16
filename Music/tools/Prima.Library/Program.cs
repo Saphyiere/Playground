@@ -16,13 +16,14 @@
 //   asap      ASAP's concert scores (Bach's Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), CC BY-NC-SA 4.0
 //   pdmx      more of PDMX: public-domain and CC0 piano music by composers who died before 1931
 //   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA
+//   hymns     the Open Hymnal's public-domain hymns, four voices on two staves with their verses (ABC, written as MEI by abc2svg)
 //
 // They're prepared the same way into artifacts/library-local and packed into artifacts/prima-collection, a zip or a few for each
 // part, which the app imports (Library, Import files); contents.txt there says what's in each. It also needs npm, which comes with
 // Node.js, and git (without git, each repository comes as a zip).
 //
 //   dotnet run --project Music/tools/Prima.Library -- local           all its sources, then prepare and pack
-//   dotnet run --project Music/tools/Prima.Library -- local pdmx      one source again (or humdrum, dcml, asap, mutopia), or prepare
+//   dotnet run --project Music/tools/Prima.Library -- local pdmx      one source again (or humdrum, dcml, asap, mutopia, hymns), or prepare
 //
 // What it downloads is kept in artifacts/library-cache, so a second run only fetches what's missing. --artifacts <folder> puts
 // that, the collection and its zips in another folder (the cache is over 2 GB).
@@ -56,12 +57,13 @@ string? modules = null;
 
 if (local)
 {
-    // Verovio's build that reads Humdrum (the app's version of Verovio) and webmscore, from npm, installed once.
+    // Verovio's build that reads Humdrum (the app's version of Verovio), webmscore and abc2svg, from npm, installed once. abc2svg
+    // 1.22.1 is the last its author put on npm (2022; npm now calls it unsupported), and does what's needed.
     modules = Path.Combine(cache, "node", "node_modules");
-    if (!File.Exists(Path.Combine(modules, "verovio", "package.json")) || !File.Exists(Path.Combine(modules, "webmscore", "package.json")))
+    if (new[] { "verovio", "webmscore", "abc2svg" }.Any(m => !File.Exists(Path.Combine(modules, m, "package.json"))))
     {
-        Console.WriteLine("Installing Verovio's Humdrum build and webmscore from npm…");
-        string[] install = ["install", "--prefix", Path.Combine(cache, "node"), "--no-audit", "--no-fund", "verovio@6.3.0", "webmscore@1.2.1"];
+        Console.WriteLine("Installing Verovio's Humdrum build, webmscore and abc2svg from npm…");
+        string[] install = ["install", "--prefix", Path.Combine(cache, "node"), "--no-audit", "--no-fund", "verovio@6.3.0", "webmscore@1.2.1", "abc2svg@1.22.1"];
         using var npm = Process.Start(OperatingSystem.IsWindows() ? new ProcessStartInfo("cmd.exe", ["/c", "npm", .. install]) : new ProcessStartInfo("npm", install))!;
         await npm.WaitForExitAsync();
         if (npm.ExitCode != 0) throw new InvalidOperationException("npm couldn't install them. The local collection needs Node.js with npm (nodejs.org).");
@@ -79,6 +81,7 @@ if (local)
     await Source("asap", Asap.Name, () => Asap.Fetch(http, cache, output));
     await Source("pdmx", Pdmx.Name, () => Pdmx.FetchMore(http, cache, output));
     await Source("mutopia", Mutopia.Name, () => Mutopia.FetchMore(http, cache, output, bundled));
+    await Source("hymns", Hymns.Name, () => Hymns.Fetch(http, cache, output, modules, root));
     pieces.RemoveAll(p => bundled.Contains(p.Id));
 
     // Scarlatti's sonatas are in both; where they meet, Sapp's edition stays.
@@ -118,7 +121,7 @@ foreach (var file in Directory.EnumerateFiles(Path.Combine(output, "pieces")).Wh
 var built = DateTime.UtcNow.ToString("yyyy-MM-dd");
 var manifest = new LibraryManifest(1, built, [.. pieces.OrderBy(p => p.Composer).ThenBy(p => p.Work).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)]);
 await File.WriteAllTextAsync(manifestPath, manifest.Write());
-var kinds = string.Join(", ", manifest.Pieces.GroupBy(p => p.Format).Select(g => $"{g.Count()} {(g.Key switch { "mxl" => "MusicXML", "krn" => "Humdrum", _ => "PDF" })}"));
+var kinds = string.Join(", ", manifest.Pieces.GroupBy(p => p.Format).Select(g => $"{g.Count()} {(g.Key switch { "mxl" => "MusicXML", "krn" => "Humdrum", "mei" => "ABC", _ => "PDF" })}"));
 if (!local)
 {
     Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({kinds}), in {clock.Elapsed:m\\:ss}. Commit them, then build the app.");
@@ -128,7 +131,7 @@ if (!local)
 // The collection as files for the tablet, a zip or a few for each part: the manifest of what's in it and what the app reads (the
 // MEI, any PDFs and MIDI), not the sources. The tablet reads a zip it imports whole into memory, so none is much over 40 MB; a part
 // that would be is split, its pieces in order. The scholarly editions (CC BY-NC-SA 4.0, for this tablet only) are the zip of old,
-// prima-collection.zip; PDMX and Mutopia have one each.
+// prima-collection.zip; PDMX, Mutopia and the hymns have one each.
 var folder = Path.Combine(artifacts, "prima-collection");
 Directory.CreateDirectory(folder);
 foreach (var old in Directory.GetFiles(folder, "prima-collection*.zip")) File.Delete(old);
@@ -137,6 +140,7 @@ foreach (var old in Directory.GetFiles(folder, "prima-collection*.zip")) File.De
     ("prima-collection", "Sapp's Humdrum editions, the DCML's corpora and ASAP's scores, as notation", [Humdrum.Name, Dcml.Name, Asap.Name]),
     ("prima-collection-pdmx", "more of PDMX: MuseScore users' engravings of public-domain piano music, as notation", [Pdmx.Name]),
     ("prima-collection-mutopia", "the rest of the Mutopia Project's keyboard music, as PDF with its MIDI", [Mutopia.Name]),
+    ("prima-collection-hymns", "the Open Hymnal's public-domain hymns, four voices on the grand staff with their verses, as notation", [Hymns.Name]),
 ];
 const long Most = 40_000_000;
 string[] Files(BundledPiece p) => [.. (p.Format == "pdf" ? [p.File, p.Midi] : p.Prepared?.Select(x => (string?)x.Mei) ?? []).OfType<string>()];
@@ -177,11 +181,11 @@ foreach (var (name, holds, sources) in parts)
 static int Count(IEnumerable<BundledPiece> some) => some.Sum(p => p.Prepared?.Count ?? 1);
 var contents = new StringBuilder();
 contents.AppendLine($"Prima's local collection, built {DateTime.Now:d MMMM yyyy, HH:mm}: {Count(manifest.Pieces)} pieces. For this tablet only; never commit it.").AppendLine();
-contents.AppendLine($"{"Source",-9} {"Pieces",7} {"MB",6}  Licence");
+contents.AppendLine($"{"Source",-11} {"Pieces",7} {"MB",6}  Licence");
 foreach (var source in manifest.Pieces.GroupBy(p => p.Source))
 {
     var licences = string.Join(", ", source.GroupBy(p => p.Licence).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} ({Count(g)})"));
-    contents.AppendLine($"{source.Key,-9} {Count(source),7} {source.Sum(Size) / 1_000_000.0,6:0.0}  {licences}");
+    contents.AppendLine($"{source.Key,-11} {Count(source),7} {source.Sum(Size) / 1_000_000.0,6:0.0}  {licences}");
 }
 contents.AppendLine().AppendLine("Zips (Library, Import files, one at a time):");
 foreach (var (name, holds, inZip, bytes) in zips) contents.AppendLine($"  {name}: {Count(inZip)} pieces, {bytes / 1_000_000.0:0.0} MB. {char.ToUpperInvariant(holds[0])}{holds[1..]}.");
