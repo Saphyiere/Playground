@@ -155,7 +155,7 @@
     border-bottom: 3px solid var(--mark);
 }
 
-/* A set opened to change (Today's sets, a workout's page): weight, reps and Hit goal on one line. */
+/* A set opened to change (the edit screen, a workout's page): weight, reps and Hit goal on one line. */
 .entry-row {
     display: flex;
     align-items: flex-end;
@@ -898,7 +898,7 @@ button.set-line:active {
     margin-left: 0;
 }
 
-/* A set opened to change (Today's sets, a workout's page): weight and reps side by side, Hit goal under them. */
+/* A set opened to change (the edit screen, a workout's page): weight and reps side by side, Hit goal under them. */
 [data-theme="telemetry"] .entry-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
