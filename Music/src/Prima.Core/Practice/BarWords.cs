@@ -12,8 +12,8 @@ public static class BarWords
     public static string Bars(int from, int to) => from == to ? Bar(from) : from == 0 ? $"the upbeat to bar {to}" : $"bars {from}–{to}";
 
     /// <summary>
-    /// Bars named by their runs: "bar 21", "bars 5–7", "bars 5–7, 13–14 and 21"; the pickup first, as "the upbeat". Past
-    /// <paramref name="most"/> runs, the first of them "and 4 more".
+    /// Bars named by their runs: "bar 21", "bars 5–7", "bars 5–7, 13–14 and 21"; the pickup first, as "the upbeat", alone or
+    /// with bars after it: "the upbeat and bars 1–2 and 5". Past <paramref name="most"/> runs, the first of them "and 4 more".
     /// </summary>
     public static string Runs(IEnumerable<int> bars, int most = 4)
     {
@@ -26,8 +26,11 @@ public static class BarWords
         if (runs.Count == 0) return "no bars";
         if (runs is [var only]) return Bars(only.From, only.To);
 
-        var upbeat = runs[0].From == 0 && runs[0].To == 0;
-        var named = runs.Skip(upbeat ? 1 : 0).Select(r => r.From == r.To ? $"{r.From}" : $"{r.From}–{r.To}").ToList();
+        // The pickup has no number to give ("bars 0–2"): it's named on its own, and a run it starts goes on from bar 1.
+        var upbeat = runs[0].From == 0;
+        if (upbeat && runs[0].To == 0) runs.RemoveAt(0);
+        else if (upbeat) runs[0] = (1, runs[0].To);
+        var named = runs.Select(r => r.From == r.To ? $"{r.From}" : $"{r.From}–{r.To}").ToList();
         var more = named.Count > most ? named.Count - most : 0;
         var list = more > 0 ? $"{string.Join(", ", named.Take(most))} and {more} more" : And(named);
         var numbers = named.Count == 1 && !named[0].Contains('–') ? $"bar {list}" : $"bars {list}";
