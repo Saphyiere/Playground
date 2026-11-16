@@ -512,17 +512,22 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             var bars = again.Where(a => a.Times == most).Select(a => a.Bar).ToList();
             var others = again.Where(a => a.Times < most).Take(3).Select(a => a.Bar).ToList();
             return new("Slips", Tint.Bad, bars.Count == 1
-                ? $"{Capital(Bar(bars[0]))} had a note wrong in {most} of the {throughs.Count} times through{(others.Count > 0 ? $"; {Runs(others)} often too" : "")}."
-                : $"{Capital(Runs(bars))} each had a note wrong in {most} of the {throughs.Count} times through.");
+                ? $"{Capital(Bar(bars[0]))} had a note wrong {Often(most)}{(others.Count > 0 ? $"; {Runs(others)} often too" : "")}."
+                : $"{Capital(Runs(bars))} each had a note wrong {Often(most)}.");
         }
 
+        // How many of the times through: "in 3 of the 4 times through", or when it was every one of them, "both times through"
+        // or "all 3 times through".
+        private string Often(int times) => times < throughs.Count ? $"in {times} of the {throughs.Count} times through" : throughs.Count == 2 ? "both times through" : $"all {times} times through";
+
         // The bars that had a note not right in half the times through, twice at least, the most often first. Three bars or
-        // more that each went wrong just twice are slips moving around, not a bar that keeps going wrong.
+        // more that each went wrong just twice are slips moving around, not a bar that keeps going wrong; but not when that's
+        // every time through: a bar that went wrong every time it was played is named, however few times through there were.
         private List<(int Bar, int Times)> Again()
         {
             List<(int Bar, int Times)> again = [.. Enumerable.Range(piece.FirstBar, piece.Bars)
                 .Select(bar => (Bar: bar, Times: throughs.Count(u => u.In(bar) is { NotRight: > 0 }))).Where(b => b.Times >= Math.Max(2, (throughs.Count + 1) / 2)).OrderByDescending(b => b.Times).ThenBy(b => b.Bar)];
-            return again is [(_, 2), _, _, ..] ? [] : again;
+            return again is [(_, 2), _, _, ..] && throughs.Count > 2 ? [] : again;
         }
 
         // A step over the tempo most of it was played at: how it went there.
@@ -748,7 +753,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
                     if (Again() is [var (bar, times), ..] && tempo is { } now)
                     {
                         var (from, to) = Around(bar);
-                        Add(from, to, "both", true, now, $"{Capital(Bar(bar))} had a note wrong in {times} of the {throughs.Count} times through. Clean five passes running.");
+                        Add(from, to, "both", true, now, $"{Capital(Bar(bar))} had a note wrong {Often(times)}. Clean five passes running.");
                     }
                     if (through is not null)
                     {

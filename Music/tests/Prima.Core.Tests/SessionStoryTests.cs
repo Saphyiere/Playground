@@ -171,6 +171,22 @@ public class SessionStoryTests
     }
 
     [Fact]
+    public void ABarThatWentWrongEveryTimeItWasPlayedIsNamedHoweverFewTimesThrough()
+    {
+        BarTrouble[] wrong = [new(3, 1, 0, 0, 0), new(12, 1, 0, 0, 0), new(20, 1, 0, 0, 0)];
+
+        // Twice through, bars 3, 12 and 20 each with a note wrong both times: named, and the first of them is what's next.
+        var twice = SessionStory.Of([Timed(2, 115, 509, 512, 0.99, trouble: wrong), Timed(6, 115, 509, 512, 0.99, trouble: wrong)], [], Piece, Today);
+        // Three times through, the same three bars each wrong twice and none every time: the slips moved around.
+        var moved = SessionStory.Of([Timed(2, 115, 510, 512, 0.99, trouble: [wrong[0], wrong[1]]), Timed(6, 115, 510, 512, 0.99, trouble: [wrong[1], wrong[2]]), Timed(10, 115, 510, 512, 0.99, trouble: [wrong[0], wrong[2]])], [], Piece, Today);
+
+        Assert.Equal(Work.Performing, twice.Work);
+        Assert.Equal(new StoryLine("Slips", Tint.Bad, "Bars 3, 12 and 20 each had a note wrong both times through."), twice.Lines.Single(l => l.About == "Slips"));
+        Assert.Equal(new NextStep(2, 4, "both", true, 115, "Bars 2–4, In time at 115", "Bar 3 had a note wrong both times through. Clean five passes running."), twice.Steps[0]);
+        Assert.Equal(new StoryLine("Slips", Tint.Good, "No bar kept going wrong: the slips moved around."), moved.Lines.Single(l => l.About == "Slips"));
+    }
+
+    [Fact]
     public void AnEndThatWentWorseThanBeforeIsTirednessAndTheSessionIsJudgedByItsBest()
     {
         PieceRun[] session =

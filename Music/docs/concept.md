@@ -318,8 +318,9 @@ a PDF plays out; this is what came of it.
     time, which way the others are out and in which bars ("it runs ahead in bars 5–7"); loud and soft, the touch and the
     pedal, each marking as it was last played, the ones not as marked named; notes let go early.
   - **Playing it** (the notes there at the piece's own tempo, or within a tenth of it): the times through and how many had
-    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note; a step faster, if
-    one was tried.
+    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note (one that went wrong
+    every time it was played is named, however few times through, and "the slips moved around" only when none did); a step
+    faster, if one was tried.
   A session of 25 minutes or more whose end went worse than what came before is told so, as tiredness and not as the bars:
   the same bars, hand, mode and tempo played again in its last three tenths and gone worse, or a stretch sinking as it was
   gone round (unless it had just been taken a step faster: then the tempo's the likelier cause, and the line says that). It's

@@ -120,7 +120,7 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   | Finding the notes | the bar still going wrong, a bar either side, in Wait for me; the bars read only a hand at a time, together; the stretch tried with the click (a notch up over 85%, a notch down under 60%, else the same), or one that's 85% right first time, In time at about 45% of the piece's tempo; the four bars after the furthest read, right hand first |
   | Getting them right | the bar still going wrong, a notch slower than it went wrong at; the stretch that went too fast, back where it held, or the one that's stuck, a notch slower; the whole piece: a notch up over 90% right in time, a notch down under 80%, else the same again, first thing next time |
   | Timing and touch | the bars where the timing goes out, two notches slower; the bars of a marking that hasn't come out; a bar with a wrong note still; the whole piece, as above |
-  | Playing it | the bar that kept having a wrong note (in half the times through, twice at least; three bars or more with just two each are slips moving around, not a bar); once through, cold, first thing next time |
+  | Playing it | the bar that kept having a wrong note (in half the times through, twice at least; three bars or more with just two each are slips moving around, not a bar, unless that's every time through: a bar that went wrong every time it was played is named, however few times through, and the slips moved around only when no bar did); once through, cold, first thing next time |
 
   The first step stays on the piece's front, under About this piece: **Next**, with **Start there** (none after a session
   that left nothing to do; a session with no run in it leaves the last one's). This takes back the
