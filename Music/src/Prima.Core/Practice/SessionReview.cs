@@ -18,6 +18,13 @@ public sealed record Stretch(int From, int? To, string Hands, bool InTime, IRead
 
     /// <summary>The time spent playing it, where every run of it kept how long it took.</summary>
     public TimeSpan? Time { get; init; }
+
+    /// <summary>
+    /// From a bar to the end, when every one of its runs was stopped on the way: the last bar they got to, the furthest of them.
+    /// It's named by the bars it reached ("bars 1–8"), not as the whole piece, wherever it's named. None for a loop, or when a run
+    /// of it got to the end.
+    /// </summary>
+    public int? Reached { get; init; }
 }
 
 /// <summary>
@@ -84,14 +91,17 @@ internal sealed record Played(PieceRun Run, int Pass, int Right, int Notes, doub
 }
 
 /// <summary>
-/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bars with most still to fix at the end
-/// (the first of them the bar still hard) and the bar put right, what went wrong in each bar over every run and pass, the notes
-/// right of those played, the share right in time of those played In time, and the notes let go early. Round a loop each pass
-/// counts, not the run.
+/// A session's runs summed up, for its look back and its in-depth review: its stretches, the bars with something still to fix at
+/// the end, the most first (the first of them the bar still hard), and the bar put right, what went wrong in each bar over every
+/// run and pass, the notes right of those played, the share right in time of those played In time, and the notes let go early.
+/// Round a loop each pass counts, not the run.
 /// </summary>
 public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? Hard, FixedBar? Fixed, IReadOnlyDictionary<int, BarTrouble> Bars, int Right, int Notes, double? RightInTime, int Early)
 {
-    /// <summary>The bars with something still to fix at the end, the most first: up to three.</summary>
+    /// <summary>
+    /// Every bar with something still to fix at the end, the most first: all of them, so a bar left with a wrong note is found
+    /// however many bars had more notes off the beat or let go early.
+    /// </summary>
     public IReadOnlyList<StillHard> Hards { get; init; } = [];
 
     /// <summary>Its runs summed up, the piece's last bar being <paramref name="lastBar"/>; a run or pass with no notes reached isn't a point.</summary>
@@ -104,9 +114,13 @@ public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? 
         {
             var points = g.Select(u => new StretchPoint(u.Run.At, u.Figure, u.Right, u.Notes, u.InTime ? u.Run.Tempo : null) { Partial = u.Run is { To: null, Stopped: true } }).ToList();
             var played = g.Select(u => u.Run).Distinct().ToList();
+            // Runs from a bar to the end that were all stopped on the way got only so far: each to the bar before the one it
+            // was stopped in.
+            var reached = g.Key.To is null && played.All(r => r.Stopped) ? played.Max(r => Math.Max(r.From, (r.Bar ?? r.From) - 1)) : lastBar;
             return new Stretch(g.Key.From, g.Key.To, g.Key.Hands, g.Key.InTime, points, played.Count, played.Count(r => r.Through))
             {
                 Time = g.All(u => u.Seconds is not null) ? TimeSpan.FromSeconds(g.Sum(u => u.Seconds!.Value)) : null,
+                Reached = reached < lastBar ? reached : null,
             };
         }).ToList();
 
@@ -131,7 +145,7 @@ public sealed record SessionReview(IReadOnlyList<Stretch> Stretches, StillHard? 
         // Still hard: the bars with most to fix in their last times, wrong and missed notes first, then the earlier bar. Fixed: the
         // bar with most to fix at first, played three times or more, that was clean in its last times.
         TroubleKind[] kinds = [TroubleKind.Wrong, TroubleKind.Missed, TroubleKind.Off, TroubleKind.Early, TroubleKind.Slips, TroubleKind.Apart];
-        List<StillHard> hards = [.. standing.Where(s => s.Last.Weight > 0).OrderByDescending(s => s.Last.Weight).ThenByDescending(s => s.Last.Wrong + s.Last.Missed).ThenBy(s => s.Bar).Take(3).Select(s =>
+        List<StillHard> hards = [.. standing.Where(s => s.Last.Weight > 0).OrderByDescending(s => s.Last.Weight).ThenByDescending(s => s.Last.Wrong + s.Last.Missed).ThenBy(s => s.Bar).Select(s =>
         {
             int[] counts = [s.Last.Wrong, s.Last.Missed, s.Last.Off, s.Last.Early, s.Last.Slips, s.Last.Apart];
             return new StillHard(s.Bar, s.Times, s.Plays, kinds[Array.IndexOf(counts, counts.Max())], s.Last, s.Third, s.Bad);

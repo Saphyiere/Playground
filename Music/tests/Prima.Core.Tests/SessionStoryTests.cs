@@ -77,6 +77,50 @@ public class SessionStoryTests
     }
 
     [Fact]
+    public void SomeOfItCameBackWhenALaterGoTodayWasWithinThreePointsOfWhereItWasLeft()
+    {
+        // Left yesterday at 90 of 100; 80 the first go today, and then 88 (two points under), or 86 (four).
+        PieceRun[] yesterday = [Waited(-1440, "right", 1, 8, 100, 1, 82, 90)];
+        string Since(params int[] today) => SessionStory.Of([Waited(2, "right", 1, 8, 100, 2, today)], yesterday, Piece, Today).Lines.Single(l => l.About == "Since yesterday").Words;
+
+        Assert.Equal("Bars 1–8 (right hand) left at 90 of 100, and 80 of 100 the first go today: some of it went, and came back.", Since(80, 88));
+        Assert.Equal("Bars 1–8 (right hand) left at 90 of 100, and 80 of 100 the first go today: some of it went.", Since(80, 86));
+    }
+
+    [Fact]
+    public void TwoStepsMayCoverTheSameBarsInADifferentHandOrMode()
+    {
+        // Bars 1-4 hands together in Wait for me, then with the click, bar 2 going wrong to the end of both.
+        var wrong2 = new BarTrouble(2, 1, 0, 0, 0);
+        PieceRun[] session =
+        [
+            Waited(2, "both", 1, 4, 32, 2, 26, 28, 30) with { Passes = [.. new[] { 26, 28, 30 }.Select(r => new PiecePass(r, 32, null) { Trouble = [wrong2], Seconds = 30 })] },
+            Loop(10, 60, 1, 4, [.. new[] { 0.62, 0.70, 0.75 }.Select(share => new PiecePass(31, 32, share) { Trouble = [wrong2] })]),
+        ];
+
+        var story = SessionStory.Of(session, [], Piece, Today);
+
+        // The bar in Wait for me and the stretch with the click share bars 1-3: steps are kept apart only in the same hand and mode.
+        Assert.Equal([(1, (int?)3, "both", false), (1, 4, "both", true), (5, 8, "right", false)], story.Steps.Select(s => (s.From, s.To, s.Hands, s.InTime)));
+    }
+
+    [Fact]
+    public void WithTheEndGoneWorseThereAreSixLinesFiveAndHowTheEndWent()
+    {
+        // Six times through at 92 over half an hour: bars 5-6 off the beat and bar 9 let go early every time, the last time's
+        // markings not as marked, and the last time through ten points under the three before it.
+        BarTrouble[] trouble = [new(5, 0, 0, 12, 0), new(6, 0, 0, 12, 0), new(9, 0, 0, 0, 30)];
+        MarkPlayed[] marks = [new(Marking.Dynamic, 17, 24, 1, 1, "f"), new(Marking.Staccato, 4, 4, 4, 1), new(Marking.Pedal, 1, 2, 1, 1)];
+        PieceRun[] session = [.. new[] { 0, 5, 10, 15, 20 }.Select(minute => Timed(minute, 92, 500, 512, 0.80, trouble: trouble)), Timed(30, 92, 500, 512, 0.70, trouble: trouble) with { Marked = marks }];
+
+        var story = SessionStory.Of(session, [], Piece, Today);
+
+        Assert.Equal(Work.Shaping, story.Work);
+        Assert.True(story.Tired);
+        Assert.Equal(["Timing", "Loud and soft", "Touch", "Pedal", "Held", "The end"], story.Lines.Select(l => l.About));
+    }
+
+    [Fact]
     public void WithTheNotesMostlyThereItsWhetherItHoldsTogetherAndTheBarStillWrongANotchSlower()
     {
         var wrong21 = new BarTrouble(21, 2, 0, 1, 0);
@@ -168,6 +212,22 @@ public class SessionStoryTests
         ], story.Lines);
         Assert.Equal(["Bars 28–30, In time at 115", "The whole piece, In time at 115"], story.Steps.Select(s => s.What));
         Assert.Equal(32, story.Standing.Count(BarState.AtTempo));
+    }
+
+    [Fact]
+    public void ABarThatWentWrongEveryTimeItWasPlayedIsNamedHoweverFewTimesThrough()
+    {
+        BarTrouble[] wrong = [new(3, 1, 0, 0, 0), new(12, 1, 0, 0, 0), new(20, 1, 0, 0, 0)];
+
+        // Twice through, bars 3, 12 and 20 each with a note wrong both times: named, and the first of them is what's next.
+        var twice = SessionStory.Of([Timed(2, 115, 509, 512, 0.99, trouble: wrong), Timed(6, 115, 509, 512, 0.99, trouble: wrong)], [], Piece, Today);
+        // Three times through, the same three bars each wrong twice and none every time: the slips moved around.
+        var moved = SessionStory.Of([Timed(2, 115, 510, 512, 0.99, trouble: [wrong[0], wrong[1]]), Timed(6, 115, 510, 512, 0.99, trouble: [wrong[1], wrong[2]]), Timed(10, 115, 510, 512, 0.99, trouble: [wrong[0], wrong[2]])], [], Piece, Today);
+
+        Assert.Equal(Work.Performing, twice.Work);
+        Assert.Equal(new StoryLine("Slips", Tint.Bad, "Bars 3, 12 and 20 each had a note wrong both times through."), twice.Lines.Single(l => l.About == "Slips"));
+        Assert.Equal(new NextStep(2, 4, "both", true, 115, "Bars 2–4, In time at 115", "Bar 3 had a note wrong both times through. Clean five passes running."), twice.Steps[0]);
+        Assert.Equal(new StoryLine("Slips", Tint.Good, "No bar kept going wrong: the slips moved around."), moved.Lines.Single(l => l.About == "Slips"));
     }
 
     [Fact]

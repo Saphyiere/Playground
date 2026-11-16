@@ -134,8 +134,8 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
   minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
-  marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
-  tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
+  marks (… 60, 63, 66, 69, 72, 76 …, carried on to 20 and 240) so a step is about the same share of the tempo, slow or fast,
+  and a field to type any tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
   due between that key and Stop, while the hands were on their way to the screen, isn't counted as missed. A run stopped
   before any key leaves no summary and isn't kept. A run is played on the piano: with none plugged in, Start and Listen look
   off, and a tap says so under the bar.
@@ -303,9 +303,9 @@ a PDF plays out; this is what came of it.
   every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
   loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
 - **The look back**, once a session is finished, takes the page, and starts with what the session came to, in words. A
-  sentence, then up to five lines, each about one thing, its key lit for good news, red for something to work on and hollow
-  for what's just so. Which lines depends on **the kind of work** the session was, since wrong notes come before timing,
-  and timing before touch:
+  sentence, then up to five lines, each about one thing, and a sixth on how the end went when it went worse (below), its
+  key lit for good news, red for something to work on and hollow for what's just so. Which lines depends on **the kind of
+  work** the session was, since wrong notes come before timing, and timing before touch:
   - **Finding the notes** (half of the notes played were a hand at a time or in Wait for me, or In time with a quarter of
     them wrong): the bars read and how (a hand at a time, together), how far they got hands together or with the click, the
     stretch that moved most, the bar still going wrong, and what stayed since the session before: where a stretch was left
@@ -318,8 +318,9 @@ a PDF plays out; this is what came of it.
     time, which way the others are out and in which bars ("it runs ahead in bars 5–7"); loud and soft, the touch and the
     pedal, each marking as it was last played, the ones not as marked named; notes let go early.
   - **Playing it** (the notes there at the piece's own tempo, or within a tenth of it): the times through and how many had
-    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note; a step faster, if
-    one was tried.
+    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note (one that went wrong
+    every time it was played is named, however few times through, and "the slips moved around" only when none did); a step
+    faster, if one was tried.
   A session of 25 minutes or more whose end went worse than what came before is told so, as tiredness and not as the bars:
   the same bars, hand, mode and tempo played again in its last three tenths and gone worse, or a stretch sinking as it was
   gone round (unless it had just been taken a step faster: then the tempo's the likelier cause, and the line says that). It's
@@ -340,12 +341,15 @@ a PDF plays out; this is what came of it.
   still going wrong a notch slower than it went wrong at, a stretch back where it held, and the whole piece: a notch up over
   90% right in time, a notch down under 80%, else the same again, first thing next time. Timing and touch: the bars where
   the timing goes out two notches slower, then the bars of a marking that hasn't come out. Playing it: the bar that kept
-  slipping, and once through, cold, first thing next time. No two steps are on the same bars. The first of them stays on the
-  piece's front, under About this piece, as **Next**, with **Start there**.
+  slipping, and once through, cold, first thing next time. No two steps are on the same bars in the same hand and mode
+  (the bar in Wait for me and the stretch round it with the click can both be there). The first of them stays on the
+  piece's front, under About this piece, as **Next**, with **Start there**; a session that leaves nothing to do leaves none
+  there.
 
   Under those, **what was played**, as before: each stretch practiced (its bars: the whole piece, from a bar, or round a
-  loop; the hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best
-  named, its first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
+  loop, and runs that were all stopped on the way by the bars they reached, "Bars 1–8", as the words above name them; the
+  hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its
+  first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
 
   A bar still going wrong, and one put right, come from the runs and passes that played it, in order: the last third of them
   (the last time, at least) is how it stands now, the first third how it started. The bar still hard is the one with most to
@@ -356,8 +360,9 @@ a PDF plays out; this is what came of it.
   **Keep practicing** carries the session on, **In-depth review** goes over it, and **Done** goes back to the piece's
   front: the three stay at the foot of the screen as the page scrolls. Only taps press them.
 - **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
-  with where it ended, not its average: its last stretch first → last ("Bars 13–16, first → last: 70% → 96%"), that
-  stretch's tempo, and the time playing; one run's are its right in time and notes right. Its lines go over every run and
+  with where it ended, not its average: its last stretch, named as the look back names it, first → last ("Bars 13–16,
+  first → last: 70% → 96%"), that stretch's tempo, and the time playing; one run's are its right in time and notes right.
+  Its lines go over every run and
   pass: the notes (wrong, missed, slips put right and chord notes not together each named, and "every one" only when every
   note was right), the timing (only the timing: the notes more than a tenth of a beat out, and where), the notes let go early, and
   **Look at** and **Fixed**, the bar still hard and the bar put right, by the look back's rule. Its bars are shaded by what went wrong against the bar with

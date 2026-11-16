@@ -210,14 +210,9 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
 
         // ——— Names and figures ———
 
-        // The last bar a stretch got to: a loop's last, the piece's, or where its runs were stopped, when every one of them was.
-        private int Reached(Stretch s)
-        {
-            if (s.To is { } to) return to;
-
-            var its = runs.Where(r => r.To is null && (r.From, r.Hands, r.InTime) == (s.From, s.Hands, s.InTime)).ToList();
-            return its.Count > 0 && its.All(r => r.Stopped) ? its.Max(r => Math.Max(r.From, (r.Bar ?? r.From) - 1)) : piece.LastBar;
-        }
+        // The last bar a stretch got to: a loop's last, the piece's, or where its runs were stopped, when every one of them was
+        // (the session's review works that out, so What was played and the in-depth review name a stretch as this does).
+        private int Reached(Stretch s) => s.To ?? s.Reached ?? piece.LastBar;
 
         // A stretch's bars: a loop's, "the whole piece", "from bar 17", or the bars its runs got through when they were all stopped.
         private string Name(Stretch s) => s.To is null && Reached(s) == piece.LastBar ? s.From <= piece.FirstBar ? "the whole piece" : $"from bar {s.From}" : Bars(s.From, Reached(s));
@@ -251,10 +246,12 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         // A bar with a bar either side, as Practice bar N loops it.
         private (int From, int To) Around(int bar) => (Math.Max(piece.FirstBar, bar - 1), Math.Min(piece.LastBar, bar + 1));
 
-        // The bars where something happens most of the times they're played (three times in four), the most first: up to six.
+        // The bars where something happens most of the times they're played (three times in four), the most often first, then
+        // the most notes: up to six. It's the times it happened in that count, not its notes, so three notes out in one time
+        // through of four is once.
         private List<int> Where(Func<BarTrouble, int> count) => [.. Enumerable.Range(piece.FirstBar, piece.Bars)
-            .Select(bar => (Bar: bar, Plays: timed.Count(u => u.Covers(bar)), Sum: timed.Sum(u => u.In(bar) is { } t ? count(t) : 0)))
-            .Where(b => b.Plays > 0 && b.Sum >= 0.75 * b.Plays).OrderByDescending(b => b.Sum / (double)b.Plays).Take(6).Select(b => b.Bar).Order()];
+            .Select(bar => (Bar: bar, Plays: timed.Count(u => u.Covers(bar)), Times: timed.Count(u => u.In(bar) is { } t && count(t) > 0), Sum: timed.Sum(u => u.In(bar) is { } t ? count(t) : 0)))
+            .Where(b => b.Plays > 0 && b.Times >= 0.75 * b.Plays).OrderByDescending(b => b.Times / (double)b.Plays).ThenByDescending(b => b.Sum / (double)b.Plays).Take(6).Select(b => b.Bar).Order()];
 
         // ——— What moved, and what didn't ———
 
@@ -294,7 +291,8 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         }
 
         // The bar with most still to fix at the end (its wrong, missed and slipped notes only, while those are what's being
-        // worked on), and the others nearly as bad.
+        // worked on: looked for among every bar left with something to fix, as bars with more off the beat can outweigh it),
+        // and up to two others nearly as bad.
         private StoryLine? Hard(bool notesOnly)
         {
             var hards = review.Hards.Where(h => !notesOnly || h.Last.NotRight > 0).ToList();
@@ -304,7 +302,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             (int Count, string Words)[] kinds = [(last.Wrong, "wrong notes"), (last.Missed, "missed notes"), (last.Slips, "slips put right"), (last.Apart, "chords a key at a time"), .. notesOnly ? [] : new[] { (last.Off, "notes off the beat"), (last.Early, "notes let go early") }];
             var mostly = kinds.MaxBy(k => k.Count).Words;
             var words = hard.Recent == 1 ? $"{Capital(Bar(hard.Bar))}: {mostly} the last time it was played." : $"{Capital(Bar(hard.Bar))}: still going wrong in {hard.Bad} of its last {hard.Recent} times, mostly {mostly}.";
-            var also = hards.Skip(1).Where(o => o.Last.Weight * 2 >= last.Weight).Select(o => o.Bar).ToList();
+            var also = hards.Skip(1).Where(o => o.Last.Weight * 2 >= last.Weight).Take(2).Select(o => o.Bar).ToList();
             return new("Still hard", Tint.Bad, also.Count > 0 ? $"{words} {Capital(Runs(also))} too." : words);
         }
 
@@ -472,10 +470,12 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         // Times through before the end went worse, when it did (all of them, when none was before it).
         private List<Played> Rested(List<Played> of) => tired && lateFrom is { } from && of.Where(u => u.Run.At <= from).ToList() is { Count: > 0 } before ? before : of;
 
-        // The times through at the tempo most of it was played at; the ones at the end apart, when the end went worse.
+        // The times through at the tempo most of it was played at, or with none at it, at the tempo nearest it (of two as near,
+        // the slower: a step over it has a line of its own), never two tempos as one; the ones at the end apart, when the end
+        // went worse.
         private string Performed()
         {
-            var at = throughs.Where(u => u.Run.Tempo == tempo).ToList() is { Count: > 0 } main ? main : throughs;
+            var at = throughs.GroupBy(u => u.Run.Tempo).OrderBy(g => Math.Abs((g.Key ?? 0) - (tempo ?? 0))).ThenBy(g => g.Key).First().ToList();
             var rested = Rested(at);
             var worn = at.Except(rested).ToList();
             var own = piece.Tempo is { } goes && at[0].Run.Tempo >= PieceStanding.Near * goes ? at[0].Run.Tempo >= goes ? ", the piece's own tempo" : $", near the piece's own {Tempo(goes)}" : "";
@@ -507,17 +507,22 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             var bars = again.Where(a => a.Times == most).Select(a => a.Bar).ToList();
             var others = again.Where(a => a.Times < most).Take(3).Select(a => a.Bar).ToList();
             return new("Slips", Tint.Bad, bars.Count == 1
-                ? $"{Capital(Bar(bars[0]))} had a note wrong in {most} of the {throughs.Count} times through{(others.Count > 0 ? $"; {Runs(others)} often too" : "")}."
-                : $"{Capital(Runs(bars))} each had a note wrong in {most} of the {throughs.Count} times through.");
+                ? $"{Capital(Bar(bars[0]))} had a note wrong {Often(most)}{(others.Count > 0 ? $"; {Runs(others)} often too" : "")}."
+                : $"{Capital(Runs(bars))} each had a note wrong {Often(most)}.");
         }
 
+        // How many of the times through: "in 3 of the 4 times through", or when it was every one of them, "both times through"
+        // or "all 3 times through".
+        private string Often(int times) => times < throughs.Count ? $"in {times} of the {throughs.Count} times through" : throughs.Count == 2 ? "both times through" : $"all {times} times through";
+
         // The bars that had a note not right in half the times through, twice at least, the most often first. Three bars or
-        // more that each went wrong just twice are slips moving around, not a bar that keeps going wrong.
+        // more that each went wrong just twice are slips moving around, not a bar that keeps going wrong; but not when that's
+        // every time through: a bar that went wrong every time it was played is named, however few times through there were.
         private List<(int Bar, int Times)> Again()
         {
             List<(int Bar, int Times)> again = [.. Enumerable.Range(piece.FirstBar, piece.Bars)
                 .Select(bar => (Bar: bar, Times: throughs.Count(u => u.In(bar) is { NotRight: > 0 }))).Where(b => b.Times >= Math.Max(2, (throughs.Count + 1) / 2)).OrderByDescending(b => b.Times).ThenBy(b => b.Bar)];
-            return again is [(_, 2), _, _, ..] ? [] : again;
+            return again is [(_, 2), _, _, ..] && throughs.Count > 2 ? [] : again;
         }
 
         // A step over the tempo most of it was played at: how it went there.
@@ -638,6 +643,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
             }
             // The tempo something was last played at In time, hands together, in a bar.
             double? LastAt(int bar) => units.LastOrDefault(u => u.InTime && u.Both && u.Covers(bar))?.Run.Tempo;
+            // The bar still going wrong: the one with most to fix of every bar left with a wrong note, as Still hard names it.
             var hard = review.Hards.FirstOrDefault(h => h.Last.NotRight > 0);
             // The last time through; the best of them, when the end of the session went worse.
             var through = Reference;
@@ -742,7 +748,7 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
                     if (Again() is [var (bar, times), ..] && tempo is { } now)
                     {
                         var (from, to) = Around(bar);
-                        Add(from, to, "both", true, now, $"{Capital(Bar(bar))} had a note wrong in {times} of the {throughs.Count} times through. Clean five passes running.");
+                        Add(from, to, "both", true, now, $"{Capital(Bar(bar))} had a note wrong {Often(times)}. Clean five passes running.");
                     }
                     if (through is not null)
                     {

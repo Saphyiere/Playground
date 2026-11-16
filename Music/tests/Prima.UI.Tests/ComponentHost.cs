@@ -57,12 +57,13 @@ internal sealed class ComponentHost : IAsyncDisposable
         ConversionHost.Run = Jobs.RunAsync;
     }
 
-    public async Task<PieceRecord> AddPiece(bool pdf = false, bool bundled = false)
+    // The test piece: a bar, or so many, each a whole note.
+    public async Task<PieceRecord> AddPiece(bool pdf = false, bool bundled = false, int bars = 1)
     {
         var piece = new PieceRecord("test", bundled ? "bundle" : "import", "Test piece", "", null, pdf ? "pdf" : "mei", bundled ? "score.pdf" : null, null,
             1, 1, null, 1, null, null, null, null, null, null, 72, null, null, DateTimeOffset.Now, null);
         var score = new Score(new Prima.Core.Music.Key(0), new Meter(4, 4),
-            [new Bar(1, [new Voice(1, [new Notes("n1", 0, 1920, [new Tone("t1", new Spelled(Step.C, 0, 4))])])])]);
+            [.. Enumerable.Range(1, bars).Select(n => new Bar(n, [new Voice(1, [new Notes($"n{n}", 0, 1920, [new Tone($"t{n}", new Spelled(Step.C, 0, 4))])])]))]);
         await Store.SavePieceAsync(piece, pdf ? null : MeiWriter.Write(score), []);
         await Context.Services.GetRequiredService<IAssistKeyStore>().SetAsync("test-key");
         return piece;

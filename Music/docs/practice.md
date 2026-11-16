@@ -74,9 +74,12 @@ tempo it led with a two-bar loop and never mentioned the four times through; and
 piece's, which way the timing was out, loud and soft or touch (a run didn't keep them), the days before beyond yesterday's
 tempo, how long the session was, or what to do about any of it.
 
-What the owner said is that much. Everything below is a pick *(pick)*, its thresholds too, to change as the owner likes.
+What the owner said is that much. Everything below is a pick *(pick)*, its thresholds too, to change as the owner likes,
+except the six the owner decided on 15 November after the review of it, which are rules (Decided, 6 to 11, at the end):
+Next, a bar wrong every time it was played, steps sharing bars, six lines, runs stopped on the way, and "came back".
 
-- **In words first**: a sentence on what the session came to, then up to five lines, each about one thing, with a key lit
+- **In words first**: a sentence on what the session came to, then up to five lines, each about one thing, and a sixth on
+  how the end went when it went worse (The end, below): six at most, the owner's rule. Each has a key lit
   for good news, red for something to work on, hollow for what's just so. Which lines depends on the kind of work it was,
   since wrong notes come before timing and timing before touch (the teacher's review asked for this of a run's summary:
   "notes first and alone when they're under 80%"):
@@ -86,15 +89,15 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   | Finding the notes | half the notes played were a hand at a time or in Wait for me, or In time under 75% right | the bars read and how, and how far hands together or the click got | what moved most, the bar still going wrong, what stayed since last time, the click's first to last, a tempo it dropped at, the bar put right |
   | Getting them right | In time, both hands, under 95% of the notes right | whether it holds together played through: 85% right in time | what moved most, the bar still going wrong, too fast or stuck, the whole piece since last time, the bar put right |
   | Timing and touch | 95% right or more, and under nine tenths of the piece's tempo or not yet steady | "The notes are there at 92 of the piece's 115. What's left is the timing and the touch." | the timing (the share in time, early or late, which bars), loud and soft, the touch, the pedal, notes let go early, since last time |
-  | Playing it | 97.5% right or more at nine tenths of the piece's tempo, played through (a piece that marks none: with the timing steady) | the times through, and how many had every note right | the first one cold against the rest, the bar that kept slipping, a step faster, since last time |
+  | Playing it | 97.5% right or more at nine tenths of the piece's tempo, played through (a piece that marks none: with the timing steady) | the times through at the tempo most of it was played at (with none there, the nearest), and how many had every note right | the first one cold against the rest, the bar that kept slipping, a step faster, since last time |
 
   - **Moved** is the stretch that came up most at one tempo, eight points or more over three passes or more, and whether it
     held a step faster. **Stuck** is four passes or more that ended where they started, under 85%. **Too fast** is a stretch
     that ended eight points or more under where it ended at the slower tempo, and under 85%.
   - **Since yesterday** (or **Earlier today**, **Since Tuesday**…) has the bars new today, the whole piece against the last
     time it was played through, and what the session before left against **the first go at it today**: within five points,
-    "it stayed"; else "some of it went", "and came back" if a later go got there. The teacher's review: "judge an exercise by
-    how the first try goes the next day."
+    "it stayed"; else "some of it went", "and came back" if a later go today came within three points of where it was left
+    (the owner's rule). The teacher's review: "judge an exercise by how the first try goes the next day."
   - **The end**: a session of 25 minutes or more whose last three tenths went worse than what came before. That's the same
     bars, hand, mode and tempo played again five points or more down on the last three times before, or a stretch that sank
     six points or more as it was gone round (not one just taken a step faster: then the tempo's the likelier cause, and Too
@@ -103,15 +106,17 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
     for today". The teacher's review again: two passes in a row getting worse "is tiredness, not learning". With nothing of
     the sort to say, and room for it, the last line is where the playing time went.
   - A run from a bar that was stopped on the way is the bars it got through ("bars 1–8"), not "the whole piece", and isn't
-    set against the runs that got to the end.
+    set against the runs that got to the end. What was played and the in-depth review name it the same way.
 - **Where the piece stands**: every bar a cell, lighter the further along it is, the bars played today underlined, from
   every run kept on the piece: not played; notes not there yet (played, but not yet right In time with both hands); notes
   there, in time; and at tempo, within a tenth of the piece's own. A bar's notes are there once two of its last four times
   In time with both hands were right (one of its first two), at the slower of those tempos; a time is right with nine notes
-  in ten right, a run through a repeat counting the bar's notes twice. Under it, the fastest the piece has held together,
+  in ten right, a bar a run's repeat took twice counting its notes twice (by the music's own order of bars: a bar played once
+  isn't let off a wrong note because other bars repeat). Under it, the fastest the piece has held together,
   played through. This is the map the teacher's review asked for ("shaded by state: not started, notes found, slow, at
   tempo").
-- **Next**: up to three things to do, no two on the same bars, each with why, and **Practice it**, which carries the session
+- **Next**: up to three things to do, no two on the same bars in the same hand and mode (a bar in Wait for me and a stretch
+  round it with the click can both be there: the owner's rule), each with why, and **Practice it**, which carries the session
   on with the step's bars (a loop, or from a bar on), hand, mode and tempo set:
 
   | The kind of work | What's next |
@@ -119,16 +124,18 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   | Finding the notes | the bar still going wrong, a bar either side, in Wait for me; the bars read only a hand at a time, together; the stretch tried with the click (a notch up over 85%, a notch down under 60%, else the same), or one that's 85% right first time, In time at about 45% of the piece's tempo; the four bars after the furthest read, right hand first |
   | Getting them right | the bar still going wrong, a notch slower than it went wrong at; the stretch that went too fast, back where it held, or the one that's stuck, a notch slower; the whole piece: a notch up over 90% right in time, a notch down under 80%, else the same again, first thing next time |
   | Timing and touch | the bars where the timing goes out, two notches slower; the bars of a marking that hasn't come out; a bar with a wrong note still; the whole piece, as above |
-  | Playing it | the bar that kept having a wrong note (in half the times through, twice at least; three bars or more with just two each are slips moving around, not a bar); once through, cold, first thing next time |
+  | Playing it | the bar that kept having a wrong note (in half the times through, twice at least; three bars or more with just two each are slips moving around, not a bar, unless that's every time through: a bar that went wrong every time it was played is named, however few times through, and the slips moved around only when no bar did); once through, cold, first thing next time |
 
-  The first step stays on the piece's front, under About this piece: **Next**, with **Start there**. This takes back the
-  first design's "No 'next time' line: it suggests". The owner's complaint is that the ending does nothing, and a thing to
-  do with a key that starts it is the least that does something. It suggests from the session's own figures and says which;
-  it doesn't plan a week, which stays with Routines. If the owner would still rather the app didn't suggest, Next and the
-  line on the front come out and the rest stands.
+  The first step stays on the piece's front, under About this piece: **Next**, with **Start there** (none after a session
+  that left nothing to do; a session with no run in it leaves the last one's). This takes back the first design's "No 'next
+  time' line: it suggests", and the owner confirmed it on 15 November: Next stays, on the look back (Practice it) and on the
+  piece's front (Start there). The owner's complaint is that the ending does nothing, and a thing to do with a key that
+  starts it is the least that does something. It suggests from the session's own figures and says which; it doesn't plan a
+  week, which stays with Routines.
 - **What was played**, under those, is the first look back's lines as they were: each stretch you practiced (its bars, the
   hand and the mode) with its runs, or round a loop its passes, as a line, the best named and its first and last figures
-  beside it, the minutes it took, and its tempo (a step on the line where it changed).
+  beside it, the minutes it took, and its tempo (a step on the line where it changed). Runs that were all stopped on the
+  way are named by the bars they reached ("Bars 1–8"), as the words above name them, and so is the in-depth review's lead.
 - The bar still hard and the bar put right keep the rule round 2's reviews asked for: still hard is the bar with most to
   fix in the last third of the times it was played (a wrong or missed note weighing three times anything else), and put
   right is the bar that was worst at first and clean at the end. The line now says in how many of those last times it went
@@ -209,3 +216,14 @@ Only the tablet and the piano can show these:
 3. Play: a Start key first, so the tempo can be set.
 4. Two clocks, Playing and Idle, in place of one that pauses after five idle minutes.
 5. After 15 minutes with nothing played, the session pauses under a cover asking whether you're still practicing.
+
+The look back, decided by the owner on 15 November from the review of it (each was a pick before):
+
+6. Next stays, on the look back (Practice it) and on the piece's front (Start there).
+7. A bar that went wrong every time it was played is named, however few times through: "the slips moved around" is said
+   only when no bar did.
+8. Two steps may cover the same bars in a different hand or mode; no two are on the same bars in the same hand and mode.
+9. Six lines at most: up to five, and the line on how the end went when it went worse.
+10. What was played and the in-depth review name runs stopped on the way by the bars they reached, as the words above them
+    do, not "The whole piece".
+11. "Came back" is a later go today within three points of where the session before left it.

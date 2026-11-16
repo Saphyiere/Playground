@@ -45,6 +45,34 @@ public class LookBackTests
     }
 
     [Fact]
+    public async Task RunsStoppedOnTheWayAreNamedByTheBarsTheyReachedInWhatWasPlayedAndTheInDepthReview()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece(bars: 4);
+        var session = await host.Store.StartSessionAsync(piece.Id, "standard", DateTimeOffset.Now.AddMinutes(-9));
+        // Twice from the start of the four bars, stopped in bar 3: bars 1-2, the second of them with its note wrong.
+        foreach (var minutes in new[] { -6, -3 })
+        {
+            var at = DateTimeOffset.Now.AddMinutes(minutes);
+            await host.Store.AddAttemptAsync(new AttemptRecord(0, at, DateOnly.FromDateTime(at.LocalDateTime), "piece", "in time", piece.Id, 1, 72, null, null, "[]", null,
+                JsonSerializer.Serialize(new { inTime = 0.5, right = 1, wrong = 1, missed = 0, from = 1, stopped = true, bar = 3, hands = "both", session, took = 9.5, timing = new[] { -8.0, 3.5 }, trouble = new[] { new[] { 2, 1, 0, 0, 0, 0, 0, 0 } } }), 0, false, null));
+        }
+        var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
+        view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
+
+        await view.InvokeAsync(() => view.FindComponent<PracticeStrip>().Instance.OnFinish.InvokeAsync());
+
+        // The words name them by the bars they got through, and so does What was played under them.
+        Assert.Equal("A first look: bars 1–2 read. With the click at 72, bars 1–2 got to 50% right in time.", view.WaitForElement(".look-headline").TextContent);
+        Assert.Equal("Bars 1–2", view.Find(".look-stretches .look-bars").TextContent);
+
+        await view.InvokeAsync(() => view.FindAll(".look-keys button").Single(b => b.TextContent == "In-depth review").ClickAsync(new MouseEventArgs()));
+
+        // The in-depth review leads with where the session ended: the same bars.
+        view.WaitForAssertion(() => Assert.Equal("Bars 1–2, first → last", view.Find(".review-figures .mu-readout-label").TextContent));
+    }
+
+    [Fact]
     public async Task APiecesFrontKeepsWhatsNextFromItsLastSessionAndStartsPracticeThere()
     {
         await using var host = new ComponentHost();
