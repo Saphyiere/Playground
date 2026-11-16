@@ -13,16 +13,20 @@ namespace Prima.Core.Music;
 /// exporter names ("part1verse1", "part1verse2") rather than numbers, which Verovio reads as one verse; or a song's lines typed as
 /// text over or under the music (directions), which Verovio places without spacing the notes for them, so they pile up on each
 /// other and crush their bars into a corner of the line. <see cref="Prepare"/> gives each voice's lyrics and each verse a line of
-/// its own, and moves words typed as text onto a line under the notes they start at. A whole verse typed as text (a direction as
-/// long as a verse, printed after the music) isn't for playing and is left off; so are all the words when they're hidden. A
-/// player's direction made of music's own words ("D.C. al Fine", "poco a poco cresc.") is never a song's: it stays as it is.
+/// its own (the same words in two voices print once), and moves words typed as text onto a line under the notes they start at. A
+/// whole verse typed as text (a direction as long as a verse, printed after the music) isn't for playing and is left off; so are
+/// all the words when they're hidden. A player's direction made of music's own words ("D.C. al Fine", "poco a poco cresc.") is
+/// never a song's: it stays as it is.
 /// </summary>
 public static class SongWords
 {
     private static readonly XNamespace Mei = "http://www.music-encoding.org/ns/mei";
     private static readonly XNamespace Xml = "http://www.w3.org/XML/1998/namespace";
 
-    /// <summary>Longer than this, a direction is a whole verse typed as text, not words under the notes or a player's direction.</summary>
+    /// <summary>
+    /// Longer than this, a direction is a whole verse typed as text, not words under the notes, unless it's a player's direction
+    /// made of music's own words (a ritardando spaced out over its bars), which stays however long it is.
+    /// </summary>
     public const int VerseLength = 60;
 
     private static readonly Regex Directions = new(@"<dir\b(?:[^>]*?/>|[^>]*>(?<text>[\s\S]*?)</dir>)", RegexOptions.Compiled);
