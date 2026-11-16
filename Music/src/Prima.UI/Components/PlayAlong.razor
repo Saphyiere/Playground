@@ -280,7 +280,10 @@
     private Dictionary<string, int> barOf = [];
     private int seconds;
 
-    private string ModeKey => $"Play.Mode.{Name}";
+    private string ModeKey => ModeKeyOf(Name);
+
+    /// <summary>Where a screen's mode is kept, by the screen's name: a screen that sets the mode before the bar is made keeps it there.</summary>
+    public static string ModeKeyOf(string name) => $"Play.Mode.{name}";
 
     // The screen's own mode, as kept, and what was last asked for in its place.
     private PlayMode? kept;
@@ -710,7 +713,7 @@
             {
                 var pass = judge.Stretch(passFrom + passes.Count * passTicks, passFrom + (passes.Count + 1) * passTicks);
                 passMarks = [.. drawn.Values];
-                passes.Add(new PiecePass(pass.RightFirstTime, pass.Notes, null) { Trouble = Trouble.Of(passMarks, barOf) });
+                passes.Add(new PiecePass(pass.RightFirstTime, pass.Notes, null) { Trouble = Trouble.Of(passMarks, barOf), Seconds = pass.Seconds });
                 if (judge.Done) break;
             }
             if (judge.Done)

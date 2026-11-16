@@ -172,25 +172,36 @@ public sealed partial class PrimaStore
             // Round a loop: its last bar, and each pass played to its end, with what went wrong in each of its bars.
             var to = measures.TryGetProperty("to", out var last) && last.ValueKind == JsonValueKind.Number ? last.GetInt32() : (int?)null;
             List<PiecePass> passes = measures.TryGetProperty("passes", out var each) && each.ValueKind == JsonValueKind.Array
-                ? [.. each.EnumerateArray().Select(p => new PiecePass(p.GetProperty("right").GetInt32(), p.GetProperty("notes").GetInt32(), p.TryGetProperty("inTime", out var timed) && timed.ValueKind == JsonValueKind.Number ? timed.GetDouble() : null) { Trouble = TroubleOf(p) })]
+                ? [.. each.EnumerateArray().Select(p => new PiecePass(p.GetProperty("right").GetInt32(), p.GetProperty("notes").GetInt32(), p.TryGetProperty("inTime", out var timed) && timed.ValueKind == JsonValueKind.Number ? timed.GetDouble() : null)
+                    { Trouble = TroubleOf(p), Seconds = Number(p, "seconds") })]
                 : [];
             var session = measures.TryGetProperty("session", out var of) && of.ValueKind == JsonValueKind.Number ? of.GetInt64() : (long?)null;
             var play = measures.TryGetProperty("play", out var through) && through.ValueKind == JsonValueKind.True;
             var day = DateOnly.Parse(r.Day, CultureInfo.InvariantCulture);
+            // Kept since 15 November: how long it took (Wait for me kept its seconds before that), In time how it lay against the
+            // click, and how what the music marks was played.
+            var timing = inTime && measures.TryGetProperty("timing", out var lay) && lay.ValueKind == JsonValueKind.Array && lay.GetArrayLength() >= 2 ? new RunTiming(lay[0].GetDouble(), lay[1].GetDouble()) : null;
+            List<MarkPlayed> marked = measures.TryGetProperty("marked", out var asked) && asked.ValueKind == JsonValueKind.Array
+                ? [.. asked.EnumerateArray().Select(m => new MarkPlayed((Marking)m[0].GetInt32(), m[1].GetInt32(), m[2].GetInt32(), m[3].GetInt32(), m[4].GetInt32(), m[5].ValueKind == JsonValueKind.String ? m[5].GetString() : null))]
+                : [];
             var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), day, inTime, r.Tempo, hands, from, stopped, bar, right, notes, share)
             {
                 Id = r.Id, Session = session, Play = play, Trouble = TroubleOf(measures), To = to, Passes = passes,
+                Seconds = Number(measures, "took") ?? (inTime ? null : Number(measures, "seconds")), Timing = timing, Marked = marked,
             };
             return (r.SetId, run);
         }).ToList();
     });
 
     // What went wrong in each bar of a run or a pass, as it was kept: [bar, wrong, missed, off the beat, let go early, slips put
-    // right, chord notes not together] for each (the last two kept since 13 November).
+    // right, chord notes not together, those off the beat that were ahead of it] for each (slips and chords kept since 13
+    // November, ahead since the 15th).
     private static List<BarTrouble> TroubleOf(JsonElement kept) => kept.TryGetProperty("trouble", out var bars) && bars.ValueKind == JsonValueKind.Array
         ? [.. bars.EnumerateArray().Select(b => new BarTrouble(b[0].GetInt32(), b[1].GetInt32(), b[2].GetInt32(), b[3].GetInt32(), b[4].GetInt32(),
-            b.GetArrayLength() > 5 ? b[5].GetInt32() : 0, b.GetArrayLength() > 6 ? b[6].GetInt32() : 0))]
+            b.GetArrayLength() > 5 ? b[5].GetInt32() : 0, b.GetArrayLength() > 6 ? b[6].GetInt32() : 0, b.GetArrayLength() > 7 ? b[7].GetInt32() : 0))]
         : [];
+
+    private static double? Number(JsonElement kept, string name) => kept.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : null;
 
     /// <summary>The marks a run left on the music, as it kept them, for each run of those asked for that kept them.</summary>
     public Task<Dictionary<long, string>> GetRunMarksAsync(IReadOnlyCollection<long> runs) => RunAsync(async c =>

@@ -61,7 +61,7 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAsse
 
 // Clears the data, then fills it for a scenario (in Seeds, below): "empty" is the first run, "fresh" just after the welcome,
 // "today" six weeks in with today half done, "summary" today finished, "months" three months in.
-app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSettings settings, PreviewClaude claude) =>
+async Task Clear(PrimaStore store, PrimaSettings settings, PreviewClaude claude)
 {
     claude.Reset();
     await store.GetSettingsAsync(); // ensures the schema exists
@@ -73,8 +73,26 @@ app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSe
         new SqliteCommand("DELETE FROM Excerpt WHERE Piece IN (SELECT Id FROM Piece WHERE Format = 'pdf'); UPDATE Piece SET Mei = NULL, Reasons = NULL WHERE Format = 'pdf'", connection).ExecuteNonQuery();
     }
     await store.LoadAsync(settings);
+}
+
+app.MapGet("/seed/{scenario}", async (string scenario, PrimaStore store, PrimaSettings settings, PreviewClaude claude) =>
+{
+    await Clear(store, settings, claude);
     await Seeds.Fill(scenario, store, settings);
     return Results.Text(scenario);
+});
+
+// A practice session on the Minuet in G to look back on (PracticeSeeds): "general", "learning", "phrasing" or "mastering", each
+// with the days before behind it, or "first", the first sitting on the piece; today's of 20, 40 or 60 minutes, left going, so
+// the piece (library/pdmx-QmUq8P8pvoDes682mBCKFiSSdvmfdAXak31oEPnxVNBAqv) opens under its cover, with Finish practice on it.
+// Open the Library once first: the piece has to be stored.
+app.MapGet("/seed/practice/{who}/{minutes:int}", async (string who, int minutes, PrimaStore store, PrimaSettings settings, PreviewClaude claude) =>
+{
+    if (!PracticeSeeds.Players.Contains(who)) return Results.Text(string.Join(", ", PracticeSeeds.Players));
+
+    await Clear(store, settings, claude);
+    await Seeds.Fill("fresh", store, settings);
+    return Results.Text(await PracticeSeeds.Fill(who, minutes, store, settings));
 });
 
 // A routine of its activities, comma-separated (a drill's key, or "exercise:" and an exercise's id, in Wait for me), accepted as if

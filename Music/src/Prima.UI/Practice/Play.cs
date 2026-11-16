@@ -101,13 +101,13 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
 /// <summary>What went wrong in each bar of a run or a pass that had something wrong.</summary>
 public static class Trouble
 {
-    /// <summary>From its notes' results, In time: wrong (and not put right at once), missed, off the beat, let go early, and slips put right.</summary>
+    /// <summary>From its notes' results, In time: wrong (and not put right at once), missed, off the beat (and ahead of it), let go early, and slips put right.</summary>
     public static IReadOnlyList<BarTrouble> Of(IEnumerable<NoteResult> notes) => [.. notes.GroupBy(n => n.Bar)
         .Select(g =>
         {
             var (wrong, missed) = (g.Count(n => n.Outcome == Outcome.Wrong && !n.Corrected), g.Count(n => n.Outcome == Outcome.Missed));
             var (off, early, slips) = (g.Count(n => n.Band == Band.Off), g.Count(n => n.LetGoEarly), g.Count(n => n.Corrected));
-            return new BarTrouble(g.Key, wrong, missed, off, early, slips);
+            return new BarTrouble(g.Key, wrong, missed, off, early, slips, Ahead: g.Count(n => n.Band == Band.Off && n.ErrorPercent < 0));
         })
         .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
 
@@ -116,7 +116,7 @@ public static class Trouble
         .Select(g =>
         {
             var (wrong, missed, apart) = (g.Count(m => m.Kind == "wrong"), g.Count(m => m.Kind == "missed"), g.Count(m => m.Kind == "apart"));
-            return new BarTrouble(g.Key, wrong, missed, g.Count(m => m.Kind is "early" or "late"), 0, Apart: apart);
+            return new BarTrouble(g.Key, wrong, missed, g.Count(m => m.Kind is "early" or "late"), 0, Apart: apart, Ahead: g.Count(m => m.Kind == "early"));
         })
         .Where(t => t.Weight > 0).OrderBy(t => t.Bar)];
 }

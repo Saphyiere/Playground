@@ -311,7 +311,11 @@ curl -s http://127.0.0.1:5299/seed/empty
 ```
 
 The scenarios are `empty` (the first run), `fresh`, `today`, `summary` and `months`. The Library uses the bundle in `library/`
-and stores it the first time it's opened. `/keys/piece?id=…&bpm=…` plays a piece's notes
+and stores it the first time it's opened. `/seed/practice/{who}/{minutes}` sets up a practice session on the Minuet in G to look
+back on (`tools/Prima.Preview/PracticeSeeds.cs`): `general`, `learning`, `phrasing` or `mastering`, each with the days before
+behind it, or `first`, the first sitting on the piece; 20, 40 or 60 minutes. Each run is played by a pretend pianist and scored
+by the app's own scoring, and the session is left going: open the piece (`library/pdmx-QmUq8P8pvoDes682mBCKFiSSdvmfdAXak31oEPnxVNBAqv`)
+and Finish practice is on its cover. Open the Library once first, so the piece is stored. `/keys/piece?id=…&bpm=…` plays a piece's notes
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine. `/keys/dual?on=true`
 layers two voices on the simulated piano's keys, as the P-225's Dual does: each key and pedal then says its message on channels
 1 and 2. `/keys/answer` plays what a drill or a Wait for me run is waiting for (`right=false` for a wrong key), a chord's keys

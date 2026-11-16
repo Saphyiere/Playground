@@ -124,9 +124,9 @@ else
                 </div>
             </section>
         }
-        else if (stage == Stage.LookBack && session is not null && review is not null)
+        else if (stage == Stage.LookBack && session is not null && review is not null && story is not null)
         {
-            <LookBack Session="session" Review="review" Since="before" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnPractice="PracticeBar" OnDone="Done" />
+            <LookBack Session="session" Review="review" Story="story" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnStep="PracticeStep" OnDone="Done" />
         }
         else if (stage == Stage.Review && review is not null)
         {
@@ -414,6 +414,11 @@ else
                         <li>@through@done.Runs runs on @done.Days @(done.Days == 1 ? "day" : "days"), the first @PieceWords.When(done.Since, today).</li>
                     }
                 }
+                @* What to do next, as the last practice session left it: its first step, a tap away. *@
+                @if (stage == Stage.Front && next is { Steps: [var step, ..] })
+                {
+                    <li class="about-next"><span><b>Next:</b> @step.What. @step.Why</span> <button type="button" class="mu-btn" data-piano="off" @onclick="() => PracticeStep(step)">Start there</button></li>
+                }
                 @if (piece.Reasons is { Length: > 0 } reasons)
                 {
                     <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
@@ -479,11 +484,13 @@ else
     private TimeSpan counted;
     private bool covered;
     private int ticks;
-    // The look back's and the in-depth review's: the runs gone over, summed up, the session before to compare with, the bar picked
-    // and where the review was opened from. A run to start once the page has its play bar again.
+    // The look back's and the in-depth review's: the runs gone over, summed up, the session in words (with where the piece stands
+    // and what to do next), the bar picked and where the review was opened from. A run to start once the page has its play bar
+    // again. And what to do next as the last session left it, for the piece's front, with the day it was.
     private SessionReview? review;
     private List<PieceRun> reviewed = [];
-    private (DateOnly Day, SessionReview Review)? before;
+    private SessionStory? story;
+    private (DateOnly Day, IReadOnlyList<NextStep> Steps)? next;
     private int? picked;
     private Stage reviewFrom;
     private bool startAfterRender;
@@ -650,7 +657,9 @@ else
                 view = stored.GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
                 handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
                 StartAt(FirstBar);
-                history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
+                var kept = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
+                history = PieceHistory.Of(kept);
+                next = SessionStory.Next(kept, Shape, DateOnly.FromDateTime(DateTime.Now));
                 // A session left going is paused, to carry on or finish; one left until another day is finished as of the last
                 // thing played in it, and the piece opens on its front.
                 if ((await Store.GetSessionsAsync(Id)).LastOrDefault(s => s.Finished is null) is { } open)
@@ -1188,18 +1197,9 @@ else
     private async Task Keep(PlayOutcome how)
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
-        var (right, notes, clean) = how.InTime is { } timed ? (timed.Right, timed.Expected, timed.Clean) : (how.Wait!.RightFirstTime, how.Wait.Notes, how.Wait.WrongKeys == 0 && how.Wait.Apart == 0 && how.Wait.Finished);
-        // Round a loop, its last bar and each pass, and the run's figures are its last pass's.
-        var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime, trouble = Kept(p.Trouble) }));
-        var trouble = Kept(how.InTime is { } judged ? Trouble.Of(judged.Notes) : Trouble.Of(how.Marks, expected.ToDictionary(n => n.Id, n => n.Bar)));
-        var (practiced, fromPlay) = (stage == Stage.Practice ? session?.Id : null, stage == Stage.Play ? true : (bool?)null);
-        var marks = new { right = how.Marks.Where(m => m.Kind == "right").Select(m => m.Id), other = how.Marks.Where(m => m.Kind != "right").Select(m => new object?[] { m.Id, m.Kind, m.Played, m.Steps, m.Written }) };
-        object measures = how.InTime is { } r
-            ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from = RunFrom(), to, passes, stopped = how.Stopped, bar = how.Bar, hands = RunHands(), session = practiced, play = fromPlay, trouble, marks }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from = RunFrom(), to, passes, stopped = how.Stopped, bar = how.Bar, hands = RunHands(), session = practiced, play = fromPlay, trouble, marks };
-        var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
-        var keys = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
-        lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, keys, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean, null));
+        var (right, notes, clean) = KeptRun.Figures(how);
+        var measures = KeptRun.Measures(how, RunFrom(), RunHands(), stage == Stage.Practice ? session?.Id : null, stage == Stage.Play, expected.ToDictionary(n => n.Id, n => n.Bar), (DateTime.Now - started).TotalSeconds);
+        lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, KeptRun.Keys(how), null, measures, notes == 0 ? null : right / (double)notes, clean, null));
         // Practice's minutes are its clock's, counted as it goes; Play's are its run's.
         if (stage != Stage.Practice) await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
         history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
@@ -1209,9 +1209,6 @@ else
     private int RunFrom() => stage == Stage.Play ? FirstBar : from;
 
     private string RunHands() => stage == Stage.Play ? "both" : HandName ?? "both";
-
-    // What went wrong in each bar, as it's kept: [bar, wrong, missed, off the beat, let go early, slips put right, chord notes not together].
-    private static IEnumerable<int[]> Kept(IReadOnlyList<BarTrouble> trouble) => trouble.Select(t => new[] { t.Bar, t.Wrong, t.Missed, t.Off, t.Early, t.Slips, t.Apart });
 
     // ——— A practice session ———
 
@@ -1282,7 +1279,7 @@ else
         await ShowLookBack();
     }
 
-    // The look back: the session's runs summed up, and the session before on the piece that had any, to compare with.
+    // The look back: the session's runs summed up and put in words.
     private async Task ShowLookBack()
     {
         if (session is null) return;
@@ -1290,8 +1287,11 @@ else
         var runs = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
         reviewed = [.. runs.Where(r => r.Session == session.Id)];
         review = SessionReview.Of(reviewed, LastBar);
-        var earlier = (await Store.GetSessionsAsync(Id)).Where(s => s.Id != session.Id && s.Started < session.Started).Select(s => (s.Started, Runs: runs.Where(r => r.Session == s.Id).ToList())).LastOrDefault(s => s.Runs.Count > 0);
-        before = earlier.Runs is { Count: > 0 } theirs ? (DateOnly.FromDateTime(earlier.Started.LocalDateTime), SessionReview.Of(theirs, LastBar)) : null;
+        // In words, with every run kept on the piece before this session behind it: what it came to, where the piece stands
+        // now, and what to do next, which the piece's front keeps for next time.
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        story = SessionStory.Of(reviewed, runs.Where(r => r.Session != session.Id), Shape, today);
+        if (story.Steps.Count > 0) next = (today, story.Steps);
         (stage, outcome, picked) = (Stage.LookBack, null, null);
         if (fullScreen) await ToggleFullScreen();
     }
@@ -1309,7 +1309,7 @@ else
     // Done: back to the piece's front, the session over.
     private async Task Done()
     {
-        (stage, session, clock, review, reviewed, picked, outcome) = (Stage.Front, null, null, null, [], null, null);
+        (stage, session, clock, review, story, reviewed, picked, outcome) = (Stage.Front, null, null, null, null, [], null, null);
         if (sheet is not null)
         {
             await sheet.ClearMarks();
@@ -1417,6 +1417,42 @@ else
         (from, loopTo, picked, played, outcome) = (Math.Max(FirstBar, bar - 1), Math.Min(LastBar, bar + 1), null, null, null);
         if (session is not null) await CarryOn();
         else await StartPractice();
+    }
+
+    // Practice a step of what to do next, from the look back or the piece's front: its bars (a loop, or from a bar on), its hand,
+    // its mode and its tempo set, and the session carried on (or, from the front, one started). The play bar reads the mode
+    // kept for it as it's made, which it is anew as Practice comes back to the page: so the step's mode is kept first.
+    private async Task PracticeStep(NextStep step)
+    {
+        if (!barStarts.ContainsKey(step.From)) return;
+        if (sheet is not null)
+        {
+            await sheet.ClearMarks();
+            await sheet.Outline(null);
+        }
+        (from, loopTo, chosen, picked, played, outcome) = (step.From, step.To is { } to ? Math.Min(to, LastBar) : null, step.From > FirstBar, null, null, null);
+        if (twoHands)
+        {
+            handStaff = step.Hands switch { "right" => 1, "left" => 2, _ => null };
+            await Store.SetSettingAsync(HandsKey, HandName);
+        }
+        if (step.Tempo is { } at) await SetTempo(at);
+        await Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), step.InTime ? "time" : "wait");
+        if (session is not null) await CarryOn();
+        else await StartPractice();
+    }
+
+    // What the look back and the piece's front need of the piece: its bars, its own tempo, whether it's for two hands, and the
+    // notes written in each bar.
+    private PieceShape Shape => new(FirstBar, LastBar, originalTempo, twoHands) { Notes = barNotes ??= BarNotes() };
+
+    private List<int>? barNotes;
+
+    // The notes written in each bar from the first to the last by number, a bar of rests having none.
+    private List<int> BarNotes()
+    {
+        var counts = expected.GroupBy(n => n.Bar).ToDictionary(g => g.Key, g => g.Count());
+        return [.. Enumerable.Range(FirstBar, LastBar - FirstBar + 1).Select(bar => counts.GetValueOrDefault(bar))];
     }
 
     // The way of practicing, or whether a loop waits after each pass, chosen on the piece's Options: kept in Settings, for every piece.

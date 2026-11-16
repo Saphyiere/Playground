@@ -63,7 +63,9 @@ public class SessionReviewTests
         PiecePass[] passes = [Pass(18, 0.7, early2, wrong3), Pass(19, 0.75, early2, wrong3), Pass(22, 0.9, early2), Pass(22, 0.95, early2), Pass(23, 0.96, early2), Pass(23, 0.96, early2)];
         var review = SessionReview.Of([Run(1, true, 1, 4, 23, 23, 1.0, passes)], 16);
 
-        Assert.Equal(new StillHard(2, 6, 6, TroubleKind.Early, new BarTrouble(2, 0, 0, 0, 2)), review.Hard);
+        // Its last third is two of its six times, both with a note let go early.
+        Assert.Equal(new StillHard(2, 6, 6, TroubleKind.Early, new BarTrouble(2, 0, 0, 0, 2), 2, 2), review.Hard);
+        Assert.Equal([2], review.Hards.Select(h => h.Bar));
         Assert.Equal(new FixedBar(3, new BarTrouble(3, 4, 0, 0, 0), 2), review.Fixed);
     }
 

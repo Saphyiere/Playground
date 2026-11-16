@@ -5886,11 +5886,241 @@ html[data-full] .piece .summary {
     order: 5;
 }
 
-/* The look back: what was practiced, each stretch a row with its line of runs or passes, then across the session. */
+/* The look back: the session in words, then where the piece stands beside what to do next, its keys, and under them what was
+   played, each stretch a row with its line of runs or passes. */
 .look-back {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.look-story.mu-screen,
+.look-standing.mu-screen,
+.look-next.mu-screen {
+    gap: 10px;
+    padding: 18px 26px 20px;
+}
+
+/* What the session came to, in a sentence: the largest words on the page. */
+.look-headline {
+    margin: 8px 0 6px;
+    max-width: 46em;
+    font: 700 23px/30px var(--font-grotesk);
+    color: var(--on-screen);
+    text-wrap: pretty;
+}
+
+[data-theme="vinyl"] .look-headline {
+    font: 600 23px/30px var(--font-sans);
+}
+
+/* Its lines: what each is about (as long as "Since 3 November"), then its words. One that's neither good news nor something to
+   work on has a hollow key. */
+.look-story .sum-point {
+    grid-template-columns: 12px 142px minmax(0, 1fr);
+}
+
+.look-back .sum-key.plain {
+    box-shadow: inset 0 0 0 2px var(--on-screen-muted);
+}
+
+/* Where the piece stands, beside what to do next. */
+.look-now {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.look-now-one {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.look-standing .look-total,
+.look-next .look-total,
+.look-stretches .look-total {
+    font-size: 12px;
+    color: var(--on-screen-muted);
+    text-align: right;
+}
+
+/* Every bar a cell, lighter the further along it is: not played, being read, in time, at tempo. One colour, four steps of
+   lightness, so they're told apart without it. A line under the bars played today; a number under the first and every fourth. */
+.look-map {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    gap: 8px 3px;
+    margin-top: 8px;
+}
+
+.look-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.look-bar > i {
+    position: relative;
+    display: block;
+    height: 28px;
+    border-radius: var(--chart-r);
+}
+
+.look-bar.today > i::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -5px;
+    height: 2px;
+    background: var(--on-screen);
+}
+
+.look-bar > b {
+    height: 12px;
+    font: var(--sum-tiny);
+    font-weight: 400;
+    color: var(--on-screen-muted);
+    white-space: nowrap;
+}
+
+.look-back .state-0 {
+    background: var(--chart-off);
+}
+
+.look-back .state-1 {
+    background: color-mix(in srgb, var(--chart-good) 24%, var(--chart-off));
+}
+
+.look-back .state-2 {
+    background: color-mix(in srgb, var(--chart-good) 64%, var(--chart-off));
+}
+
+.look-back .state-3 {
+    background: var(--chart-good);
+}
+
+.look-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 2px;
+    font: var(--sum-small);
+    color: var(--on-screen-muted);
+}
+
+.look-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.look-legend i {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--chart-r);
+}
+
+.look-legend b {
+    color: var(--on-screen);
+}
+
+.look-legend-today i {
+    height: 2px;
+    background: var(--on-screen);
+}
+
+.look-held {
+    margin: 2px 0 0;
+    font: var(--sum-words);
+    color: var(--on-screen);
+    opacity: 0.82;
+}
+
+/* What to do next: each step numbered, what it is and why, and its key. */
+.look-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: flex;
+    flex-direction: column;
+}
+
+.look-steps > li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--staff-line);
+}
+
+.look-steps > li:first-child {
+    padding-top: 4px;
+}
+
+.look-steps > li:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.look-steps > li::before {
+    content: counter(step);
+    align-self: start;
+    font: var(--sum-lead);
+    font-weight: 700;
+    color: var(--on-screen-muted);
+}
+
+.look-step-words {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.look-step-what {
+    font: var(--sum-lead);
+    font-weight: 700;
+    color: var(--on-screen);
+}
+
+.look-step-why {
+    font: var(--sum-words);
+    color: var(--on-screen);
+    opacity: 0.82;
+}
+
+/* The look back's keys stay at the foot of the screen as the page scrolls under them, on the page's own ground, which
+   carries on under them over the page's bottom margin. */
+.look-back > .look-keys {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -8px;
+    padding: 12px 8px 4px;
+    background: var(--ground);
+}
+
+.look-back > .look-keys::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 64px;
+    background: var(--ground);
+}
+
+/* On a piece's front, what to do next as the last practice left it, and the key that starts it. */
+.about-next .mu-btn {
+    min-height: 36px;
+    height: 36px;
+    margin-left: 8px;
+    padding: 0 14px;
+    vertical-align: middle;
 }
 
 .look-stretches.mu-screen {
@@ -6040,15 +6270,6 @@ html[data-full] .piece .summary {
     padding: 0 2px;
 }
 
-.look-none {
-    margin: 12px 0;
-    font: var(--sum-lead);
-    color: var(--on-screen);
-}
-
-.look-lines.mu-screen {
-    padding: 16px 26px;
-}
 
 /* The in-depth review, taking the screen: its head and figures, its lines beside its bars, the music of the bar picked under
    them, and its keys. */
@@ -6278,6 +6499,16 @@ html[data-full] .piece .summary {
     .practice-strip .mu-btn {
         padding-left: 12px;
         padding-right: 12px;
+    }
+
+    /* Where the piece stands over what to do next, each the page's width. */
+    .look-now {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .look-head {
+        flex-wrap: wrap;
+        row-gap: 4px;
     }
 
     .look-row {

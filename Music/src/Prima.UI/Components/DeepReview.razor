@@ -109,8 +109,13 @@
             var sum = bars.Sum(b => b.Off);
             yield return (sum > 0, "Timing", sum == 0 ? "Every right note in time: nothing more than a tenth of a beat out." : $"{sum} {(sum == 1 ? "note" : "notes")} more than a tenth of a beat early or late, most in {Listed(off)}.");
         }
-        if (Review.Early > 0) yield return (true, "Held", $"{Review.Early} {(Review.Early == 1 ? "note" : "notes")} let go early, in {Listed([.. bars.Where(b => b.Early > 0).Select(b => b.Bar)])}.");
-        if (Review.Hard is { } hard) yield return (true, "Look at", $"{LookBack.Capital(PieceWords.Bar(hard.Bar))} still had something to fix at the end: {PieceWords.Trouble(hard.Last)}.");
+        if (Review.Early > 0)
+        {
+            // The bars with the most of them, as the notes and the timing name theirs: every bar that had one is most of a piece.
+            int[] early = [.. bars.Where(b => b.Early > 0).OrderByDescending(b => b.Early).ThenBy(b => b.Bar).Take(3).Select(b => b.Bar).Order()];
+            yield return (true, "Held", $"{Review.Early} {(Review.Early == 1 ? "note" : "notes")} let go early, {(bars.Count(b => b.Early > 0) > 3 ? "most in" : "in")} {Listed(early)}.");
+        }
+        if (Review.Hard is { } hard) yield return (true, "Look at", $"{LookBack.Capital(PieceWords.Bar(hard.Bar))} still had something to fix at the end: {PieceWords.Trouble(hard.Last)}{(hard.Recent > 1 ? $", over its last {hard.Recent} times" : "")}.");
         else if (bars.Count > 0) yield return (false, "Look at", "Every bar was clean by the end.");
         if (Review.Fixed is { } put) yield return (false, "Fixed", $"{LookBack.Capital(PieceWords.Bar(put.Bar))}: {PieceWords.Trouble(put.First)} at first, nothing in its last {(put.Clean == 1 ? "time" : $"{put.Clean} times")}.");
     }

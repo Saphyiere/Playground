@@ -53,22 +53,13 @@ public static class PieceWords
     /// <summary>
     /// What went wrong in a bar, in words: "2 wrong, 1 slip put right, 3 let go early", or with nothing wrong "nothing to fix".
     /// </summary>
-    public static string Trouble(BarTrouble bar)
-    {
-        var parts = new[]
-        {
-            (bar.Wrong, "wrong", "wrong"), (bar.Missed, "missed", "missed"), (bar.Slips, "slip put right", "slips put right"),
-            (bar.Apart, "chord note not together", "chord notes not together"), (bar.Off, "off the beat", "off the beat"), (bar.Early, "let go early", "let go early"),
-        };
-        var said = parts.Where(p => p.Item1 > 0).Select(p => $"{p.Item1} {(p.Item1 == 1 ? p.Item2 : p.Item3)}").ToList();
-        return said.Count == 0 ? "nothing to fix" : string.Join(", ", said);
-    }
+    public static string Trouble(BarTrouble bar) => BarWords.Trouble(bar);
 
     /// <summary>A bar in words: "bar 7", or the pickup before bar 1, "the upbeat".</summary>
-    public static string Bar(int n) => n == 0 ? "the upbeat" : $"bar {n}";
+    public static string Bar(int n) => BarWords.Bar(n);
 
     /// <summary>Bars in words: "bar 7", "bars 13–16", or from the pickup, "the upbeat to bar 4".</summary>
-    public static string Bars(int from, int to) => from == to ? Bar(from) : from == 0 ? $"the upbeat to bar {to}" : $"bars {from}–{to}";
+    public static string Bars(int from, int to) => BarWords.Bars(from, to);
 
     private static string Share(PieceRun run) => $"{(run.RightInTime ?? 0) * 100:0}%";
 }

@@ -202,7 +202,8 @@ a PDF plays out; this is what came of it.
   starts with what's been done on it, from the runs kept: when it was last played, how that run was
   played and how it went (round a loop, its bars, its passes and how they went from the first to the last); then how often
   it's been played through In time (from its start to its end, not round a loop or stopped), with the last time and the
-  best; and its runs, the days they were on, and the first. A run that reached fewer than eight notes, round a loop all its
+  best; its runs, the days they were on, and the first; and **Next**, what the last practice session's look back said to do
+  first, with **Start there**, which starts a session set up for it. A run that reached fewer than eight notes, round a loop all its
   passes together, is a false start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
   bar it was to start from, or its loop. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
@@ -282,28 +283,68 @@ a PDF plays out; this is what came of it.
   starts over by itself, after its count-in, until you stop it (**At a run's end**: Wait for me or Go again). Whichever way,
   every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
   loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
-- **The look back**, once a session is finished, takes the page: the session's playing and idle time, its stretches, passes
-  and runs through; each stretch practiced (its bars: the whole piece, from a bar, or round a loop; the hand; In time or Wait
-  for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its first and last figures,
-  and its tempo, a step on the line where it changed; **Still hard**, the bar with most still to fix at the end, and
-  **Fixed**, the bar put right; and how the stretches played both times compare with the session before on the piece
-  (**Earlier today**, **Since yesterday**, **Since Tuesday**…): a faster tempo, or else the best figure. A bar's standing comes
-  from the runs and passes that played it, in order: the last third of them (the last time, at least) is how it stands now,
-  the first third how it started. Still hard is the bar with most to fix in its last times, a wrong or missed note weighing
-  three times anything else (a note off the beat or let go early, a slip put right, a chord not together), and says what
-  went wrong then: one read-through names its worst bar. Fixed is the bar with most to fix at first, played three times or
-  more, that was clean in its last times. **Keep practicing** carries the session on, **Practice bar N** carries it on
-  looping the bar still hard (with a bar either side), **In-depth review** goes over it, and **Done** goes back to the
-  piece's front. Only taps press them.
+- **The look back**, once a session is finished, takes the page, and starts with what the session came to, in words. A
+  sentence, then up to five lines, each about one thing, its key lit for good news, red for something to work on and hollow
+  for what's just so. Which lines depends on **the kind of work** the session was, since wrong notes come before timing,
+  and timing before touch:
+  - **Finding the notes** (half of the notes played were a hand at a time or in Wait for me, or In time with a quarter of
+    them wrong): the bars read and how (a hand at a time, together), how far they got hands together or with the click, the
+    stretch that moved most, the bar still going wrong, and what stayed since the session before: where a stretch was left
+    then against the first go at it today, which is the honest measure.
+  - **Getting them right** (In time with both hands, fewer than nineteen notes in twenty right): whether it holds together
+    played through, which is 85% right in time, the app's aim everywhere; the stretch that moved most; the bar still going
+    wrong; a stretch taken a step faster than it holds, or one that stayed where it was; and the whole piece against the last
+    time it was played through.
+  - **Timing and touch** (the notes there; under the piece's own tempo, or not yet steady): the share of the right notes in
+    time, which way the others are out and in which bars ("it runs ahead in bars 5–7"); loud and soft, the touch and the
+    pedal, each marking as it was last played, the ones not as marked named; notes let go early.
+  - **Playing it** (the notes there at the piece's own tempo, or within a tenth of it): the times through and how many had
+    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note; a step faster, if
+    one was tried.
+  A session of 25 minutes or more whose end went worse than what came before is told so, as tiredness and not as the bars:
+  the same bars, hand, mode and tempo played again in its last three tenths and gone worse, or a stretch sinking as it was
+  gone round (unless it had just been taken a step faster: then the tempo's the likelier cause, and the line says that). It's
+  then judged by its best time through and not its last, and what's next is headed for next time. With no such thing to
+  say, the last line is where the playing time went.
+
+  Then **where the piece stands**: every bar a cell, lighter the further along it is (not played; notes not there yet;
+  notes there, in time; at tempo, which is within a tenth of the piece's own), the bars played today underlined, and the
+  fastest it has held together played through. That's from every run kept on the piece, not this session's alone. A bar's
+  notes are there once two of its last four times In time with both hands were right (one of its first two): nine notes in
+  ten each time, so in a bar of fewer than ten played once, all of them. One bad time through at the end of a long session
+  doesn't undo a bar.
+
+  Beside it, **Next**: up to three things to do, each with why, from the session's own figures, and its **Practice it**,
+  which carries the session on with the step's bars, hand, mode and tempo set. Finding the notes, they're the bar still
+  going wrong in Wait for me, the bars read only a hand at a time together, a stretch that's right first time (or was tried
+  with the click) In time, slowly, and the four bars after the furthest read, a hand at a time. Getting them right: the bar
+  still going wrong a notch slower than it went wrong at, a stretch back where it held, and the whole piece: a notch up over
+  90% right in time, a notch down under 80%, else the same again, first thing next time. Timing and touch: the bars where
+  the timing goes out two notches slower, then the bars of a marking that hasn't come out. Playing it: the bar that kept
+  slipping, and once through, cold, first thing next time. No two steps are on the same bars. The first of them stays on the
+  piece's front, under About this piece, as **Next**, with **Start there**.
+
+  Under those, **what was played**, as before: each stretch practiced (its bars: the whole piece, from a bar, or round a
+  loop; the hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best
+  named, its first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
+
+  A bar still going wrong, and one put right, come from the runs and passes that played it, in order: the last third of them
+  (the last time, at least) is how it stands now, the first third how it started. The bar still hard is the one with most to
+  fix in its last times, a wrong or missed note weighing three times anything else (a note off the beat or let go early, a
+  slip put right, a chord not together): one read-through names its worst bar. The bar put right is the one with most to
+  fix at first, played three times or more, that was clean in its last times.
+
+  **Keep practicing** carries the session on, **In-depth review** goes over it, and **Done** goes back to the piece's
+  front: the three stay at the foot of the screen as the page scrolls. Only taps press them.
 - **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
   with where it ended, not its average: its last stretch first → last ("Bars 13–16, first → last: 70% → 96%"), that
   stretch's tempo, and the time playing; one run's are its right in time and notes right. Its lines go over every run and
   pass: the notes (wrong, missed, slips put right and chord notes not together each named, and "every one" only when every
   note was right), the timing (only the timing: the notes more than a tenth of a beat out, and where), the notes let go early, and
-  **Look at** and **Fixed**, the look back's Still hard and Fixed. Its bars are shaded by what went wrong against the bar with
+  **Look at** and **Fixed**, the bar still hard and the bar put right, by the look back's rule. Its bars are shaded by what went wrong against the bar with
   the most, so the worst is darkest whatever the session. A tap on a bar's cell, or on the bar on the music, outlines it there
   with the marks the latest run that played it left on its notes; it opens on the bar still hard (or else the bar put right),
-  and **Practice bar N** loops the bar picked, as from the look back. Up to 24 bars every bar has a cell. A longer piece shows
+  and **Practice bar N** loops the bar picked, with a bar either side. Up to 24 bars every bar has a cell. A longer piece shows
   the bars that had something wrong, the most to fix first, up to 16, over a thin strip of the whole piece with each marked on
   it, and **and 9 more** shows the rest. The pickup before bar 1 is "the upbeat" in its words, as it has no number on the strip.
 - **Play** is the piece played through, In time with the click, both hands, from its first bar to its end, full screen: the
@@ -803,9 +844,12 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   avoided), the generator's seed, the notes played with their times and velocities, and the measures worked out from them, so a
   passage can be made again (one spot does) and a result recomputed if the scoring changes. A piece's run keeps the bar it
   started from, whether it was stopped and where, the hand, and round a loop its last bar and each pass's figures; the
-  practice session it was played in, or that it was Play's; what went wrong in each bar (wrong, missed, off the beat, let go
-  early, slips put right, chords not together), for the run and for each pass; and the marks it left on the music, for the
-  in-depth review.
+  practice session it was played in, or that it was Play's; what went wrong in each bar (wrong, missed, off the beat and how
+  many of those ahead of it, let go early, slips put right, chords not together), for the run and for each pass; how long it
+  took; In time, its lean against the click and how steady it was, and how each marking was played, as marked or not (each
+  dynamic and hairpin, each bar's staccato, tenuto and accents, its gaps under slurs, the pedal); and the marks it left on
+  the music, for the in-depth review. A run kept before 15 November has no time, lean or markings, and the look back says
+  less of it.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
   others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
