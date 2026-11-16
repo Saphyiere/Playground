@@ -943,15 +943,23 @@ details.
   piece's words at its lyrics' size, so a song's tempo, directions and part name come down with them), and Verovio spaces the
   notes so the syllables on a line never run together. Each verse and each voice's lyrics have a line of their own: two
   voices' lyrics numbered alike, or verses an exporter names (`part1verse1`) that Verovio reads as one, would otherwise share
-  a line and print over each other. A song's lines typed as text over or under the music (directions: four or more of three
-  words or more, one every four bars at least) go on a line of their own under the notes they start at, since as directions
-  they piled up and crushed their bars; a whole verse typed as text (longer than 60 characters) is left off. Where a line's
-  words still run together (less than a pixel apart, measured as drawn), they get more room before they get smaller: Verovio
-  fills each line to the brim with bars, and justifying a line a little too full squeezes its words together at any size (a
-  smaller size only lets more bars onto the line), so a passage's bars first break where they fit, then the room between
-  words is doubled and then tripled (2.4 and 3.6 half-spaces against 1.2), which makes the busy bars wider and fewer a line.
-  Only a bar too wide for the line on its own (a very busy song, the tablet upright) makes the words smaller, to 3.3, 2.9
-  and at the least 2.5: small words read better than words run together. A song whose words fit is drawn as it was.
+  a line and print over each other. The same words in two voices on a staff print once, the first voice's: where a voice
+  sings a verse's syllables in a bar as the one before it does, in its own rhythm or not (a hymn's alto under its soprano),
+  they aren't printed again; its other words, or the same a bar later, keep a line of their own. A song's lines typed as text
+  over or under the music (directions: four or more of three words or more, one every four bars at least) go on a line of their
+  own under the notes they start at, each as one syllable on its note, which widens its bar to hold it, since as directions they
+  piled up and crushed their bars; a whole verse typed as text (a direction longer than 60 characters, in any piece) is left
+  off, with Lyrics on or off. A player's direction made of music's own words, as they're written in Italian and cut short ("D.C.
+  al Fine", "poco a poco cresc.", "Allegro ma non troppo", "dim. e rit.", or a "ri - tar - dan - do" spaced out over its bars,
+  however long), is never a line of a song: it doesn't count towards a piece being one, isn't moved under the notes, and stays
+  with Lyrics off. One in French or German ("un peu en dehors") is read as any other words. Where a line's words still run
+  together (less than a pixel apart, measured as drawn), they get more room before they get smaller: Verovio fills each line to
+  the brim with bars, and justifying a line a little too full squeezes its words together at any size (a smaller size only lets
+  more bars onto the line), so a passage's bars first break where they fit, then the room between words is doubled and then
+  tripled (2.4 and 3.6 half-spaces against 1.2), which makes the busy bars wider and fewer a line. Only a bar too wide for the
+  line on its own (a very busy song, the tablet upright) makes the words smaller, to 3.3, 2.9 and at the least 2.5, with twice
+  the room: small words read better than words run together. This order was tuned with the owner's Numb and stays as it is. A
+  song whose words fit is drawn as it was.
   **Lyrics** off (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note
   names and counts) are printed as written.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
