@@ -60,6 +60,29 @@ public class SongWordsTests
     }
 
     [Fact]
+    public void TheSameWordsInTwoVoicesOnAStaffPrintOnce()
+    {
+        // A hymn's soprano and alto on the upper staff, two verses each: the same words in bar 1, note for note, and in bar 2 in
+        // the alto's own rhythm; in bar 3 the alto sings bar 2's words again, a bar after the soprano, which are its own.
+        static string Sung(string id, string pname, string dur, string first, string second) =>
+            $"""<note xml:id="{id}" pname="{pname}" oct="4" dur="{dur}"><verse n="1"><syl>{first}</syl></verse><verse n="2"><syl>{second}</syl></verse></note>""";
+        var mei = Piece(
+            $"""<staff n="1"><layer n="1">{Sung("s1", "g", "2", "Praise", "Praise")}{Sung("s2", "a", "2", "God", "him")}</layer><layer n="2">{Sung("a1", "e", "2", "Praise", "Praise")}{Sung("a2", "f", "2", "God", "him")}</layer></staff>{Bass}""",
+            $"""<staff n="1"><layer n="1">{Sung("s3", "b", "4", "from", "all")}{Sung("s4", "a", "4", "whom", "crea")}{Sung("s5", "g", "2", "all", "tures")}</layer><layer n="2">{Sung("a3", "d", "2", "from", "all")}{Sung("a4", "e", "4", "whom", "crea")}{Sung("a5", "d", "4", "all", "tures")}</layer></staff>{Bass}""",
+            $"""<staff n="1"><layer n="1">{Sung("s6", "g", "1", "bless", "here")}</layer><layer n="2">{Sung("a6", "d", "4", "from", "all")}{Sung("a7", "e", "4", "whom", "crea")}{Sung("a8", "d", "2", "all", "tures")}</layer></staff>{Bass}""");
+
+        var prepared = SongWords.Prepare(mei, shown: true);
+
+        Assert.Equal(
+        [
+            ("s1", "1:Praise 2:Praise"), ("s2", "1:God 2:him"),
+            ("s3", "1:from 2:all"), ("s4", "1:whom 2:crea"), ("s5", "1:all 2:tures"),
+            ("s6", "1:bless 2:here"), ("a6", "3:from 4:all"), ("a7", "3:whom 4:crea"), ("a8", "3:all 4:tures"),
+        ], Lines(prepared));
+        Assert.Equal(XDocument.Parse(mei).Descendants(Mei + "note").Count(), XDocument.Parse(prepared).Descendants(Mei + "note").Count());
+    }
+
+    [Fact]
     public void HiddenWordsAreLeftOffAndTheMusicStays()
     {
         var mei = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "verovio-lyrics.mei")).Replace("</measure>", """<dir staff="1" tstamp="1">dolce</dir></measure>""");

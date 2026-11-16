@@ -198,8 +198,10 @@ public static class SongWords
     private static int LayerOf(XElement element) => (int?)element.Ancestors(Mei + "layer").FirstOrDefault()?.Attribute("n") ?? 1;
 
     // Each verse a line of its own: verses numbered alike on one note (an exporter's names, all read as 1) take the next numbers
-    // free on it, in order; then on each staff, a second voice's lyrics go on the lines after the first voice's, and so on, so two
-    // voices' syllables never share a line.
+    // free on it, in order; then on each staff, the same words in two voices print once, and a second voice's other lyrics go on
+    // the lines after the first voice's, and so on, so two voices' syllables never share a line. A voice sings the same words as
+    // one before it where a verse's syllables in a bar are the same, in its own rhythm or not (a hymn's alto under its soprano);
+    // other words, or the same a bar later, are its own.
     private static void OwnLines(XDocument document)
     {
         var verses = document.Descendants(Mei + "verse").ToList();
@@ -216,11 +218,20 @@ public static class SongWords
 
         foreach (var staff in verses.GroupBy(StaffOf))
         {
+            var sung = new HashSet<(XElement? Bar, int N, string Words)>();
             var below = 0;
             foreach (var layer in staff.GroupBy(LayerOf).OrderBy(l => l.Key))
             {
-                var lines = layer.Max(N);
-                if (below > 0) foreach (var verse in layer) SetN(verse, N(verse) + below);
+                var own = new List<XElement>();
+                foreach (var bar in layer.GroupBy(v => (Bar: v.Ancestors(Mei + "measure").FirstOrDefault(), N: N(v))))
+                {
+                    if (sung.Add((bar.Key.Bar, bar.Key.N, string.Join(" ", bar.Select(v => Space.Replace(v.Value, " ").Trim()))))) own.AddRange(bar);
+                    else bar.Remove();
+                }
+                if (own.Count == 0) continue;
+
+                var lines = own.Max(N);
+                if (below > 0) foreach (var verse in own) SetN(verse, N(verse) + below);
                 below += lines;
             }
         }
