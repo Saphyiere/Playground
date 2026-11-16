@@ -15,7 +15,7 @@
 //   dcml      the DCML's MuseScore corpora (Beethoven's sonatas, Chopin's mazurkas, Debussy, Grieg and more), CC BY-NC-SA 4.0
 //   asap      ASAP's concert scores (Bach's Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), CC BY-NC-SA 4.0
 //   pdmx      more of PDMX: public-domain and CC0 piano music by composers who died before 1931
-//   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA
+//   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA (share-alike)
 //   hymns     the Open Hymnal's public-domain hymns, four voices on two staves with their verses (ABC, written as MEI by abc2svg)
 //
 // They're prepared the same way into artifacts/library-local and packed into artifacts/prima-collection, a zip or a few for each

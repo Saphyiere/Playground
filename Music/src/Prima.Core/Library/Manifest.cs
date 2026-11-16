@@ -9,8 +9,14 @@ public enum Tier
     /// <summary>Public domain, CC0 or CC BY: no strings beyond credit.</summary>
     A,
 
-    /// <summary>Non-commercial, share-alike: fine for this personal app with credit shown, never in anything sold.</summary>
+    /// <summary>Non-commercial, share-alike (CC BY-NC-SA): fine for this personal app with credit shown, never in anything sold.</summary>
     B,
+
+    /// <summary>
+    /// Share-alike (CC BY-SA, the Mutopia Project's pieces under it): credit shown, and anything made from it shared under the same
+    /// licence.
+    /// </summary>
+    SA,
 }
 
 /// <summary>

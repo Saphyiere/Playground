@@ -172,10 +172,10 @@ public sealed partial class PrimaStore
         foreach (var (id, title, p) in pieces)
         {
             await c.ExecuteAsync("""
-                UPDATE Piece SET Title = @title, Composer = @Composer, Work = @Work, Credit = @Credit, Licence = @Licence, LicenceUrl = @LicenceUrl, SourceUrl = @SourceUrl,
+                UPDATE Piece SET Title = @title, Composer = @Composer, Work = @Work, Credit = @Credit, Licence = @Licence, LicenceUrl = @LicenceUrl, SourceUrl = @SourceUrl, Tier = @tier,
                     Level = CASE WHEN Format = 'pdf' AND Mei IS NULL THEN @pdfLevel ELSE Level END, TypicalLevel = CASE WHEN Format = 'pdf' AND Mei IS NULL THEN @pdfLevel ELSE TypicalLevel END
                 WHERE Id = @id AND Origin = 'bundle'
-                """, new { id, title, p.Composer, p.Work, p.Credit, p.Licence, p.LicenceUrl, p.SourceUrl, pdfLevel = p.Format == "pdf" ? p.Anchor : null }, transaction);
+                """, new { id, title, p.Composer, p.Work, p.Credit, p.Licence, p.LicenceUrl, p.SourceUrl, tier = p.Tier.ToString(), pdfLevel = p.Format == "pdf" ? p.Anchor : null }, transaction);
         }
         await transaction.CommitAsync();
     });

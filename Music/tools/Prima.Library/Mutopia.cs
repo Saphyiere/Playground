@@ -142,7 +142,7 @@ internal static class Mutopia
         var credit = $"Typeset{(maintainer.Length > 0 ? $" by {maintainer}" : "")} for the Mutopia Project{(Field("source") is { Length: > 0 } source ? $", from {source}" : "")}; {licence}.";
         var info = number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url;
         BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, Opus(Field("opus")), "pdf", file, midi,
-            Pdmx.Hash(Path.Combine(output, file)), Name, info, licence, licenceUrl, credit, Tier.A, null, midi is null ? null : Level(Path.Combine(output, midi), partTitle));
+            Pdmx.Hash(Path.Combine(output, file)), Name, info, licence, licenceUrl, credit, TierOf(licence), null, midi is null ? null : Level(Path.Combine(output, midi), partTitle));
 
         if (!pdf.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
@@ -210,6 +210,9 @@ internal static class Mutopia
     // "Op. 27" and "Op. 10 No. 1"; a catalogue's own (BWV 825, KV 453a, B. 130) stays as it is.
     private static string Opus(string opus) =>
         Regex.Replace(Regex.Replace(opus.Trim(), @"^(O|Op|Opus)\.?\s*(?=\d)", "Op. ", RegexOptions.IgnoreCase), @",?\s*\b(No|Nr)\.?\s*(?=\d)", " No. ", RegexOptions.IgnoreCase);
+
+    // The Library's tier for a licence: share-alike (CC BY-SA) is one of its own, since what's made from it keeps the licence.
+    private static Tier TierOf(string licence) => licence.StartsWith("CC BY-SA", StringComparison.Ordinal) ? Tier.SA : Tier.A;
 
     // A piece's level from its MIDI written out as notation, as an import of it would be graded; null when it can't be read.
     private static int? Level(string midi, string title)
@@ -296,7 +299,7 @@ internal static class Mutopia
         var maintainer = Field("maintainer");
         var credit = $"Typeset{(maintainer.Length > 0 ? $" by {maintainer}" : "")} for the Mutopia Project{(Field("source") is { Length: > 0 } source ? $", from {source}" : "")}; {licence}.";
         return new BundledPiece(id, title, composer, work, "pdf", pdfPath.Replace('\\', '/'), midiPath?.Replace('\\', '/'), Pdmx.Hash(Path.Combine(output, pdfPath)), Name,
-            number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url, licence, licenceUrl, credit, Tier.A, null, anchor);
+            number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url, licence, licenceUrl, credit, TierOf(licence), null, anchor);
     }
 
     // "l'Arabesque" becomes "L'Arabesque" (the work beside it names the opus); a Bach piece titled only "Prelude" takes its BWV

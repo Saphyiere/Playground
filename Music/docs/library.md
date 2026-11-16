@@ -564,22 +564,25 @@ not a sourced figure.
 
 ### The bundled collection
 
-Two tiers, each piece tagged with its licence. **Tier A** ships with no strings beyond credit. **Tier B** is CC BY-NC-SA:
-fine for this personal, non-commercial app with credit shown, but it must never go into anything sold. Anything shared further
-must keep the same licence. Files with no licence (Sapp's Beethoven, Chopin and Hummel; Huron's Bach) stay out until their
-authors are asked.
+Three tiers, each piece tagged with its licence. **Tier A** (public domain, CC0, CC BY) ships with no strings beyond credit.
+**Tier SA** is CC BY-SA, share-alike: credit shown, and anything made from it (an arrangement, a new edition) shared under the
+same licence; the Mutopia Project's pieces under it are tagged so, in the bundle (17 of its PDFs, Bach's Little Preludes and
+four Inventions) and in the local collection (decided on 15 November; before then they were Tier A). **Tier B** is
+CC BY-NC-SA: fine for this personal, non-commercial app with credit shown, but it must never go into anything sold. Anything
+shared further must keep the same licence. Files with no licence (Sapp's Beethoven, Chopin and Hummel; Huron's Bach) stay out
+until their authors are asked.
 
 | Part | Works | Source and format | Licence | Pieces | Size | Levels |
 |---|---|---|---|---|---|---|
 | A1 | Lemoine Op. 37, Duvernoy Op. 176, Czerny Op. 821/599/139, Mozart K. 1–5 and K. 15, Anna Magdalena (BWV Anh.), Schumann Op. 68, Tchaikovsky Op. 39 (single numbers), Clementi Op. 36, Gurlitt, Beethoven Anh. 5, Diabelli Op. 168/1, Burgmüller Op. 100 (3), Streabbog | PDMX, MXL | Dataset CC BY 4.0 (credit PDMX), plus each file's PD or CC0 tag | ~120–150 after removing duplicates and review (estimate) | ~1–2 MB (samples 4–8 KB each) | 3–8 |
-| A2 | Burgmüller Op. 100 (18), Czerny Op. 821 (19 files), Kuhlau Op. 20 (3), Bach Inventions and Sinfonias (30), Bach Little Preludes (11), Joplin (18) | Mutopia **PDF + MIDI** (LilyPond doesn't convert) | Per piece: PD, CC BY or CC BY-SA (credit, keep SA) | ~99 | Not measured; one 2-page PDF was 75 KB | 6–10 |
+| A2 | Burgmüller Op. 100 (18), Czerny Op. 821 (19 files), Kuhlau Op. 20 (3), Bach Inventions and Sinfonias (30), Bach Little Preludes (11), Joplin (18) | Mutopia **PDF + MIDI** (LilyPond doesn't convert) | Per piece: PD, CC BY or CC BY-SA (credit, keep SA: Tier SA) | ~99 | Not measured; one 2-page PDF was 75 KB | 6–10 |
 | A3 | Hymns | Open Hymnal ABC → MEI through abc2svg, built into the local collection instead (below) | PD (each file's statement) | 320 | 2.6 MB | 7 (most) |
 | A4 (optional) | A few Lieder for duet reading (the app plays the voice) | OpenScore `.mscx` → `.mxl` with MuseScore's batch file | CC0 | ~20–50, chosen | Not measured | 9–12 |
 | B1 | Joplin rags, Mozart sonatas, Haydn sonatas, Scarlatti sonatas | Sapp `**kern` (Verovio reads it directly) | CC BY-NC-SA 4.0 | 47 + 69 + 25 + 65 = 206 | 3.1 MB | 8–12 |
 | B2 | Grieg Lyric Pieces, Kinderszenen, Tchaikovsky's Seasons | DCML `.mscx` → MusicXML with MuseScore | CC BY-NC-SA 4.0 | 66 + 13 + 12 = 91 | Not measured | 7–12 |
 
-Without the hymns, that's about 270 pieces in Tier A and 297 in Tier B, so roughly 570 in all. The 320 hymns would take it to
-about 890. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
+Without the hymns, that's about 270 pieces in Tiers A and SA and 297 in Tier B, so roughly 570 in all. The 320 hymns would take
+it to about 890. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
 
 **Grading.** At build time the Core grades every excerpt by the rules in §3, and stores the piece's level as the highest of
 its excerpts. The anchors in §2 are a sanity check: flag any piece whose rule grade differs from them by more than two levels.
@@ -619,9 +622,9 @@ The credits screen shows, for each piece: title, composer, encoder or project, s
 
 ### The local collection (built, November 2026)
 
-The repo is public, so what's in `Music/library` is shared on GitHub, and only Tier A goes there: the 237 pieces above, kept
-as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
-instead, with more Tier A music than the repo should carry: the Library tool builds it on the owner's PC (`-- local`) into
+The repo is public, so what's in `Music/library` is shared on GitHub, and only Tiers A and SA go there: the 237 pieces above,
+kept as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
+instead, with more Tier A and SA music than the repo should carry: the Library tool builds it on the owner's PC (`-- local`) into
 `artifacts/library-local`, which git ignores, and packs it into `artifacts/prima-collection` for the tablet's **Import files**:
 a zip for each part, none much over 40 MB, since the tablet reads a zip whole, and `contents.txt`, which counts each source's
 pieces, megabytes and licences. Nothing in it is committed.
@@ -637,7 +640,7 @@ below that day.
 | DCML ([DCMLab](https://github.com/DCMLab)), MuseScore 3 | Beethoven's sonatas, Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Dvořák's Silhouettes, Debussy (Préludes, Études, Images, Estampes, Children's Corner, Suite bergamasque, Pour le piano, the Arabesques, single pieces), Liszt's Années, Medtner's Tales, Ravel's Jeux d'eau and Miroirs, Bartók's 14 Bagatelles, Poulenc's Mouvements perpétuels, Couperin, Frescobaldi's Fiori musicali, Sweelinck's Fantasia cromatica, Handel HWV 430, Koželuch's sonatas, C. P. E., J. C. and W. F. Bach, Scarlatti | CC BY-NC-SA 4.0, in each README | 753 | Rachmaninoff's Corelli Variations (1931, in US copyright until 2028) and Schulhoff's Suite dansante en jazz (1931); Debussy's pieces first published after 1930 (Images oubliées 1977, Étude retrouvée 1980, Les soirs illuminés 2003, Danse bohémienne 1932, Page d'album 1933); the corpora that aren't keyboard music; the Mozart sonatas (Sapp's edition has them); 6 Scarlatti sonatas also in Sapp's |
 | ASAP ([asap-dataset](https://github.com/fosfrancesco/asap-dataset)), MusicXML | Bach's Well-Tempered Clavier (29 preludes, 29 fugues) and the Italian Concerto's Andante, Chopin's études, ballades, scherzos, second and third sonatas, Barcarolle, Berceuse and Polonaise Op. 53, Liszt (Transcendental and Paganini Études, the Sonata, Mephisto Waltz, a Hungarian Rhapsody), Schubert's impromptus, moments musicaux, Wanderer Fantasy and sonatas D. 664 and 894, Schumann's Kreisleriana, Arabeske and Toccata, Rachmaninoff's preludes, Ravel's Ondine and Pavane, Scriabin, Balakirev's Islamey, Brahms Op. 118 No. 2, Glinka's The Lark, Prokofiev's Toccata, Mozart's Fantasia K. 475; all published before 1931 | CC BY-NC-SA 4.0, in LICENSE.md | 143 | Its Beethoven, Haydn and Mozart sonatas (the DCML's and Sapp's editions have them), the Debussy and Ravel the DCML has, Liszt's Gondoliera (the DCML's), and its copies with a repeat changed to match a performance |
 | PDMX, more ([Zenodo](https://zenodo.org/records/15571083)), MusicXML | Solo piano music by 62 composers who died before 1931, from Bach, Beethoven, Chopin and Mozart to Czerny's, Köhler's and Beyer's studies | Each score's public-domain mark or CC0, as its uploader set it; the dataset CC BY 4.0 | 568 | What the bundle takes from PDMX; scores with a licence conflict, other than PDMX's best copy, tagged with a popular genre, or arranged (by their titles: arrangements, reductions of symphonies, concertos, overtures and operas, quartets, chorales); composers who lived past 1930; 50 pieces the editions above have |
-| Mutopia, more ([Mutopia](https://www.mutopiaproject.org)), PDF and MIDI | The rest of its music for piano, harpsichord or clavichord alone: Bach (the Goldberg Variations, partitas, suites, the Anna Magdalena pieces), Beethoven's sonatas, Chopin, Handel, Mozart, Czerny, Mendelssohn, Field, Dussek and more, each with its MIDI, graded from it | Public domain, CC BY or CC BY-SA, read from each piece's .rdf | 612 PDFs | Duets (and a piece's duet parts), organ, songs and ensembles; any non-commercial or no-derivatives licence; the bundle's 104; a zipped piece's US Letter copies, and where its movements have MIDI, its PDFs without (a title page, the whole suite beside its movements) |
+| Mutopia, more ([Mutopia](https://www.mutopiaproject.org)), PDF and MIDI | The rest of its music for piano, harpsichord or clavichord alone: Bach (the Goldberg Variations, partitas, suites, the Anna Magdalena pieces), Beethoven's sonatas, Chopin, Handel, Mozart, Czerny, Mendelssohn, Field, Dussek and more, each with its MIDI, graded from it | Public domain, CC BY or CC BY-SA (share-alike, Tier SA), read from each piece's .rdf | 612 PDFs | Duets (and a piece's duet parts), organ, songs and ensembles; any non-commercial or no-derivatives licence; the bundle's 104; a zipped piece's US Letter copies, and where its movements have MIDI, its PDFs without (a title page, the whole suite beside its movements) |
 | Open Hymnal ([openhymnal.org](http://openhymnal.org/copying.html)), ABC | Its 2026.11 edition's hymns as a hymnal sets them, soprano and alto on the upper staff, tenor and bass on the lower, with up to five verses under the notes: Lutheran chorales, Genevan and English psalm tunes, Victorian hymns, gospel songs, carols | Public domain in tune, setting, words and translation, as each file's `C: copyright:` line says (under US law, as its copying page explains); the site's robots.txt bars only older editions' files | 320 | 24 with words or a setting under copyright (most may be copied for worship, which isn't enough here), under CPDL's licence, or "All other rights reserved"; 4 with a third staff (a melody or descant above the parts, or the parts above an accompaniment); One Thing's Needful, which changes metre partway; I Bind Unto Myself Today and Jesu, Joy of Man's Desiring, which abc2svg can't write as MEI; a second From All Thy Saints in Warfare, the same music with other saints' days |
 
 Each piece in the collection is keyboard music: a single line (a melody alone, one instrument's part) would ask Prima to have
@@ -826,7 +829,8 @@ The design in §6:
 ### Risks and open questions
 
 - **Licences.**
-  - Tier B is non-commercial and share-alike. If Prima is ever shared or sold, Tier B has to come out.
+  - Tier B is non-commercial and share-alike. If Prima is ever shared or sold, Tier B has to come out. Tier SA may go with
+    it, but anything made from its pieces keeps their licence.
   - PDMX's PD tags are uploaders' claims. 12.29% of its licence data conflicts.
   - The edition a PDMX file was transcribed from is unknown.
   - Not legal advice.

@@ -296,4 +296,17 @@ public class CollectionTests
         Assert.Contains("= 56)", cleaned);
         Assert.Same(TwoPieces, MeiReader.WithoutBareTempos(TwoPieces));
     }
+
+    // A Mutopia PDF under CC BY-SA, as the Library tool lists it.
+    private static readonly BundledPiece ShareAlike = new("mutopia-op68-1", "Melody, No. 1", "Robert Schumann", "Op. 68", "pdf", "pieces/mutopia-op68-1.pdf", null, "",
+        "Mutopia", "", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/", "Typeset for the Mutopia Project; CC BY-SA 4.0.", Tier.SA, null);
+
+    [Fact]
+    public void ASharealikePieceKeepsItsTierInTheManifest()
+    {
+        var manifest = new LibraryManifest(1, "2026-11-15", [ShareAlike]);
+
+        Assert.Contains("\"tier\": \"SA\"", manifest.Write());
+        Assert.Equal(Tier.SA, Assert.Single(LibraryManifest.Read(manifest.Write()).Pieces).Tier);
+    }
 }

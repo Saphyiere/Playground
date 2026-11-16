@@ -116,8 +116,8 @@ sources:
 - **asap**: the scores of the ASAP dataset (Bach's Well-Tempered Clavier, Chopin's études, ballades and scherzos, Liszt,
   Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
 - **pdmx**: more of PDMX, public-domain and CC0 piano music by composers who died before 1931, beyond the named works the repo keeps.
-- **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY and CC BY-SA),
-  each graded from its MIDI.
+- **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY, and CC BY-SA,
+  which is share-alike: a tier of its own), each graded from its MIDI.
 - **hymns**: the Open Hymnal's hymns that are public domain in tune, setting, words and translation (320 of its 352), each set
   for four voices on the grand staff, as a hymnal prints them, with its verses under the notes. They come as ABC, which the
   app's Verovio reads only one voice of, so abc2svg writes each as MEI first.
@@ -369,7 +369,8 @@ The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SI
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
-Mutopia Project. The local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
+Mutopia Project; CC BY-SA is share-alike, a tier of its own, since whatever is made from such a piece keeps its licence. The
+local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
 this tablet only, its pieces from PDMX and Mutopia are on the same terms as the bundle's, and its hymns from the Open Hymnal are
 public domain. The Library tool fetches webmscore (GPL), abc2svg (LGPL and GPL) and Verovio from npm to convert them; none goes
 into the app beyond the Verovio it already has.
