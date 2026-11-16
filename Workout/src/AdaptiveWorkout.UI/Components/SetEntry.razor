@@ -3,7 +3,7 @@
 @* One stopped set on the rest screen: the exercise's name, then weight × reps and Hit goal on a line, pre-filled, and under them how
    many more reps it had in it, if I say. Every change is saved as it's made, so there's nothing to confirm. The ⋯ button opens
    what's rarely needed: Warm-up (a lighter set to get ready: it has no goal or reps left, and isn't one of the exercise's sets),
-   Assisted (the weight is help, kept as a minus), and the way to every set of today. *@
+   Assisted (the weight is help, kept as a minus), and the way to the workout's edit screen, open on this exercise's sets. *@
 
 @{
     var exercise = State.Exercises[Set.ExerciseId];
@@ -67,7 +67,7 @@
                     <span>Assisted</span>
                 </label>
             </div>
-            <a class="btn-ghost" href="workout/sets">Today's sets</a>
+            <a class="btn-ghost" href="workout/edit?line=@Set.Line">Edit workout</a>
         </div>
     }
 </div>

@@ -1,0 +1,23 @@
+@* A line's sets, or a superset's rounds: fewer, the count ("Auto" for as many as last time), more. *@
+<div class="spread">
+    <div class="row-text">
+        <span class="body">@(Rounds ? "Rounds" : "Sets")</span>
+        <span class="caption">@Note</span>
+    </div>
+    <div class="stepper">
+        <button type="button" class="icon-btn" aria-label="Fewer" disabled="@(!CanFewer)" @onclick="OnFewer"><Icon Name="minus" Size="18" /></button>
+        <span class="@(Count is null ? "note center" : "number")" aria-live="polite">@(Count?.ToString(CultureInfo.CurrentCulture) ?? "Auto")</span>
+        <button type="button" class="icon-btn" aria-label="More" @onclick="OnMore"><Icon Name="plus" Size="18" /></button>
+    </div>
+</div>
+
+@code {
+    /// <summary>The count; null for none ("Auto").</summary>
+    [Parameter] public int? Count { get; set; }
+
+    [Parameter] public bool Rounds { get; set; }
+    [Parameter] public string Note { get; set; } = "";
+    [Parameter] public bool CanFewer { get; set; } = true;
+    [Parameter] public EventCallback OnFewer { get; set; }
+    [Parameter] public EventCallback OnMore { get; set; }
+}

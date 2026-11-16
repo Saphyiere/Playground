@@ -1,0 +1,678 @@
+@page "/workout/edit"
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject WorkoutFlow Flow
+@inject WorkoutStore Store
+@inject AppNavigation Navigation
+@inject IJSRuntime JS
+@* The one screen for changing today's workout. Opening it pauses the workout: nothing starts by itself until it's left. The whole
+   workout is one list of lines, each an exercise in its place with its own sets: done ones first, then what's still to do in the
+   order it will be offered. A tap opens a line to change its sets, swap it, pair it as a superset or remove it; the arrows move
+   it. Every change is made at once and can be undone until the workout resumes. The session itself only changes when asked to. *@
+
+<PageTitle>Edit workout</PageTitle>
+
+@if (state is not null && choices is not null)
+{
+    var blocks = state.Blocks();
+    var done = blocks.Where(b => state.Progress(b).Complete).ToList();
+    var toDo = blocks.Where(b => !state.Progress(b).Complete).ToList();
+    var running = state.Running;
+    <div class="screen">
+        <PageHeader Back="workout" BackText="@state.Name" Title="Edit workout" Small="true" Live="true">
+            <Tools><span class="stamp paused">Paused</span></Tools>
+        </PageHeader>
+
+        <section class="block" aria-label="Paused">
+            <p class="note"><span class="ink">Paused <Clock Since="@(state.Session.PausedAt ?? opened)" />.</span> Nothing starts by itself while this is open, on the phone or the watch.</p>
+            @if (running is [var held, ..])
+            {
+                @* What was running holds its clock. One a countdown started that I'm not doing goes with one tap. *@
+                <div class="spread held">
+                    <div class="row-text">
+                        <span class="name">@state.Names(running.Select(s => s.ExerciseId))</span>
+                        <span class="caption">@WorkoutState.StepLabel(state.Describe(held)) was running · held at @TimeText.Format(held.Ran(state.Session.PausedAt ?? opened) ?? TimeSpan.Zero)</span>
+                    </div>
+                    <button type="button" class="btn" @onclick="Discard">Discard</button>
+                </div>
+            }
+        </section>
+
+        @if (done.Count > 0)
+        {
+            <section class="stack" aria-labelledby="done-heading">
+                <h2 id="done-heading" class="label">Done</h2>
+                <div class="ledger">
+                    @foreach (var block in done)
+                    {
+                        @Block(block, new Place(Done: true))
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="stack" aria-labelledby="todo-heading">
+            <h2 id="todo-heading" class="label">@(done.Count > 0 ? "Still to do" : "Exercises, in order")</h2>
+            @if (toDo.Count == 0)
+            {
+                <p class="note">Nothing left to do. Add an exercise, or more sets of one that's done.</p>
+            }
+            else
+            {
+                <div class="ledger">
+                    @for (var i = 0; i < toDo.Count; i++)
+                    {
+                        // One with a set running stays where it is, and nothing goes ahead of it.
+                        var isHeld = state.Progress(toDo[i]).Running;
+                        var afterHeld = i == 1 && state.Progress(toDo[0]).Running;
+                        @Block(toDo[i], new Place(First: i == 0, CanUp: i > 0 && !isHeld && !afterHeld, CanDown: i < toDo.Count - 1 && !isHeld))
+                    }
+                </div>
+            }
+        </section>
+
+        <section id="add" class="stack" aria-label="Add">
+            @if (ask is { Kind: AskKind.AlreadyThere, Line: 0 } already)
+            {
+                <div class="stack appear">
+                    <AskBox Question="@($"{already.Exercise!.Name} is already in today's workout.")" First="Its own line" Second="More sets of it"
+                            OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+                </div>
+            }
+            else if (ask is { Kind: AskKind.Session } session)
+            {
+                <div class="stack appear">
+                    <AskBox Question="@($"Add {session.Session!.Name}?")" Note="Its exercises go after everything else, or take the place of what you haven't started."
+                            First="After the others" Second="Replace what's left" FirstIsUsual="true" OnFirst="@(() => AnswerAsync(false))" OnSecond="@(() => AnswerAsync(true))" />
+                </div>
+            }
+            else if (adding == Adding.Exercise)
+            {
+                <div class="stack appear">
+                    <ExercisePick Choices="choices" OnPick="AddPicked" Id="add-name" Label="Add an exercise" NewAction="Add it" Exclude="@InToday()" Note="@InTodayNote" />
+                    <button type="button" class="btn-ghost start" @onclick="Close">Cancel</button>
+                </div>
+            }
+            else if (adding == Adding.Session)
+            {
+                <div class="stack appear">
+                    <h2 class="label">A whole session</h2>
+                    <div class="ledger">
+                        @foreach (var (other, exerciseCount) in sessions)
+                        {
+                            <button type="button" class="row" @onclick="@(() => ask = new Ask(AskKind.Session, Session: other))">
+                                <span class="row-text">
+                                    <span class="name">@other.Name</span>
+                                    <span class="caption">@exerciseCount @(exerciseCount == 1 ? "exercise" : "exercises")</span>
+                                </span>
+                                <Icon Name="plus" />
+                            </button>
+                        }
+                    </div>
+                    <button type="button" class="btn-ghost start" @onclick="Close">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <div class="grid-2">
+                    <button type="button" class="btn tall" @onclick="@(() => StartAdding(Adding.Exercise))"><Icon Name="plus" Size="16" />Add exercise</button>
+                    <button type="button" class="btn tall" @onclick="@(() => StartAdding(Adding.Session))"><Icon Name="plus" Size="16" />Add a session</button>
+                </div>
+            }
+        </section>
+
+        @* Today only, unless asked: the session is what next time starts from. *@
+        @if (state.Template is { } template)
+        {
+            <section class="stack tight" aria-label="Today or the session">
+                @if (ask is { Kind: AskKind.SaveAsSession })
+                {
+                    <AskBox Question="@($"Make this {template.Name} from now on?")" Note="@($"{template.Name} becomes these {state.Plan.Count} {(state.Plan.Count == 1 ? "exercise" : "exercises")}, in this order. Workouts already done stay as they are.")"
+                            First="Keep it as it is" Second="Change it" FirstIsUsual="true" OnFirst="@(() => AnswerAsync(false))" OnSecond="@(() => AnswerAsync(true))" />
+                }
+                else if (Flow.SavedAsSession)
+                {
+                    <p class="pen-note">@template.Name matches today now, from next time.</p>
+                }
+                else
+                {
+                    <p class="note">Today only. @template.Name itself stays as it is.</p>
+                    <button type="button" class="btn-ghost start" @onclick="@(() => Asking(new Ask(AskKind.SaveAsSession)))">Save as @template.Name too…</button>
+                }
+            </section>
+        }
+
+        <div class="push-down">
+            @if (Flow.LastChange is { } lastChange)
+            {
+                <div class="spread undo">
+                    <span class="note">@lastChange</span>
+                    <button type="button" class="btn" @onclick="Undo">Undo</button>
+                </div>
+            }
+            <button type="button" class="btn-primary go" @onclick="@(() => Navigation.BackAsync("workout"))">Resume workout</button>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly DateTimeOffset opened = DateTimeOffset.Now;
+    private WorkoutState? state;
+    private ExerciseChoices? choices;
+    private List<(SessionTemplate Template, int ExerciseCount)> sessions = [];
+
+    // The line that's open (0 for none), and whether it's its superset's heading that is, rather than the line itself.
+    private int open;
+    private bool openHead;
+    private Panel panel;
+    private Adding adding;
+    private Ask? ask;
+    private WorkoutSet? openSet;
+    private WorkoutSet? wrongSet;
+
+    // What to bring into view once it's drawn: the line the screen opened on, or its picker.
+    private string? show;
+
+    /// <summary>The line to open, when a Change beside an exercise brought me here.</summary>
+    [SupplyParameterFromQuery] public int? Line { get; set; }
+
+    /// <summary>Opens on adding an exercise: from Add more, once everything planned is done.</summary>
+    [SupplyParameterFromQuery] public bool Add { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Flow.Changed += OnFlowChanged;
+        state = Flow.Current ?? await Flow.LoadAsync();
+        if (state is null)
+        {
+            await Navigation.HomeAsync();
+            return;
+        }
+
+        // Changing the workout pauses it: no rest countdown starts the next set meanwhile, on the phone or from the watch.
+        Flow.Pause();
+        choices = await Flow.ChoicesAsync();
+        foreach (var template in await Store.GetTemplatesAsync()) sessions.Add((template, (await Store.GetTemplateExercisesAsync(template.Id)).Count));
+        if (Line is int line && state.BlockOf(line) is { } block) (open, show) = (line, $"line-{block[0].Line}");
+        if (Add) (adding, show) = (Adding.Exercise, "add");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (show is not { } id || state is null || choices is null) return;
+
+        show = null;
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AdaptiveWorkout.UI/Pages/WorkoutEdit.razor.js");
+            await module.InvokeVoidAsync("show", id);
+        }
+        catch (JSException)
+        {
+            // Not scrolled to: the line is open all the same, further down.
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    // A change made elsewhere, e.g. the watch's readings, or this screen's own.
+    private void OnFlowChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Flow.Changed -= OnFlowChanged;
+        Flow.Resume();
+    }
+
+    // A block of the list: an exercise's line, or a superset bracketed in the pen with a heading of its own.
+    private RenderFragment Block(List<TemplateExercise> block, Place place)
+    {
+        var progress = state!.Progress(block);
+        var first = block[0];
+        if (block.Count == 1)
+        {
+            return @<div class="line" id="line-@first.Line">
+                <PlanRow Name="@state.Exercises[first.ExerciseId].Name" Caption="@Caption(block, first, place)" Box="@BoxOf(progress, place)" Open="@(open == first.Line)"
+                         OnOpen="@(() => Toggle(first.Line, false))" OnMove="@(place.Done ? default : EventCallback.Factory.Create<int>(this, direction => Move(first.Line, direction)))"
+                         CanMoveUp="place.CanUp" CanMoveDown="place.CanDown" />
+                @if (open == first.Line)
+                {
+                    @LinePanel(block, first, place)
+                }
+            </div>;
+        }
+
+        var where = place.Done ? "" : progress.Running ? "Running, held · " : place.First ? (progress.Done > 0 ? "Now · " : "Next · ") : "";
+        var count = progress.Target is not int target ? "no count" : progress.Done > 0 && !place.Done ? $"{progress.Done} of {target} done" : $"{target} {(target == 1 ? "round" : "rounds")}";
+        var headOpen = open == first.Line && openHead;
+        return @<div class="line superset" id="line-@first.Line">
+            <PlanRow Heading="@($"{where}Superset · {count}")" MoveName="@state.Names(block)" Class="group-head" Open="headOpen" OnOpen="@(() => Toggle(first.Line, true))"
+                     OnMove="@(place.Done ? default : EventCallback.Factory.Create<int>(this, direction => Move(first.Line, direction)))" CanMoveUp="place.CanUp" CanMoveDown="place.CanDown" />
+            @if (headOpen)
+            {
+                @GroupPanel(block, place)
+            }
+            @foreach (var entry in block)
+            {
+                var lineOpen = open == entry.Line && !openHead;
+                <PlanRow Name="@state.Exercises[entry.ExerciseId].Name" Caption="@Caption(block, entry, place)" Box="@BoxOf(progress, place)" Open="lineOpen" OnOpen="@(() => Toggle(entry.Line, false))" />
+                @if (lineOpen)
+                {
+                    @LinePanel(block, entry, place)
+                }
+            }
+        </div>;
+    }
+
+    // An open line: a question about it, or a picker, or its sets and what can be done with it.
+    private RenderFragment LinePanel(List<TemplateExercise> block, TemplateExercise entry, Place place)
+    {
+        var exercise = state!.Exercises[entry.ExerciseId];
+        var sets = state.SetsOf(entry.Line);
+        var doneSets = sets.Count(s => s.StoppedAt is not null);
+        var single = block.Count == 1;
+        var progress = state.Progress(block);
+        if (ask is { } question && question.Line == entry.Line && !openHead)
+        {
+            return question.Kind switch
+            {
+                AskKind.SwapScope => @<div class="line-edit appear">
+                    <AskBox Question="@($"{doneSets} {(doneSets == 1 ? "set" : "sets")} of {exercise.Name} {(doneSets == 1 ? "is" : "are")} done.")"
+                            Note="@($"{question.Exercise!.Name} takes what's left. Or {(doneSets == 1 ? "was that set" : "were those sets")} {question.Exercise.Name} as well?")"
+                            First="Only what's left" Second="@(doneSets == 1 ? "That set too" : "Those sets too")" FirstIsUsual="true" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+                </div>,
+                AskKind.AlreadyThere => @<div class="line-edit appear">
+                    <AskBox Question="@($"{question.Exercise!.Name} is already in today's workout.")" First="Its own line" Second="More sets of it" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+                </div>,
+                _ => @<div class="line-edit appear">
+                    <AskBox Question="@($"Remove {exercise.Name} and its {doneSets} {(doneSets == 1 ? "set" : "sets")}?")" First="Keep it" Second="Remove" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+                </div>,
+            };
+        }
+
+        if (panel != Panel.None)
+        {
+            var label = panel switch { Panel.Swap => $"Swap {exercise.Name} for", Panel.Superset => $"Superset {exercise.Name} with", _ => "This set was really" };
+            var others = panel == Panel.Superset ? state.StillToDo().Where(b => b != block && !b.Any(e => e.Line == entry.Line) && !state.Progress(b).Running).ToList() : [];
+            var todays = panel == Panel.Wrong ? state.Plan.Where(e => e.ExerciseId != entry.ExerciseId).Select(e => state.Exercises[e.ExerciseId]).DistinctBy(e => e.Id).ToList() : [];
+            return @<div class="line-edit appear">
+                <ExercisePick Choices="choices!" OnPick="Picked" Id="pick-name" Label="@label" NewAction="@(panel switch { Panel.Swap => "Swap it in", Panel.Superset => "Superset it", _ => "Move the set" })"
+                              Exclude="@InToday()" Leave="@([entry.ExerciseId])" Note="@(panel == Panel.Superset ? null : InTodayNote)">
+                    <BeforeTyping>
+                        @if (others.Count > 0)
+                        {
+                            <section class="stack" aria-labelledby="pick-todo">
+                                <h2 id="pick-todo" class="label">Still to do</h2>
+                                <div class="ledger">
+                                    @foreach (var other in others)
+                                    {
+                                        <button type="button" class="row" @onclick="@(() => PickedBlock(other))">
+                                            <span class="row-text">
+                                                <span class="name">@state.Names(other)</span>
+                                                <span class="note">@(other.Count > 1 ? "the whole superset joins" : state.LastTime(other[0].ExerciseId) is { } last ? $"last: {last}" : "not done before")</span>
+                                            </span>
+                                            <Icon Name="forward" />
+                                        </button>
+                                    }
+                                </div>
+                            </section>
+                        }
+                        @if (todays.Count > 0)
+                        {
+                            <section class="stack" aria-labelledby="pick-today">
+                                <h2 id="pick-today" class="label">In today's workout</h2>
+                                <div class="ledger">
+                                    @foreach (var other in todays)
+                                    {
+                                        <button type="button" class="row" @onclick="@(() => Picked(other))">
+                                            <span class="row-text">
+                                                <span class="name">@other.Name</span>
+                                                <span class="note">in today's workout</span>
+                                            </span>
+                                            <Icon Name="forward" />
+                                        </button>
+                                    }
+                                </div>
+                            </section>
+                        }
+                    </BeforeTyping>
+                </ExercisePick>
+                <button type="button" class="btn-ghost start" @onclick="Close">Cancel</button>
+            </div>;
+        }
+
+        // Do this next is for a line that isn't next already; a superset's is on its heading.
+        var canGoFirst = single && !place.Done && !place.First && !progress.Running;
+        RenderFragment log = @<button type="button" class="btn-ghost start" @onclick="@(() => Log(entry.Line))"><Icon Name="plus" Size="16" />Log a set I did</button>;
+        return @<div class="line-edit appear">
+            @if (sets.Count > 0)
+            {
+                <SetList Sets="sets" Exercises="state.Exercises" Bare="true" Open="openSet" Held="@(state.Session.PausedAt ?? opened)" OnSave="Flow.SaveSet" OnDelete="DeleteSet">
+                    <More Context="set">
+                        <button type="button" class="btn-ghost start" @onclick="@(() => Wrong(entry.Line, set))">It was another exercise…</button>
+                    </More>
+                </SetList>
+                @log
+            }
+            @if (single)
+            {
+                <CountStepper Count="entry.PlannedSets" Note="@CountNote(block, progress)" CanFewer="@CanFewer(entry.PlannedSets, progress)"
+                              OnFewer="@(() => Fewer(entry.Line))" OnMore="@(() => More(entry.Line))" />
+            }
+            <div class="@(canGoFirst ? "grid-2" : "grid-3")">
+                @if (canGoFirst)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Next(entry.Line))">Do this next</button>
+                }
+                <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))">Swap…</button>
+                @if (single)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Show(Panel.Superset))">Superset…</button>
+                }
+                else
+                {
+                    <button type="button" class="btn" @onclick="@(() => TakeOut(entry.Line))">Take out</button>
+                }
+                <button type="button" class="btn" @onclick="@(() => Remove(entry.Line, false))">Remove</button>
+            </div>
+            @if (sets.Count == 0)
+            {
+                @log
+            }
+        </div>;
+    }
+
+    // An open superset: a question about it, or its rounds and what can be done with all of it.
+    private RenderFragment GroupPanel(List<TemplateExercise> block, Place place)
+    {
+        var first = block[0];
+        var progress = state!.Progress(block);
+        var doneSets = block.Sum(e => state.SetsOf(e.Line).Count(s => s.StoppedAt is not null));
+        if (ask is { Kind: AskKind.RoundsDone } rounds && rounds.Line == first.Line)
+        {
+            var who = string.Join(" and ", block.Where(e => rounds.Lines!.Contains(e.Line)).Select(e => state.Exercises[e.ExerciseId].Name));
+            return @<div class="line-edit appear">
+                <AskBox Question="@($"{progress.Done} {(progress.Done == 1 ? "round is" : "rounds are")} done already.")" Note="@($"Did {who} go with {(progress.Done == 1 ? "it" : "them")}? Add it to write in what you did.")"
+                        First="From now on" Second="Add it" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+            </div>;
+        }
+
+        if (ask is { Kind: AskKind.Remove } remove && remove.Line == first.Line)
+        {
+            return @<div class="line-edit appear">
+                <AskBox Question="@($"Remove {state.Names(block)} and their {doneSets} {(doneSets == 1 ? "set" : "sets")}?")" First="Keep them" Second="Remove" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+            </div>;
+        }
+
+        var canGoFirst = !place.Done && !place.First && !progress.Running;
+        return @<div class="line-edit appear">
+            <CountStepper Count="first.PlannedSets" Rounds="true" Note="@CountNote(block, progress)" CanFewer="@CanFewer(first.PlannedSets, progress)"
+                          OnFewer="@(() => Fewer(first.Line))" OnMore="@(() => More(first.Line))" />
+            <div class="@(canGoFirst ? "grid-3" : "grid-2")">
+                @if (canGoFirst)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Next(first.Line))">Do this next</button>
+                }
+                <button type="button" class="btn" @onclick="@(() => Split(first.Line))">@(canGoFirst ? "Split" : "Split the superset")</button>
+                <button type="button" class="btn" @onclick="@(() => Remove(first.Line, true))">Remove</button>
+            </div>
+        </div>;
+    }
+
+    // What a line says under its name: where it stands, what's done of it, and what it has left or how it went last time.
+    private string Caption(List<TemplateExercise> block, TemplateExercise entry, Place place)
+    {
+        var exercise = state!.Exercises[entry.ExerciseId];
+        var sets = state.SetsOf(entry.Line);
+        var working = sets.Where(s => s is { StoppedAt: not null, WarmUp: false }).ToList();
+        var warmedUp = sets.Exists(s => s is { StoppedAt: not null, WarmUp: true });
+        if (place.Done) return working.Count > 0 ? SetSummary.Format(working, exercise.Measure) : warmedUp ? "Warmed up" : "No sets";
+
+        var parts = new List<string>();
+        var single = block.Count == 1;
+        if (single && sets.Exists(s => s.StoppedAt is null)) parts.Add("Running, held");
+        else if (single && place.First) parts.Add(working.Count > 0 ? "Now" : "Next");
+        if (working.Count > 0) parts.Add(SetSummary.Format(working, exercise.Measure));
+        else if (warmedUp) parts.Add("Warmed up");
+        if (single) parts.Add(state.Progress(block).Target is not int target ? "no count" : working.Count > 0 ? $"{Math.Max(0, target - working.Count)} to go" : $"{target} {(target == 1 ? "set" : "sets")}");
+        if (working.Count == 0) parts.Add(state.LastTime(entry.ExerciseId) is { } last ? $"last {last}" : "not done before");
+        return string.Join(" · ", parts);
+    }
+
+    private static RowBox BoxOf(BlockProgress progress, Place place) => place.Done ? (progress.Done > 0 ? RowBox.Done : RowBox.Empty) : progress.Running || place.First ? RowBox.Now : RowBox.Empty;
+
+    private string CountNote(List<TemplateExercise> block, BlockProgress progress)
+    {
+        var auto = block.Max(e => state!.SetsLastTime.GetValueOrDefault(e.ExerciseId));
+        if (block[0].PlannedSets is not int count) return auto > 0 && !state!.OpenEnded ? $"No count: as many as last time ({auto})" : "No count: until you move on";
+        if (progress.Done > 0) return count > progress.Done ? $"{progress.Done} done, {count - progress.Done} to go" : $"{progress.Done} done, none to go";
+        return block.Count > 1 ? "Each round is one set of each exercise" : "Then the big button moves on";
+    }
+
+    private static bool CanFewer(int? count, BlockProgress progress) => count is int planned && (planned - 1 >= Math.Max(progress.Done, 1) || (progress.Done == 0 && planned == 1));
+
+    // The exercises on today's lines: a picker lists them apart, or says so beside them.
+    private HashSet<long> InToday() => [.. state!.Plan.Select(e => e.ExerciseId)];
+
+    private string? InTodayNote(Exercise exercise) => state!.Plan.Exists(e => e.ExerciseId == exercise.Id) ? "in today's workout" : null;
+
+    private void Close() => (panel, adding, ask, openSet, wrongSet) = (Panel.None, Adding.None, null, null, null);
+
+    private void Toggle(int line, bool head)
+    {
+        var same = open == line && openHead == head;
+        Close();
+        (open, openHead) = (same ? 0 : line, head);
+    }
+
+    private void Show(Panel which)
+    {
+        Close();
+        panel = which;
+    }
+
+    private void StartAdding(Adding what)
+    {
+        Close();
+        (open, adding) = (0, what);
+    }
+
+    private void Asking(Ask question)
+    {
+        Close();
+        ask = question;
+    }
+
+    private void Move(int line, int direction) => Flow.MoveLine(line, direction);
+
+    private void Next(int line) => Flow.DoNext(line);
+
+    private void More(int line) => Flow.MoreSets(line);
+
+    private void Fewer(int line) => Flow.FewerSets(line);
+
+    private void Split(int line)
+    {
+        Flow.SplitSuperset(line);
+        Close();
+        open = 0;
+    }
+
+    private void TakeOut(int line)
+    {
+        Flow.TakeOut(line);
+        Close();
+    }
+
+    private void Discard() => Flow.DiscardRunning();
+
+    // A line done with only that set goes with it.
+    private void DeleteSet(WorkoutSet set)
+    {
+        Flow.DeleteSet(set);
+        if (state!.BlockOf(open) is null) open = 0;
+    }
+
+    private void Log(int line)
+    {
+        Close();
+        openSet = Flow.LogSet(line);
+    }
+
+    private void Wrong(int line, WorkoutSet set)
+    {
+        Close();
+        (panel, wrongSet, openSet) = (Panel.Wrong, set, set);
+    }
+
+    // A line with sets done asks before it goes; one with none just goes, and Undo brings it back.
+    private void Remove(int line, bool wholeBlock)
+    {
+        var lines = wholeBlock ? state!.BlockOf(line)!.Select(e => e.Line).ToList() : [line];
+        if (lines.Sum(l => state!.SetsOf(l).Count(s => s.StoppedAt is not null)) > 0)
+        {
+            Asking(new Ask(AskKind.Remove, line, Whole: wholeBlock));
+            return;
+        }
+
+        Flow.RemoveLine(line, wholeBlock);
+        Close();
+        open = 0;
+    }
+
+    private void Undo()
+    {
+        Flow.Undo();
+        Close();
+        if (state!.BlockOf(open) is null) open = 0;
+    }
+
+    // An exercise picked in an open line's picker: to swap in, to pair with, or as what a set really was.
+    private void Picked(Exercise exercise)
+    {
+        choices!.Add(exercise);
+        var line = open;
+        var block = state!.BlockOf(line)!;
+        switch (panel)
+        {
+            case Panel.Swap when block.Count == 1 && state.Plan.Find(e => e.ExerciseId == exercise.Id && e.Line != line) is { } there:
+                Asking(new Ask(AskKind.AlreadyThere, line, exercise, Other: there.Line));
+                break;
+            case Panel.Swap when state.SetsOf(line).Exists(s => s.StoppedAt is not null):
+                Asking(new Ask(AskKind.SwapScope, line, exercise));
+                break;
+            case Panel.Swap:
+                Flow.SwapLine(line, exercise, doneToo: false);
+                Close();
+                break;
+            case Panel.Superset:
+                Joined(line, [Flow.SupersetWithNew(line, exercise)]);
+                break;
+            case Panel.Wrong when wrongSet is { } set:
+                Flow.MoveSet(set, exercise);
+                Close();
+                if (state.BlockOf(open) is null) open = 0;
+                break;
+        }
+    }
+
+    // A block still to do picked to pair with the open line.
+    private void PickedBlock(List<TemplateExercise> block)
+    {
+        var line = open;
+        var joined = block.Select(e => e.Line).ToList();
+        Flow.SupersetWith(line, block[0].Line);
+        Joined(line, joined);
+    }
+
+    // After a pairing: when rounds were done before it, ask whether the ones that joined went with them.
+    private void Joined(int line, List<int> joined)
+    {
+        Close();
+        var block = state!.BlockOf(line)!;
+        var rounds = state.Progress(block).Done;
+        var behind = joined.Where(l => state.SetsOf(l).Count(s => s is { StoppedAt: not null, WarmUp: false }) < rounds).ToList();
+        (open, openHead) = (behind.Count > 0 ? block[0].Line : 0, behind.Count > 0);
+        if (behind.Count > 0) ask = new Ask(AskKind.RoundsDone, block[0].Line, Lines: behind);
+    }
+
+    private void AddPicked(Exercise exercise)
+    {
+        choices!.Add(exercise);
+        if (state!.Plan.Find(e => e.ExerciseId == exercise.Id) is { } there)
+        {
+            ask = new Ask(AskKind.AlreadyThere, 0, exercise, Other: there.Line);
+            return;
+        }
+
+        Flow.AddLine(exercise);
+        Close();
+    }
+
+    // The answer to the question that's up: the second button is yes.
+    private void Answer(bool yes)
+    {
+        if (ask is not { } question) return;
+
+        Close();
+        switch (question.Kind)
+        {
+            case AskKind.Remove when yes:
+                Flow.RemoveLine(question.Line, question.Whole);
+                open = 0;
+                break;
+            case AskKind.SwapScope:
+                Flow.SwapLine(question.Line, question.Exercise!, doneToo: yes);
+                break;
+            case AskKind.RoundsDone when yes:
+                // What it did is written in from the numbers it would have started with, and opened to be put right.
+                Flow.FillRounds(question.Lines!);
+                (open, openHead) = (question.Lines![0], false);
+                openSet = state!.SetsOf(open).FindLast(s => s.StoppedAt is not null);
+                break;
+            case AskKind.RoundsDone:
+                open = 0;
+                break;
+            case AskKind.AlreadyThere when question.Line == 0 && !yes:
+                Flow.AddLine(question.Exercise!);
+                break;
+            case AskKind.AlreadyThere when question.Line == 0:
+                // A line with no count already takes as many sets as I do.
+                if (state!.BlockOf(question.Other) is { } has && state.Progress(has).Target is not null) Flow.MoreSets(question.Other);
+                (open, openHead) = (question.Other, state.BlockOf(question.Other) is { Count: > 1 });
+                break;
+            case AskKind.AlreadyThere when yes:
+                Flow.GiveSetsTo(question.Line, question.Other);
+                (open, openHead) = (question.Other, state!.BlockOf(question.Other)!.Count > 1);
+                break;
+            case AskKind.AlreadyThere when state!.SetsOf(question.Line).Exists(s => s.StoppedAt is not null):
+                ask = new Ask(AskKind.SwapScope, question.Line, question.Exercise);
+                break;
+            case AskKind.AlreadyThere:
+                Flow.SwapLine(question.Line, question.Exercise!, doneToo: false);
+                break;
+        }
+    }
+
+    private async Task AnswerAsync(bool yes)
+    {
+        if (ask is not { } question) return;
+
+        Close();
+        if (question.Kind == AskKind.Session) await Flow.AddSessionAsync(question.Session!.Id, inPlaceOfWhatsLeft: yes);
+        else if (question.Kind == AskKind.SaveAsSession && yes) await Flow.SaveAsSessionAsync();
+    }
+
+    // Where a block is in the list: among the done ones, or first of those still to do, and whether its arrows can move it.
+    private sealed record Place(bool Done = false, bool First = false, bool CanUp = false, bool CanDown = false);
+
+    private enum Panel { None, Swap, Superset, Wrong }
+
+    private enum Adding { None, Exercise, Session }
+
+    private enum AskKind { Remove, SwapScope, RoundsDone, AlreadyThere, Session, SaveAsSession }
+
+    // A question that's up: about a line (0 for the list as a whole), with what was picked.
+    private sealed record Ask(AskKind Kind, int Line = 0, Exercise? Exercise = null, int Other = 0, IReadOnlyList<int>? Lines = null, bool Whole = false, SessionTemplate? Session = null);
+}

@@ -1,0 +1,23 @@
+@* A question asked once, where it came up, with its two answers side by side. The one filled is the usual one. *@
+<p class="name big">@Question</p>
+@if (Note is not null)
+{
+    <p class="note">@Note</p>
+}
+<div class="grid-2">
+    <button type="button" class="btn tall @(FirstIsUsual ? "fill" : null)" @onclick="OnFirst">@First</button>
+    <button type="button" class="btn tall @(FirstIsUsual ? null : "fill")" @onclick="OnSecond">@Second</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Question { get; set; } = "";
+    [Parameter] public string? Note { get; set; }
+    [Parameter, EditorRequired] public string First { get; set; } = "";
+    [Parameter, EditorRequired] public string Second { get; set; } = "";
+
+    /// <summary>The first answer is the usual one, so it's the one filled; else the second.</summary>
+    [Parameter] public bool FirstIsUsual { get; set; }
+
+    [Parameter] public EventCallback OnFirst { get; set; }
+    [Parameter] public EventCallback OnSecond { get; set; }
+}

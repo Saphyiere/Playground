@@ -1,24 +1,87 @@
 @* A workout's sets by exercise: weight × reps (or the time), how long each set took, and the heart rate during it when there's
    any. A warm-up set has W for its number, and the others count without it. Tapping a set opens it to change its numbers, Hit goal
-   or Warm-up, or to delete it, after asking once. *@
+   or Warm-up, or to delete it, after asking once. On the edit screen it's one line's sets, bare of the exercise's heading, with a
+   set that's running shown held. *@
 
 @foreach (var exerciseSets in Sets.GroupBy(s => s.ExerciseId))
 {
     var exercise = Exercises[exerciseSets.Key];
     var list = exerciseSets.ToList();
-    var timed = exercise.Measure == ExerciseMeasure.Time;
-    <section class="block" aria-label="@exercise.Name">
-        <div class="spread">
-            <h2 class="name big">@exercise.Name</h2>
-            @if (list.Any(s => s.HitGoal))
-            {
-                <span class="inline">
-                    <Mark Kind="MarkKind.Tick" Size="22" />
-                    <span class="caption">Hit goal</span>
-                </span>
-            }
-        </div>
-        <div class="set-grid @(Samples is null ? "no-bpm" : "")">
+    @if (Bare)
+    {
+        @Grid(exercise, list)
+    }
+    else
+    {
+        <section class="block" aria-label="@exercise.Name">
+            <div class="spread">
+                <h2 class="name big">@exercise.Name</h2>
+                @if (list.Any(s => s.HitGoal))
+                {
+                    <span class="inline">
+                        <Mark Kind="MarkKind.Tick" Size="22" />
+                        <span class="caption">Hit goal</span>
+                    </span>
+                }
+            </div>
+            @Grid(exercise, list)
+        </section>
+    }
+}
+
+@code {
+    private WorkoutSet? editing;
+    private WorkoutSet? asked;
+    private bool confirming;
+    private double? weight;
+    private int? reps;
+    private bool hitGoal;
+    private int? repsLeft;
+    private bool warmUp;
+    private int? minutes;
+    private int? seconds;
+
+    /// <summary>The sets, in order: finished ones, and on the edit screen a running one too.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<WorkoutSet> Sets { get; set; } = [];
+
+    [Parameter, EditorRequired] public IReadOnlyDictionary<long, Exercise> Exercises { get; set; } = default!;
+
+    /// <summary>Heart rate readings for the Bpm column; without them there's no such column.</summary>
+    [Parameter] public IReadOnlyList<HeartRateSample>? Samples { get; set; }
+
+    /// <summary>Without each exercise's heading and section around its sets: for one line's sets, under the line.</summary>
+    [Parameter] public bool Bare { get; set; }
+
+    /// <summary>A set to open when it's handed in, e.g. one just written in, to be put right.</summary>
+    [Parameter] public WorkoutSet? Open { get; set; }
+
+    /// <summary>When the workout was paused: a running set's row says where its clock is held.</summary>
+    [Parameter] public DateTimeOffset? Held { get; set; }
+
+    /// <summary>More that can be done with the open set, under its numbers.</summary>
+    [Parameter] public RenderFragment<WorkoutSet>? More { get; set; }
+
+    /// <summary>Called with a set whose numbers, Hit goal or Warm-up changed, already changed.</summary>
+    [Parameter] public EventCallback<WorkoutSet> OnSave { get; set; }
+
+    /// <summary>Called with a set to delete, once deleting it was confirmed.</summary>
+    [Parameter] public EventCallback<WorkoutSet> OnDelete { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Open, asked)) return;
+
+        asked = Open;
+        if (Open is not null && editing != Open) Toggle(Open);
+    }
+
+    private static string Unit(WeightUnit unit) => unit == WeightUnit.Kilograms ? "kg" : "lb";
+
+    // One exercise's sets as a ledger, the open one's numbers under its row.
+    private RenderFragment Grid(Exercise exercise, List<WorkoutSet> list)
+    {
+        var timed = exercise.Measure == ExerciseMeasure.Time;
+        return @<div class="set-grid @(Samples is null ? "no-bpm" : "")">
             <div class="set-line">
                 <span class="label">Set</span>
                 <span class="label">@(timed ? "Time" : $"{Unit(list[0].WeightUnit)} × reps")</span>
@@ -33,124 +96,115 @@
                 var set = list[i];
                 var number = set.WarmUp ? "W" : (list.Take(i).Count(s => !s.WarmUp) + 1).ToString(CultureInfo.CurrentCulture);
                 var open = editing == set;
-                <button type="button" class="set-line @(open ? "picked" : "")" aria-expanded="@(open ? "true" : "false")" @onclick="() => Open(set)">
-                    <span class="caption">@number@if (set.WarmUp) { <span class="sr-only">, warm-up</span> }</span>
-                    <span class="body">@(timed ? TimeText.Format(TimeSpan.FromSeconds(set.DurationSeconds ?? 0)) : $"{SetSummary.WeightText(set.Weight)} × {set.Reps ?? 0}")</span>
-                    <span class="caption">@(timed || set.StoppedAt is null || set.Ran() is not { } ran ? "" : TimeText.Format(ran))</span>
-                    @if (Samples is not null)
-                    {
-                        <span class="caption">@(set is { StartedAt: { } start, StoppedAt: { } stop } && WorkoutStats.HeartRate(Samples, start, stop) is { } bpm ? bpm.Average.ToString(CultureInfo.CurrentCulture) : "")</span>
-                    }
-                </button>
-                @if (open)
+                @if (set.StoppedAt is null)
                 {
-                    var id = $"edit-{set.Order}";
-                    <div class="set-edit appear">
-                        @if (confirming)
-                        {
-                            <p class="name">@(set.WarmUp ? $"Delete the warm-up set of {exercise.Name}?" : $"Delete set {number} of {exercise.Name}?")</p>
-                            <div class="grid-2">
-                                <button type="button" class="btn tall" @onclick="() => confirming = false">Keep it</button>
-                                <button type="button" class="btn tall fill" @onclick="() => DeleteAsync(set)">Delete</button>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="entry-row">
-                                @if (timed)
-                                {
-                                    <div class="field-group entry-reps">
-                                        <label class="field-label" for="@id-minutes">Min</label>
-                                        <div class="writing">
-                                            <input id="@id-minutes" class="field number-field" type="number" inputmode="numeric" min="0" @bind="minutes" />
-                                        </div>
-                                    </div>
-                                    <div class="field-group entry-reps">
-                                        <label class="field-label" for="@id-seconds">Sec</label>
-                                        <div class="writing">
-                                            <input id="@id-seconds" class="field number-field" type="number" inputmode="numeric" min="0" max="59" @bind="seconds" />
-                                        </div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="field-group entry-weight">
-                                        <label class="field-label" for="@id-weight">Weight</label>
-                                        <div class="writing">
-                                            <input id="@id-weight" class="field number-field" type="number" inputmode="decimal" step="any" placeholder="Bodyweight" @bind="weight" />
-                                            <span class="unit">@Unit(set.WeightUnit)</span>
-                                        </div>
-                                    </div>
-                                    <div class="field-group entry-reps">
-                                        <label class="field-label" for="@id-reps">Reps</label>
-                                        <div class="writing">
-                                            <input id="@id-reps" class="field number-field" type="number" inputmode="numeric" min="0" @bind="reps" />
-                                        </div>
-                                    </div>
-                                    <label class="goal">
-                                        <input type="checkbox" disabled="@warmUp" @bind="hitGoal" />
-                                        <span>Hit goal</span>
-                                    </label>
-                                }
-                            </div>
-                            @if (!timed)
-                            {
-                                <RepsLeftPicker Id="@($"{id}-tank")" Disabled="warmUp" @bind-Value="repsLeft" />
-                                <label class="goal">
-                                    <input type="checkbox" @bind="warmUp" @bind:after="() => { if (warmUp) (hitGoal, repsLeft) = (false, null); }" />
-                                    <span class="row-text">
-                                        <span>Warm-up</span>
-                                        <span class="note">Left out of its sets and next time's weight.</span>
-                                    </span>
-                                </label>
-                            }
-                            <div class="spread">
-                                <button type="button" class="btn-ghost" @onclick="() => confirming = true"><Icon Name="trash" Size="18" />Delete set</button>
-                                <div class="inline">
-                                    @if (!timed)
-                                    {
-                                        <button type="button" class="btn tall" aria-label="Switch between added and assisted weight" disabled="@(weight is null)" @onclick="() => weight = -weight">+/−</button>
-                                    }
-                                    <button type="button" class="btn tall adjust" @onclick="() => SaveAsync(set)">Save</button>
-                                </div>
-                            </div>
-                        }
+                    <div class="set-line">
+                        <span class="caption">@number</span>
+                        <span class="body">Running, held at @TimeText.Format(set.Ran(Held ?? DateTimeOffset.Now) ?? TimeSpan.Zero)</span>
+                        <span class="caption"></span>
                     </div>
                 }
+                else
+                {
+                    <button type="button" class="set-line @(open ? "picked" : "")" aria-expanded="@(open ? "true" : "false")" @onclick="() => Toggle(set)">
+                        <span class="caption">@number@if (set.WarmUp) { <span class="sr-only">, warm-up</span> }</span>
+                        @* Without the exercise's heading there's no tick for a goal hit, so the set says so. A set written in afterwards has no time of its own. *@
+                        <span class="body">@(timed ? TimeText.Format(TimeSpan.FromSeconds(set.DurationSeconds ?? 0)) : $"{SetSummary.WeightText(set.Weight)} × {set.Reps ?? 0}")@(Bare && set.HitGoal ? " · hit goal" : "")</span>
+                        <span class="caption">@(set is { StartedAt: { } began, StoppedAt: { } ended } && began == ended ? "logged" : timed || set.Logged() || set.Ran() is not { } ran ? "" : TimeText.Format(ran))</span>
+                        @if (Samples is not null)
+                        {
+                            <span class="caption">@(set is { StartedAt: { } start, StoppedAt: { } stop } && WorkoutStats.HeartRate(Samples, start, stop) is { } bpm ? bpm.Average.ToString(CultureInfo.CurrentCulture) : "")</span>
+                        }
+                    </button>
+                    @if (open)
+                    {
+                        @Editor(exercise, set, number, timed)
+                    }
+                }
             }
-        </div>
-    </section>
-}
+        </div>;
+    }
 
-@code {
-    private WorkoutSet? editing;
-    private bool confirming;
-    private double? weight;
-    private int? reps;
-    private bool hitGoal;
-    private int? repsLeft;
-    private bool warmUp;
-    private int? minutes;
-    private int? seconds;
-
-    /// <summary>Finished sets, in order.</summary>
-    [Parameter, EditorRequired] public IReadOnlyList<WorkoutSet> Sets { get; set; } = [];
-
-    [Parameter, EditorRequired] public IReadOnlyDictionary<long, Exercise> Exercises { get; set; } = default!;
-
-    /// <summary>Heart rate readings for the Bpm column; without them there's no such column.</summary>
-    [Parameter] public IReadOnlyList<HeartRateSample>? Samples { get; set; }
-
-    /// <summary>Called with a set whose numbers, Hit goal or Warm-up changed, already changed.</summary>
-    [Parameter] public EventCallback<WorkoutSet> OnSave { get; set; }
-
-    /// <summary>Called with a set to delete, once deleting it was confirmed.</summary>
-    [Parameter] public EventCallback<WorkoutSet> OnDelete { get; set; }
-
-    private static string Unit(WeightUnit unit) => unit == WeightUnit.Kilograms ? "kg" : "lb";
+    // An open set: its numbers to change, or the question before it's deleted.
+    private RenderFragment Editor(Exercise exercise, WorkoutSet set, string number, bool timed)
+    {
+        var id = $"edit-{set.Order}";
+        return @<div class="set-edit appear">
+            @if (confirming)
+            {
+                <p class="name">@(set.WarmUp ? $"Delete the warm-up set of {exercise.Name}?" : $"Delete set {number} of {exercise.Name}?")</p>
+                <div class="grid-2">
+                    <button type="button" class="btn tall" @onclick="() => confirming = false">Keep it</button>
+                    <button type="button" class="btn tall fill" @onclick="() => DeleteAsync(set)">Delete</button>
+                </div>
+            }
+            else
+            {
+                <div class="entry-row">
+                    @if (timed)
+                    {
+                        <div class="field-group entry-reps">
+                            <label class="field-label" for="@id-minutes">Min</label>
+                            <div class="writing">
+                                <input id="@id-minutes" class="field number-field" type="number" inputmode="numeric" min="0" @bind="minutes" />
+                            </div>
+                        </div>
+                        <div class="field-group entry-reps">
+                            <label class="field-label" for="@id-seconds">Sec</label>
+                            <div class="writing">
+                                <input id="@id-seconds" class="field number-field" type="number" inputmode="numeric" min="0" max="59" @bind="seconds" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="field-group entry-weight">
+                            <label class="field-label" for="@id-weight">Weight</label>
+                            <div class="writing">
+                                <input id="@id-weight" class="field number-field" type="number" inputmode="decimal" step="any" placeholder="Bodyweight" @bind="weight" />
+                                <span class="unit">@Unit(set.WeightUnit)</span>
+                            </div>
+                        </div>
+                        <div class="field-group entry-reps">
+                            <label class="field-label" for="@id-reps">Reps</label>
+                            <div class="writing">
+                                <input id="@id-reps" class="field number-field" type="number" inputmode="numeric" min="0" @bind="reps" />
+                            </div>
+                        </div>
+                        <label class="goal">
+                            <input type="checkbox" disabled="@warmUp" @bind="hitGoal" />
+                            <span>Hit goal</span>
+                        </label>
+                    }
+                </div>
+                @if (!timed)
+                {
+                    <RepsLeftPicker Id="@($"{id}-tank")" Disabled="warmUp" @bind-Value="repsLeft" />
+                    <label class="goal">
+                        <input type="checkbox" @bind="warmUp" @bind:after="() => { if (warmUp) (hitGoal, repsLeft) = (false, null); }" />
+                        <span class="row-text">
+                            <span>Warm-up</span>
+                            <span class="note">Left out of its sets and next time's weight.</span>
+                        </span>
+                    </label>
+                }
+                <div class="spread">
+                    <button type="button" class="btn-ghost" @onclick="() => confirming = true"><Icon Name="trash" Size="18" />Delete set</button>
+                    <div class="inline">
+                        @if (!timed)
+                        {
+                            <button type="button" class="btn tall" aria-label="Switch between added and assisted weight" disabled="@(weight is null)" @onclick="() => weight = -weight">+/−</button>
+                        }
+                        <button type="button" class="btn tall adjust" @onclick="() => SaveAsync(set)">Save</button>
+                    </div>
+                </div>
+                @More?.Invoke(set)
+            }
+        </div>;
+    }
 
     // Opens a set's numbers to change, or closes it when it's the one open.
-    private void Open(WorkoutSet set)
+    private void Toggle(WorkoutSet set)
     {
         editing = editing == set ? null : set;
         confirming = false;

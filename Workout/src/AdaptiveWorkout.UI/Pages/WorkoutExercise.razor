@@ -2,28 +2,44 @@
 @implements IDisposable
 @inject WorkoutFlow Flow
 @inject AppNavigation Navigation
+@* Picking an exercise to start now: the first one, when nothing is planned, or a different one while just tracking. What's picked
+   starts at once. Changing a planned workout is the edit screen's. *@
 
 <PageTitle>Pick an exercise</PageTitle>
 
-@if (state is not null)
+@if (state is not null && choices is not null)
 {
-    var stillToDo = state.StillToDo().Select(id => state.Exercises[id]).ToList();
+    // What's still to do can be started from here; the exercise I'm on isn't a different one, so it's left out.
+    var on = state.LastRound is [var last, ..] ? state.BlockOf(last.Line) : null;
+    var stillToDo = state.StillToDo().Where(b => on is null || b[0].Line != on[0].Line).ToList();
+    var listed = stillToDo.Concat(on is null ? [] : [on]).SelectMany(b => b).Select(e => e.ExerciseId).ToHashSet();
     <div class="screen">
         @* Before the first set there's no workout screen to go back to, only Today. *@
         <PageHeader Back="@(state.Sets.Count == 0 ? "" : "workout")" BackText="@(state.Sets.Count == 0 ? "Today" : state.Name)" Label="@(state.Sets.Count == 0 ? state.Name : null)"
                     Title="@(state.Sets.Count == 0 ? "First exercise" : "Different exercise")" Small="true" Live="true" />
 
-        <ExercisePicker State="state" OnPick="StartAsync" Exclude="@stillToDo.Select(e => e.Id).ToHashSet()" NewAction="Start set">
+        <ExercisePick Choices="choices" OnPick="StartAsync" Exclude="listed" NewAction="Start set">
             <BeforeTyping>
                 @if (stillToDo.Count > 0)
                 {
                     <section class="stack" aria-labelledby="still-heading">
                         <h2 id="still-heading" class="label">Still to do in @state.Name</h2>
-                        <ExerciseList Exercises="stillToDo" State="state" OnPick="StartAsync" />
+                        <div class="ledger">
+                            @foreach (var block in stillToDo)
+                            {
+                                <button type="button" class="row" @onclick="@(() => StartLineAsync(block[0].Line))">
+                                    <span class="row-text">
+                                        <span class="name">@state.Names(block)</span>
+                                        <span class="note">@(block.Count > 1 ? "superset" : state.LastTime(block[0].ExerciseId) is { } last ? $"last: {last}" : "not done before")</span>
+                                    </span>
+                                    <Icon Name="forward" />
+                                </button>
+                            }
+                        </div>
                     </section>
                 }
             </BeforeTyping>
-        </ExercisePicker>
+        </ExercisePick>
 
         @if (state.Sets.Count == 0)
         {
@@ -36,22 +52,33 @@
 
 @code {
     private WorkoutState? state;
+    private ExerciseChoices? choices;
 
     protected override async Task OnInitializedAsync()
     {
         state = Flow.Current ?? await Flow.LoadAsync();
         if (state is null) await Navigation.HomeAsync();
         else if (state.Running.Count > 0) await Navigation.ReturnToAsync("workout");
-        else Flow.Pause();
+        else
+        {
+            // Picking pauses the workout: no rest countdown starts the next set meanwhile. The set picked ends the pause as it starts.
+            Flow.Pause();
+            choices = await Flow.ChoicesAsync();
+        }
     }
 
-    // Picking pauses the workout: no rest countdown starts the next set meanwhile. The set picked ends the pause as it starts.
     public void Dispose() => Flow.Resume();
 
     // Back to the workout this was opened from, or, before the first set, on to it in this screen's place.
     private Task StartAsync(Exercise exercise)
     {
         Flow.StartPicked(exercise);
+        return Navigation.ReturnToAsync("workout");
+    }
+
+    private Task StartLineAsync(int line)
+    {
+        Flow.StartLine(line);
         return Navigation.ReturnToAsync("workout");
     }
 

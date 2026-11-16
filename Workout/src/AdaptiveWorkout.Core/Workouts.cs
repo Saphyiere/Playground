@@ -46,6 +46,12 @@ public sealed class TemplateExercise
 
     /// <summary>Neighboring entries with the same group number are one superset; the first entry's planned sets count for all.</summary>
     public int? SupersetGroup { get; set; }
+
+    /// <summary>
+    /// In a workout's own plan, the line's number, which its sets carry (<see cref="WorkoutSet.Line"/>): a line owns its sets
+    /// whatever exercise it has and wherever it moves, and the same exercise can be on two lines. 0 in a session.
+    /// </summary>
+    public int Line { get; set; }
 }
 
 /// <summary>An exercise is whatever name I typed; variations are separate names.</summary>
@@ -110,6 +116,9 @@ public sealed class WorkoutSet
     public long ExerciseId { get; set; }
     public int Order { get; set; }
 
+    /// <summary>The line of its workout's plan it belongs to (<see cref="TemplateExercise.Line"/>). 0 in a workout from before lines.</summary>
+    public int Line { get; set; }
+
     /// <summary>Empty when logged afterward.</summary>
     public DateTimeOffset? StartedAt { get; set; }
 
@@ -147,6 +156,12 @@ public static class WorkoutSets
     /// time's weights, the last times, improvement and plateaus, each muscle's hard sets, volume, and the usual rest.
     /// </summary>
     public static IEnumerable<WorkoutSet> Working(this IEnumerable<WorkoutSet> sets) => sets.Where(s => !s.WarmUp);
+
+    /// <summary>
+    /// A set written in afterwards, off the clock: it has no time of its own (its start and stop are one moment, the set before
+    /// its), so it says nothing about how long it ran or how long the rest before it was.
+    /// </summary>
+    public static bool Logged(this WorkoutSet set) => set.StartedAt is null || set.StartedAt == set.StoppedAt;
 
     /// <summary>
     /// How long a set ran: from its start to its stop (to <paramref name="now"/> while it runs), less the time it was held while the

@@ -1,13 +1,17 @@
 @page "/sessions/new"
 @page "/sessions/{Id:long}"
 @inject WorkoutStore Store
+@inject WorkoutFlow Flow
 @inject AppNavigation Navigation
-@inject MuscleTagger Tagger
+@* A session's exercises, in the same list a workout is changed in: a line for each exercise in its place, a superset bracketed in
+   the pen with a heading of its own. A tap opens a line to set its sets, swap it, pair it as a superset or remove it; the arrows
+   move it. Nothing is saved until Save session, and every change can be undone until then. *@
 
 <PageTitle>@(Id is null ? "New session" : "Edit session")</PageTitle>
 
-@if (loaded)
+@if (choices is not null)
 {
+    var blocks = WorkoutPlan.Blocks(plan);
     <div class="screen">
         <PageHeader Back="sessions" BackText="Sessions" Title="@(Id is null ? "New session" : "Edit session")" />
 
@@ -26,59 +30,16 @@
                     <span class="note">Timed, with heart rate. The big button then starts the first exercise.</span>
                 </span>
             </label>
-            @if (entries.Count == 0)
+            @if (blocks.Count == 0)
             {
                 <p class="note">Add the exercises you do in this session. Start workout goes through them in this order.</p>
             }
             else
             {
                 <div class="ledger">
-                    @for (var i = 0; i < entries.Count; i++)
+                    @for (var i = 0; i < blocks.Count; i++)
                     {
-                        var index = i;
-                        var entry = entries[i];
-                        var joinedToPrevious = i > 0 && entries[i - 1].LinkedToNext;
-                        var linked = entry.LinkedToNext && i < entries.Count - 1;
-                        @* A superset is bracketed in the pen's color down its exercises' left edge. *@
-                        <div class="entry @(linked || joinedToPrevious ? "superset" : "")">
-                            @if (linked && !joinedToPrevious)
-                            {
-                                <p class="label">Superset</p>
-                            }
-                            <div class="spread">
-                                <span class="name">@entry.Exercise.Name</span>
-                                <div class="inline">
-                                    <button type="button" class="icon-btn plain" aria-label="Move @entry.Exercise.Name up" disabled="@(index == 0)" @onclick="() => Move(index, -1)"><Icon Name="up" /></button>
-                                    <button type="button" class="icon-btn plain" aria-label="Move @entry.Exercise.Name down" disabled="@(index == entries.Count - 1)" @onclick="() => Move(index, 1)"><Icon Name="down" /></button>
-                                    <button type="button" class="icon-btn plain" aria-label="Remove @entry.Exercise.Name" @onclick="() => entries.RemoveAt(index)"><Icon Name="close" /></button>
-                                </div>
-                            </div>
-                            @if (joinedToPrevious)
-                            {
-                                <p class="note">Alternates with the exercise above, same number of rounds.</p>
-                            }
-                            else
-                            {
-                                <div class="spread">
-                                    <div class="row-text">
-                                        <span class="body">@(linked ? "Rounds" : "Sets")</span>
-                                        <span class="caption">@(entry.PlannedSets is null ? "No count: as many as last time" : linked ? "Each round is one set of each exercise" : "Then Start workout moves on")</span>
-                                    </div>
-                                    <div class="stepper">
-                                        <button type="button" class="icon-btn" aria-label="Fewer" disabled="@(entry.PlannedSets is null)" @onclick="() => entry.PlannedSets = entry.PlannedSets > 1 ? entry.PlannedSets - 1 : null"><Icon Name="minus" Size="18" /></button>
-                                        <span class="@(entry.PlannedSets is null ? "note center" : "number")" aria-live="polite">@(entry.PlannedSets?.ToString(CultureInfo.CurrentCulture) ?? "Auto")</span>
-                                        <button type="button" class="icon-btn" aria-label="More" @onclick="() => entry.PlannedSets = (entry.PlannedSets ?? 0) + 1"><Icon Name="plus" Size="18" /></button>
-                                    </div>
-                                </div>
-                            }
-                            @if (index < entries.Count - 1)
-                            {
-                                <label class="goal">
-                                    <input type="checkbox" @bind="entry.LinkedToNext" />
-                                    Superset with the next exercise
-                                </label>
-                            }
-                        </div>
+                        @Block(blocks[i], i > 0, i < blocks.Count - 1)
                     }
                 </div>
             }
@@ -91,121 +52,366 @@
             </label>
         </section>
 
-        <div class="field-group">
-            <label class="field-label" for="add-exercise">Add an exercise</label>
-            <div class="inline end">
-                <input id="add-exercise" class="field" placeholder="Type a name" autocomplete="off" @bind="newName" @bind:event="oninput" />
-                <button type="button" class="btn" disabled="@string.IsNullOrWhiteSpace(newName)" @onclick="AddAsync"><Icon Name="plus" Size="16" />Add</button>
-            </div>
-        </div>
-        @if (!string.IsNullOrWhiteSpace(newName))
-        {
-            var key = ExerciseNames.Key(newName);
-            var matches = exercises.Where(e => ExerciseNames.Key(e.Name).Contains(key) && entries.All(x => x.Exercise.Id != e.Id)).Take(5).ToList();
-            @if (matches.Count > 0)
+        <section id="add" class="stack" aria-label="Add">
+            @if (ask is { Line: 0 } already)
             {
-                <section class="ledger" aria-label="Exercises you've done before">
-                    @foreach (var match in matches)
-                    {
-                        <button type="button" class="row" @onclick="() => AddExisting(match)">
-                            <span class="row-text">
-                                <span class="name">@match.Name</span>
-                                <span class="note">done before · @(match.Measure == ExerciseMeasure.Time ? "time" : "weight")</span>
-                            </span>
-                            <Icon Name="plus" />
-                        </button>
-                    }
-                </section>
-            }
-            @if (exercises.All(e => ExerciseNames.Key(e.Name) != key))
-            {
-                <div class="stack">
-                    <p class="note">New exercise. Track it by</p>
-                    <div class="segmented" role="group" aria-label="Track by">
-                        <button type="button" aria-pressed="@(newMeasure == ExerciseMeasure.Weight ? "true" : "false")" @onclick="() => newMeasure = ExerciseMeasure.Weight">Weight and reps</button>
-                        <button type="button" aria-pressed="@(newMeasure == ExerciseMeasure.Time ? "true" : "false")" @onclick="() => newMeasure = ExerciseMeasure.Time">Time</button>
-                    </div>
+                <div class="stack appear">
+                    <AskBox Question="@($"{already.Exercise.Name} is already in this session.")" First="Its own line" Second="More sets of it" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
                 </div>
             }
-        }
+            else if (adding)
+            {
+                @* A session is built an exercise after another, so the picker stays open, starting over, until it's closed. *@
+                <div class="stack appear">
+                    <ExercisePick @key="added" Choices="choices" OnPick="AddPicked" Id="add-name" Label="Add an exercise" NewAction="Add it" Exclude="@InSession()" Note="InSessionNote" />
+                    <button type="button" class="btn-ghost start" @onclick="Close">@(added > 0 ? "Done" : "Cancel")</button>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="btn tall" @onclick="StartAdding"><Icon Name="plus" Size="16" />Add exercise</button>
+            }
+        </section>
 
         <div class="push-down">
+            @if (undo.Count > 0)
+            {
+                <div class="spread undo">
+                    <span class="note">@undo[^1].What</span>
+                    <button type="button" class="btn" @onclick="Undo">Undo</button>
+                </div>
+            }
             <button type="button" class="btn-primary save" disabled="@string.IsNullOrWhiteSpace(name)" @onclick="SaveAsync">Save session</button>
         </div>
     </div>
 }
 
 @code {
-    private bool loaded;
+    // The changes made since the screen opened, newest last, each with the exercises as they were before it.
+    private readonly List<(string What, List<TemplateExercise> Plan)> undo = [];
+    private ExerciseChoices? choices;
+    private Dictionary<long, Exercise> exercises = [];
     private SessionTemplate template = new();
     private string name = "";
-    private List<Entry> entries = [];
-    private IReadOnlyList<Exercise> exercises = [];
-    private string newName = "";
-    private ExerciseMeasure newMeasure = ExerciseMeasure.Weight;
+
+    // The session's exercises as lines (see PlanEdits): a change puts a new list here and leaves the old one for Undo.
+    private List<TemplateExercise> plan = [];
+
+    // The line that's open (0 for none), and whether it's its superset's heading that is, rather than the line itself.
+    private int open;
+    private bool openHead;
+    private Panel panel;
+    private bool adding;
+    private int added;
+    private Ask? ask;
 
     [Parameter] public long? Id { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        exercises = await Store.GetExercisesAsync();
         template = Id is long id ? await Store.GetTemplateAsync(id) ?? new() : new();
         name = template.Name;
+        plan = PlanEdits.Copy(template.Id == 0 ? [] : await Store.GetTemplateExercisesAsync(template.Id));
+        var all = await Flow.ChoicesAsync();
+        exercises = all.All.ToDictionary(e => e.Id);
 
-        IReadOnlyList<TemplateExercise> saved = template.Id == 0 ? [] : await Store.GetTemplateExercisesAsync(template.Id);
-        entries = [.. saved.Select((e, i) => new Entry
+        // A new session starts on adding its first exercise.
+        adding = plan.Count == 0;
+        choices = all;
+    }
+
+    // A block of the list: an exercise's line, or a superset bracketed in the pen with a heading of its own.
+    private RenderFragment Block(List<TemplateExercise> block, bool canUp, bool canDown)
+    {
+        var first = block[0];
+        var move = EventCallback.Factory.Create<int>(this, direction => Move(first.Line, direction));
+        if (block.Count == 1)
         {
-            Exercise = exercises.First(x => x.Id == e.ExerciseId),
-            PlannedSets = e.PlannedSets,
-            LinkedToNext = e.SupersetGroup is not null && i < saved.Count - 1 && saved[i + 1].SupersetGroup == e.SupersetGroup,
-        })];
-        loaded = true;
+            var sets = first.PlannedSets is int count ? $"{count} {(count == 1 ? "set" : "sets")}" : "Auto";
+            return @<div class="line">
+                <PlanRow Name="@exercises[first.ExerciseId].Name" Caption="@($"{sets} · {LastTime(first, "last ")}")" Open="@(open == first.Line)" OnOpen="@(() => Toggle(first.Line, false))"
+                         OnMove="move" CanMoveUp="canUp" CanMoveDown="canDown" />
+                @if (open == first.Line)
+                {
+                    @LinePanel(block, first)
+                }
+            </div>;
+        }
+
+        var rounds = first.PlannedSets is int planned ? $"{planned} {(planned == 1 ? "round" : "rounds")}" : "no count";
+        var headOpen = open == first.Line && openHead;
+        return @<div class="line superset">
+            <PlanRow Heading="@($"Superset · {rounds}")" MoveName="@Names(block)" Class="group-head" Open="headOpen" OnOpen="@(() => Toggle(first.Line, true))"
+                     OnMove="move" CanMoveUp="canUp" CanMoveDown="canDown" />
+            @if (headOpen)
+            {
+                @GroupPanel(block)
+            }
+            @foreach (var entry in block)
+            {
+                var lineOpen = open == entry.Line && !openHead;
+                <PlanRow Name="@exercises[entry.ExerciseId].Name" Caption="@LastTime(entry, "last ")" Open="lineOpen" OnOpen="@(() => Toggle(entry.Line, false))" />
+                @if (lineOpen)
+                {
+                    @LinePanel(block, entry)
+                }
+            }
+        </div>;
     }
 
-    private void Move(int index, int offset)
+    // An open line: a question about it, or a picker, or its sets and what can be done with it.
+    private RenderFragment LinePanel(List<TemplateExercise> block, TemplateExercise entry)
     {
-        (entries[index], entries[index + offset]) = (entries[index + offset], entries[index]);
+        var exercise = exercises[entry.ExerciseId];
+        var single = block.Count == 1;
+        if (ask is { } question && question.Line == entry.Line && !openHead)
+        {
+            return @<div class="line-edit appear">
+                <AskBox Question="@($"{question.Exercise.Name} is already in this session.")" First="Its own line" Second="More sets of it" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
+            </div>;
+        }
+
+        if (panel != Panel.None)
+        {
+            var others = panel == Panel.Superset ? WorkoutPlan.Blocks(plan).Where(b => !b.Any(e => e.Line == entry.Line)).ToList() : [];
+            return @<div class="line-edit appear">
+                <ExercisePick Choices="choices!" OnPick="Picked" Id="pick-name" Label="@(panel == Panel.Swap ? $"Swap {exercise.Name} for" : $"Superset {exercise.Name} with")"
+                              NewAction="@(panel == Panel.Swap ? "Swap it in" : "Superset it")" Exclude="@InSession()" Leave="@([entry.ExerciseId])" Note="@(panel == Panel.Superset ? null : InSessionNote)">
+                    <BeforeTyping>
+                        @if (others.Count > 0)
+                        {
+                            <section class="stack" aria-labelledby="pick-others">
+                                <h2 id="pick-others" class="label">In this session</h2>
+                                <div class="ledger">
+                                    @foreach (var other in others)
+                                    {
+                                        <button type="button" class="row" @onclick="@(() => PickedBlock(other))">
+                                            <span class="row-text">
+                                                <span class="name">@Names(other)</span>
+                                                <span class="note">@(other.Count > 1 ? "the whole superset joins" : LastTime(other[0], "last: "))</span>
+                                            </span>
+                                            <Icon Name="forward" />
+                                        </button>
+                                    }
+                                </div>
+                            </section>
+                        }
+                    </BeforeTyping>
+                </ExercisePick>
+                <button type="button" class="btn-ghost start" @onclick="Close">Cancel</button>
+            </div>;
+        }
+
+        return @<div class="line-edit appear">
+            @if (single)
+            {
+                <CountStepper Count="entry.PlannedSets" Note="@CountNote(block)" CanFewer="@(entry.PlannedSets is not null)" OnFewer="@(() => Fewer(entry.Line))" OnMore="@(() => More(entry.Line))" />
+            }
+            <div class="grid-3">
+                <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))">Swap…</button>
+                @if (single)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Show(Panel.Superset))">Superset…</button>
+                }
+                else
+                {
+                    <button type="button" class="btn" @onclick="@(() => TakeOut(entry.Line))">Take out</button>
+                }
+                <button type="button" class="btn" @onclick="@(() => Remove(entry.Line, false))">Remove</button>
+            </div>
+        </div>;
     }
 
-    private void AddExisting(Exercise exercise)
+    // An open superset: its rounds, and what can be done with all of it.
+    private RenderFragment GroupPanel(List<TemplateExercise> block)
     {
-        entries.Add(new Entry { Exercise = exercise });
-        newName = "";
+        var first = block[0];
+        return @<div class="line-edit appear">
+            <CountStepper Count="first.PlannedSets" Rounds="true" Note="@CountNote(block)" CanFewer="@(first.PlannedSets is not null)" OnFewer="@(() => Fewer(first.Line))" OnMore="@(() => More(first.Line))" />
+            <div class="grid-2">
+                <button type="button" class="btn" @onclick="@(() => Split(first.Line))">Split the superset</button>
+                <button type="button" class="btn" @onclick="@(() => Remove(first.Line, true))">Remove</button>
+            </div>
+        </div>;
     }
 
-    private async Task AddAsync()
-    {
-        if (string.IsNullOrWhiteSpace(newName)) return;
+    private List<TemplateExercise>? BlockOf(int line) => line == 0 ? null : WorkoutPlan.Blocks(plan).Find(b => b.Any(e => e.Line == line));
 
-        AddExisting(await Store.GetOrCreateExerciseAsync(newName, newMeasure));
-        exercises = await Store.GetExercisesAsync();
-        _ = Tagger.TagAsync();
+    private string Names(IEnumerable<TemplateExercise> block) => string.Join(" + ", block.Select(e => exercises[e.ExerciseId].Name));
+
+    private string NameOn(int line) => plan.Find(e => e.Line == line) is { } entry ? exercises[entry.ExerciseId].Name : "it";
+
+    private string LastTime(TemplateExercise entry, string before) => choices!.LastTime(exercises[entry.ExerciseId]) is { } last ? before + last : "not done before";
+
+    // As many sets as last time, for a block with no count: a superset's rounds go by the exercise that had the most.
+    private int Auto(List<TemplateExercise> block) => block.Max(e => choices!.SetsLastTime(exercises[e.ExerciseId]));
+
+    private string CountNote(List<TemplateExercise> block)
+    {
+        if (block[0].PlannedSets is not null) return block.Count > 1 ? "Each round is one set of each exercise" : "Then the big button moves on";
+
+        return Auto(block) is > 0 and var auto ? $"No count: as many as last time ({auto})" : "No count: until you move on";
+    }
+
+    // The exercises on the session's lines: a picker lists them apart, or says so beside them.
+    private HashSet<long> InSession() => [.. plan.Select(e => e.ExerciseId)];
+
+    private string? InSessionNote(Exercise exercise) => plan.Exists(e => e.ExerciseId == exercise.Id) ? "in this session" : null;
+
+    private void Close() => (panel, adding, ask) = (Panel.None, false, null);
+
+    private void Toggle(int line, bool head)
+    {
+        var same = open == line && openHead == head;
+        Close();
+        (open, openHead) = (same ? 0 : line, head);
+    }
+
+    private void Show(Panel which)
+    {
+        Close();
+        panel = which;
+    }
+
+    private void StartAdding()
+    {
+        Close();
+        (open, adding, added) = (0, true, 0);
+    }
+
+    // Makes a change: keeps the exercises as they were, for Undo.
+    private void Change(string what, List<TemplateExercise> changed)
+    {
+        undo.Add((what, plan));
+        plan = changed;
+    }
+
+    private void Undo()
+    {
+        plan = undo[^1].Plan;
+        undo.RemoveAt(undo.Count - 1);
+        Close();
+        if (BlockOf(open) is null) open = 0;
+    }
+
+    private void Move(int line, int direction)
+    {
+        var blocks = WorkoutPlan.Blocks(plan);
+        var at = blocks.FindIndex(b => b.Any(e => e.Line == line));
+        if (at >= 0 && at + direction >= 0 && at + direction < blocks.Count)
+            Change($"Moved {Names(blocks[at])} {(direction < 0 ? "up" : "down")}", PlanEdits.Exchange(plan, line, blocks[at + direction][0].Line));
+    }
+
+    // One more than its count; from none, one more than last time.
+    private void More(int line)
+    {
+        if (BlockOf(line) is { } block) Change($"More sets of {Names(block)}", PlanEdits.Count(plan, line, (block[0].PlannedSets ?? Auto(block)) + 1));
+    }
+
+    // One fewer; under one, no count again.
+    private void Fewer(int line)
+    {
+        if (BlockOf(line) is { } block && block[0].PlannedSets is int count) Change($"Fewer sets of {Names(block)}", PlanEdits.Count(plan, line, count > 1 ? count - 1 : null));
+    }
+
+    private void Split(int line)
+    {
+        Change($"Split {Names(BlockOf(line)!)}", PlanEdits.Split(plan, line));
+        Close();
+        open = 0;
+    }
+
+    private void TakeOut(int line)
+    {
+        Change($"Took {NameOn(line)} out of the superset", PlanEdits.TakeOut(plan, line));
+        Close();
+    }
+
+    private void Remove(int line, bool wholeBlock)
+    {
+        Change($"Removed {(wholeBlock ? Names(BlockOf(line)!) : NameOn(line))}", wholeBlock ? PlanEdits.RemoveBlock(plan, line) : PlanEdits.Remove(plan, line));
+        Close();
+        open = 0;
+    }
+
+    // An exercise picked in an open line's picker: to swap in, or to pair with.
+    private void Picked(Exercise exercise)
+    {
+        exercises[exercise.Id] = exercise;
+        var line = open;
+        var block = BlockOf(line)!;
+        switch (panel)
+        {
+            case Panel.Swap when block.Count == 1 && plan.Find(e => e.ExerciseId == exercise.Id && e.Line != line) is { } there:
+                Close();
+                ask = new Ask(line, exercise, there.Line);
+                break;
+            case Panel.Swap:
+                Change($"Swapped {NameOn(line)} for {exercise.Name}", PlanEdits.Swap(plan, line, exercise.Id));
+                Close();
+                break;
+            case Panel.Superset:
+                Change($"Paired {Names(block)} with {exercise.Name}", PlanEdits.JoinNew(plan, line, exercise.Id, PlanEdits.NextLine(plan, [])));
+                Close();
+                open = 0;
+                break;
+        }
+    }
+
+    // Another block of the session picked to pair with the open line.
+    private void PickedBlock(List<TemplateExercise> other)
+    {
+        Change($"Paired {Names(BlockOf(open)!)} with {Names(other)}", PlanEdits.Join(plan, open, other[0].Line));
+        Close();
+        open = 0;
+    }
+
+    private void AddPicked(Exercise exercise)
+    {
+        exercises[exercise.Id] = exercise;
+        if (plan.Find(e => e.ExerciseId == exercise.Id) is { } there) ask = new Ask(0, exercise, there.Line);
+        else Add(exercise);
+    }
+
+    // Adds a line after the others; the picker starts over for the next one.
+    private void Add(Exercise exercise)
+    {
+        Change($"Added {exercise.Name}", PlanEdits.Add(plan, exercise.Id, PlanEdits.NextLine(plan, [])));
+        (adding, added) = (true, added + 1);
+    }
+
+    // The session has the exercise already: a line of its own all the same, or more sets on the line it has.
+    private void Answer(bool moreSets)
+    {
+        if (ask is not { } question) return;
+
+        Close();
+        if (!moreSets && question.Line == 0) Add(question.Exercise);
+        else if (!moreSets) Change($"Swapped {NameOn(question.Line)} for {question.Exercise.Name}", PlanEdits.Swap(plan, question.Line, question.Exercise.Id));
+        else if (BlockOf(question.Other) is { } to)
+        {
+            // One more set; from a line that was being swapped, the sets that line had, and the line goes. A line with no count
+            // and nothing to go by already takes as many sets as I do.
+            var from = BlockOf(question.Line);
+            var more = from is null ? 1 : from[0].PlannedSets ?? Math.Max(1, Auto(from));
+            var counted = to[0].PlannedSets is null && Auto(to) == 0 ? plan : PlanEdits.Count(plan, question.Other, (to[0].PlannedSets ?? Auto(to)) + more);
+            if (from is null) Change($"More sets of {Names(to)}", counted);
+            else Change($"{NameOn(question.Line)} gave its sets to {NameOn(question.Other)}", PlanEdits.RemoveBlock(counted, question.Line));
+            (open, openHead) = (question.Other, to.Count > 1);
+        }
     }
 
     private async Task SaveAsync()
     {
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        // Neighbors linked by "superset with the next exercise" share a group number; the first one's count covers the superset.
-        var saved = new List<TemplateExercise>();
-        int? group = null;
-        for (var i = 0; i < entries.Count; i++)
-        {
-            var joinedToPrevious = i > 0 && entries[i - 1].LinkedToNext;
-            var linked = entries[i].LinkedToNext && i < entries.Count - 1;
-            if (!joinedToPrevious) group = linked ? i + 1 : null;
-            saved.Add(new TemplateExercise { ExerciseId = entries[i].Exercise.Id, Order = i, PlannedSets = joinedToPrevious ? null : entries[i].PlannedSets, SupersetGroup = group });
-        }
-
         template.Name = name.Trim();
-        await Store.SaveTemplateAsync(template, saved);
+        await Store.SaveTemplateAsync(template, PlanEdits.AsSession(plan));
         await Navigation.BackAsync("sessions");
     }
 
-    private sealed class Entry
-    {
-        public required Exercise Exercise { get; init; }
-        public int? PlannedSets { get; set; }
-        public bool LinkedToNext { get; set; }
-    }
+    private enum Panel { None, Swap, Superset }
+
+    // The exercise picked is in the session already: on which line, and for which line it was picked (0 when adding).
+    private sealed record Ask(int Line, Exercise Exercise, int Other);
 }

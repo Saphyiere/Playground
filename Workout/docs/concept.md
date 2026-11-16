@@ -109,7 +109,7 @@ Everything is remembered.
 
 ### Getting around
 
-Every screen below Today has its way back at the top, naming the screen it goes back to, and the phone's back gesture does the same: one screen per step, back the way I came. Finishing what a screen was opened for (saving a session or routine, deleting a workout, choosing in Change) also goes back there, never on to a fresh copy of a screen I'd already left, so back never walks through finished forms. Starting a workout from the session picker, and switching the workout between its views, take the screen's place instead of stacking up. Two or more screens in, **Today** at the top right (a house in Telemetry) goes straight home. Finishing a workout opens Claude's look back in its place (with a key on the phone), which goes back to Today; cancelling one lands on Today.
+Every screen below Today has its way back at the top, naming the screen it goes back to, and the phone's back gesture does the same: one screen per step, back the way I came. Finishing what a screen was opened for (saving a session or routine, deleting a workout, resuming from the edit screen) also goes back there, never on to a fresh copy of a screen I'd already left, so back never walks through finished forms. Starting a workout from the session picker takes the screen's place instead of stacking up. Two or more screens in, **Today** at the top right (a house in Telemetry) goes straight home. Finishing a workout opens Claude's look back in its place (with a key on the phone), which goes back to Today; cancelling one lands on Today.
 
 ## Flows
 
@@ -141,20 +141,23 @@ A routine plans the week: each day has a session or is a rest day. Monday to Sat
 
 ### Listing a session's exercises
 
-When creating a session template, I add exercises one by one: type a name and tap **Add**, or pick a matching exercise I've done before to link it. Each entry has:
-- a **Sets** counter (− and +). "Auto" means as many sets as last time.
-- up and down buttons to reorder, and a remove button.
-- **Superset with the next exercise**, which joins it to the one below. The first exercise of a superset counts **Rounds** for all of them.
+A session's exercises are edited in the same list a workout is changed in (see *Changing today's workout*), so there's one way to do it: a line for each exercise in its place, with its sets and how it went last time, and arrows that move it a step. Tapping a line opens it:
 
-**Warm-up first** sits above the exercises and **Cool-down last** below them, where each one happens.
+- **Sets**, with − and +. **Auto** means as many sets as last time; + from there is one more than that.
+- **Swap…** for another exercise, **Superset…** to pair it with another line of the session or with an exercise it doesn't have yet, and **Remove**.
+- A superset is bracketed in the pen, under a heading of its own (**Superset · 3 rounds**) that opens its **Rounds**, **Split the superset** and **Remove**. One of its exercises opens to **Swap…**, **Take out** (it comes right after, alone) and **Remove**.
+
+**Add exercise** opens the picker: the exercises done before, the latest first, or a name typed, which finds the ones that match and makes a new one when none has that name. A session is built one exercise after another, so here the picker stays open, starting over, until **Done**; a new session opens on it. An exercise the session already has asks once: **Its own line**, or **More sets of it**.
+
+**Warm-up first** sits above the exercises and **Cool-down last** below them, where each one happens. Nothing is saved until **Save session**, and until then every change can be taken back with **Undo**.
 
 **(later)** With many exercises, a picker grouped into categories.
 
-### Simple mode and advanced mode
+### One screen to follow, one to change
 
-Every session starts in **simple mode**: the screen holds the current step and one big button, and tapping through follows the plan. The plan is the template, or for exercises I've done before, what I did last time. A session I make up on the spot still gets simple mode for any exercise I link to past history. For the plan's order, see the next-step rules below.
+The workout's screen holds the current step and one big button, and tapping through follows the plan. The plan is the session, or for exercises I've done before, what I did last time. A workout I make up on the spot is followed the same way for any exercise I link to past history. For the plan's order, see the next-step rules below.
 
-I can leave simple mode at any moment, like leaving full screen. **Advanced mode** shows everything: switch to a different exercise, add an extra set, skip ahead, reorder, finish early. I can switch back and forth freely; simple mode picks up the plan from wherever I am. Simple and advanced are two views of the same session, not two kinds of session.
+Everything else is one tap away, in one place: **Edit**, beside **Finish** in the masthead, opens the screen that changes today's workout, and every **Change** on the way opens that same screen on its exercise (see *Changing today's workout*). There's no second view of the workout to switch to.
 
 ### The set loop
 
@@ -175,10 +178,10 @@ I can leave simple mode at any moment, like leaving full screen. **Advanced mode
 
    A superset's round runs both exercises at once, split side by side: each one's name with its own **Change**, one timer, and each one's last three times under it.
 2. **Stop** ends the set, and rest starts counting.
-3. **Break.** The rest timer, live heart rate (in Telemetry with its last minute, the set's stop marked on it), and the set just done, or a superset's round, under its place in the plan (**Set 2 of 3**, **Superset · round 1 of 3**): for each exercise its name, then weight × reps and **Hit goal** on one line, pre-filled, and under them how many more reps I could have done, if I like (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear, in hairline boxes until one is picked). Every change is saved as it's made, so there's nothing to confirm, and a note shows only when a tick does something: **Next time: 105 lb** beside the name once Hit goal is ticked. A bodyweight set has no unit. A **⋯** button at the end of the name opens what's rarely needed: **Warm-up**, for a lighter set done to get ready (see *Warm-up sets*); **Assisted**, when the weight is help from the machine (kept as a minus); and **Today's sets**, every set of the workout one by one, where tapping a set changes its numbers, Hit goal or Warm-up, or deletes it (a set done by mistake), after asking once. Time exercises need nothing: the stopwatch was the duration. With nothing to enter (after a time exercise, or when the workout is opened again), the break shows **Today so far** instead: every exercise done in this workout in short form (`3 × 10 at 100`, with a warm-up set written small under it: `Warm-up 12 at 60`), with **Edit** to the same sets. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set, closing the lines as they stand. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up. More of what I just did starts from the numbers in the lines above, so then Next is one line (**Next · Set 3 of 3**, with the flat note when there is one); after a warm-up set it shows its numbers again, since the next set starts from another weight.
+3. **Break.** The rest timer, live heart rate (in Telemetry with its last minute, the set's stop marked on it), and the set just done, or a superset's round, under its place in the plan (**Set 2 of 3**, **Superset · round 1 of 3**): for each exercise its name, then weight × reps and **Hit goal** on one line, pre-filled, and under them how many more reps I could have done, if I like (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear, in hairline boxes until one is picked). Every change is saved as it's made, so there's nothing to confirm, and a note shows only when a tick does something: **Next time: 105 lb** beside the name once Hit goal is ticked. A bodyweight set has no unit. A **⋯** button at the end of the name opens what's rarely needed: **Warm-up**, for a lighter set done to get ready (see *Warm-up sets*); **Assisted**, when the weight is help from the machine (kept as a minus); and **Edit workout**, the edit screen open on this exercise's sets, where tapping a set changes its numbers, Hit goal or Warm-up, or deletes it (a set done by mistake), after asking once. Time exercises need nothing: the stopwatch was the duration. With nothing to enter (after a time exercise, or when the workout is opened again), the break shows **Today so far** instead: every exercise done in this workout in short form (`3 × 10 at 100`, with a warm-up set written small under it: `Warm-up 12 at 60`), with **Edit** to the edit screen. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set, closing the lines as they stand. Above it, **Next** says where it is in the plan (**Next · Set 1 of 3**, **Next · Superset · round 1 of 3**), then its name and the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up, with **Change** beside it. More of what I just did starts from the numbers in the lines above, so then Next is one line (**Next · Set 3 of 3**, with the flat note when there is one); after a warm-up set it shows its numbers again, since the next set starts from another weight.
 4. **Finish workout** is always reachable, in every state.
 
-A button holds its words. When a name is too long for it, the big button says **Start next exercise** or **Start superset**, and the others **Another set**, **Move on** or **Skip exercise**; Next, above them, names it in full.
+A button holds its words. When a name is too long for it, the big button says **Start next exercise** or **Start superset**, and the ones above it **Another set** or **Move on**; Next, above them, names it in full.
 
 The break screen reads **Rest 0:48**: the word big beside the timer, counting up. **Tapping the time** turns it into a countdown (and back); the choice sticks for later rests.
 
@@ -191,63 +194,77 @@ The break screen reads **Rest 0:48**: the word big beside the timer, counting up
 
 ### Pre-filled and suggested values
 
-The app is suggestive, especially in simple mode:
+The app is suggestive:
 - Weight and reps pre-fill from the previous set in this session; the first set of an exercise pre-fills from the first set the last time I did it. Warm-up sets are passed over, in this session and last time's.
 - **Hit goal:** every set's line on the break screen has a **Hit goal** tick box. Next time, that exercise's first set suggests the weight of the set I marked plus 5 (in that set's unit), and the following sets pre-fill from it as usual. Assisted weights move toward less assistance (−40 becomes −35); bodyweight stays bodyweight.
 - **Claude's plan:** once a look back's plan is taken (**Use for next time**), the next time I do each of its exercises, the first set pre-fills from Claude's weight × reps instead, and Next on the break screen says **From Claude's look back**. Its sets count where the session doesn't plan them, and its rest becomes the exercise's countdown. It's for that one time: once the exercise is done again, the rules above are back.
 
 ### Next-step rules
 
-What the big button offers after each set:
+Today's workout is its lines in the order they're done: each line is an exercise in its place, and each set belongs to the line it was done on. The same exercise can be on two lines, each with its own sets. What the big button offers is the first line, in that order, with sets still to do:
 
-1. It stays with the exercise I'm on. With a set count in the template entry, it moves on after that many sets.
-2. Else, if I've done this exercise before, it moves on after as many sets as last time.
-3. Else it offers another set, with a second button to **move on to the next exercise**, or to **finish the workout** when it's the last one. Such an exercise is done once a later one in the plan had a set after its last.
-4. Moving on means the next exercise in the plan after this one. Ones I went past (swapped out, dropped, skipped, or left for another exercise I picked) never come back on their own; they stay in the lists of what's still to do, so I can go back to one by picking it.
-5. Once it moves on, a second button offers **Another set of rows** (or **Another round**) for when I'm doing more than planned.
+1. A line is done after its count: the sets the session gives it, or the ones set on the edit screen.
+2. Without a count, if I've done the exercise before, it's done after as many sets as last time.
+3. Without either it goes on: the big button offers another set, with a second button to **move on to the next exercise** (which is then done with the sets it has), or **Add more** and **Finish workout** when it's the last one.
+4. So the order on the edit screen is the order things happen, and nothing is hidden from it: a line I put off waits where I put it and comes up when its turn does. What I'm not doing today is removed, on the edit screen.
+5. Once a line is done, a second button offers **Another set of rows** (or **Another round**) for when I'm doing more than planned; it's one more than the line had.
 
-Each place in the plan counts its own sets: an exercise swapped into another one's place starts at set 1 there, even if I did it earlier in a superset. A warm-up set says where I am in the plan without being one of the exercise's sets: after it, the same set is still next.
+A warm-up set says where I am in the plan without being one of the exercise's sets: after it, the same set is still next.
 
-When nothing planned is left, the big button is **Finish workout**, with **Another set** and **Add more** above it. When just tracking, the break screen always offers **Different exercise** and **Finish workout** under the big button. With a cool-down, each of those reads **Start cool-down** instead.
+When nothing planned is left, the big button is **Finish workout**, with **Another set** and **Add more** above it. When just tracking, nothing is planned, so an exercise is done when I move on from it: the break screen always offers **Different exercise** and **Finish workout** above the big button, and picking a different one closes the one I was on with the sets it has. With a cool-down, Finish workout reads **Start cool-down** instead.
 
 ### Warm-up and cool-down
 
 A session can start with a warm-up and end with a cool-down, each turned on in its list of exercises. Both are only time and heart rate: nothing to enter.
 
 - **Warm-up:** Start opens it in place of the first set: the time since Start, live heart rate, and what's next with **Change**. The big button, **Start overhand rows**, ends it and starts the first set. The watch and the notification show **Warm-up** like a rest, so the watch's **Start overhand rows** works too.
-- **Cool-down:** where the big button would finish the workout, it reads **Start cool-down**. The cool-down shows its time and live heart rate, and its big button is **Finish workout**. A set started during it (another exercise, or another set from advanced mode) puts the cool-down off until the end again.
+- **Cool-down:** where the big button would finish the workout, it reads **Start cool-down**. The cool-down shows its time and live heart rate, and its big button is **Finish workout**. A set started during it (from the watch, say) puts the cool-down off until the end again.
 - **Finish** in the masthead still finishes at once, with no cool-down. Finishing during the warm-up makes the whole workout warm-up.
-- Advanced mode lists them as the first and last boxes of the plan; **Today so far** starts with the warm-up's time.
+- **Edit** works during both; **Today so far** starts with the warm-up's time.
 
 ### Warm-up sets
 
-Some days an exercise needs a lighter set first: biceps at the end of leg day, hamstrings after nothing but quads. It depends on the day, so it isn't planned in a session: it's said set by set. On the break screen, **Warm-up** is a tick box behind the **⋯** button at the end of the exercise's name; a set opened from **Today's sets** or from a workout's page in history has it too. A set ticked is kept, with its time and heart rate, and counted differently:
+Some days an exercise needs a lighter set first: biceps at the end of leg day, hamstrings after nothing but quads. It depends on the day, so it isn't planned in a session: it's said set by set. On the break screen, **Warm-up** is a tick box behind the **⋯** button at the end of the exercise's name; a set opened on the edit screen or on a workout's page in history has it too. A set ticked is kept, with its time and heart rate, and counted differently:
 
 - **It isn't one of the exercise's sets.** The plan's count doesn't move (after a warm-up, **set 1 of 3** is still next), and neither does the masthead's tally. Its line says **Warm-up** beside the name, and has no Hit goal or Left in the tank: they fade.
 - **No weight starts from it.** The next set pre-fills as if it weren't there, and so does next time.
 - **It's left out of how I'm doing:** the last three times, improvement and its trends, plateaus, volume, each muscle's hard sets, and the rest the countdown learns from.
 - **Claude is told it was a warm-up** (see *Claude's look back*), so the lighter weight isn't read as a slip and the plan for next time comes from the other sets. An exercise I only warmed up with gets no plan.
-- **It's still shown:** **W** in place of its number among a workout's sets, **Warm-up 12 at 60** under the exercise in Today so far, **Warmed up** in advanced mode, and **14 + 1 warm-up** as a workout's Sets. The workout's time and what it burned count it like any set.
+- **It's still shown:** **W** in place of its number among a workout's sets, **Warm-up 12 at 60** under the exercise in Today so far, **Warmed up** on the edit screen for a line with nothing else yet, and **14 + 1 warm-up** as a workout's Sets. The workout's time and what it burned count it like any set.
 
 Unticking it makes it an ordinary set again. Time exercises have no warm-up sets.
 
 ### Changing today's workout
 
-Machines are taken all the time, so a workout never has to follow its session exactly. Each workout gets its own copy of the session's exercises when it starts; changing it never touches the session.
+Machines are taken all the time, and some days go another way entirely, so a workout never has to follow its session. Each workout gets its own copy of the session's exercises when it starts, and all of it can be changed while it's going: what's left, what's done, and what's running. Changing it never touches the session, unless I say so.
 
-**Changing pauses the workout.** While Change, Add more, Today's sets or the exercise picker is open, nothing starts by itself: a rest countdown that runs out starts no set, on the phone or from the watch, whose countdown is called off, and the watch and the notification say **Paused**. A set that was running holds its clock, and the time it was held isn't part of how long it ran. Rest is the time since the last set whatever the app does, so it goes on counting: back on the break screen, a countdown that ran out meanwhile shows how far over it is and waits for a tap. A workout left paused when the app closes carries on when it opens again.
+**One screen does it: Edit workout.** **Edit** beside Finish opens it, and so does every **Change** (beside a running exercise, beside Next, beside each exercise of a superset's round), **Edit** on Today so far, **Edit workout** behind a set's ⋯, and **Add more**. Change opens it on that exercise's line, brought into view.
 
-**Change** sits on the set screen and next to "Next:" on the break screen. It opens for that exercise:
+**Opening it pauses the workout.** A stamp says **Paused**, and until I leave nothing starts by itself: a rest countdown that runs out starts no set, on the phone or from the watch, whose countdown is called off, and the watch and the notification say **Paused**. A set that was running holds its clock (**Set 1 of 3 was running · held at 0:42**), and the time it was held isn't part of how long it ran; **Discard** throws it away, for one a countdown started that I'm not doing. Rest is the time since the last set whatever the app does, so it goes on counting: back on the break screen, a countdown that ran out meanwhile shows how far over it is and waits for a tap. **Resume workout**, the big button, goes back, and so does the way back at the top. A workout left paused when the app closes carries on when it opens again. Picking an exercise to start (**Different exercise**, when just tracking) pauses it the same way.
 
-- **Do another one first:** any exercise still to do. The changed one waits and comes right after (the bench is taken, so incline first; the pulldown is taken, so skull crushers, then back to the pulldown). A superset moves as a whole. Part way through an exercise, the sets still to do come right after the other one.
-- **Swap it for** any other exercise, today only, keeping its spot, sets and superset. The one swapped out is gone for today. One still to do later in the plan moves up instead; one already done today goes in afresh.
-- **Drop it today** (no dip station at this gym: the superset becomes just pull-ups, with the same rounds). There's no skip button anywhere else; changing the plan should take a deliberate step.
-- **Superset**, a checkbox above the others: the one picked then goes with the changed one instead of in its place, a round of both back to back for the rounds it has left (no one's in the gym, so curls and skull crushers together). One still to do later in the plan leaves its own spot; any other joins afresh. With three or more to a round, their names get smaller to fit side by side.
-- **Split the superset**, at the top when the exercise is in the superset that's next or running: it's taken apart for today (the seat needs changing between the two every round, so one at a time instead). The exercise Change was opened on goes on alone for the sets the superset had left, then the others, each alone for the same; the rounds already done stay as they were. Right after, the break screen doesn't offer another round.
+**The whole workout is one list**: a line for each exercise in its place, each with its own sets. **Done** comes first, ticked, with what was done (`3 × 10 at 60`); then **Still to do**, in the order it will be offered: the pen's dot on what's now or next, and for each line what's done of it, what's left, and how it went last time (`Now · 12 at 30 · 2 to go`, `3 sets · last 10, 10, 9 at 95`). A superset is bracketed in the pen under a heading of its own (**Next · Superset · 3 rounds**). Arrows move a line (a superset as a whole) a step up or down among the ones still to do; one with a set running stays where it is.
 
-In a superset, each exercise has its own **Change** on the set screen and where Next lists them, and Change opens with the superset's exercises side by side at its top, to pick which of them to change. From the set screen, the running set (or round) starts over with the new exercise; splitting from there starts a set of the one picked, alone.
+Tapping a line opens it:
 
-**Different exercise** in advanced mode starts something in place of what's next: a planned one (with its superset), or one the plan doesn't have, which joins the plan right after what's next. Either way the plan carries on after it, and what it took the place of waits in the list of what's still to do. **Add more**, once everything planned is done, adds a whole other session (an ab session after the bike) or one exercise after everything else.
+- **Its sets**, one a row. Tapping one changes its weight, reps, Hit goal, Left in the tank or Warm-up, or deletes it after asking once. **It was another exercise…** puts the set on another of today's lines, or on a line of its own for an exercise today doesn't have. **Log a set I did** writes in one done off the clock, from the numbers it would have started with; it has no time of its own, and says **logged**.
+- **Sets**: − and + set the line's count, never under what's done. **Auto** is as many as last time.
+- **Do this next** puts it ahead of everything else still to do (the bench is taken, so incline first). The line I was on waits right after; one with no count is done with the sets it has.
+- **Swap…** puts another exercise on the line, keeping its spot, count and superset. With sets already done on it, it asks: **Only what's left** (the done sets stay what they were, on a line of their own, and the new exercise takes the sets left) or **That set too**. A running set carries on as the new exercise.
+- **Superset…** pairs the line with another one still to do, or with an exercise today doesn't have. It counts from the next round, and joins a round that's running, on the same clock. Said after rounds were done, it asks whether the other went with them: **Add it** writes its sets in beside those rounds, at their times, to be put right; **From now on** leaves them.
+- **Remove** takes the line out of today, asking first when it has sets done, which go with it.
+- A superset's heading opens its **Rounds**, **Do this next**, **Split** (each exercise alone, for the rounds it had; a running round goes on as a set of the first) and **Remove**. One of its exercises has **Take out** in Superset's place: it comes right after, alone.
+
+Under the list, **Add exercise** adds a line after the others and **Add a session** adds a whole other session's exercises (an ab session after the bike): **After the others**, or **Replace what's left**, which keeps what's started and lets go of the rest.
+
+**Nothing doubles by accident.** An exercise picked that today already has asks once: **Its own line**, or **More sets of it**, which adds to the line it has (swapping incline for the dumbbell press I already did gives that press the sets incline had, and incline goes). When it does get a line of its own, that line has its own sets, and can be removed without touching the other.
+
+**What's done stays done.** Deleting a set from a line that was done, or saying it was another exercise, leaves the line done with the sets it has left, rather than bringing it back as something to do; with no set left, the line goes. A line still to do keeps its count.
+
+**Every change is made at once and can be taken back**: the last one is named above the big button with **Undo** (`Removed Incline chest press`), one after another back to how the workout was when the screen opened. Resuming keeps them.
+
+**Today only, unless I say so.** Under the list: *Today only. Push day itself stays as it is.* **Save as Push day too…** asks once, then makes the session these exercises in this order, with their sets and supersets, from next time on. Workouts already done stay as they are, and Undo takes that back too.
+
+A workout that was open when the app was updated to this is carried over once, as it's opened: each set goes to the line it counted for, a set of an exercise the plan no longer had gets a line of its own, an exercise I'd gone past waits right after the one I'm on, and one with no count that I'd moved on from stays done.
 
 ### Speed
 
@@ -257,7 +274,7 @@ Opening has to be quick, and stay quick as the log grows. Today reads only what 
 
 ### Supersets
 
-My back days are almost all supersets: a back exercise paired with a triceps exercise, like pull-ups and dips, or skull crushers straight into rows. I go from one to the other without stopping, so a round is one activity: **Start pull-ups + dips** starts both, the screen shows both side by side, and one **Stop** ends the round. The break comes after each round, and that's where both are entered. Each round stores a set of each exercise, in order, with the round's start and stop, so both get the same time and the same heart rate. Only the template knows which exercises are grouped. Swapping one of them part way keeps the round count: the new one joins the next round.
+My back days are almost all supersets: a back exercise paired with a triceps exercise, like pull-ups and dips, or skull crushers straight into rows. I go from one to the other without stopping, so a round is one activity: **Start pull-ups + dips** starts both, the screen shows both side by side, and one **Stop** ends the round. The break comes after each round, and that's where both are entered. Each round stores a set of each exercise, in order, with the round's start and stop, so both get the same time and the same heart rate. The session says which exercises go together, and today's workout can say otherwise: two can be paired on the edit screen, even after a round is done, and a superset taken apart (see *Changing today's workout*). Swapping one of them part way keeps the round count: the new one joins the next round.
 
 **(later)** Other patterns, like many sets of one rep, are just many sets; nothing special is needed.
 
@@ -508,7 +525,8 @@ RoutineDay         RoutineId, Day (Monday 0 to Sunday 6), TemplateId (empty = re
 SessionTemplate    Id, Name, Order, WarmUp, CoolDown
 Setting            Key, Value                    (the routine in use, the theme, rest countdowns, the calorie goal, sex, birth year, height, usual day)
 TemplateExercise   TemplateId, ExerciseId, Order, PlannedSets (optional), SupersetGroup (optional)
-SessionExercise    SessionId, ExerciseId, Order, PlannedSets, SupersetGroup   (the workout's own copy, changed as it goes)
+SessionExercise    SessionId, ExerciseId, Order, PlannedSets, SupersetGroup   (the workout's own lines, changed as it goes)
+                   Line                          (the line's number in its workout, kept while it moves; its sets carry it)
 Session            Id, TemplateId (empty = just tracking), StartedAt, FinishedAt, LoggedAfterward
                    WarmUp, WarmUpEndedAt         (copied from the template at Start; warming up from StartedAt until the first set)
                    CoolDown, CoolDownStartedAt   (cooling down from Start cool-down until FinishedAt)
@@ -518,7 +536,8 @@ Exercise           Id, Name (unique, ignoring case and extra spaces), Measure (W
                    TaggedBy                     (who tagged its muscles: claude or owner; empty until tagged)
 ExerciseMuscle     ExerciseId, Muscle, Main     (the muscles an exercise trains: Main for the ones it's done for, else it helps)
 Set                Id, SessionId, ExerciseId, Order,
-                   StartedAt, StoppedAt         (empty when logged afterward)
+                   Line                         (the workout's line it was done on; 0 in workouts from before lines)
+                   StartedAt, StoppedAt         (empty when logged afterward; the same moment for a set written in on the edit screen)
                    Weight, WeightUnit, Reps     (weight exercises; empty weight = bodyweight, may be negative)
                    Duration                     (time exercises; from the stopwatch or typed)
                    HitGoal                      (checked on any break screen)
@@ -549,9 +568,9 @@ is turned off, and `WeekLookBack` = `off` when the week's is. The Claude key is 
 ## Build order
 
 1. **Today:** calories, weigh-ins and the gym-day check, with storage on the phone. *Built.*
-2. **Sessions in simple mode:** routines, templates, the set loop, the last three times, supersets, Hit goal. *Built.*
+2. **Sessions:** routines, templates, the set loop, the last three times, supersets, Hit goal. *Built.*
 3. **Live heart rate** from the watch during sessions, with the rest timer on the watch and in the notification. *Built; needs its first run on the real watch.*
-4. **Advanced mode** and logging after the fact. *Advanced view built (add a set, different exercise, skip); reordering mid-workout and logging after the fact not yet.*
+4. **Changing a workout as it goes** and logging after the fact. *The edit screen is built: reorder, swap, superset, remove, add, fix or move a set, log a set, undo, save as the session. Logging a whole workout after the fact not yet.*
 5. **Adaptive comparisons** and charts. *The improvement trend is built, on Gym for every workout and on Stats for each routine, session and exercise; choosing the lead signal not yet.*
 
 ## Later

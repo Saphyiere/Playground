@@ -1,6 +1,7 @@
-@inject WorkoutFlow Flow
+@inject WorkoutStore Store
 @inject MuscleTagger Tagger
-@* Finding an exercise by name: recent ones until I type, then matches, and a new one when nothing has that name. *@
+@* Finding an exercise by name: what the screen offers first and the ones done before, until I type; then the names that match,
+   and a new one when nothing has that name. *@
 
 @{
     var key = ExerciseNames.Key(query);
@@ -13,25 +14,36 @@
 @if (key.Length == 0)
 {
     @BeforeTyping
+    var recent = Choices.Recent.Where(e => !Exclude.Contains(e.Id)).Take(6).ToList();
     @if (recent.Count > 0)
     {
         <section class="stack" aria-labelledby="@Id-recent">
             <h2 id="@Id-recent" class="label">Done before</h2>
-            <ExerciseList Exercises="recent" State="State" OnPick="OnPick" />
+            <div class="ledger">
+                @foreach (var exercise in recent)
+                {
+                    @Row(exercise)
+                }
+            </div>
         </section>
     }
 }
 else
 {
-    var matches = State.Exercises.Values.Where(e => ExerciseNames.Key(e.Name).Contains(key)).OrderBy(e => e.Name).Take(8).ToList();
+    var matches = Choices.All.Where(e => !Leave.Contains(e.Id) && ExerciseNames.Key(e.Name).Contains(key)).OrderBy(e => e.Name).Take(8).ToList();
     @if (matches.Count > 0)
     {
         <section class="stack" aria-labelledby="@Id-matches">
             <h2 id="@Id-matches" class="label">Matches</h2>
-            <ExerciseList Exercises="matches" State="State" OnPick="OnPick" />
+            <div class="ledger">
+                @foreach (var exercise in matches)
+                {
+                    @Row(exercise)
+                }
+            </div>
         </section>
     }
-    @if (State.Exercises.Values.All(e => ExerciseNames.Key(e.Name) != key))
+    @if (Choices.All.TrueForAll(e => ExerciseNames.Key(e.Name) != key))
     {
         <section class="stack" aria-labelledby="@Id-new">
             <h2 id="@Id-new" class="label">New exercise</h2>
@@ -49,13 +61,20 @@ else
 @code {
     private string query = "";
     private ExerciseMeasure measure = ExerciseMeasure.Weight;
-    private List<Exercise> recent = [];
 
-    [Parameter, EditorRequired] public WorkoutState State { get; set; } = default!;
+    /// <summary>Every exercise, the ones done lately, and how each went the last time.</summary>
+    [Parameter, EditorRequired] public ExerciseChoices Choices { get; set; } = default!;
+
     [Parameter, EditorRequired] public EventCallback<Exercise> OnPick { get; set; }
 
-    /// <summary>Exercises left out of the recent list, e.g. ones the page lists above it.</summary>
+    /// <summary>Exercises left out of Done before, e.g. the ones the screen lists above it. Typing their name still finds them.</summary>
     [Parameter] public IReadOnlyCollection<long> Exclude { get; set; } = [];
+
+    /// <summary>Exercises never offered, e.g. the one being swapped out.</summary>
+    [Parameter] public IReadOnlyCollection<long> Leave { get; set; } = [];
+
+    /// <summary>What a row says under an exercise's name instead of how it went last time, e.g. "in today's workout"; null for the usual.</summary>
+    [Parameter] public Func<Exercise, string?>? Note { get; set; }
 
     [Parameter] public string Id { get; set; } = "exercise-name";
     [Parameter] public string Label { get; set; } = "Exercise";
@@ -63,20 +82,23 @@ else
     /// <summary>The button that creates a new exercise and picks it, e.g. "Start set".</summary>
     [Parameter] public string NewAction { get; set; } = "Pick";
 
-    /// <summary>Shown above the recent exercises until something is typed.</summary>
+    /// <summary>Shown above the exercises done before until something is typed.</summary>
     [Parameter] public RenderFragment? BeforeTyping { get; set; }
 
-    protected override void OnInitialized()
-    {
-        var sessionStarts = State.PastSessions.ToDictionary(s => s.Id, s => s.StartedAt);
-        recent = [.. State.PastSets.Where(s => !Exclude.Contains(s.ExerciseId) && sessionStarts.ContainsKey(s.SessionId)).GroupBy(s => s.ExerciseId)
-            .OrderByDescending(g => g.Max(s => sessionStarts[s.SessionId])).Select(g => State.Exercises[g.Key]).Take(8)];
-    }
+    private RenderFragment Row(Exercise exercise) =>
+        @<button type="button" class="row" @onclick="() => OnPick.InvokeAsync(exercise)">
+            <span class="row-text">
+                <span class="name">@exercise.Name</span>
+                <span class="note">@(Note?.Invoke(exercise) ?? (Choices.LastTime(exercise) is { } last ? $"last: {last}" : "not done before"))</span>
+            </span>
+            <Icon Name="forward" />
+        </button>;
 
     // A new exercise is tagged with its muscles by Claude meanwhile (see MuscleTagger).
     private async Task PickNewAsync()
     {
-        var exercise = await Flow.GetOrCreateExerciseAsync(query, measure);
+        var exercise = await Store.GetOrCreateExerciseAsync(query, measure);
+        Choices.Add(exercise);
         _ = Tagger.TagAsync();
         await OnPick.InvokeAsync(exercise);
     }

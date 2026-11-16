@@ -2,7 +2,9 @@
 @inject AppNavigation Navigation
 @* The break screen's buttons: the next set or exercise, and Finish once there's nothing left to do. A planned cool-down starts in
    Finish's place, and Finish ends it. During the warm-up, the big button starts the first exercise. What's next shows the weight it
-   starts at, so it can be ready before the rest is up; more of what I just did is one line, its numbers being the ones just entered. *@
+   starts at, so it can be ready before the rest is up; more of what I just did is one line, its numbers being the ones just entered.
+   Change opens the workout's edit screen on that line. A button keeps its words in its box: a name too long for it gives way to
+   plain ones, with the name in full under Next. *@
 
 @if (State.CoolingDown)
 {
@@ -11,13 +13,13 @@
 else if (State.Next is { } next)
 {
     // Going on with what I just did reads "Start set 3" (or round); anything else, its name.
-    var goingOn = State.LastRound.Select(s => s.ExerciseId).SequenceEqual(next.ExerciseIds);
+    var goingOn = State.LastRound.Count > 0 && State.LastRound.All(s => next.Lines.Contains(s.Line));
     // The superset I just did a round of was taken apart: one of its exercises is next, alone, so another round isn't offered.
-    var takenApart = State.LastRound.Count > 1 && !next.IsRound && State.LastRound.Any(s => s.ExerciseId == next.ExerciseId);
+    var takenApart = State.LastRound.Count > 1 && !next.IsRound && State.LastRound.Any(s => next.Lines.Contains(s.Line));
     var names = State.Names(next.ExerciseIds);
     // More of what I just did starts from the numbers in the rest screen's lines, so with those in view Next is one line, with a
-    // word only for an exercise that's gone flat. After a warm-up it starts from another weight, which shows.
-    @if (State.Plan.Count > 0 && goingOn && State.ToConfirm is [_, ..] entered && entered.All(s => !s.WarmUp))
+    // word only for an exercise that's gone flat. After a warm-up, or for an exercise that just joined, its starting numbers show.
+    @if (goingOn && State.ToConfirm is [_, ..] entered && entered.All(s => !s.WarmUp) && next.Lines.All(line => entered.Exists(s => s.Line == line)))
     {
         <div class="spread next-step">
             <div class="row-text">
@@ -30,47 +32,41 @@ else if (State.Next is { } next)
                     }
                 }
             </div>
-            <a class="btn-ghost" href="workout/change">Change</a>
+            <a class="btn-ghost" href="workout/edit?line=@next.Lines[0]">Change</a>
         </div>
     }
-    else if (State.Plan.Count > 0 && next.IsRound)
+    else if (next.IsRound)
     {
         @* A superset's round: each of its exercises can be changed on its own. *@
         <div class="stack tight next-step">
             <p class="label">Next · @WorkoutState.StepLabel(next)</p>
-            @foreach (var exerciseId in next.ExerciseIds)
+            @for (var i = 0; i < next.ExerciseIds.Count; i++)
             {
+                var (exerciseId, line) = (next.ExerciseIds[i], next.Lines[i]);
                 <div class="spread">
                     <div class="row-text">
                         <p class="body">@State.Exercises[exerciseId].Name</p>
                         @Ready(exerciseId)
                     </div>
-                    <a class="btn-ghost" href="workout/change?exercise=@exerciseId" aria-label="Change @State.Exercises[exerciseId].Name">Change</a>
+                    <a class="btn-ghost" href="workout/edit?line=@line" aria-label="Change @State.Exercises[exerciseId].Name">Change</a>
                 </div>
             }
         </div>
     }
-    else if (State.Plan.Count > 0)
+    else
     {
         <div class="spread next-step">
             <div class="row-text">
-                <p class="label">Next</p>
-                <p class="body">@names, @WorkoutState.StepLabel(next).ToLowerInvariant()</p>
+                <p class="label">Next · @WorkoutState.StepLabel(next)</p>
+                <p class="body">@names</p>
                 @Ready(next.ExerciseId)
             </div>
-            <a class="btn-ghost" href="workout/change">Change</a>
-        </div>
-    }
-    else
-    {
-        <div class="stack tight center">
-            <p class="note">Next: @names, @WorkoutState.StepLabel(next).ToLowerInvariant()</p>
-            @Ready(next.ExerciseId)
+            <a class="btn-ghost" href="workout/edit?line=@next.Lines[0]">Change</a>
         </div>
     }
 
     @* Other ways on sit above the big button, which stays in the same place on every screen. *@
-    @if (State.Plan.Count == 0)
+    @if (State.OpenEnded)
     {
         <div class="grid-2">
             <button type="button" class="btn tall" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
@@ -79,21 +75,21 @@ else if (State.Next is { } next)
     }
     else if (State is { CanMoveOn: true, MoveOn: { } moveOn })
     {
-        <button type="button" class="btn tall" @onclick="() => Start(moveOn)"><FitLabel Text="@($"Move on to {State.Names(moveOn.ExerciseIds)}")" Short="Move on" /></button>
+        <button type="button" class="btn tall" @onclick="MoveOnAsync"><FitLabel Text="@($"Move on to {State.Names(moveOn.ExerciseIds)}")" Short="Move on" /></button>
     }
     else if (State.CanMoveOn)
     {
         <div class="grid-2">
-            <a class="btn tall" href="workout/add">Add more</a>
+            <a class="btn tall" href="workout/edit?add=true">Add more</a>
             <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
         </div>
     }
-    else if (!goingOn && CanGoOn && !takenApart)
+    else if (!goingOn && !takenApart && LastBlock is { } again)
     {
         <button type="button" class="btn tall" @onclick="StartAnotherAsync">
-            @if (State.LastRound is [var only])
+            @if (again.Count == 1)
             {
-                <FitLabel Text="@($"Another set of {State.Exercises[only.ExerciseId].Name}")" Short="Another set" />
+                <FitLabel Text="@($"Another set of {State.Exercises[again[0].ExerciseId].Name}")" Short="Another set" />
             }
             else
             {
@@ -119,17 +115,17 @@ else if (State.WarmingUp)
 }
 else
 {
-    <p class="note center">@(State.StillToDo().Count == 0 ? "Every planned exercise is done." : "That's the end of the plan.")</p>
-    @if (CanGoOn)
+    <p class="note center">@(State.OpenEnded ? "Pick what's next, or finish." : "Every planned exercise is done.")</p>
+    @if (LastBlock is { } again)
     {
         <div class="grid-2">
-            <button type="button" class="btn tall" @onclick="StartAnotherAsync">@(State.LastRound.Count > 1 ? "Another round" : "Another set")</button>
-            <a class="btn tall" href="workout/add">Add more</a>
+            <button type="button" class="btn tall" @onclick="StartAnotherAsync">@(again.Count > 1 ? "Another round" : "Another set")</button>
+            @AddMore
         </div>
     }
     else
     {
-        <a class="btn tall" href="workout/add">Add more</a>
+        @AddMore
     }
     <button type="button" class="btn-primary @(State.CoolDownNext ? "go" : "save")" @onclick="FinishAsync">@FinishText</button>
 }
@@ -143,6 +139,15 @@ else
     [Parameter] public EventCallback OnFinish { get; set; }
 
     private string FinishText => State.CoolDownNext ? "Start cool-down" : "Finish workout";
+
+    // What I just did, as it stands in today's workout now: its line's block, which is one exercise once its superset was taken
+    // apart. Null before the first set, and once its line is gone.
+    private List<TemplateExercise>? LastBlock => State.LastRound is [var last, ..] ? State.BlockOf(last.Line) : null;
+
+    // More to do once everything is done: another exercise picked to start, when just tracking; else the edit screen, on adding one.
+    private RenderFragment AddMore => State.OpenEnded
+        ? @<button type="button" class="btn tall" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
+        : @<a class="btn tall" href="workout/edit?add=true">Add more</a>;
 
     // What an exercise's next set starts with, to have the weights ready: "120 lb × 10", marked when it went up for a hit goal or came
     // from the plan of the last look back, and when the exercise has gone flat.
@@ -169,18 +174,23 @@ else
         </p>;
     }
 
-    // More of what I just did, past its sets, while its exercises are still in today's plan.
-    private bool CanGoOn => State.LastRound is [_, ..] round && round.All(s => State.Plan.Any(e => e.ExerciseId == s.ExerciseId));
-
     private Task Start(PlanStep step)
     {
-        Flow.StartSets(step.ExerciseIds);
+        Flow.StartSets(step);
         return OnStarted.InvokeAsync();
     }
 
+    // More of what I just did, past its sets.
     private Task StartAnotherAsync()
     {
         Flow.StartAnother();
+        return OnStarted.InvokeAsync();
+    }
+
+    // Done with an exercise that has no count: what's after it starts.
+    private Task MoveOnAsync()
+    {
+        Flow.MoveOn();
         return OnStarted.InvokeAsync();
     }
 

@@ -14,26 +14,99 @@
     color: var(--mark);
 }
 
-/* An exercise in the session editor: its name and order, its sets, and the superset box. */
-.entry {
-    padding: 12px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+/* The list a workout and a session are changed in: a line for each exercise in its place, opened by a tap. */
+.line > .row, .superset > .row {
+    min-height: 60px;
 }
 
-/* A superset: bracketed in the pen's color down its exercises' left edge. */
+/* A line the edit screen opens on comes into view a little under the top, with the line before it showing. */
+.line, #add {
+    scroll-margin-top: 72px;
+}
+
+/* The arrows that move a line a step, at its row's far end. */
+.move {
+    flex: none;
+    display: flex;
+    margin-right: -8px;
+}
+
+/* An open line: its sets, its count, and what can be done with it. */
+.line-edit {
+    padding: 4px 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.line-edit .grid-3 .btn, .line-edit .grid-2 .btn {
+    padding: 0 8px;
+    min-width: 0;
+}
+
+/* A superset: bracketed in the pen's color down its exercises' left edge, under a heading of its own. */
 .superset {
     padding-left: 12px;
     border-left: 2px solid var(--mark);
 }
 
-.superset > .label {
-    padding-top: 8px;
-}
-
 .superset > .row + .row {
     border-top: 1px solid var(--rule);
+}
+
+.superset > .group-head {
+    min-height: 48px;
+    padding-top: 4px;
+    padding-bottom: 0;
+}
+
+.superset > .group-head + .row {
+    border-top: 0;
+}
+
+.superset > .line-edit {
+    padding-top: 0;
+}
+
+/* On the edit screen: the set held while it's open, and the last change with its Undo, each set off by a hairline. */
+.held, .undo {
+    padding-top: 8px;
+    border-top: 1px solid var(--rule);
+}
+
+/* A quiet button at the start of its line, its words in line with the text above it. */
+.btn-ghost.start {
+    align-self: flex-start;
+    margin-left: -8px;
+}
+
+[data-theme="telemetry"] .btn-ghost.start {
+    margin-left: 0;
+}
+
+/* Paused, on the edit screen: an outlined chip in Telemetry, where the filled one says Done. */
+[data-theme="telemetry"] .stamp.paused {
+    background: none;
+    border-color: var(--control);
+    color: var(--ink);
+}
+
+/* The workout's time and tally go under its name when Edit and Finish leave them little room. */
+.masthead .row-text > .inline {
+    flex-wrap: wrap;
+    row-gap: 2px;
+}
+
+.masthead .row-text .caption {
+    white-space: nowrap;
+}
+
+/* A row's numbers at its far end stay whole beside a long name, which wraps instead; a long run of them takes no more than
+   the row's larger part, and wraps there. */
+.row > .tabular {
+    flex: none;
+    max-width: 60%;
+    text-align: right;
 }
 
 /* A button's words when they may not fit (FitLabel): the long ones on one line, or the plain ones once the label is marked short.

@@ -60,7 +60,7 @@
                             {
                                 <div class="split-part">
                                     <p class="title small" aria-hidden="true">@state.Exercises[set.ExerciseId].Name</p>
-                                    <a class="btn-ghost" href="workout/change?exercise=@set.ExerciseId" aria-label="Change @state.Exercises[set.ExerciseId].Name">Change</a>
+                                    <a class="btn-ghost" href="workout/edit?line=@set.Line" aria-label="Change @state.Exercises[set.ExerciseId].Name">Change</a>
                                 </div>
                             }
                         </div>
@@ -69,7 +69,7 @@
                     {
                         <div class="spread">
                             <h1 class="title">@state.Exercises[first.ExerciseId].Name</h1>
-                            <a class="btn-ghost" href="workout/change">Change</a>
+                            <a class="btn-ghost" href="workout/edit?line=@first.Line">Change</a>
                         </div>
                     }
                     @foreach (var set in running)
@@ -196,7 +196,7 @@
                     <section class="block appear" aria-labelledby="today-heading">
                         <div class="spread">
                             <h2 id="today-heading" class="label">Today so far</h2>
-                            <a class="btn-ghost" href="workout/sets">Edit</a>
+                            <a class="btn-ghost" href="workout/edit">Edit</a>
                         </div>
                         <div class="ledger">
                             @if (state.Session.WarmUpEndedAt is { } warmedUpAt)

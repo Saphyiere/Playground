@@ -122,6 +122,8 @@ public static class LookBackFacts
             DateTimeOffset? restFrom = before is not null && before.All(s => s.StoppedAt is not null) ? before.Max(s => s.StoppedAt) : null;
             var restTo = rounds[r][0].StartedAt;
             int? rest = restFrom is { } from && restTo is { } to && to >= from ? (int)Math.Round((to - from).TotalSeconds) : null;
+            // A set written in afterwards has no time of its own: nothing is known of the rest before it, or of how long it ran.
+            if (rounds[r][0].Logged()) (restFrom, rest) = (null, null);
             for (var m = 0; m < rounds[r].Count; m++)
             {
                 var set = rounds[r][m];
@@ -129,8 +131,8 @@ public static class LookBackFacts
                 var today = ordered.Working().Where(s => s.ExerciseId == set.ExerciseId).ToList();
                 // How long it ran leaves out any time it was held while the workout was paused.
                 int? seconds = measure == ExerciseMeasure.Time && set.DurationSeconds is int typed ? typed
-                    : set is { StartedAt: { } start, StoppedAt: { } stop } && stop >= start ? (int)Math.Round(set.Ran()!.Value.TotalSeconds) : null;
-                var during = set is { StartedAt: { } s1, StoppedAt: { } s2 } ? WorkoutStats.HeartRate(readings, s1, s2) : null;
+                    : set is { StartedAt: { } start, StoppedAt: { } stop } && stop >= start && !set.Logged() ? (int)Math.Round(set.Ran()!.Value.TotalSeconds) : null;
+                var during = set is { StartedAt: { } s1, StoppedAt: { } s2 } && !set.Logged() ? WorkoutStats.HeartRate(readings, s1, s2) : null;
                 var flags = new List<SetFlag>();
                 if (measure == ExerciseMeasure.Weight && !set.WarmUp)
                 {
@@ -205,7 +207,7 @@ public static class LookBackFacts
     {
         if (seconds is not int ran) return;
 
-        var usual = Median(others.Where(s => s is { StartedAt: not null, StoppedAt: not null } && s.StoppedAt >= s.StartedAt)
+        var usual = Median(others.Where(s => s is { StartedAt: not null, StoppedAt: not null } && s.StoppedAt >= s.StartedAt && !s.Logged())
             .Select(s => s.Ran()!.Value.TotalSeconds));
         if (ran > 180) flags.Add(new SetFlag(SetFlagKind.LongSet, usual is double u ? $"Ran {Time(ran)}; its sets usually run {Time(u)}" : $"Ran {Time(ran)}"));
         else if (usual is double typical && ran > 3 * typical && ran > 60) flags.Add(new SetFlag(SetFlagKind.LongSet, $"Ran {Time(ran)}; its sets usually run {Time(typical)}"));

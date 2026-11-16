@@ -152,7 +152,11 @@ in their names: `/claude/key` puts a key on the "phone"
 (`?clear=true` takes it off), `/claude/file` leaves a key file to be found, and `/claude/script?delay=8000&fail=offline` slows it
 down or makes it fail. `/seed/lookback` sets up a back day ready for **Finish**; `/seed/plateau` has rows gone flat, with a back day
 open; `/seed/chest` has a chest day open with exercise names as long as real ones, incline next, and `/seed/chest-superset` has its
-superset next, for the buttons that have to hold their words; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
+superset next, for the buttons that have to hold their words and for the edit screen (**Edit** beside Finish): with it open,
+`/watch-rest-over` and `/watch-next` (the watch's alarm and its Start button) start nothing, and `/notice-log` shows the watch told
+**Paused**; with it closed, `/countdown/Flat%20chest%20press%20dumbbells/600` then `/watch-rest-over` starts the next set, to open
+Edit on a set that started by itself. Every seeded open workout keeps its sets as they were before lines owned them, so opening one
+carries it over as an update would; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
 split, with the exercises tagged (Pull-ups by me) and one, Hanging leg raises, not yet; `/seed/week` is the same with this week's
 lifts a step up, food on most days and weigh-ins, so with a key Today asks for this week's look back as it opens.
 
