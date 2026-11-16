@@ -6,6 +6,8 @@
 @inject IAssistKeyStore Keys
 @inject ClaudeKeyFile KeyFile
 @inject Updater Updates
+@inject Syncer Sync
+@using Playground.Sync
 @using Playground.Updates
 @implements IDisposable
 
@@ -194,7 +196,7 @@
     @* Updates: the version on this phone, and the newest release on GitHub with its changes, through the Kit's shared updater. *@
     <section class="stack" aria-labelledby="updates-heading">
         <h2 id="updates-heading" class="label">Updates</h2>
-        <p class="note">New versions come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your workouts stay; the app keeps a copy of them in Downloads first, in case.</p>
+        <p class="note">New versions come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your workouts stay; the app keeps a full copy of your data first, in case (Your data, below), and checks it all came through as the new version opens.</p>
         <div class="spread baseline">
             <span class="label">This phone</span>
             <span class="name big tabular">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
@@ -228,6 +230,25 @@
         {
             <p class="note" role="status">@updateNote</p>
         }
+    </section>
+
+    @* Your data: the newest copy of everything but Claude's key, kept on the phone where uninstalling the app doesn't reach it, and
+       its own page to back up, restore and export (YourData). A copy held after an update that didn't check out is said here too. *@
+    <section class="stack" aria-labelledby="data-heading">
+        <h2 id="data-heading" class="label">Your data</h2>
+        @foreach (var kept in Sync.Status.Holding.Where(c => c.Held!.From == SyncHeldFrom.Update))
+        {
+            <p class="pen-note" role="alert">After the update to @kept.Held!.Update, the app's data had less than the copy taken just before it, which is kept until you restore it or let it go.</p>
+        }
+        <div class="ledger">
+            <a class="row" href="settings/data">
+                <span class="row-text">
+                    <span class="name">Back up and restore</span>
+                    <span class="caption">@CopiesLine()</span>
+                </span>
+                <Icon Name="forward" Size="16" />
+            </a>
+        </div>
     </section>
 </div>
 
@@ -264,6 +285,9 @@
         // The updater's status is read straight from it, and the page redraws when it changes; it asks GitHub at most once in 20 hours.
         Updates.Changed += Redraw;
         _ = Updates.CheckAsync();
+        // The copies' status too: the copies in the phone's folder are read once, as the app starts or this first opens.
+        Sync.Changed += RedrawCopies;
+        if (!Sync.Status.Known) _ = Sync.RefreshAsync();
         goal = AppSettings.CalorieGoal;
         age = DateTime.Now.Year - AppSettings.BirthYear;
         if (AppSettings.HeightCm is double height)
@@ -342,7 +366,23 @@
 
     private void Redraw(UpdateStatus status) => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Updates.Changed -= Redraw;
+    private void RedrawCopies(SyncStatus status) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Updates.Changed -= Redraw;
+        Sync.Changed -= RedrawCopies;
+    }
+
+    // Your data's line: a copy under way and how far it is, or when the last was made and what it holds (a line breaks after a dot,
+    // not before it).
+    private string CopiesLine() => Sync.Status switch
+    {
+        { Progress: { } progress } => $"{progress.Doing}: {(int)Math.Round(progress.Fraction * 100)}%",
+        { Last: { } last } => $"Last copy {SyncText.When(last.Made)}\u00a0· {last.Summary}",
+        { Known: true } => "No copy yet",
+        _ => "Copies of everything but Claude's key",
+    };
 
     // A release's changes, from the list in its notes, without the app's name each starts with: five, and how many more.
     private static List<string> Changes(Release release)

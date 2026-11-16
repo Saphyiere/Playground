@@ -19,6 +19,14 @@ public class ThemeSetting(ISettingStore store)
     /// <summary>Reads the saved theme; later calls wait on the same read.</summary>
     public Task LoadAsync() => loading ??= LoadSavedAsync();
 
+    /// <summary>Reads the saved theme again, as when a restore has put other settings in place, and switches to it.</summary>
+    public async Task ReloadAsync()
+    {
+        var before = Current;
+        await (loading = LoadSavedAsync());
+        if (Current != before) Changed?.Invoke();
+    }
+
     public void Choose(Theme theme)
     {
         if (theme == Current) return;

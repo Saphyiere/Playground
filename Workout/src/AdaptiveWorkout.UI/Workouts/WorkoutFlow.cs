@@ -21,6 +21,9 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     private List<WorkoutSet> pastSets = [];
     private Dictionary<string, string> preferences = [];
 
+    // The store's restores when what's in memory was read: one since put a copy in place of the data file (WorkoutSync).
+    private int restores = store.Restores;
+
     /// <summary>The open workout, or null when there is none (or nothing has loaded yet).</summary>
     public WorkoutState? Current { get; private set; }
 
@@ -47,9 +50,13 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         }
     }
 
-    /// <summary>Loads history and any open workout once; later calls return what's in memory.</summary>
+    /// <summary>
+    /// Loads history and any open workout once; later calls return what's in memory, until a restore puts a copy in place of the
+    /// data file, when it's all read again from the copy.
+    /// </summary>
     public async Task<WorkoutState?> LoadAsync()
     {
+        if (restores != store.Restores) Forget();
         await (loading ??= LoadHistoryAsync());
         return Current;
     }
@@ -300,6 +307,8 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         pastSessions.Add(state.Session);
         pastSets.AddRange(state.Sets);
         Save(ScoreSessionsAsync());
+        // Once that's written, a copy of the data is taken when the last is a day old (WorkoutSync).
+        Save(store.FinishedAsync());
         Current = null;
         watch.Close();
         Announce();
@@ -491,6 +500,24 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
 
     /// <summary>Creates (or links to) an exercise picked by name mid-workout.</summary>
     public Task<Exercise> GetOrCreateExerciseAsync(string name, ExerciseMeasure measure) => store.GetOrCreateExerciseAsync(name, measure);
+
+    // A restore put a copy in place of the data file: the open workout, the history behind the suggestions, the settings and the
+    // heart rates measured are read again from it as they're next asked for. (A restore waits while a workout is open.)
+    private void Forget()
+    {
+        var open = Current is not null;
+        restores = store.Restores;
+        loading = null;
+        measuring = null;
+        Current = null;
+        pastSessions = [];
+        pastSets = [];
+        preferences = [];
+        if (!open) return;
+
+        watch.Close();
+        Announce();
+    }
 
     private async Task LoadHistoryAsync()
     {

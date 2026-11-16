@@ -25,10 +25,10 @@ covers it, and [tools/release](../tools/release/README.md) how releases are made
 
 And **Playground.Sync** (with **Playground.Sync.Android**): a full, restorable copy of an app's data somewhere an uninstall doesn't
 reach, the device's Documents. The app says what it keeps (its databases, copied consistently while open, its folders and files,
-anything else), never its secrets; only what changed is written, in the background, every two days and before each update, and the
-first start after an update checks the app holds all the copy before did. A copy restores whole, on a fresh install too, through
-the system's folder picker; [tools/sync](../tools/sync/pull-copy.ps1) pulls one onto the PC. Its [README](Playground.Sync/README.md)
-covers it. Prima uses it; Workout is next.
+anything else), never its secrets; only what changed is written, in the background, when the last copy is a day old and before
+each update, and the first start after an update checks the app holds all the copy before did. A copy restores whole, on a fresh
+install too, through the system's folder picker; [tools/sync](../tools/sync/pull-copy.ps1) pulls one onto the PC. Its
+[README](Playground.Sync/README.md) covers it. Prima and Workout use it.
 
 ## What's in it
 

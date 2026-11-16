@@ -1,5 +1,6 @@
 /* The workout app's own screens, in the looks of Kit/Playground.Kit/wwwroot/kit.css (loaded first, with its tokens): the
-   workout's steps and supersets, the rest and set entries, Today's week and meters, history, the charts, and Claude's look back. */
+   workout's steps and supersets, the rest and set entries, Today's week and meters, history, the charts, Claude's look back, and
+   the copies of the data in Settings › Your data. */
 
 /* The workout's name in its masthead. */
 .title.workout {
@@ -1299,6 +1300,50 @@ button.set-line:active {
     font-style: normal;
     color: var(--ink);
     overflow-wrap: anywhere;
+}
+
+/* Settings › Your data: a copy held (from before an update that didn't check out, or a restore) set off by the pen's rule, its head
+   in the pen; in Telemetry, a tile with the accent's edge. */
+.copy-held {
+    padding: 4px 0 4px 14px;
+    border-left: 3px solid var(--mark);
+}
+
+.copy-held-head {
+    color: var(--mark);
+}
+
+[data-theme="telemetry"] .copy-held {
+    padding: 15px;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--mark);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+}
+
+/* A copy, restore or export under way: an ink bar on the rule, like the rest countdown's; in Telemetry, the accent in a track. */
+.copy-meter {
+    height: 7px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.copy-meter > span {
+    display: block;
+    height: 6px;
+    background: var(--ink);
+}
+
+[data-theme="telemetry"] .copy-meter {
+    height: 8px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+[data-theme="telemetry"] .copy-meter > span {
+    height: 8px;
+    background: var(--mark);
 }
 
 [data-theme="telemetry"] .screen.look-back,
