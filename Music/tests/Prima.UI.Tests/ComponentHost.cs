@@ -30,6 +30,11 @@ internal sealed class ComponentHost : IAsyncDisposable
     /// <summary>What the components logged as problems, in a file of this test's own.</summary>
     public ProblemLog Problems { get; } = new(Path.Combine(Path.GetTempPath(), $"prima-ui-{Guid.NewGuid():N}.errors.log"));
 
+    // bUnit waits a second by default for what a page draws, and a page that reads the store as it opens takes longer than that
+    // now and then with every test running at once on a busy machine (a release's runner, say): such a test then failed saying
+    // nothing about the page. Ten seconds for every wait; one that passes waits no longer than it did.
+    static ComponentHost() => BunitContext.DefaultWaitTimeout = TimeSpan.FromSeconds(10);
+
     public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null)
     {
         Context.Services.AddSingleton(Problems);
