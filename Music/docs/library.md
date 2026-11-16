@@ -87,7 +87,7 @@ Licences are described as their own texts state them. That's a reading for a per
 | **(n)ASAP** | 222 scores aligned with 1,068 performances: Bach, Beethoven and others ([ASAP](https://github.com/fosfrancesco/asap-dataset)) | MusicXML + MIDI + annotations | **CC BY-NC-SA 4.0**; (n)ASAP's own licence [unverified] ([TISMIR](https://doi.org/10.5334/tismir.149)) | Derived from MuseScore community scores [K] | GitHub |
 | **CIPI** | 652 pieces with Henle levels ([Zenodo](https://zenodo.org/records/8037327)) | MusicXML | CC BY-NC-SA 4.0; access on request, for research | Hand-checked matches ([paper](https://ar5iv.labs.arxiv.org/html/2306.08480)) | Request through Zenodo |
 | **Musopen** | "Over 100,000" PD PDFs ([Musopen](https://musopen.org/sheetmusic), seen through search; the page returned 403) | PDF only | Per-file CC0 not confirmed (**Weak source**) | — | — |
-| **Open Hymnal** | 301 hymns, SATB on a grand staff ([mirror](https://github.com/mzealey/openhymnal)) | ABC | "copyright: public domain" in every file | One maintainer's own statement | GitHub mirror |
+| **Open Hymnal** | 320 hymns, SATB on a grand staff ([mirror](https://github.com/mzealey/openhymnal)) | ABC | "copyright: public domain" in every file | One maintainer's own statement | GitHub mirror |
 | **Project Gutenberg, Internet Archive** | Not researched. Gutenberg's music shelf wasn't found, and the Archive's terms page needs JavaScript ([archive.org](https://archive.org/about/terms.php)) | — | — | — | — |
 
 MAESTRO and GiantMIDI-Piano are recordings turned into MIDI, not scores, so they can't be engraved
@@ -578,8 +578,8 @@ authors are asked.
 | B1 | Joplin rags, Mozart sonatas, Haydn sonatas, Scarlatti sonatas | Sapp `**kern` (Verovio reads it directly) | CC BY-NC-SA 4.0 | 47 + 69 + 25 + 65 = 206 | 3.1 MB | 8–12 |
 | B2 | Grieg Lyric Pieces, Kinderszenen, Tchaikovsky's Seasons | DCML `.mscx` → MusicXML with MuseScore | CC BY-NC-SA 4.0 | 66 + 13 + 12 = 91 | Not measured | 7–12 |
 
-Without the hymns, that's about 270 pieces in Tier A and 297 in Tier B, so roughly 570 in all. The 301 hymns would take it to
-about 870. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
+Without the hymns, that's about 270 pieces in Tier A and 297 in Tier B, so roughly 570 in all. The 320 hymns would take it to
+about 890. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
 
 **Grading.** At build time the Core grades every excerpt by the rules in §3, and stores the piece's level as the highest of
 its excerpts. The anchors in §2 are a sanity check: flag any piece whose rule grade differs from them by more than two levels.
