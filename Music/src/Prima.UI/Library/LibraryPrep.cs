@@ -105,8 +105,9 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
     /// Imports the files the owner picked, one or several: MusicXML (.musicxml, .xml, .mxl), MEI or ABC as notation, MIDI written
     /// out as notation, PDFs as pages, and zips holding any of them. A PDF takes the MIDI file of the same name, when there's one,
     /// to be heard on the piano and scrolled at its tempo (the MIDI comes in as notation as well). A collection from the Library
-    /// tool (a zip with its manifest) is stored in the background with its progress shown. The piece to open when one came in, and
-    /// a line about what came in and what couldn't.
+    /// tool (a zip with its manifest) is stored in the background with its progress shown; one built again first brings its pieces
+    /// already here up to date and takes out the collection's pieces it no longer has. The piece to open when one came in, and a
+    /// line about what came in and what couldn't.
     /// </summary>
     public async Task<(string? Id, string? Note)> ImportAsync(IReadOnlyList<(string Name, byte[] Data)> picked)
     {
@@ -147,8 +148,16 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
             }
             if (collection is { Pieces.Count: > 0 })
             {
+                // A collection built again: its pieces already here take its titles and credits, and once it names the whole of
+                // itself (each of its zips does), the collection's pieces it no longer has go, whichever zip comes first.
+                var entries = Entries(collection);
                 var have = await store.GetPieceIdsAsync();
-                var adding = Entries(collection).Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
+                var (changed, removed) = await store.RefreshCollectionAsync(
+                    [.. entries.Where(e => have.Contains(e.Part?.Id ?? e.Piece.Id)).Select(e => (e.Part?.Id ?? e.Piece.Id, e.Part?.Title ?? e.Piece.Title, e.Piece))], collection.Collection);
+                if (removed > 0) notes.Add($"{Pieces(removed)} the collection no longer has {(removed == 1 ? "was" : "were")} taken out.");
+                if (changed > 0) notes.Add($"Titles and credits of {Pieces(changed)} brought up to date.");
+
+                var adding = entries.Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
                 if (adding.Count == 0)
                 {
                     zip.Dispose();
@@ -240,6 +249,8 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         var count = imported.Count switch { 0 => null, 1 => "1 piece imported.", _ => $"{imported.Count} pieces imported." };
         return (null, notes.Count == 0 && count is null ? null : string.Join(" ", new[] { count }.Concat(notes).OfType<string>()));
     }
+
+    private static string Pieces(int count) => count == 1 ? "1 piece" : $"{count} pieces";
 
     private async Task AddCollection(Task before, ZipArchive zip, List<(BundledPiece Piece, PreparedPiece? Part)> adding, string name)
     {

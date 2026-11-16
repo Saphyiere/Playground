@@ -9,8 +9,14 @@ public enum Tier
     /// <summary>Public domain, CC0 or CC BY: no strings beyond credit.</summary>
     A,
 
-    /// <summary>Non-commercial, share-alike: fine for this personal app with credit shown, never in anything sold.</summary>
+    /// <summary>Non-commercial, share-alike (CC BY-NC-SA): fine for this personal app with credit shown, never in anything sold.</summary>
     B,
+
+    /// <summary>
+    /// Share-alike (CC BY-SA, the Mutopia Project's pieces under it): credit shown, and anything made from it shared under the same
+    /// licence.
+    /// </summary>
+    SA,
 }
 
 /// <summary>
@@ -48,9 +54,19 @@ public sealed record PreparedPiece(string Id, string Title, string Mei, int Leve
 /// <summary>An excerpt of a prepared piece for the sight-reading track: its bars, its level, and how far into the level it sits.</summary>
 public sealed record BundledExcerpt(int FirstBar, int LastBar, int Level, double Within);
 
-/// <summary>The bundle's index: <c>manifest.json</c> at the root of the bundle.</summary>
-public sealed record LibraryManifest(int Version, string Built, IReadOnlyList<BundledPiece> Pieces)
+/// <summary>
+/// The bundle's index: <c>manifest.json</c> at the root of the bundle, or of each zip of a collection the Library tool built.
+/// A collection's zips each hold some of its pieces, so each also names <see cref="Collection"/>: every piece in the whole
+/// collection, by the id the Library keeps it under (a prepared piece's parts by theirs), so that importing any one of a
+/// collection built again takes out the pieces it no longer has. The bundle's has none.
+/// </summary>
+public sealed record LibraryManifest(int Version, string Built, IReadOnlyList<BundledPiece> Pieces,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Collection = null)
 {
+    /// <summary>The ids a manifest's pieces are kept under in the Library: a PDF's own, a prepared piece's parts'.</summary>
+    public static IEnumerable<string> Kept(IEnumerable<BundledPiece> pieces) =>
+        pieces.SelectMany(p => p.Format == "pdf" ? [p.Id] : (p.Prepared ?? []).Select(x => x.Id));
+
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     public static LibraryManifest Read(string json) => JsonSerializer.Deserialize<LibraryManifest>(json, Json) ?? new LibraryManifest(1, "", []);

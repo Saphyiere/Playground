@@ -115,9 +115,11 @@ sources:
   Koželuch's sonatas, Frescobaldi, Poulenc, the Bach sons and more), converted with webmscore, CC BY-NC-SA 4.0.
 - **asap**: the scores of the ASAP dataset (Bach's Well-Tempered Clavier, Chopin's études, ballades and scherzos, Liszt,
   Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
-- **pdmx**: more of PDMX, public-domain and CC0 piano music by composers who died before 1931, beyond the named works the repo keeps.
-- **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY and CC BY-SA),
-  each graded from its MIDI.
+- **pdmx**: more of PDMX, public-domain and CC0 piano music whose own composer field names a composer who died before 1931
+  (an uploader's artist field, which names the music a score is linked to, doesn't count), beyond the named works the repo keeps.
+- **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY, and CC BY-SA,
+  which is share-alike: a tier of its own), each graded from its MIDI, listed under its opus ("Op. 68") with its number in
+  its title.
 - **hymns**: the Open Hymnal's hymns that are public domain in tune, setting, words and translation (320 of its 352), each set
   for four voices on the grand staff, as a hymnal prints them, with its verses under the notes. They come as ABC, which the
   app's Verovio reads only one voice of, so abc2svg writes each as MEI first.
@@ -139,7 +141,8 @@ second, about ten minutes. If it stops because Windows won't let it delete a fol
 open (Visual Studio's Git window, or a virus scan of the new files): close it, or delete the folder yourself, and run it again;
 it picks up where it stopped. `-- local mutopia` (or `humdrum`, `dcml`, `asap`, `pdmx`, `hymns`) runs one source again and
 prepares the rest as they were, `-- local prepare` only prepares again, and `--artifacts D:\Prima` puts the cache, the
-collection and the zips in another folder.
+collection and the zips in another folder. A source that yields nothing (its site down, say) keeps the last run's pieces, says
+so, and the run ends with an error (exit code 1): look at what it printed, and run it again.
 
 **Onto the tablet.** Copy the folder to the tablet's Download folder, with the tablet plugged in (or through a cloud drive):
 
@@ -150,7 +153,10 @@ adb push artifacts/prima-collection /sdcard/Download/
 Then in Prima, **Library › Import files**, open Downloads › prima-collection and pick `prima-collection.zip`. It's stored in
 the background, with its progress at the top of the Library (a minute or two). Then the same for each of the other zips, one at
 a time: the tablet reads a zip it imports whole, so picking them all at once holds them all in memory. A zip whose pieces are
-all there already says so and adds nothing, so importing one again is harmless. The hymns are `prima-collection-hymns.zip`
+all there already says so and adds nothing, so importing one again is harmless. A collection built again needs nothing done by
+hand: each of its zips names the whole collection, so the first one imported takes out of the Library the collection's pieces
+the new build no longer has (their runs stay in your history), and each brings its pieces' titles and credits up to date.
+Bundled pieces and your own imports are never touched. The hymns are `prima-collection-hymns.zip`
 (2.6 MB, about 10 seconds to store); once it's in, they're under Chorales and hymns in the Library's kinds.
 
 The zips stay in Download when Prima is uninstalled, so after a reinstall, import them again. Prima's own copies (Settings ›
@@ -369,7 +375,8 @@ The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SI
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
-Mutopia Project. The local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
+Mutopia Project; CC BY-SA is share-alike, a tier of its own, since whatever is made from such a piece keeps its licence. The
+local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
 this tablet only, its pieces from PDMX and Mutopia are on the same terms as the bundle's, and its hymns from the Open Hymnal are
 public domain. The Library tool fetches webmscore (GPL), abc2svg (LGPL and GPL) and Verovio from npm to convert them; none goes
 into the app beyond the Verovio it already has.

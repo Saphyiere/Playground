@@ -87,7 +87,7 @@ Licences are described as their own texts state them. That's a reading for a per
 | **(n)ASAP** | 222 scores aligned with 1,068 performances: Bach, Beethoven and others ([ASAP](https://github.com/fosfrancesco/asap-dataset)) | MusicXML + MIDI + annotations | **CC BY-NC-SA 4.0**; (n)ASAP's own licence [unverified] ([TISMIR](https://doi.org/10.5334/tismir.149)) | Derived from MuseScore community scores [K] | GitHub |
 | **CIPI** | 652 pieces with Henle levels ([Zenodo](https://zenodo.org/records/8037327)) | MusicXML | CC BY-NC-SA 4.0; access on request, for research | Hand-checked matches ([paper](https://ar5iv.labs.arxiv.org/html/2306.08480)) | Request through Zenodo |
 | **Musopen** | "Over 100,000" PD PDFs ([Musopen](https://musopen.org/sheetmusic), seen through search; the page returned 403) | PDF only | Per-file CC0 not confirmed (**Weak source**) | — | — |
-| **Open Hymnal** | 301 hymns, SATB on a grand staff ([mirror](https://github.com/mzealey/openhymnal)) | ABC | "copyright: public domain" in every file | One maintainer's own statement | GitHub mirror |
+| **Open Hymnal** | 320 hymns, SATB on a grand staff ([mirror](https://github.com/mzealey/openhymnal)) | ABC | "copyright: public domain" in every file | One maintainer's own statement | GitHub mirror |
 | **Project Gutenberg, Internet Archive** | Not researched. Gutenberg's music shelf wasn't found, and the Archive's terms page needs JavaScript ([archive.org](https://archive.org/about/terms.php)) | — | — | — | — |
 
 MAESTRO and GiantMIDI-Piano are recordings turned into MIDI, not scores, so they can't be engraved
@@ -564,22 +564,25 @@ not a sourced figure.
 
 ### The bundled collection
 
-Two tiers, each piece tagged with its licence. **Tier A** ships with no strings beyond credit. **Tier B** is CC BY-NC-SA:
-fine for this personal, non-commercial app with credit shown, but it must never go into anything sold. Anything shared further
-must keep the same licence. Files with no licence (Sapp's Beethoven, Chopin and Hummel; Huron's Bach) stay out until their
-authors are asked.
+Three tiers, each piece tagged with its licence. **Tier A** (public domain, CC0, CC BY) ships with no strings beyond credit.
+**Tier SA** is CC BY-SA, share-alike: credit shown, and anything made from it (an arrangement, a new edition) shared under the
+same licence; the Mutopia Project's pieces under it are tagged so, in the bundle (17 of its PDFs, Bach's Little Preludes and
+four Inventions) and in the local collection (decided on 15 November; before then they were Tier A). **Tier B** is
+CC BY-NC-SA: fine for this personal, non-commercial app with credit shown, but it must never go into anything sold. Anything
+shared further must keep the same licence. Files with no licence (Sapp's Beethoven, Chopin and Hummel; Huron's Bach) stay out
+until their authors are asked.
 
 | Part | Works | Source and format | Licence | Pieces | Size | Levels |
 |---|---|---|---|---|---|---|
 | A1 | Lemoine Op. 37, Duvernoy Op. 176, Czerny Op. 821/599/139, Mozart K. 1–5 and K. 15, Anna Magdalena (BWV Anh.), Schumann Op. 68, Tchaikovsky Op. 39 (single numbers), Clementi Op. 36, Gurlitt, Beethoven Anh. 5, Diabelli Op. 168/1, Burgmüller Op. 100 (3), Streabbog | PDMX, MXL | Dataset CC BY 4.0 (credit PDMX), plus each file's PD or CC0 tag | ~120–150 after removing duplicates and review (estimate) | ~1–2 MB (samples 4–8 KB each) | 3–8 |
-| A2 | Burgmüller Op. 100 (18), Czerny Op. 821 (19 files), Kuhlau Op. 20 (3), Bach Inventions and Sinfonias (30), Bach Little Preludes (11), Joplin (18) | Mutopia **PDF + MIDI** (LilyPond doesn't convert) | Per piece: PD, CC BY or CC BY-SA (credit, keep SA) | ~99 | Not measured; one 2-page PDF was 75 KB | 6–10 |
+| A2 | Burgmüller Op. 100 (18), Czerny Op. 821 (19 files), Kuhlau Op. 20 (3), Bach Inventions and Sinfonias (30), Bach Little Preludes (11), Joplin (18) | Mutopia **PDF + MIDI** (LilyPond doesn't convert) | Per piece: PD, CC BY or CC BY-SA (credit, keep SA: Tier SA) | ~99 | Not measured; one 2-page PDF was 75 KB | 6–10 |
 | A3 | Hymns | Open Hymnal ABC → MEI through abc2svg, built into the local collection instead (below) | PD (each file's statement) | 320 | 2.6 MB | 7 (most) |
 | A4 (optional) | A few Lieder for duet reading (the app plays the voice) | OpenScore `.mscx` → `.mxl` with MuseScore's batch file | CC0 | ~20–50, chosen | Not measured | 9–12 |
 | B1 | Joplin rags, Mozart sonatas, Haydn sonatas, Scarlatti sonatas | Sapp `**kern` (Verovio reads it directly) | CC BY-NC-SA 4.0 | 47 + 69 + 25 + 65 = 206 | 3.1 MB | 8–12 |
 | B2 | Grieg Lyric Pieces, Kinderszenen, Tchaikovsky's Seasons | DCML `.mscx` → MusicXML with MuseScore | CC BY-NC-SA 4.0 | 66 + 13 + 12 = 91 | Not measured | 7–12 |
 
-Without the hymns, that's about 270 pieces in Tier A and 297 in Tier B, so roughly 570 in all. The 301 hymns would take it to
-about 870. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
+Without the hymns, that's about 270 pieces in Tiers A and SA and 297 in Tier B, so roughly 570 in all. The 320 hymns would take
+it to about 890. Most files are well under 100 KB, so the whole set is around 10 MB (estimate). The low levels come from A1 and the generator. **Levels 1–3 stay generator-only.**
 
 **Grading.** At build time the Core grades every excerpt by the rules in §3, and stores the piece's level as the highest of
 its excerpts. The anchors in §2 are a sanity check: flag any piece whose rule grade differs from them by more than two levels.
@@ -596,7 +599,10 @@ reads.
      - `is_best_unique_arrangement` = True
      - preferably `is_rated` with `rating` ≥ 4.5
    - Then keep only rows whose composer and title match a **whitelist of named works**: the A1 works above, all published
-     before 1931. That also removes post-1930 works wrongly tagged PD, which a PD tag alone would let through.
+     before 1931. That also removes post-1930 works wrongly tagged PD, which a PD tag alone would let through. For these named
+     works the composer may be the score's composer field or its uploader's artist field (four of the bundle's pieces name
+     their composer only there: Czerny's Op. 599 No. 63, a Gurlitt sonatina, a Chopin prelude of Op. 28 its uploader titled
+     "opus 18 No 15", and the notebook's March BWV Anh. 122); the local collection, below, goes by the composer field alone.
    - Stream `https://zenodo.org/api/records/15571083/files/mxl.tar.gz/content` once through `tar -xz -T want.txt`. That reads
      1.9 GB but writes only the chosen files.
    - Reject arrangements ("easy", "jazz") by eye in a contact sheet of first pages.
@@ -619,9 +625,9 @@ The credits screen shows, for each piece: title, composer, encoder or project, s
 
 ### The local collection (built, November 2026)
 
-The repo is public, so what's in `Music/library` is shared on GitHub, and only Tier A goes there: the 237 pieces above, kept
-as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
-instead, with more Tier A music than the repo should carry: the Library tool builds it on the owner's PC (`-- local`) into
+The repo is public, so what's in `Music/library` is shared on GitHub, and only Tiers A and SA go there: the 237 pieces above,
+kept as a showcase. Tier B, and anything else whose terms allow personal use but not sharing, goes into a **local collection**
+instead, with more Tier A and SA music than the repo should carry: the Library tool builds it on the owner's PC (`-- local`) into
 `artifacts/library-local`, which git ignores, and packs it into `artifacts/prima-collection` for the tablet's **Import files**:
 a zip for each part, none much over 40 MB, since the tablet reads a zip whole, and `contents.txt`, which counts each source's
 pieces, megabytes and licences. Nothing in it is committed.
@@ -629,21 +635,25 @@ pieces, megabytes and licences. Nothing in it is committed.
 On 15 November a local Release build uninstalled Prima on the tablet and took the collection imported on 6 November with it.
 The tool, run again from an empty cache, fetched and built the same 1,201 pieces (same ids and levels) in 7 minutes; the
 6 November zip and manifest are kept in `artifacts/prima-collection-2026-11-06`. The collection then grew by the sources added
-below that day.
+below that day. Late that day it was built again with the rules the owner decided after a review (PDMX kept by its scores' own
+composers, Mutopia's suites and opus numbers read right, share-alike as a tier of its own): 2,871 pieces, where the build before
+had 2,972. 102 pieces went (98 from PDMX, 4 of Mutopia's whole-suite PDFs) and one PDMX piece came, a better copy of Bach's
+C major prelude; the rest kept their ids, so importing the new zips on the tablet takes out the 102 and brings the titles,
+works and tiers of the rest up to date (Import, below).
 
 | Source | What | Licence (checked as it's read) | Pieces | Left out, and why |
 |---|---|---|---|---|
 | Sapp, Humdrum ([craigsapp](https://github.com/craigsapp)) | Mozart's sonatas (Alte Mozart-Ausgabe), Haydn's (Universal Edition, 1901), Scarlatti's (Longo), Joplin, Bach's 370 chorales | CC BY-NC-SA 4.0, in each repository's LICENSE.txt | 576 | His Beethoven sonatas, Chopin mazurkas and preludes, Hummel preludes and Scriabin: no licence at all ("Copyright 2008 by Craig Stuart Sapp"), so all rights reserved |
-| DCML ([DCMLab](https://github.com/DCMLab)), MuseScore 3 | Beethoven's sonatas, Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Dvořák's Silhouettes, Debussy (Préludes, Études, Images, Estampes, Children's Corner, Suite bergamasque, Pour le piano, the Arabesques, single pieces), Liszt's Années, Medtner's Tales, Ravel's Jeux d'eau and Miroirs, Bartók's 14 Bagatelles, Poulenc's Mouvements perpétuels, Couperin, Frescobaldi's Fiori musicali, Sweelinck's Fantasia cromatica, Handel HWV 430, Koželuch's sonatas, C. P. E., J. C. and W. F. Bach, Scarlatti | CC BY-NC-SA 4.0, in each README | 753 | Rachmaninoff's Corelli Variations (1931, in US copyright until 2028) and Schulhoff's Suite dansante en jazz (1931); Debussy's pieces first published after 1930 (Images oubliées 1977, Étude retrouvée 1980, Les soirs illuminés 2003, Danse bohémienne 1932, Page d'album 1933); the corpora that aren't keyboard music; the Mozart sonatas (Sapp's edition has them); 6 Scarlatti sonatas also in Sapp's |
+| DCML ([DCMLab](https://github.com/DCMLab)), MuseScore 3 | Beethoven's sonatas, Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Dvořák's Silhouettes, Debussy (Préludes, Études, Images, Estampes, Children's Corner, Suite bergamasque, Pour le piano, the Arabesques, single pieces), Liszt's Années, Medtner's Tales, Ravel's Jeux d'eau and Miroirs, Bartók's 14 Bagatelles, Poulenc's Mouvements perpétuels, Couperin, Frescobaldi's Fiori musicali, Sweelinck's Fantasia cromatica, Handel HWV 430, Koželuch's sonatas, C. P. E., J. C. and W. F. Bach, Scarlatti | CC BY-NC-SA 4.0, in each README | 753 | Rachmaninoff's Corelli Variations (1931, in US copyright until 2028) and Schulhoff's Suite dansante en jazz (1931); Debussy's pieces first published after 1930 (Images oubliées 1977, Étude retrouvée 1980, Les soirs illuminés 2003, Danse bohémienne 1932, Page d'album 1933); the corpora that aren't keyboard music; the Mozart sonatas (Sapp's edition has them); 6 Scarlatti sonatas also in Sapp's; a piece whose metadata gives no year composed (none does today) |
 | ASAP ([asap-dataset](https://github.com/fosfrancesco/asap-dataset)), MusicXML | Bach's Well-Tempered Clavier (29 preludes, 29 fugues) and the Italian Concerto's Andante, Chopin's études, ballades, scherzos, second and third sonatas, Barcarolle, Berceuse and Polonaise Op. 53, Liszt (Transcendental and Paganini Études, the Sonata, Mephisto Waltz, a Hungarian Rhapsody), Schubert's impromptus, moments musicaux, Wanderer Fantasy and sonatas D. 664 and 894, Schumann's Kreisleriana, Arabeske and Toccata, Rachmaninoff's preludes, Ravel's Ondine and Pavane, Scriabin, Balakirev's Islamey, Brahms Op. 118 No. 2, Glinka's The Lark, Prokofiev's Toccata, Mozart's Fantasia K. 475; all published before 1931 | CC BY-NC-SA 4.0, in LICENSE.md | 143 | Its Beethoven, Haydn and Mozart sonatas (the DCML's and Sapp's editions have them), the Debussy and Ravel the DCML has, Liszt's Gondoliera (the DCML's), and its copies with a repeat changed to match a performance |
-| PDMX, more ([Zenodo](https://zenodo.org/records/15571083)), MusicXML | Solo piano music by 62 composers who died before 1931, from Bach, Beethoven, Chopin and Mozart to Czerny's, Köhler's and Beyer's studies | Each score's public-domain mark or CC0, as its uploader set it; the dataset CC BY 4.0 | 568 | What the bundle takes from PDMX; scores with a licence conflict, other than PDMX's best copy, tagged with a popular genre, or arranged (by their titles: arrangements, reductions of symphonies, concertos, overtures and operas, quartets, chorales); composers who lived past 1930; 50 pieces the editions above have |
-| Mutopia, more ([Mutopia](https://www.mutopiaproject.org)), PDF and MIDI | The rest of its music for piano, harpsichord or clavichord alone: Bach (the Goldberg Variations, partitas, suites, the Anna Magdalena pieces), Beethoven's sonatas, Chopin, Handel, Mozart, Czerny, Mendelssohn, Field, Dussek and more, each with its MIDI, graded from it | Public domain, CC BY or CC BY-SA, read from each piece's .rdf | 612 PDFs | Duets (and a piece's duet parts), organ, songs and ensembles; any non-commercial or no-derivatives licence; the bundle's 104; a zipped piece's US Letter copies, and where its movements have MIDI, its PDFs without (a title page, the whole suite beside its movements) |
+| PDMX, more ([Zenodo](https://zenodo.org/records/15571083)), MusicXML | Solo piano music whose own composer field names one of 56 composers who died before 1931, credited to that composer: from Bach, Beethoven, Chopin and Mozart to Czerny's, Köhler's and Beyer's studies | Each score's public-domain mark or CC0, as its uploader set it; the dataset CC BY 4.0 | 471 | What the bundle takes from PDMX; scores with a licence conflict, other than PDMX's best copy, tagged with a popular genre, or arranged (by their titles or composer field, read apart where the uploader's lines ran together, "J.S. BachArr. Harry Allen": arrangements, reductions of symphonies, concertos, overtures and operas, quartets, chorales, music on another's themes, inversions and reversals); a score whose own composer field names no composer who died before 1931, or none at all, since the uploader's artist field names the music a score is linked to, not who wrote it (decided 15 November: 98 pieces went, among them Mompou's Variations on a Theme by Chopin, credited to Chopin, someone's "Für Ludwig", contest variations on Schumann, five realizations of Rimsky-Korsakov's exercises, and 76 scores with no composer of their own); 48 pieces the editions above have |
+| Mutopia, more ([Mutopia](https://www.mutopiaproject.org)), PDF and MIDI | The rest of its music for piano, harpsichord or clavichord alone: Bach (the Goldberg Variations, partitas, suites, the Anna Magdalena pieces), Beethoven's sonatas, Chopin, Handel, Mozart, Czerny, Mendelssohn, Field, Dussek and more, each with its MIDI, graded from it | Public domain, CC BY or CC BY-SA (share-alike, Tier SA), read from each piece's .rdf | 608 PDFs | Duets (and a piece's duet parts), organ, songs and ensembles; any non-commercial or no-derivatives licence; the bundle's 104; a zipped piece's US Letter copies, and where its movements have MIDI, its PDFs without (a title page) and the whole piece's PDF beside its movements (French Suite No. 3, Partitas Nos. 3 and 6, Pictures at an Exhibition) |
 | Open Hymnal ([openhymnal.org](http://openhymnal.org/copying.html)), ABC | Its 2026.11 edition's hymns as a hymnal sets them, soprano and alto on the upper staff, tenor and bass on the lower, with up to five verses under the notes: Lutheran chorales, Genevan and English psalm tunes, Victorian hymns, gospel songs, carols | Public domain in tune, setting, words and translation, as each file's `C: copyright:` line says (under US law, as its copying page explains); the site's robots.txt bars only older editions' files | 320 | 24 with words or a setting under copyright (most may be copied for worship, which isn't enough here), under CPDL's licence, or "All other rights reserved"; 4 with a third staff (a melody or descant above the parts, or the parts above an accompaniment); One Thing's Needful, which changes metre partway; I Bind Unto Myself Today and Jesu, Joy of Man's Desiring, which abc2svg can't write as MEI; a second From All Thy Saints in Warfare, the same music with other saints' days |
 
 Each piece in the collection is keyboard music: a single line (a melody alone, one instrument's part) would ask Prima to have
 it played as a piano piece, and from PDMX a score on more than two staves is more often a voice above a piano than a pianist's
 three staves (as Debussy and Liszt write, which the editions keep), and a hymn's a melody or descant above its four parts, so
-the tool leaves those out (244 of PDMX's candidates, 4 hymns). A piece the scholarly
+the tool leaves those out (202 of PDMX's candidates, 4 hymns). A piece the scholarly
 editions have comes from them alone, by its composer and catalogue number ("Op. 27 No. 2", "K. 331", "BWV 846") or name: so
 ASAP's Beethoven isn't there beside the DCML's, nor PDMX's Für Elise beside the bundle's. Mutopia's PDFs stay beside them, being
 another way to read the music.
@@ -655,7 +665,10 @@ another way to read the music.
   Mutopia's operas nest their parts deep). Without git, the repository's zip is unpacked the same way. PDMX's 1.9 GB archive
   is downloaded into the cache once (Zenodo's robots.txt allows its file links, with a 10-second crawl delay; it's two
   requests), and Mutopia's PDFs, MIDI and .rdf come from its site one file at a time, a quarter of a second apart (its
-  robots.txt allows everything), the .rdf kept, so a second run asks the site for nothing.
+  robots.txt allows everything), the .rdf kept, so a second run asks the site for nothing. A source that yields nothing when
+  it's fetched (its site down, a repository moved or no longer under its licence) keeps the last run's pieces rather than
+  leaving them out, says so, and the run ends with an error, exit code 1 (decided 15 November; before, it left the source out
+  and ended as if all was well).
 - **Humdrum** is engraved by Verovio's build that reads it (`verovio-module-hum.mjs` from the npm package of the app's
   version, 6.3.0); the app's own copy leaves Humdrum out. The MEI it makes is what the app reads. A chorale is set on the grand
   staff with Verovio's `satb2gs` filter (soprano and alto above, tenor and bass below).
@@ -675,13 +688,14 @@ another way to read the music.
   length rather than 4/4's; where its first bar isn't four beats, Prima numbers it 0, as it does a pickup. Then Verovio
   writes the MEI again as it reads it, like every other piece's. The edition's zip is found from the site's home page, so a
   new edition is fetched when there is one.
-- **Size and time**: 2,972 pieces, 153 MB in six zips (the editions 38 MB, PDMX 16, Mutopia's PDFs 96 in
+- **Size and time**: 2,871 pieces, 149 MB in six zips (the editions 38 MB, PDMX 14, Mutopia's PDFs 95 in
   three, the hymns 2.6). A first run takes about an hour, half of it the PDMX archive's download and Mutopia's files; a
   second, about 7 minutes (`-- local hymns` on the whole collection took 5:45, the hymns' own fetching and converting half a
-  minute of it). Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for
-  each of Mutopia's, about 10 for the hymns'); on 6 November the tablet took about a minute for the 1,201 pieces then.
+  minute of it; the whole of `-- local` on 15 November, with 238 PDMX files read again from the archive in the cache, 7:00).
+  Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for each of
+  Mutopia's, about 10 for the hymns'); on 6 November the tablet took about a minute for the 1,201 pieces then.
   Prima's data file grows by about 340 MB of MEI and 105,000 excerpts (the hymns' share 12 MB and 4,082), with 97 MB of PDFs
-  and MIDI beside it. The Library lists about 3,250 pieces then: in the preview it opened in half a second and a search
+  and MIDI beside it. The Library lists about 3,170 pieces then: in the preview it opened in half a second and a search
   settled in a quarter of one (desktop Chromium, before the hymns; the tablet is slower).
 - **Levels** (a piece's hardest excerpt): Sapp's 7–12, mostly 7–8; the DCML's and ASAP's mostly 10–12; PDMX's from 4, its
   teaching pieces; Mutopia's PDFs, graded from their MIDI, 7–12, and 20 with no MIDI aren't graded. The hymns 7 (245 of them,
@@ -689,14 +703,24 @@ another way to read the music.
   as any metre the ladder doesn't teach.
 - The titles come from each corpus's metadata, and Debussy's from a list by Lesure number, since the DCML's metadata for him is
   mostly dedications and engravers' headings. Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
-  by its folders, since its scores' own titles are unreliable ("a", "title"); PDMX's are the uploaders' own, without the
-  composer's name; Mutopia's come from each piece's .rdf, and a movement zipped with others is named by its file, or numbered
-  where the file's name is no word ("10title-hub"). Instrument names ("Piano", "Pno.") are taken off every piece. A hymn goes
-  by its title, with its tune's name where a title has two tunes ("Blest Be the Tie That Binds (Dennis)"), under the work
-  "Hymns", so the Library shelves it with the chorales; its composer is the tune's, and a tune that's no one's (a hymnbook's, a
-  people's, the chant's) is Traditional, its credit saying where it's from.
+  by its folders, since its scores' own titles are unreliable ("a", "title"). PDMX's are the uploaders' own, without the
+  composer's name where it labels the title, with the first names and initials written with it, at the start or the end,
+  after a dash or a colon, in brackets or after "by" ("Aleksandr Scriabin: Nocturne", "Nocturne (F.Chopin Op.55. No.2)", "LE
+  COUCOU by DAQUIN (The Cuckoo)", "Polonaise W.A. Mozart"), but with it where it's part of the title ("Mozart's Twelve
+  Variations", "Berceuse de Brahms"), and with every other composer's name ("33 Variations on a Waltz by Anton Diabelli Op.
+  120"); until 15 November every bundled composer's name was taken out of any title, which left "'s Canon in D" and "33
+  Variations on a Waltz by Op. 120". Mutopia's come from each piece's .rdf, and a movement zipped with others is named by its
+  file, less the piece's name and a composer's before it ("bach-french-suite-3-allemande" is "Allemande"), or numbered where
+  the file's name is no word ("10title-hub"). A Mutopia piece's work is its opus written one way and without the piece's own
+  number, so a set's pieces share it ("O 68 n°1", "Op 28, No 10", "O 37,1" and "D.899 (Op. 90, No. 1)" are the works "Op. 68",
+  "Op. 28", "Op. 37" and "D.899 (Op. 90)"); the number goes in the title where the title hasn't got it ("Impromptu, No. 1"),
+  and a catalogue's own number (BWV 825, Hob. XVI:27) is the work. Instrument names ("Piano", "Pno.") are taken off every
+  piece. A hymn goes by its title, with its tune's name where a title has two tunes ("Blest Be the Tie That Binds (Dennis)"),
+  under the work "Hymns", so the Library shelves it with the chorales; its composer is the tune's, and a tune that's no one's (a
+  hymnbook's, a people's, the chant's) is Traditional, its credit saying where it's from.
 - **Left out as it's prepared**: a score the Core can't read is named and left out rather than stopping the run (two PDMX
-  scores, whose MEI has a note without a pitch: `MeiReader.ReadTone` throws on it, which an import on the tablet would too).
+  scores in the builds before 15 November's last, whose MEI has a note without a pitch: `MeiReader.ReadTone` throws on it,
+  which an import on the tablet would too; neither is chosen now).
 
 **Sites that are free to read but not to take in bulk.** Their files go on the tablet by hand, one at a time, and never into
 the repo:
@@ -770,6 +794,15 @@ looked at then too, is in the table above):
   103 the notation is what it was and sounds the file's notes exactly; the Pineapple Rag, which LilyPond played at 7/8 of each
   note, is now written at full lengths (112 tied notes and 17 rests, where it had 182 and 70). Performance MIDI comes out
   ragged, and a pickup comes out as a full bar.
+- **The local collection's zips** (decided 15 November): stored as the tool prepared them. Each zip's manifest also names every
+  piece of the whole collection (by the ids the Library keeps them under), so importing any one zip of a collection built again
+  first brings the details of its pieces already there up to date (title, composer, work, credit, licence, tier; their music
+  and excerpts stay) and takes out the collection's pieces the new build no longer has, with their excerpts, readings and
+  files, whichever zip comes first. A piece taken out keeps its runs and practice sessions, as one removed by hand does: the
+  practice days and the routines' evidence still count them, the Library and You no longer list it, Today calls it "A piece",
+  and it's its own again if a later collection brings it back. Bundled pieces and the owner's own imports are never touched,
+  and a zip from before collections named themselves whole takes nothing out. Nothing is removed by hand: the wrongly credited
+  PDMX pieces of the 15 November build go when the collection built after it is imported.
 
 ### The full-page view
 
@@ -826,7 +859,8 @@ The design in §6:
 ### Risks and open questions
 
 - **Licences.**
-  - Tier B is non-commercial and share-alike. If Prima is ever shared or sold, Tier B has to come out.
+  - Tier B is non-commercial and share-alike. If Prima is ever shared or sold, Tier B has to come out. Tier SA may go with
+    it, but anything made from its pieces keeps their licence.
   - PDMX's PD tags are uploaders' claims. 12.29% of its licence data conflicts.
   - The edition a PDMX file was transcribed from is unknown.
   - Not legal advice.

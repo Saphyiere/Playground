@@ -14,8 +14,8 @@
 //   humdrum   Craig Sapp's Humdrum editions (Mozart's, Haydn's and Scarlatti's sonatas, Joplin, Bach's chorales), CC BY-NC-SA 4.0
 //   dcml      the DCML's MuseScore corpora (Beethoven's sonatas, Chopin's mazurkas, Debussy, Grieg and more), CC BY-NC-SA 4.0
 //   asap      ASAP's concert scores (Bach's Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), CC BY-NC-SA 4.0
-//   pdmx      more of PDMX: public-domain and CC0 piano music by composers who died before 1931
-//   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA
+//   pdmx      more of PDMX: public-domain and CC0 piano music whose own composer field names a composer who died before 1931
+//   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA (share-alike)
 //   hymns     the Open Hymnal's public-domain hymns, four voices on two staves with their verses (ABC, written as MEI by abc2svg)
 //
 // They're prepared the same way into artifacts/library-local and packed into artifacts/prima-collection, a zip or a few for each
@@ -26,7 +26,8 @@
 //   dotnet run --project Music/tools/Prima.Library -- local pdmx      one source again (or humdrum, dcml, asap, mutopia, hymns), or prepare
 //
 // What it downloads is kept in artifacts/library-cache, so a second run only fetches what's missing. --artifacts <folder> puts
-// that, the collection and its zips in another folder (the cache is over 2 GB).
+// that, the collection and its zips in another folder (the cache is over 2 GB). A source that yields nothing keeps the last run's
+// pieces, and the run ends with an error (exit code 1).
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
@@ -55,6 +56,26 @@ var pieces = new List<BundledPiece>();
 var clock = Stopwatch.StartNew();
 string? modules = null;
 
+// Each source fetched again, or as the last run left it. One that yields nothing when it's fetched (its site down, a repository
+// moved) keeps the last run's pieces rather than leaving them out, says so, and the run ends with an error.
+var empty = new List<string>();
+async Task Source(string name, string source, Func<Task<List<BundledPiece>>> fetch)
+{
+    var last = previous.Where(p => p.Source == source).ToList();
+    if (only is not null && only != name)
+    {
+        pieces.AddRange(last);
+        return;
+    }
+    var fetched = await fetch();
+    if (fetched.Count == 0)
+    {
+        Console.WriteLine($"{source}: nothing came, so the last run's {last.Count} pieces stay as they were.");
+        empty.Add(source);
+    }
+    pieces.AddRange(fetched.Count > 0 ? fetched : last);
+}
+
 if (local)
 {
     // Verovio's build that reads Humdrum (the app's version of Verovio), webmscore and abc2svg, from npm, installed once. abc2svg
@@ -73,9 +94,6 @@ if (local)
     var bundle = LibraryManifest.Read(await File.ReadAllTextAsync(Path.Combine(root, "Music", "library", "manifest.json"))).Pieces;
     var bundled = bundle.SelectMany(p => p.Prepared?.Select(x => x.Id).Prepend(p.Id) ?? [p.Id]).ToHashSet(StringComparer.Ordinal);
 
-    // Each source fetched again, or as the last run left it.
-    async Task Source(string name, string source, Func<Task<List<BundledPiece>>> fetch) =>
-        pieces.AddRange(only is null || only == name ? await fetch() : previous.Where(p => p.Source == source));
     await Source("humdrum", Humdrum.Name, () => Humdrum.Fetch(http, cache, output));
     await Source("dcml", Dcml.Name, () => Dcml.Fetch(http, cache, output, modules, root));
     await Source("asap", Asap.Name, () => Asap.Fetch(http, cache, output));
@@ -102,11 +120,8 @@ if (local)
 }
 else
 {
-    if (only is null or "pdmx") pieces.AddRange(await Pdmx.Fetch(http, cache, output));
-    else pieces.AddRange(previous.Where(p => p.Source == Pdmx.Name));
-
-    if (only is null or "mutopia") pieces.AddRange(await Mutopia.Fetch(http, output));
-    else pieces.AddRange(previous.Where(p => p.Source == Mutopia.Name));
+    await Source("pdmx", Pdmx.Name, () => Pdmx.Fetch(http, cache, output));
+    await Source("mutopia", Mutopia.Name, () => Mutopia.Fetch(http, output));
 }
 
 var chosen = pieces.Select(p => p.File).ToList();
@@ -125,13 +140,16 @@ var kinds = string.Join(", ", manifest.Pieces.GroupBy(p => p.Format).Select(g =>
 if (!local)
 {
     Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({kinds}), in {clock.Elapsed:m\\:ss}. Commit them, then build the app.");
+    Failed();
     return;
 }
 
 // The collection as files for the tablet, a zip or a few for each part: the manifest of what's in it and what the app reads (the
 // MEI, any PDFs and MIDI), not the sources. The tablet reads a zip it imports whole into memory, so none is much over 40 MB; a part
 // that would be is split, its pieces in order. The scholarly editions (CC BY-NC-SA 4.0, for this tablet only) are the zip of old,
-// prima-collection.zip; PDMX, Mutopia and the hymns have one each.
+// prima-collection.zip; PDMX, Mutopia and the hymns have one each. Each zip's manifest also names every piece in the whole
+// collection, so importing any one of them takes out of the tablet's Library the collection's pieces this build no longer has.
+var whole = LibraryManifest.Kept(manifest.Pieces).ToList();
 var folder = Path.Combine(artifacts, "prima-collection");
 Directory.CreateDirectory(folder);
 foreach (var old in Directory.GetFiles(folder, "prima-collection*.zip")) File.Delete(old);
@@ -169,7 +187,7 @@ foreach (var (name, holds, sources) in parts)
         {
             await using (var writer = new StreamWriter(zip.CreateEntry("manifest.json", CompressionLevel.SmallestSize).Open()))
             {
-                await writer.WriteAsync(new LibraryManifest(1, built, groups[i]).Write());
+                await writer.WriteAsync(new LibraryManifest(1, built, groups[i], whole).Write());
             }
             foreach (var file in groups[i].SelectMany(Files)) zip.CreateEntryFromFile(Path.Combine(output, file), file, CompressionLevel.NoCompression);
         }
@@ -194,6 +212,15 @@ Console.WriteLine();
 Console.Write(contents);
 Console.WriteLine($"{Count(manifest.Pieces)} pieces in {folder} ({kinds}), in {clock.Elapsed:h\\:mm\\:ss}. Copy the zips to the tablet and open them in the " +
     "Library with Import files, one at a time. They stay out of the repo.");
+Failed();
+
+// A run in which a source yielded nothing ends with an error, after its pieces from the last run were kept.
+void Failed()
+{
+    if (empty.Count == 0) return;
+    Console.WriteLine($"Nothing came from {string.Join(" or ", empty)}: the last run's pieces were kept for it. Look at what's above, then run it again.");
+    Environment.ExitCode = 1;
+}
 
 static string? FindRoot(string from)
 {
