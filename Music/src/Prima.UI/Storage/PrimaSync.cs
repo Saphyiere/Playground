@@ -85,12 +85,15 @@ public static class PrimaSync
         return files == 0 ? practiced : $"{practiced} · {files} imported {(files == 1 ? "file" : "files")}";
     }
 
-    // A key copied over USB and not taken in yet: never copied, wherever it might turn up.
+    // A key copied over USB and not taken in yet: never copied, wherever it might turn up. It's read as Prima takes it in (the key
+    // alone, or JSON with an apiKey), and a file that holds no key is searched for as it is.
     private static async Task<string?> WaitingKeyAsync(string path)
     {
         try
         {
-            return File.Exists(path) ? (await File.ReadAllTextAsync(path)).Trim() : null;
+            if (!File.Exists(path)) return null;
+            var text = (await File.ReadAllTextAsync(path)).Trim();
+            return AssistKey.Read(text) is { Length: > 0 } key ? key : text;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
