@@ -41,9 +41,16 @@ manifest dates it now: a copy once taken with the clock ahead doesn't date the o
 read again; a database is snapshotted each time and fingerprinted; and content the store holds already is never written again.
 So a copy after a day's practice writes the database and the manifest, and a copy with nothing changed writes the manifest alone.
 
+**What a store keeps.** Its three newest copies; besides them, the newest that is at least a week old, and the oldest younger than
+that, which comes to be it (taken every day, the copies would otherwise all go before any was a week old); and every copy held.
+Content any of them needs stays, and the rest goes. A library's files are the same from copy to copy, so they're kept once for all
+of them, and each copy costs about one snapshot of the database: `Status.Copies` and `Status.Stored` say how many there are and
+what they take together.
+
 **A copy that stops part way changes nothing.** Content goes first, each piece whole or not at all (written under a temporary name,
-then renamed), then the manifest, then the copies before and the content only they needed. Until the manifest is there, the copy
-before is the copy; whatever the one that stopped had written is found and kept by the next. A file that changes as it's being
+then renamed), then the manifest, then the copies the store keeps no longer and the content only they needed. Until the manifest
+is there, the copy before is the copy; whatever the one that stopped had written is found and kept by the next. Once it's there,
+the copy is made: what can't be tidied away after it is logged and left for the next. A file that changes as it's being
 copied (a log written to) is fingerprinted again and copied as it is now, and one that goes meanwhile (the log turned over, a
 piece taken out of the Library) is left out of it, the rest copied. A manifest without its lists of items and files isn't a copy.
 

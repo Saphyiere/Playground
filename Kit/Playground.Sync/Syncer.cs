@@ -13,7 +13,8 @@ namespace Playground.Sync;
 /// <list type="bullet">
 /// <item><see cref="CopyAsync"/> takes a copy of every item into the app's stores: databases snapshotted while open, each file
 /// fingerprinted (SHA-256, the last copy's kept when its size and time haven't changed), and only content a store doesn't hold yet
-/// written; the copy's manifest last, then whatever no copy needs any more goes.</item>
+/// written; the copy's manifest last, then whatever no copy kept needs any more goes. A store keeps its three newest copies, the
+/// newest at least a week old (with the oldest younger than that, which comes to be it), and every one held.</item>
 /// <item><see cref="StartAsync"/>, as the app starts: the first time after an update, checks the app holds all the copy from before
 /// it did and only then takes a fresh one (a copy that doesn't check out is held); otherwise takes one when the last is more than
 /// <see cref="SyncOptions.RefreshAfter"/> old.</item>
@@ -28,6 +29,7 @@ public sealed class Syncer
     private const string Restoring = ".sync-restore";
     private const string Replaced = ".sync-old";
     private static readonly TimeSpan ProgressEvery = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan Week = TimeSpan.FromDays(7);
     private static readonly EnumerationOptions Everything = new() { RecurseSubdirectories = true, AttributesToSkip = 0 };
 
     private readonly SyncOptions options;
@@ -514,22 +516,34 @@ public sealed class Syncer
     }
 
     /// <summary>
-    /// Deletes the copies before <paramref name="key"/> (but those held), then each piece of content no copy left needs. When a
-    /// held copy's manifest can't be read, nothing goes: better kept than lost. The copy is made by then, so what can't be tidied
-    /// away is left for the next one, and logged.
+    /// Deletes the copies a store keeps no longer, then each piece of content no copy left needs. A store keeps its three newest
+    /// copies; besides them, the newest at least a week older than <paramref name="key"/>'s, and the oldest younger than that, which
+    /// comes to be it (taken every day, the copies would otherwise all go before any was a week old); and every one held. When a
+    /// held copy can't be read, nothing goes: better kept than lost. The copy is made by then, so what can't be tidied away is
+    /// left for the next one, and logged.
     /// </summary>
     private async Task TidyAsync(ISyncStore store, string key, SyncManifest manifest, List<string> before, CancellationToken ct)
     {
         try
         {
             var holds = await ReadHoldsAsync(store, ct);
-            var needed = manifest.Files.Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
-            foreach (var held in holds.Where(h => h.Copy != key && before.Contains(h.Copy)))
+            var copies = new List<(string Key, SyncManifest Manifest)> { (key, manifest) };
+            foreach (var other in before.Where(k => k != key))
             {
-                if (await ReadManifestAsync(store, held.Copy, ct) is not { } kept) return;
-                needed.UnionWith(kept.Files.Select(f => SyncPaths.Blob(f.Sha256)));
+                // One that can't be read isn't a copy, and goes (but a held one).
+                if (await ReadManifestAsync(store, other, ct) is { } read && read.App == options.App && Valid(read)) copies.Add((other, read));
+                else if (holds.Any(h => h.Copy == other)) return;
             }
-            foreach (var old in before.Where(k => k != key && !holds.Any(h => h.Copy == k))) await store.DeleteAsync(old, ct);
+            copies.Sort((a, b) => string.CompareOrdinal(b.Key, a.Key));
+
+            var kept = copies.Take(3).Select(c => c.Key).ToHashSet(StringComparer.Ordinal);
+            var weekBefore = manifest.Made - Week;
+            if (copies.FirstOrDefault(c => c.Manifest.Made <= weekBefore) is { Key: { } weekOld }) kept.Add(weekOld);
+            if (copies.LastOrDefault(c => c.Manifest.Made > weekBefore && !kept.Contains(c.Key)) is { Key: { } coming }) kept.Add(coming);
+            kept.UnionWith(holds.Select(h => h.Copy));
+
+            var needed = copies.Where(c => kept.Contains(c.Key)).SelectMany(c => c.Manifest.Files).Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
+            foreach (var old in before.Where(k => !kept.Contains(k))) await store.DeleteAsync(old, ct);
             foreach (var blob in await store.ListAsync(SyncPaths.Blobs, ct))
             {
                 if (!needed.Contains(blob.Key)) await store.DeleteAsync(blob.Key, ct);
@@ -805,11 +819,16 @@ public sealed class Syncer
         return copies;
     }
 
-    /// <summary>The app's own copies, newest first, into the status: the newest, and those held (<see cref="SyncStatus.Held"/> the newest one's).</summary>
+    /// <summary>
+    /// The app's own copies, newest first, into the status: the newest, those held (<see cref="SyncStatus.Held"/> the newest one's),
+    /// how many there are, and what they take together: content they share (the library's files, mostly) is kept once, so it's
+    /// counted once.
+    /// </summary>
     private void Show(IReadOnlyList<StoreCopy> copies)
     {
         List<SyncCopy> holding = [.. copies.Where(c => c.Held is not null)];
-        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding });
+        var stored = copies.SelectMany(c => c.Manifest.Files).DistinctBy(f => f.Sha256).Sum(f => f.Size);
+        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding, Copies = copies.Count, Stored = stored });
     }
 
     /// <summary>The app's own copies as they now are, into the status; when they can't be read again, at least the one just taken.</summary>

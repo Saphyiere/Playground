@@ -22,6 +22,12 @@ public sealed record SyncStatus(SyncStep Step, bool Known, SyncCopy? Last, SyncH
 
     /// <summary>The copies held in the app's own store, newest first: each kept, whatever copies come after, until it's restored or let go.</summary>
     public IReadOnlyList<SyncCopy> Holding { get; init; } = [];
+
+    /// <summary>How many copies the app's own store keeps.</summary>
+    public int Copies { get; init; }
+
+    /// <summary>What they take together, each piece of content once however many copies have it.</summary>
+    public long Stored { get; init; }
 }
 
 /// <summary>How far a piece of work is, for a bar: a sentence on what it's doing, and how much of that is done (0 to 1).</summary>

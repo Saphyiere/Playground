@@ -167,6 +167,27 @@ public class PrimaSyncTests
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 
+    // How many copies there are and what they take: the music imported is kept once for all of them, so each costs about a data file.
+    [Fact]
+    public async Task YourData_SaysHowManyCopiesThereAre_AndWhatTheyTake()
+    {
+        await using var host = new ComponentHost();
+        var sync = host.Context.Services.GetRequiredService<Syncer>();
+        await host.Store.SaveAsync(new PrimaSettings { Name = "Ada" });
+        await sync.CopyAsync(ct: Ct);
+        await host.Store.SaveAsync(new PrimaSettings { Name = "Ada Lovelace" });
+        await sync.CopyAsync(ct: Ct);
+
+        var view = host.Context.Render<DataCopies>();
+
+        var data = sync.Status.Last!.Manifest.Files.Single(f => f.Path == "prima.db").Size;
+        Assert.Equal(2, sync.Status.Copies);
+        view.WaitForAssertion(() => Assert.Equal(
+            $"2 copies, {SyncText.Size(sync.Status.Stored)} together: the music imported is kept once for all of them, so each copy adds about the size of Prima's data file, {SyncText.Size(data)}.",
+            view.FindAll(".control-row").Single(r => r.QuerySelector(".control-label")?.TextContent == "Copies kept").QuerySelector(".control-note")!.TextContent));
+        Directory.Delete(sync.Options.WorkFolder, recursive: true);
+    }
+
     [Fact]
     public async Task YourData_ChoosingAFileThatIsntACopy_SaysSo()
     {

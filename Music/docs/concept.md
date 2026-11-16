@@ -537,7 +537,8 @@ after the update, it checks its data holds all the copy did before a fresh copy 
 
 Your data: Prima keeps a copy of everything but Claude's key in Documents/Prima backups on the tablet, where uninstalling Prima
 doesn't reach it (How the data is shaped, below). **Last copy** says when the newest was made, its size and what it holds (the runs
-and the days they were played on, and the files imported); a copy under way shows its progress on the meter. **Back up now** takes
+and the days they were played on, and the files imported), and **Copies kept** how many there are and what they take together;
+a copy under way shows its progress on the meter. **Back up now** takes
 one. **Restore from a backup…** lists this install's copies, and with **Choose a folder…** (the tablet's folder picker, opening on
 Documents/Prima backups) the copies of every install in the folder chosen, or with **Choose a file…** an export or a Prima data file
 on its own; choosing one says what it replaces, and **Restore this copy** puts all of it in place, or nothing if any of it is
@@ -898,8 +899,10 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   the problem log (`errors.log`, `errors.old.log`). They're in Documents/Prima backups, in a folder for each install named for when
   Prima was installed: Android lets an app read there only what the same install wrote, so a reinstalled Prima opens the copies of
   the one before with the folder picker. A copy is a manifest (when, which version, why, each table's rows, each file's size, time
-  and SHA-256) and each file's content under its fingerprint, so only what changed is written; the newest copy is kept, and the
-  content it needs. One is taken as Prima starts when the last is more than two days old, before each update, and when asked. The
+  and SHA-256) and each file's content under its fingerprint, so only what changed is written. The three newest copies are kept;
+  besides them, the newest at least a week old, and the oldest younger than that, which comes to be it; and every one held, with
+  the content they need. The music imported is kept once for all of them, so each copy costs about a copy of the data file.
+  One is taken as Prima starts when the last is more than two days old, before each update, and when asked. The
   first start after an update checks at once, before any screen can change anything, that the data file opens cleanly and has at
   least the rows of what's the owner's own (the settings, tracks, runs, practice days and sessions, routines, and the pieces
   imported; not the bundled or collection pieces and their excerpts, which Prima takes out and puts back itself), and that every

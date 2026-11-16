@@ -21,7 +21,7 @@ public class StartTests
     }
 
     [Fact]
-    public async Task StartAsync_LeavesACopyUnderTwoDaysOld_AndReplacesAnOlderOne()
+    public async Task StartAsync_LeavesACopyUnderTwoDaysOld_AndTakesAnotherAfterThat()
     {
         using var app = new App();
         using var store = new TempFolder();
@@ -33,20 +33,21 @@ public class StartTests
         await syncer.StartAsync(Ct);
         Assert.Equal(first.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
 
+        // The one before stays beside it: a store keeps its three newest.
         clock.Now = clock.Now.AddDays(0.2);
         await app.Syncer(new FolderStore(store.Path), time: clock).StartAsync(Ct);
-        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
-        Assert.Equal(clock.Now, copy.Made);
-        Assert.Equal(SyncReason.Scheduled, copy.Manifest.Reason);
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal([clock.Now, first.Made], copies.Select(c => c.Made));
+        Assert.Equal(SyncReason.Scheduled, copies[0].Manifest.Reason);
     }
 
     [Fact]
-    public async Task StartAsync_AfterAnUpdate_ChecksTheData_ThenReplacesTheCopyFromBefore()
+    public async Task StartAsync_AfterAnUpdate_ChecksTheData_ThenCopiesItAfresh()
     {
         using var app = new App();
         using var store = new TempFolder();
         var clock = new Clock();
-        await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+        var before = await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
 
         // The update's first start: the same data, a newer version, and the practice that goes on.
         clock.Now = clock.Now.AddMinutes(2);
@@ -54,10 +55,14 @@ public class StartTests
         var syncer = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
         await syncer.StartAsync(Ct);
 
-        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
-        Assert.Equal(SyncReason.AfterUpdate, copy.Manifest.Reason);
-        Assert.Equal("1.0.6", copy.Manifest.Version);
-        Assert.Equal(41, copy.Manifest.Rows("prima.db", "Attempt"));
+        // The fresh copy is the newest; the one from before stays beside it as any other, not held.
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal(2, copies.Count);
+        Assert.Equal(SyncReason.AfterUpdate, copies[0].Manifest.Reason);
+        Assert.Equal("1.0.6", copies[0].Manifest.Version);
+        Assert.Equal(41, copies[0].Manifest.Rows("prima.db", "Attempt"));
+        Assert.Equal(before.Made, copies[1].Made);
+        Assert.All(copies, c => Assert.Null(c.Held));
         Assert.Null(syncer.Status.Held);
     }
 
@@ -82,19 +87,25 @@ public class StartTests
         clock.Now = clock.Now.AddDays(3);
         await syncer.CopyAsync(ct: Ct);
         var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
-        Assert.Equal(2, copies.Count);
+        Assert.Equal(3, copies.Count);
         Assert.Equal(before.Made, copies.Single(c => c.Held is not null).Made);
         Assert.Equal(40, copies.Single(c => c.Held is not null).Manifest.Rows("prima.db", "Attempt"));
         Assert.All(copies.SelectMany(c => c.Manifest.Files), f => Assert.True(File.Exists(store["blobs/" + f.Sha256])));
+        // Copies long after keep it too, where it would otherwise have gone.
+        clock.Now = clock.Now.AddDays(11);
+        await syncer.CopyAsync(ct: Ct);
+        Assert.Contains(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Made == before.Made && c.Held is not null);
         // A later start says it still.
         var later = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
         await later.StartAsync(Ct);
         Assert.Equal(held, later.Status.Held);
 
+        // Let go, it's kept no longer than any other: the next copy leaves it out.
         await later.ReleaseHeldAsync(Ct);
         Assert.Null(later.Status.Held);
+        clock.Now = clock.Now.AddDays(1);
         await later.CopyAsync(ct: Ct);
-        Assert.Single(await later.FindCopiesAsync(new FolderStore(store.Path), Ct));
+        Assert.DoesNotContain(await later.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Made == before.Made);
     }
 
     [Fact]

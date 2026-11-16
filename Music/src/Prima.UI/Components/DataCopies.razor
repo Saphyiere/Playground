@@ -1,5 +1,6 @@
 @* Settings › Your data: the copies of everything Prima keeps but Claude's key, through the Kit's sync (Storage/PrimaSync). When the
-   last copy was made, its size and what it holds; Back up now; Restore from a backup… (this tablet's copies, or a folder or a file
+   last copy was made, its size and what it holds; how many copies are kept and what they take; Back up now; Restore from a
+   backup… (this tablet's copies, or a folder or a file
    chosen with the tablet's picker, then which copy, and what it replaces); and Export everything, to send on. A copy kept from before
    an update that didn't check out stands first. Work goes on in the background, its progress on the meter. *@
 @implements IDisposable
@@ -36,6 +37,13 @@
         <span class="key-figure none">@(status.Known ? "None yet" : "…")</span>
     }
 </div>
+@if (status.Copies > 0)
+{
+    <div class="control-row">
+        <span class="control-label">Copies kept</span>
+        <span class="control-note">@Kept()</span>
+    </div>
+}
 <div class="control-row">
     <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@(status.Step == SyncStep.Copying ? "Copying…" : "Back up now")</button>
     <button type="button" class="mu-btn" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
@@ -115,6 +123,14 @@
     private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
         ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: every two days, and before each update. Only what changed is written."
         : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
+
+    // How many copies there are and what they take together: the music imported is kept once for them all, so each copy costs
+    // about a copy of the data file.
+    private string Kept()
+    {
+        var each = status.Last?.Manifest.Files.FirstOrDefault(f => f.Path == "prima.db") is { } data ? $", so each copy adds about the size of Prima's data file, {SyncText.Size(data.Size)}" : "";
+        return $"{status.Copies} {(status.Copies == 1 ? "copy" : "copies")}, {SyncText.Size(status.Stored)} together: the music imported is kept once for all of them{each}.";
+    }
 
     private void Changed(SyncStatus now) => _ = InvokeAsync(() =>
     {
