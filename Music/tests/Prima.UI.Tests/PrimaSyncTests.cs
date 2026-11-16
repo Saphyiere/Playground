@@ -334,9 +334,9 @@ public class PrimaSyncTests
 
         var data = sync.Status.Last!.Manifest.Files.Single(f => f.Path == "prima.db").Size;
         Assert.Equal(2, sync.Status.Copies);
-        view.WaitForAssertion(() => Assert.Equal(
-            $"2 copies, {SyncText.Size(sync.Status.Stored)} together: the music imported is kept once for all of them, so each copy adds about the size of Prima's data file, {SyncText.Size(data)}.",
+        view.WaitForAssertion(() => Assert.Equal($"2 copies, {SyncText.Size(sync.Status.Stored)} together",
             view.FindAll(".control-row").Single(r => r.QuerySelector(".control-label")?.TextContent == "Copies kept").QuerySelector(".control-note")!.TextContent));
+        Assert.Equal($"The music imported is kept once for all of them, so each copy adds about the size of Prima's data file, {SyncText.Size(data)}.", view.Find(".copies-kept").TextContent);
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 

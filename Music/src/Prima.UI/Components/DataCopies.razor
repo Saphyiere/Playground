@@ -42,8 +42,9 @@
 {
     <div class="control-row">
         <span class="control-label">Copies kept</span>
-        <span class="control-note">@Kept()</span>
+        <span class="control-note">@status.Copies @(status.Copies == 1 ? "copy" : "copies"), @SyncText.Size(status.Stored) together</span>
     </div>
+    <p class="section-note copies-kept">@Shared()</p>
 }
 <div class="control-row">
     <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@(status.Step == SyncStep.Copying ? "Copying…" : "Back up now")</button>
@@ -132,13 +133,11 @@
         ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore and Start over. Only what changed is written."
         : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
 
-    // How many copies there are and what they take together: the music imported is kept once for them all, so each copy costs
-    // about a copy of the data file.
-    private string Kept()
-    {
-        var each = status.Last?.Manifest.Files.FirstOrDefault(f => f.Path == "prima.db") is { } data ? $", so each copy adds about the size of Prima's data file, {SyncText.Size(data.Size)}" : "";
-        return $"{status.Copies} {(status.Copies == 1 ? "copy" : "copies")}, {SyncText.Size(status.Stored)} together: the music imported is kept once for all of them{each}.";
-    }
+    // Why the copies take so little together: the music imported is kept once for them all, so each copy costs about a copy of the
+    // data file.
+    private string Shared() => status.Last?.Manifest.Files.FirstOrDefault(f => f.Path == "prima.db") is { } data
+        ? $"The music imported is kept once for all of them, so each copy adds about the size of Prima's data file, {SyncText.Size(data.Size)}."
+        : "The music imported is kept once for all of them.";
 
     private void Changed(SyncStatus now) => _ = InvokeAsync(() =>
     {
