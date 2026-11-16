@@ -20,6 +20,53 @@ public class StartTests
         Assert.True(syncer.Status.Known);
     }
 
+    // The first start of a release that keeps copies, on a device with months of data and no copy of it yet (the update came from a
+    // version without them, whose own copy of the database went elsewhere): the store's folder isn't there yet, so there's no copy
+    // from before an update to check against. It takes a first copy of everything, and holds, replaces and refuses nothing.
+    [Fact]
+    public async Task StartAsync_TheFirstTimeCopiesAreKept_TakesAFirstCopy_AndLeavesTheDataAsItWas()
+    {
+        using var app = new App();
+        using var device = new TempFolder();
+        var folder = device["Documents/Workout backups/Installed 2026-03-01 090000"];
+        var before = app.Files();
+        var syncer = app.Syncer(new FolderStore(folder), app.Options("1.0.14"));
+
+        await syncer.StartAsync(Ct);
+
+        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(folder), Ct));
+        Assert.Equal((SyncReason.Scheduled, "1.0.14", 40L), (copy.Manifest.Reason, copy.Manifest.Version, copy.Manifest.Rows("prima.db", "Attempt")));
+        Assert.Equal(["errors.log", "library/collection/aria.pdf", "library/minuet.mid", "library/minuet.pdf", "prima.db"], copy.Manifest.Files.Select(f => f.Path).Order(StringComparer.Ordinal));
+        Assert.Null(copy.Held);
+        Assert.Equal((null, 0, false), (syncer.Status.Held, syncer.Status.Holding.Count, syncer.Status.Failed));
+        Assert.False(File.Exists(Path.Combine(folder, "held.json")));
+        // The device's data is as it was, every byte.
+        var after = app.Files();
+        Assert.Equal(before.Keys.Order(StringComparer.Ordinal), after.Keys.Order(StringComparer.Ordinal));
+        Assert.All(before, file => Assert.Equal(file.Value, after[file.Key]));
+    }
+
+    // The same first start when its folder can't be written to (shared storage not there just then): no copy, said in the status, and
+    // the data is as it was, nothing held, so the next start simply tries again.
+    [Fact]
+    public async Task StartAsync_TheFirstTimeCopiesAreKept_WhenTheyCantBeWritten_LeavesTheDataAsItWas()
+    {
+        using var app = new App();
+        using var device = new TempFolder();
+        var before = app.Files();
+        var syncer = app.Syncer(new WatchedStore(new FolderStore(device.Path)) { FailAt = 1 }, app.Options("1.0.14"));
+
+        await syncer.StartAsync(Ct);
+
+        Assert.Null(syncer.Status.Last);
+        Assert.True(syncer.Status.Failed);
+        Assert.StartsWith("No copy was made: the store went away.", syncer.Status.Message, StringComparison.Ordinal);
+        Assert.Equal((null, 0), (syncer.Status.Held, syncer.Status.Holding.Count));
+        var after = app.Files();
+        Assert.Equal(before.Keys.Order(StringComparer.Ordinal), after.Keys.Order(StringComparer.Ordinal));
+        Assert.All(before, file => Assert.Equal(file.Value, after[file.Key]));
+    }
+
     [Fact]
     public async Task StartAsync_LeavesACopyUnderADayOld_AndTakesAnotherAfterThat()
     {
