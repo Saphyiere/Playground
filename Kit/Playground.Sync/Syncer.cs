@@ -109,9 +109,7 @@ public sealed class Syncer
         RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
         {
             if (options.BeforeCopy is { } before) await before();
-            var kept = await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, check: true, report, ct);
-            Set(s => s with { Message = $"Kept a copy from before {what}, held until you restore it or let it go." });
-            return kept;
+            return await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, check: true, $"Kept a copy from before {what}, held until you restore it or let it go.", report, ct);
         }, keepMessage: false, ct);
 
     /// <summary>
@@ -153,23 +151,22 @@ public sealed class Syncer
         }
 
         progress?.Report(1);
-        await ShowOwnAsync(copy, ct);
-        if (say)
-        {
-            var said = files == 0 ? "Copied: nothing had changed since the copy before."
-                : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
-            Set(s => s with { Message = said });
-        }
+        var said = files == 0 ? "Copied: nothing had changed since the copy before."
+            : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
+        await ShowOwnAsync(copy, say ? said : null, ct);
         return copy!;
     }
 
-    /// <summary>A copy of the data as it is into the app's own store alone, held: kept from before a restore, or a change the app makes.</summary>
-    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, bool check, Action<string, double> report, CancellationToken ct)
+    /// <summary>
+    /// A copy of the data as it is into the app's own store alone, held: kept from before a restore, or a change the app makes. The
+    /// status shows it held with <paramref name="message"/>, when there's one.
+    /// </summary>
+    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, bool check, string? message, Action<string, double> report, CancellationToken ct)
     {
         var copy = await CopyWithinAsync(reason, null, [Store], say: false, check, report, null, ct);
         var held = new SyncHeld(copy.Key, "", why, time.GetUtcNow()) { From = from };
         await HoldAsync(Store, held, ct);
-        await ShowOwnAsync(copy, ct);
+        await ShowOwnAsync(copy, message, ct);
         return Described(new StoreCopy(Store, copy.Key, copy.Manifest, held));
     }
 
@@ -316,8 +313,7 @@ public sealed class Syncer
                     said += $" It's still held: it couldn't be let go ({Reason(e)}).";
                 }
             }
-            await ShowOwnAsync(null, CancellationToken.None);
-            Set(s => s with { Message = said });
+            await ShowOwnAsync(null, said, CancellationToken.None);
             return true;
         }, keepMessage: false, ct);
 
@@ -333,7 +329,7 @@ public sealed class Syncer
     {
         try
         {
-            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore, check: false,
+            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore, check: false, null,
                 (_, part) => report("Keeping what's here first", part), ct);
         }
         catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
@@ -490,8 +486,7 @@ public sealed class Syncer
         try
         {
             await ReleaseAsync(Store, held, ct);
-            await ShowOwnAsync(null, ct);
-            Set(s => s with { Message = "Let go: newer copies take its place, as with any other." });
+            await ShowOwnAsync(null, "Let go: newer copies take its place, as with any other.", ct);
         }
         finally
         {
@@ -793,7 +788,7 @@ public sealed class Syncer
 
             await HoldAsync(before.Store, new SyncHeld(before.Key, update, why, time.GetUtcNow()), ct);
             logger?.LogWarning("After the update to {Update}, the data had less than the copy taken just before it: {Why}. That copy is kept until it's restored or let go.", update, why);
-            await ShowOwnAsync(null, ct);
+            await ShowOwnAsync(null, null, ct);
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or SqliteException)
@@ -1001,25 +996,28 @@ public sealed class Syncer
     /// <summary>
     /// The app's own copies, newest first, into the status: the newest, those held (<see cref="SyncStatus.Held"/> the newest one's),
     /// how many there are, and what they take together: content they share (the library's files, mostly) is kept once, so it's
-    /// counted once.
+    /// counted once. A sentence on what was just done goes in with them, so a screen never shows one without the other.
     /// </summary>
-    private void Show(IReadOnlyList<StoreCopy> copies)
+    private void Show(IReadOnlyList<StoreCopy> copies, string? message = null)
     {
         List<SyncCopy> holding = [.. copies.Where(c => c.Held is not null)];
         var stored = copies.SelectMany(c => c.Manifest.Files).DistinctBy(f => f.Sha256).Sum(f => f.Size);
-        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding, Copies = copies.Count, Stored = stored });
+        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding, Copies = copies.Count, Stored = stored, Message = message ?? s.Message });
     }
 
-    /// <summary>The app's own copies as they now are, into the status; when they can't be read again, at least the one just taken.</summary>
-    private async Task ShowOwnAsync(StoreCopy? taken, CancellationToken ct)
+    /// <summary>
+    /// The app's own copies as they now are, into the status with what was just done; when they can't be read again, at least the
+    /// one just taken.
+    /// </summary>
+    private async Task ShowOwnAsync(StoreCopy? taken, string? message, CancellationToken ct)
     {
         try
         {
-            Show(await CopiesInAsync(Store, ct));
+            Show(await CopiesInAsync(Store, ct), message);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            if (taken is not null) Set(s => s with { Known = true, Last = taken });
+            Set(s => s with { Known = true, Last = taken ?? s.Last, Message = message ?? s.Message });
         }
     }
 
