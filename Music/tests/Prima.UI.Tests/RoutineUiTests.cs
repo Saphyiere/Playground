@@ -17,12 +17,14 @@ public class RoutineUiTests
     {
         await using var host = new ComponentHost();
         var view = host.Context.Render<RoutineAsk>();
-        var goal = view.WaitForElement("#routine-goal");
+        // The form shows once the recent practice is looked at, which takes longer than bUnit's second with every test running.
+        var goal = view.WaitForElement("#routine-goal", TimeSpan.FromSeconds(10));
         Assert.Equal(0, host.Claude.Calls);
         Assert.Equal("off", view.Find("[data-action='routine-generate']").GetAttribute("data-piano"));
         Assert.True(view.Find("[data-action='routine-generate']").HasAttribute("disabled"));
-        goal.Change("The move into A needs work");
-        view.Find("#routine-minutes").Change("15");
+        // Each change is saved as it's made: waited for, so the store is read after the saves, not during them.
+        await view.InvokeAsync(() => goal.ChangeAsync("The move into A needs work"));
+        await view.InvokeAsync(() => view.Find("#routine-minutes").ChangeAsync("15"));
 
         var stored = await host.Store.GetTrackAsync<RoutineAsk.SavedRequest>("routine-request-form");
         Assert.NotNull(stored);

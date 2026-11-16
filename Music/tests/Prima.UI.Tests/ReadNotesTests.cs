@@ -107,10 +107,13 @@ public class ReadNotesTests
         Assert.Equal(124.5 * 236 / 900, top / 100 * 236 / ratio, 1);
 
         view.FindAll(".pdfread-plan .tempo-control button")[1].Click();
-        style = view.Find(".pdfread-page").GetAttribute("style");
-        Assert.NotNull(style);
-        ratio = double.Parse(style.Split(':')[1].TrimEnd(';'), System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(host.Browser.PageRatios[1], ratio, 8);
+        // The second page's shape is asked of the browser as it's chosen: waited for, not read before it comes back.
+        view.WaitForAssertion(() =>
+        {
+            var chosen = view.Find(".pdfread-page").GetAttribute("style");
+            Assert.NotNull(chosen);
+            Assert.Equal(host.Browser.PageRatios[1], double.Parse(chosen.Split(':')[1].TrimEnd(';'), System.Globalization.CultureInfo.InvariantCulture), 8);
+        }, TimeSpan.FromSeconds(10));
     }
 
     [Fact]
