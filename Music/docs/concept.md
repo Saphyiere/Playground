@@ -918,11 +918,15 @@ details.
   voices' lyrics numbered alike, or verses an exporter names (`part1verse1`) that Verovio reads as one, would otherwise share
   a line and print over each other. A song's lines typed as text over or under the music (directions: four or more of three
   words or more, one every four bars at least) go on a line of their own under the notes they start at, since as directions
-  they piled up and crushed their bars; a whole verse typed as text (longer than 60 characters) is left off. Where a line
-  still can't hold its words apart (a busy song, the tablet upright), a passage's bars first break where they fit, then the
-  words get smaller, to 3.3, 2.9 and at the least 2.5: small words read better than words run together. **Lyrics** off
-  (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note names and
-  counts) are printed as written.
+  they piled up and crushed their bars; a whole verse typed as text (longer than 60 characters) is left off. Where a line's
+  words still run together (less than a pixel apart, measured as drawn), they get more room before they get smaller: Verovio
+  fills each line to the brim with bars, and justifying a line a little too full squeezes its words together at any size (a
+  smaller size only lets more bars onto the line), so a passage's bars first break where they fit, then the room between
+  words is doubled and then tripled (2.4 and 3.6 half-spaces against 1.2), which makes the busy bars wider and fewer a line.
+  Only a bar too wide for the line on its own (a very busy song, the tablet upright) makes the words smaller, to 3.3, 2.9
+  and at the least 2.5: small words read better than words run together. A song whose words fit is drawn as it was.
+  **Lyrics** off (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note
+  names and counts) are printed as written.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
   the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
   the app as woff2 files, so it works offline; Verovio brings its own music fonts.
