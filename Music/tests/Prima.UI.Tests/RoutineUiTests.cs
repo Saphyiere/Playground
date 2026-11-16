@@ -144,4 +144,77 @@ public class RoutineUiTests
         Assert.Equal(landing.Revision, (await service.ActiveAsync())!.Revision);
         Assert.Equal(0, host.Claude.Calls);
     }
+
+    // The owner's rules for routines, decided 15 November (the review of main at a7ab94d, part 5).
+
+    // 39. The Routines key is lit during an exercise or drill opened from a routine (its address carries the routine's run), and
+    // it's the only key lit; the same exercise opened from Exercises lights Exercises.
+    [Theory]
+    [InlineData("exercises/octave-jump?execution=run", "Routines")]
+    [InlineData("drills/playback?execution=run", "Routines")]
+    [InlineData("drills/scales?execution=run", "Routines")]
+    [InlineData("routine/play/run", "Routines")]
+    [InlineData("exercises/octave-jump", "Exercises")]
+    [InlineData("drills/playback", "Drills")]
+    public async Task TheRoutinesKeyIsLitDuringAnExerciseOrDrillOpenedFromARoutine(string address, string lit)
+    {
+        await using var host = new ComponentHost();
+        host.Context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().NavigateTo(address);
+
+        var rail = host.Context.Render<Prima.UI.Layout.Rail>();
+
+        Assert.Equal([lit], rail.FindAll(".mu-nav-item.active > span:last-child").Select(k => k.TextContent));
+    }
+
+    // 40. Only Claude's words are respelled the American way: not the goal the owner typed, nor a piece's title.
+    [Fact]
+    public async Task OnlyClaudesWordsAreRespelledNotTheGoalTypedNorAPiecesTitle()
+    {
+        await using var host = new ComponentHost();
+        var service = host.Context.Services.GetRequiredService<RoutineService>();
+        await service.RecentAsync();
+        var failed = RoutineStoreTests.ReadyJob() with { State = RoutineGenerationState.Failed, Draft = null, Prepared = null, Request = new(10, "Practise the left hand's leaps") };
+        var forPiece = failed with { Id = "for-piece", Request = new(10, ""), Source = new RoutineSource("waltz", "Practise Waltz", "revision", "<mei/>", true) };
+        var answered = RoutineStoreTests.ReadyJob() with { Draft = new("Practise the leaps", "Practise slowly", RoutineStoreTests.ReadyJob().Draft!.Items) };
+        foreach (var job in new[] { failed, forPiece, answered }) await host.Store.CreateRoutineJobAsync(job);
+
+        var view = host.Context.Render<RoutineLibrary>();
+        view.WaitForElement($"[data-routine-job='{answered.Id}']");
+
+        Assert.Equal("Practise the left hand's leaps", view.Find($"[data-routine-job='{failed.Id}'] .piece-title").TextContent);
+        Assert.Equal("Practise Waltz", view.Find($"[data-routine-job='{forPiece.Id}'] .piece-title").TextContent);
+        Assert.Contains("Practise Waltz", view.Find($"[data-routine-job='{forPiece.Id}'] .piece-meta").TextContent);
+        Assert.Equal("Practice the leaps", view.Find($"[data-routine-job='{answered.Id}'] .piece-title").TextContent);
+    }
+
+    // 41. A request in Asked for that isn't being asked just now can be dismissed, which takes it off for good.
+    [Fact]
+    public async Task ARequestThatIsntBeingAskedJustNowCanBeDismissedForGood()
+    {
+        await using var host = new ComponentHost();
+        var service = host.Context.Services.GetRequiredService<RoutineService>();
+        await service.RecentAsync();
+        var failed = RoutineStoreTests.ReadyJob() with { State = RoutineGenerationState.Failed, Draft = null, Prepared = null, Problem = "Claude couldn't be asked" };
+        var asking = RoutineStoreTests.ReadyJob() with { State = RoutineGenerationState.Running, Draft = null, Prepared = null };
+        var waiting = RoutineStoreTests.ReadyJob() with { State = RoutineGenerationState.Queued, Draft = null, Prepared = null };
+        foreach (var job in new[] { failed, asking, waiting }) await host.Store.CreateRoutineJobAsync(job);
+        var view = host.Context.Render<RoutineLibrary>();
+        view.WaitForElement($"[data-routine-job='{failed.Id}']");
+
+        // Only the one that isn't being asked can go, and it asks first.
+        var dismiss = Assert.Single(view.FindAll("[data-action='routine-dismiss']"));
+        Assert.Equal(failed.Id, dismiss.Closest(".routine-request")!.QuerySelector("[data-routine-job]")!.GetAttribute("data-routine-job"));
+        await view.InvokeAsync(() => view.Find("[data-action='routine-dismiss']").ClickAsync(new MouseEventArgs()));
+        Assert.Contains(failed.Id, view.FindAll("[data-routine-job]").Select(r => r.GetAttribute("data-routine-job")));
+        await view.InvokeAsync(() => view.Find("[data-action='routine-dismiss-confirm']").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal(new[] { asking.Id, waiting.Id }.Order(StringComparer.Ordinal),
+            view.FindAll("[data-routine-job]").Select(r => r.GetAttribute("data-routine-job")!).Order(StringComparer.Ordinal)));
+        Assert.Null(await host.Store.GetRoutineJobAsync(failed.Id));
+        Assert.DoesNotContain(await service.RecentAsync(), j => j.Id == failed.Id);
+        // Being asked, it can't be: what Claude sends back would have nowhere to go.
+        Assert.False(await service.DismissAsync(asking.Id));
+        Assert.False(await service.DismissAsync(waiting.Id));
+        Assert.NotNull(await host.Store.GetRoutineJobAsync(asking.Id));
+    }
 }

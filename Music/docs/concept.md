@@ -468,14 +468,18 @@ and switch between them. **Ask for routine** in its head asks for another (Exerc
 - **Asked for**: every request that isn't a routine yet, however many are accepted after it, newest first, each with what it's
   called, where it is (Asking Claude…, Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and
   when. Each opens the request: its proposal to look over and use, or why it didn't finish and **Retry request**. The list
-  follows a request as it changes.
+  follows a request as it changes. **Dismiss…** beside one that isn't being asked just now asks, then takes it off for good;
+  one waiting to be asked or asking Claude stays until it's back.
 - **Your routines**: every routine accepted, newest first, an adjusted one too (Adjusted), each a card with its minutes and
-  activities, its summary, its activities by name, when it was accepted and last practiced, and its piece. **Follow** makes it
-  the one Today has; the one followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its
-  own progress for the day, so switching back finds today's done activities still done.
+  activities, its summary, its activities by name, when it was accepted and last practiced (the last day one of its activities
+  had time played: one only opened, or skipped, isn't practice), and its piece. **Follow** makes it the one Today has; the one
+  followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its own progress for the day,
+  so switching back finds today's done activities still done.
 
-The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity.
-Routines Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it.
+The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity,
+an exercise or a drill opened from a routine among them (Exercises and Drills are lit when they're opened from there). Routines
+Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
+Claude's words are respelled, never the goal you typed or a piece's title.
 
 ### Tools
 

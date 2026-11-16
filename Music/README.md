@@ -19,9 +19,9 @@ time available, optionally select bars and describe the difficulty, then generat
 hands, tempos and music before using it. The accepted routine becomes Today’s default until changed; existing pinned exercises
 remain available separately.
 
-**Routines**, under Library in the rail, keeps every routine accepted and every request that isn't one yet: the one Today
-follows, requests being asked, ready to look over or not finished, and each routine kept, with **Follow** to make it Today's
-again. Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses
+**Routines**, under Library in the rail, keeps every routine accepted and every request that isn't one yet, until it's
+dismissed: the one Today follows, requests being asked, ready to look over or not finished, and each routine kept, with
+**Follow** to make it Today's again. Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses
 nothing.
 
 Suggestions use separate reading, rhythm and technique evidence. Sparse history stays provisional, and Wait for me results

@@ -204,6 +204,20 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
         if (active.TryGetValue(id, out var running)) await running.CancelAsync();
     }
 
+    /// <summary>
+    /// Takes a request off Asked for for good: one that came back, didn't finish, or was cancelled. One being asked just now is
+    /// left alone (false), so what Claude sends back isn't lost.
+    /// </summary>
+    public async Task<bool> DismissAsync(string id)
+    {
+        await recovered;
+        var job = await store.GetRoutineJobAsync(id);
+        if (job is null || !await store.DeleteRoutineJobAsync(id)) return false;
+
+        Publish(job);
+        return true;
+    }
+
     public async Task InterruptAsync(string id, string reason)
     {
         await recovered;
