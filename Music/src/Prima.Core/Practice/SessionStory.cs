@@ -251,10 +251,12 @@ public sealed record SessionStory(Work Work, string Headline, IReadOnlyList<Stor
         // A bar with a bar either side, as Practice bar N loops it.
         private (int From, int To) Around(int bar) => (Math.Max(piece.FirstBar, bar - 1), Math.Min(piece.LastBar, bar + 1));
 
-        // The bars where something happens most of the times they're played (three times in four), the most first: up to six.
+        // The bars where something happens most of the times they're played (three times in four), the most often first, then
+        // the most notes: up to six. It's the times it happened in that count, not its notes, so three notes out in one time
+        // through of four is once.
         private List<int> Where(Func<BarTrouble, int> count) => [.. Enumerable.Range(piece.FirstBar, piece.Bars)
-            .Select(bar => (Bar: bar, Plays: timed.Count(u => u.Covers(bar)), Sum: timed.Sum(u => u.In(bar) is { } t ? count(t) : 0)))
-            .Where(b => b.Plays > 0 && b.Sum >= 0.75 * b.Plays).OrderByDescending(b => b.Sum / (double)b.Plays).Take(6).Select(b => b.Bar).Order()];
+            .Select(bar => (Bar: bar, Plays: timed.Count(u => u.Covers(bar)), Times: timed.Count(u => u.In(bar) is { } t && count(t) > 0), Sum: timed.Sum(u => u.In(bar) is { } t ? count(t) : 0)))
+            .Where(b => b.Plays > 0 && b.Times >= 0.75 * b.Plays).OrderByDescending(b => b.Times / (double)b.Plays).ThenByDescending(b => b.Sum / (double)b.Plays).Take(6).Select(b => b.Bar).Order()];
 
         // ——— What moved, and what didn't ———
 
