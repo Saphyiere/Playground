@@ -11,12 +11,16 @@ Personal apps for my Android phone, tablet and Galaxy Watch, built with .NET 10.
 ## Layout
 
 ```
-Directory.Build.props     Build settings every project shares: output to artifacts/, nullable, implicit usings.
-Directory.Build.targets   Keeps Visual Studio's background builds from breaking Android resource ids.
+Directory.Build.props     Build settings every project shares: output to artifacts/, nullable, implicit usings, the devices'
+                          signing key, and app files (.apk) rather than app bundles.
+Directory.Build.targets   Signs every app with the devices' key, brings in the install guard, and keeps Visual Studio's
+                          background builds from breaking Android resource ids.
 global.json               SDK settings: the test runner and MSBuild SDK versions.
 CLAUDE.md                 How Claude works in this repo: build, test, check screens, commit.
 tools/
+  build/InstallGuard.*    The install guard: stops an install from the PC that would erase an app's data on the device.
   cloud-setup.sh          The cloud environment's setup script.
+  release/                The Release workflow's script, and how keys and installing from the PC work (its README).
   screens/screens.mjs     Takes screenshots of an app's preview host, for checking screens from a cloud session.
 docs/
   claude-research.md      Research on the apps asking Claude: a workout trainer, a practice teacher, PDFs into notation.
@@ -37,6 +41,13 @@ result. Start a session per app or task, with this repo selected.
 **Windows.** Visual Studio 2026 with the **.NET Multi-platform App UI development** workload, which brings the .NET 10 SDK, the
 Android SDK and a JDK. Open an app's solution, e.g. `Workout/AdaptiveWorkout.slnx`. Each app's README covers putting it on the
 phone, tablet or watch.
+
+**Keys and installing.** Every build of every app, Debug or Release, from Visual Studio or the command line, is signed with one
+key, the PC's .NET for Android debug key, and so are the GitHub releases: any of them installs over any other as an update and
+keeps the app's data. Before anything is installed from the PC, the install guard compares it with the copy on the device and
+stops when installing would erase that copy's data. Release is never built or installed on the PC: releases come only from the
+GitHub workflow, and a change is tried on a device with a Debug build, after backing up the app's data.
+[tools/release/README.md](tools/release/README.md#one-key-for-every-build) says how it all works, and why.
 
 ## Adding an app
 

@@ -1,0 +1,45 @@
+<Project>
+
+  <!--
+    The install guard, which the root Directory.Build.targets brings into every app. Before a build installs an app on a device
+    (Visual Studio's Deploy and Run, dotnet build -t:Install, dotnet run), it compares the build with the copy already on the
+    device. When installing would make .NET for Android uninstall the app, which erases its data, it stops the build with a plain
+    message naming both: a copy signed with another key, a copy with a newer versionCode, an app bundle, or AndroidPreserveUserData
+    set to false. It does nothing when no device is connected or the app isn't on it. InstallGuard.cs has the details.
+  -->
+  <UsingTask TaskName="PlaygroundInstallGuard" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <Task>
+      <Code Type="Class" Language="cs" Source="$(MSBuildThisFileDirectory)InstallGuard.cs" />
+    </Task>
+  </UsingTask>
+
+  <!-- Before whichever of .NET for Android's install steps comes first: _DeployAppBundle, then _Upload (fast deployment, which
+       Visual Studio's Deploy and Run use) on Windows; _DeployApk or _DeployAppBundle without fast deployment. -->
+  <Target Name="PlaygroundInstallGuard"
+          BeforeTargets="_DeployAppBundle;_DeployApk;_Upload"
+          DependsOnTargets="$(_OnResolveMonoAndroidSdks)"
+          Condition="'$(AndroidApplication)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_PlaygroundAdbExe>$(AdbToolExe)</_PlaygroundAdbExe>
+      <_PlaygroundAdbExe Condition="'$(_PlaygroundAdbExe)' == '' and '$(OS)' == 'Windows_NT'">adb.exe</_PlaygroundAdbExe>
+      <_PlaygroundAdbExe Condition="'$(_PlaygroundAdbExe)' == ''">adb</_PlaygroundAdbExe>
+      <_PlaygroundJavaExe>$(JavaToolExe)</_PlaygroundJavaExe>
+      <_PlaygroundJavaExe Condition="'$(_PlaygroundJavaExe)' == '' and '$(OS)' == 'Windows_NT'">java.exe</_PlaygroundJavaExe>
+      <_PlaygroundJavaExe Condition="'$(_PlaygroundJavaExe)' == ''">java</_PlaygroundJavaExe>
+    </PropertyGroup>
+    <PlaygroundInstallGuard
+        Adb="$([System.IO.Path]::Combine('$(AdbToolPath)', '$(_PlaygroundAdbExe)'))"
+        AdbTarget="$(AdbTarget)"
+        PackageName="$(_AndroidPackage)"
+        AppName="$([MSBuild]::ValueOrDefault('$(ApplicationTitle)', '$(MSBuildProjectName)'))"
+        PackageFormat="$(AndroidPackageFormat)"
+        AppFile="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(ApkFileSigned)'))"
+        ManifestFile="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'android', 'AndroidManifest.xml'))"
+        Java="$([System.IO.Path]::Combine('$(JavaToolPath)', '$(_PlaygroundJavaExe)'))"
+        ApkSignerJar="$(ApkSignerJar)"
+        WorkFolder="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))"
+        DevicesKeySha256="$(PlaygroundSigningSha256)"
+        PreserveUserData="$(AndroidPreserveUserData)" />
+  </Target>
+
+</Project>
