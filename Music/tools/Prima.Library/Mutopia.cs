@@ -136,12 +136,13 @@ internal static class Mutopia
         var (licence, licenceUrl) = Licence(Field("licence"));
         if (rdf is null || !Keyboard.IsMatch(Field("for")) || licence is null || Field("pdfFileA4") is not { Length: > 0 } pdf) return [];
 
-        var title = Title(Field("title"), Field("opus"));
+        var (work, numbered) = Opus(Field("opus"));
+        var title = Numbered(Title(Field("title"), Field("opus")), numbered);
         var number = Regex.Match(Field("id"), @"-(\d+)$").Groups[1].Value;
         var maintainer = Field("maintainer");
         var credit = $"Typeset{(maintainer.Length > 0 ? $" by {maintainer}" : "")} for the Mutopia Project{(Field("source") is { Length: > 0 } source ? $", from {source}" : "")}; {licence}.";
         var info = number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url;
-        BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, Opus(Field("opus")), "pdf", file, midi,
+        BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, work, "pdf", file, midi,
             Pdmx.Hash(Path.Combine(output, file)), Name, info, licence, licenceUrl, credit, TierOf(licence), null, midi is null ? null : Level(Path.Combine(output, midi), partTitle));
 
         if (!pdf.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
@@ -174,18 +175,21 @@ internal static class Mutopia
         using (var zip = ZipFile.OpenRead(pdfs))
         {
             // In their order, numbers as numbers: "2-…" before "10-…". Not the US Letter copies some zips hold beside the A4 ones,
-            // nor a duet's parts beside a piece for two hands. Where the movements come with MIDI, not the PDFs without it either:
-            // the whole suite beside its movements, a set's title page.
+            // nor a duet's parts beside a piece for two hands. Where the movements come with MIDI, not the PDFs without it either
+            // (a set's title page), nor the whole piece beside its movements, the PDF named for the piece itself ("french-suite-3",
+            // "BWV-827", "pictures-at-an-exhibition-all"), which comes with a MIDI file of its name too.
+            static string Stem(ZipArchiveEntry entry) => Regex.Replace(Path.GetFileNameWithoutExtension(entry.Name), "-a4$", "");
             var entries = zip.Entries.Where(e => e.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
                     && !Regex.IsMatch(e.Name, @"(^|[-_])(letter|let)[-_]|four-hands|4-hands|\bduet|primo|secondo", RegexOptions.IgnoreCase))
                 .OrderBy(e => Regex.Replace(e.Name, @"\d+", m => m.Value.PadLeft(4, '0')), StringComparer.Ordinal).ToList();
-            if (entries.Any(e => midiOf.ContainsKey(Regex.Replace(Path.GetFileNameWithoutExtension(e.Name), "-a4$", ""))))
+            if (entries.Any(e => midiOf.ContainsKey(Stem(e))))
             {
-                entries = [.. entries.Where(e => midiOf.ContainsKey(Regex.Replace(Path.GetFileNameWithoutExtension(e.Name), "-a4$", "")))];
+                entries = [.. entries.Where(e => midiOf.ContainsKey(Stem(e)))];
             }
+            if (entries.Count > 1) entries.RemoveAll(e => Stem(e).Equals(folder, StringComparison.OrdinalIgnoreCase) || Stem(e).Equals($"{folder}-all", StringComparison.OrdinalIgnoreCase));
             foreach (var entry in entries)
             {
-                var stem = Regex.Replace(Path.GetFileNameWithoutExtension(entry.Name), "-a4$", "");
+                var stem = Stem(entry);
                 var partId = $"{id}-{Regex.Replace(stem, "[^A-Za-z0-9-]", "-")}";
                 var file = $"pieces/{partId}.pdf";
                 entry.ExtractToFile(Path.Combine(output, file), overwrite: true);
@@ -195,9 +199,11 @@ internal static class Mutopia
                     midi = $"pieces/{partId}.mid";
                     await File.WriteAllBytesAsync(Path.Combine(output, midi), bytes);
                 }
-                // The part's name is its file's, less the piece's: "french-suite-3-allemande" is "Allemande". A file named for no
-                // word ("bwv-827-1", "11title-hub") is the piece's movement by its place: "Partita No. 3, movement 1".
-                var name = Regex.Replace(stem.StartsWith(folder, StringComparison.OrdinalIgnoreCase) ? stem[folder.Length..] : stem, "[-_]+", " ").Trim();
+                // The part's name is its file's, less the piece's, with the composer's before it: "french-suite-5-allemande" and
+                // "bach-french-suite-3-allemande" are "Allemande". A file named for no word ("bwv-827-1", "11title-hub") is the
+                // piece's movement by its place: "Partita No. 3, movement 1".
+                var piece = Regex.Match(stem, $@"^(\p{{L}}+-)?{Regex.Escape(folder)}", RegexOptions.IgnoreCase);
+                var name = Regex.Replace(piece.Success ? stem[piece.Length..] : stem, "[-_]+", " ").Trim();
                 var words = Regex.Matches(name, @"\p{L}{3,}").Select(m => m.Value.ToLowerInvariant()).Where(w => w is not ("title" or "hub" or "part" or "page" or "bwv")).ToList();
                 var named = words.Count > 0 ? $"{title}: {char.ToUpperInvariant(name[0])}{name[1..]}" : $"{title}, movement {entries.IndexOf(entry) + 1}";
                 parts.Add(Piece(partId, named, file, midi));
@@ -206,10 +212,28 @@ internal static class Mutopia
         return parts;
     }
 
-    // An opus written one way, as the work a piece is listed under: "Op 28, No 10", "O 27" and "Opus 10, No. 1" are "Op. 28 No. 10",
-    // "Op. 27" and "Op. 10 No. 1"; a catalogue's own (BWV 825, KV 453a, B. 130) stays as it is.
-    private static string Opus(string opus) =>
-        Regex.Replace(Regex.Replace(opus.Trim(), @"^(O|Op|Opus)\.?\s*(?=\d)", "Op. ", RegexOptions.IgnoreCase), @",?\s*\b(No|Nr)\.?\s*(?=\d)", " No. ", RegexOptions.IgnoreCase);
+    // A piece's opus as the work it's listed under, written one way and without the piece's own number, so a set's pieces share it:
+    // "Op 28, No 10", "O 68 n°1", "O 15 N 1", "O 37,1", "Opus 34. I." and "Opus 46 no. 1 (Craw 17)" are the works "Op. 28", "Op. 68",
+    // "Op. 15", "Op. 37", "Op. 34" and "Op. 46", numbered 10, 1, 1, 1, 1 and 1; "D.899 (Op. 90, No. 1)" is "D.899 (Op. 90)", No. 1;
+    // "O 27" is "Op. 27". A catalogue's own number (BWV 825, KV 453a, Hob. XVI:27) is the work.
+    private static (string Work, int? Number) Opus(string opus)
+    {
+        var written = Regex.Replace(opus.Trim(), @"^(O|Op|Opus)\.?\s*(?=\d)", "Op. ", RegexOptions.IgnoreCase);
+        var number = Regex.Match(written, @"(,\s*|\s+)(No|Nr|N|n°|nº)\.?\s*(?<n>\d+)\b|(?<=\d),\s*(?<n>\d+)\b|(?<=\d)-(?<n>\d+)(?=\s|$)|\.\s+(?<roman>[IVX]+)\.?$", RegexOptions.IgnoreCase);
+        if (!number.Success) return (written, null);
+
+        // What's after the number (another catalogue's number for the piece, "(Craw 17)") is the piece's; a bracket it was in is closed.
+        var work = written[..number.Index].TrimEnd(' ', ',', '.');
+        if (work.Count(c => c == '(') > work.Count(c => c == ')')) work += ")";
+        return (work, number.Groups["n"].Success ? int.Parse(number.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture) : Array.IndexOf(Roman, number.Groups["roman"].Value.ToUpperInvariant()));
+    }
+
+    private static readonly string[] Roman = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+
+    // A piece's number from its opus, in its title when the title doesn't have it already: "Impromptu" in Op. 11 No. 1 is
+    // "Impromptu, No. 1"; "Prélude 10" (Op. 28 No. 10) and "Six sonates faciles (I)" (Op. 46 No. 1) stay as they are.
+    private static string Numbered(string title, int? number) =>
+        number is not { } n || n <= 0 || Regex.IsMatch(title, $@"\b{n}\b") || n < Roman.Length && Regex.IsMatch(title, $@"\b{Roman[n]}\b") ? title : $"{title}, No. {n}";
 
     // The Library's tier for a licence: share-alike (CC BY-SA) is one of its own, since what's made from it keeps the licence.
     private static Tier TierOf(string licence) => licence.StartsWith("CC BY-SA", StringComparison.Ordinal) ? Tier.SA : Tier.A;

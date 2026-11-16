@@ -117,7 +117,8 @@ sources:
   Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
 - **pdmx**: more of PDMX, public-domain and CC0 piano music by composers who died before 1931, beyond the named works the repo keeps.
 - **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY, and CC BY-SA,
-  which is share-alike: a tier of its own), each graded from its MIDI.
+  which is share-alike: a tier of its own), each graded from its MIDI, listed under its opus ("Op. 68") with its number in
+  its title.
 - **hymns**: the Open Hymnal's hymns that are public domain in tune, setting, words and translation (320 of its 352), each set
   for four voices on the grand staff, as a hymnal prints them, with its verses under the notes. They come as ABC, which the
   app's Verovio reads only one voice of, so abc2svg writes each as MEI first.
