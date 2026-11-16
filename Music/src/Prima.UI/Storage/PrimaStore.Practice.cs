@@ -271,8 +271,27 @@ public sealed partial class PrimaStore
         "INSERT INTO PracticeDay (Day, StepsDone, ShortDone) VALUES (@day, @step, @done) ON CONFLICT (Day) DO UPDATE SET StepsDone = CASE WHEN instr(StepsDone, @step) > 0 THEN StepsDone ELSE StepsDone || @step END, ShortDone = MAX(ShortDone, excluded.ShortDone)",
         new { day = Iso(day), step = step + ";", done = shortPlanDone ? 1 : 0 }));
 
-    /// <summary>Deletes everything practiced, keeping the settings and the Library's pieces: "start over".</summary>
-    public Task StartOverAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM RoutineAttempt; DELETE FROM RoutineExecution; DELETE FROM RoutineDay; DELETE FROM RoutineDefinition; DELETE FROM RoutineGeneration; DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'; DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession; UPDATE Excerpt SET Used = 0, LastUsed = NULL;"));
+    /// <summary>
+    /// Start over: everything Prima keeps about the playing goes, as one piece of work, so it's as on its first open, with the
+    /// settings and the Library as they are. Levels and tracks (the drills', the exercises' and those kept in My routine), note cards
+    /// and answers, every run (and with them what's next on each piece and the marks runs left on its music), practice days and
+    /// sessions, routines and requests, which sight-reading passages have come up, and on each piece where it was left, the tempo
+    /// set for it, the hand practiced (Piece.razor's Library.Hands.{id}) and when it was last opened. The Library's pieces stay,
+    /// with their files, readings and excerpts, and so do the choices of how a piece shows (its view) and how each screen plays
+    /// (In time or Wait for me).
+    /// </summary>
+    public Task StartOverAsync() => RunAsync(async c =>
+    {
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        await c.ExecuteAsync("""
+            DELETE FROM RoutineAttempt; DELETE FROM RoutineExecution; DELETE FROM RoutineDay; DELETE FROM RoutineDefinition; DELETE FROM RoutineGeneration;
+            DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision' OR Key LIKE 'Library.Hands.%';
+            DELETE FROM Track; DELETE FROM NoteCard; DELETE FROM NoteAnswer; DELETE FROM Attempt; DELETE FROM PracticeDay; DELETE FROM PracticeSession;
+            UPDATE Excerpt SET Used = 0, LastUsed = NULL;
+            UPDATE Piece SET Position = NULL, Tempo = NULL, Opened = NULL;
+            """, transaction: transaction);
+        await transaction.CommitAsync();
+    });
 
     /// <summary>The database file, for backing up.</summary>
     public string DatabasePath => databasePath;

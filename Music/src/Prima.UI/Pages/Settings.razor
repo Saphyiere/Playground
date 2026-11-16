@@ -381,7 +381,7 @@ else if (!finder.FoundAny)
         </div>
         @if (confirming || dataNote is not null)
         {
-            <p class="section-note" role="status">@(!confirming ? dataNote : notKept is { } why ? $"A copy couldn't be kept first ({why}), so nothing was cleared." : "This clears your progress: levels, notes, every run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the settings. A copy of everything is kept first, held in Your data until you restore it or let it go.")</p>
+            <p class="section-note" role="status">@(!confirming ? dataNote : notKept is { } why ? $"A copy couldn't be kept first ({why}), so nothing was cleared." : "This clears everything Prima keeps about your playing: levels, note cards, every run, practice day and session (and so the streak), routines and requests, which sight-reading passages have come up, and on each piece what's next, where you were, its tempo and the hand practiced. The settings and the Library stay as they are, with the music imported and the collection. Then Prima opens on its welcome, as it did the first time. A copy of everything is kept first, held in Your data until you restore it or let it go.")</p>
         }
     </Setting>
 </SettingsSection>
@@ -653,8 +653,8 @@ else if (!finder.FoundAny)
         await Save(() => Options.DailyMinutes = minutes);
     }
 
-    // Clears the progress, a copy of everything kept first and held (Your data shows it), unless keeping one failed and the owner
-    // asked to clear it without.
+    // Clears everything about the playing, a copy of everything kept first and held (Your data shows it), unless keeping one failed
+    // and the owner asked to clear it without; then Prima opens on its welcome, as on its first open.
     private async Task StartOver(bool keep)
     {
         clearing = true;
@@ -669,7 +669,8 @@ else if (!finder.FoundAny)
             return;
         }
         await Store.StartOverAsync();
-        (confirming, notKept, clearing, dataNote) = (false, null, false, "Cleared. Today starts from the beginning, with the Library as it was.");
+        (confirming, notKept, clearing) = (false, null, false);
+        Navigation.Open("welcome");
     }
 
     private static readonly int[] Minutes = [5, 10, 15, 20, 30, 45];

@@ -578,11 +578,14 @@ what's here can't be kept, nothing is restored
 and it says why, and **Restore without keeping what's here** restores all the same. **Export everything** puts it all in one zip
 for the share sheet (to Drive, or to the PC), which restores like a copy. The copies held stand first, newest first, each saying
 what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over) and when it was
-taken, with **Restore it…** and **Let it go** of its own. **Start over** clears your progress after asking: levels, notes, every
-run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection,
-and so do the settings: the music isn't progress, and only a copy or an export carries it. A copy of everything is kept first,
-held in Your data; if it can't be, nothing is cleared, and **Clear it without a copy** clears all the same. Nothing leaves the
-tablet unless you send it.
+taken, with **Restore it…** and **Let it go** of its own. **Start over** (**Clear my progress**, after asking) takes everything
+Prima keeps about your playing, so it's as on its first open: levels and tracks (the drills', the exercises' and My routine),
+note cards and answers, every run, practice day and session (and so the streak), routines and requests, which sight-reading
+passages have come up, and on each piece what's next, where it was left, the tempo set for it, the hand practiced and when it
+was last opened. The settings stay as they are, and so does the Library, with the music imported and the collection (the music
+isn't progress, and only a copy or an export carries it), and how each piece shows and each screen plays. Then Prima opens on
+its welcome. A copy of everything is kept first, held in Your data; if it can't be, nothing is cleared, and **Clear it without a
+copy** clears all the same. Nothing leaves the tablet unless you send it.
 
 **Problems:** what went wrong, the newest twelve, each line its time, how bad (Warning, Error, Critical), what said it (a
 screen, a job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (every problem
