@@ -88,10 +88,13 @@ history as a repeat and doesn't move the level or count as one of the day's pass
 
 The play bar's two modes are here too ([Playing to a tempo](#playing-to-a-tempo)). In time is reading at sight, as below. **Wait
 for me** waits at each note for the right keys and counts the notes right first time: practice for the notes, so it doesn't
-move the level or count as one of the day's passages. A passage stopped early is kept, but doesn't move the level either. The
-level can be set by hand on the first screen, with − and + and a line on what it reads (keys, metres, hands, tempo): it starts
-at the bottom of that level's tempo range, as Find my level sets it, and moves on from there as usual. The tempo's − and + set
-it for this passage and the next ones at the level.
+move the level or count as one of the day's passages. A passage stopped early is kept, but doesn't move the level either.
+
+The first screen is the same from the first time on: a new Prima reads at level 1 until the level is set, found or moved by
+the passages read. It has the level, with − and + and a line on what it reads (keys, metres, hands, tempo); ▶ for a new
+passage; and beside it **Find my level**, two short passages from levels 1, 3, 5 and up until they fall under 80% in time,
+then the level below. A level set by hand starts at the bottom of its tempo range, as Find my level sets it, and moves on from there as usual. The
+tempo's − and + set it for this passage and the next ones at the level.
 
 ### The piano buttons
 

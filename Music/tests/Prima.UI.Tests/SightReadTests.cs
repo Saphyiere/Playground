@@ -2,6 +2,7 @@ using AngleSharp.Dom;
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Prima.Core.Practice;
 using Prima.UI.Pages;
 
 namespace Prima.UI.Tests;
@@ -48,6 +49,31 @@ public class SightReadTests
         }, TimeSpan.FromSeconds(5));
     }
 
+    // The owner, 15 November: a new Prima assumes level 1 and opens Sight-read on its usual screen, the level with − and +, ▶ for a
+    // new passage and Find my level beside it; no first-time screen, no Start at level 1. Opening it keeps nothing.
+    [Fact]
+    public async Task ANewPrimaOpensSightReadOnItsNormalScreenAtLevelOne()
+    {
+        await using var host = new ComponentHost();
+        var view = host.Context.Render<SightRead>();
+
+        view.WaitForAssertion(() => Assert.Equal(["Level 1", $"{ReadingState.Start.Tempo:0} bpm"], view.FindAll(".reading-start .mu-screen-head span").Select(s => s.TextContent)));
+        Assert.Equal("1", Readout(view, "Level"));
+        Assert.Equal("1", view.Find(".control-row .control-value").TextContent);
+        Assert.True(view.Find("[aria-label='An easier level']").HasAttribute("disabled"));
+        Assert.False(view.Find("[aria-label='A harder level']").HasAttribute("disabled"));
+        var keys = view.FindAll(".control-row-play button");
+        Assert.Equal(["New passage", "Find my level"], keys.Select(k => k.GetAttribute("aria-label") ?? k.TextContent.Trim()));
+        Assert.Contains("mu-primary", keys[0].ClassList);
+        Assert.DoesNotContain("First time", view.Markup);
+        Assert.DoesNotContain("Start at level 1", view.Markup);
+        Assert.Null(await host.Store.GetTrackAsync<ReadingState>("reading"));
+
+        // ▶ reads a passage at level 1.
+        await view.InvokeAsync(() => keys[0].ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal("1", Readout(view, ".play-bar", "Level")));
+    }
+
     // The first screen's main key: a passage, and its look with Start in the play bar.
     private static async Task OpenAPassage(IRenderedComponent<SightRead> view)
     {
@@ -56,4 +82,10 @@ public class SightReadTests
     }
 
     private static IElement? Key(IRenderedComponent<SightRead> view, string words) => view.FindAll("button").FirstOrDefault(b => b.TextContent.Trim() == words);
+
+    // A readout's figure, by its label: the first screen's, or in a part of the page.
+    private static string? Readout(IRenderedComponent<SightRead> view, string label) => Readout(view, ".reading-start", label);
+
+    private static string? Readout(IRenderedComponent<SightRead> view, string within, string label) =>
+        view.FindAll($"{within} .mu-readout").FirstOrDefault(r => r.QuerySelector(".mu-readout-label")?.TextContent == label)?.QuerySelector(".mu-readout-value")?.TextContent;
 }
