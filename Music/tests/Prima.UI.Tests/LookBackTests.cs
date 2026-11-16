@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Prima.UI.Components;
 using Prima.UI.Pages;
 using Prima.UI.Storage;
@@ -32,7 +33,8 @@ public class LookBackTests
         var step = Assert.Single(view.FindAll(".look-steps li"));
         Assert.Equal("Bar 1, Wait for me", step.QuerySelector(".look-step-what")!.TextContent);
 
-        step.QuerySelector("button")!.Click();
+        // Clicked once the page has drawn it, found afresh: a button kept from before a render can carry a handler that's gone.
+        await view.InvokeAsync(() => view.Find(".look-steps li button").ClickAsync(new MouseEventArgs()));
 
         // Practice again, looping the step's bar in the step's mode (which the play bar reads as it's made), full screen as
         // Practice is.
@@ -56,7 +58,7 @@ public class LookBackTests
         var next = view.WaitForElement(".about-next");
         Assert.StartsWith("Next: Bar 1, Wait for me. Bar 1 was still going wrong at the end.", next.TextContent);
 
-        next.QuerySelector("button")!.Click();
+        await view.InvokeAsync(() => view.Find(".about-next button").ClickAsync(new MouseEventArgs()));
 
         view.WaitForAssertion(() => Assert.Equal("Loop bar 1", view.Find(".play-bar [data-piano=go]").TextContent.Trim()));
         view.WaitForAssertion(() => Assert.Equal("Wait for me", view.Find(".play-mode-option[aria-checked=true]").TextContent));
