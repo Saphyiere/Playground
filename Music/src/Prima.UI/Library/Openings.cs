@@ -19,6 +19,10 @@ public sealed class Openings(PrimaStore store, ILibraryBundle bundle, IKeyboard 
     private readonly Lock gate = new();
     private CancellationTokenSource? playing;
     private bool onThePiano;
+    // Each opening asked for, and each stop, counts one: an opening plays only if nothing was asked since its own ask while its
+    // notes were read, so two taps close together leave the later one playing, and ■ or leaving the Library before the first
+    // note leaves none.
+    private long asks;
 
     /// <summary>The piece whose opening is playing, by its id, or null.</summary>
     public string? Playing { get; private set; }
@@ -44,17 +48,24 @@ public sealed class Openings(PrimaStore store, ILibraryBundle bundle, IKeyboard 
         Stop();
         if (!CanPlay) return "Plug in the piano to hear it.";
 
+        long ask;
+        lock (gate) ask = ++asks;
         var notes = await NotesAsync(piece);
-        if (notes.Count == 0) return piece.IsPdf && !piece.HasNotes ? $"{piece.Title} came without MIDI, so there's nothing to play until its notes are read." : $"{piece.Title} has no notes to play.";
-
-        var mine = new CancellationTokenSource();
+        CancellationTokenSource mine;
+        CancellationToken stop;
+        bool piano;
         lock (gate)
         {
-            playing = mine;
+            // Another opening asked for, or a stop, while these notes were read: that's what's wanted now, so this one says nothing.
+            if (ask != asks) return null;
+            if (notes.Count == 0) return piece.IsPdf && !piece.HasNotes ? $"{piece.Title} came without MIDI, so there's nothing to play until its notes are read." : $"{piece.Title} has no notes to play.";
+
+            mine = playing = new CancellationTokenSource();
+            stop = mine.Token;
             Playing = piece.Id;
-            onThePiano = keyboard.CanSend;
+            piano = onThePiano = keyboard.CanSend;
         }
-        if (onThePiano) _ = OnThePiano(notes, mine.Token);
+        if (piano) _ = OnThePiano(notes, stop);
         else speaker.Play(Opening.ToMidi(notes));
         _ = EndAfter(notes.Max(n => n.End), mine);
         Changed?.Invoke();
@@ -67,6 +78,7 @@ public sealed class Openings(PrimaStore store, ILibraryBundle bundle, IKeyboard 
         bool piano;
         lock (gate)
         {
+            asks++;
             if (playing is null) return;
 
             playing.Cancel();
@@ -101,7 +113,8 @@ public sealed class Openings(PrimaStore store, ILibraryBundle bundle, IKeyboard 
         }
     }
 
-    // Each note on the piano at its moment, sent a quarter second ahead; a note let go just before it's struck again.
+    // Each note on the piano at its moment, sent a quarter second ahead; a note let go just before it's struck again. Each is sent
+    // under the gate, so none goes once Stop has let the opening go: a note struck after the piano was silenced would hang.
     private async Task OnThePiano(IReadOnlyList<FileNote> notes, CancellationToken stop)
     {
         var start = clock.NowNs + 200_000_000;
@@ -119,9 +132,13 @@ public sealed class Openings(PrimaStore store, ILibraryBundle bundle, IKeyboard 
         {
             do
             {
-                for (var now = clock.NowNs; next < messages.Count && messages[next].At <= now + AheadNs && !stop.IsCancellationRequested; next++)
+                for (var now = clock.NowNs; next < messages.Count && messages[next].At <= now + AheadNs; next++)
                 {
-                    keyboard.Send(messages[next].Message, messages[next].At);
+                    lock (gate)
+                    {
+                        if (stop.IsCancellationRequested) return;
+                        keyboard.Send(messages[next].Message, messages[next].At);
+                    }
                 }
             }
             while (next < messages.Count && await timer.WaitForNextTickAsync(stop));

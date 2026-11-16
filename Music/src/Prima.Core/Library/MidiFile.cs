@@ -2,8 +2,8 @@ using System.Buffers.Binary;
 
 namespace Prima.Core.Library;
 
-/// <summary>A note in a MIDI file: its key, when it starts and ends in seconds, and how hard it's struck.</summary>
-public sealed record FileNote(int Midi, double Start, double End, int Velocity);
+/// <summary>A note in a MIDI file: its key, when it starts and ends in seconds, how hard it's struck, and its channel.</summary>
+public sealed record FileNote(int Midi, double Start, double End, int Velocity, int Channel = 0);
 
 /// <summary>A note as the file has it, for notation: its track and channel, and when it starts and ends in the file's ticks.</summary>
 public sealed record TickNote(int Track, int Channel, int Midi, long On, long Off, int Velocity);
@@ -15,6 +15,9 @@ public sealed record TickNote(int Track, int Channel, int Midi, long On, long Of
 /// </summary>
 public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int BeatsPerBar, int BeatUnit, double Seconds, int Bars)
 {
+    /// <summary>The drum kit's channel in General MIDI: the tenth, 9 counting from 0. Its notes are drums, not keys.</summary>
+    public const int DrumChannel = 9;
+
     /// <summary>Ticks to a quarter note.</summary>
     public int Division { get; init; } = 480;
 
@@ -127,7 +130,7 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
         var bpm = 60_000_000.0 / (tempos.Count > 0 ? tempos[0].MicrosPerQuarter : 500_000) * meter.Unit / 4;
         var barTicks = (long)division * 4 * meter.Count / meter.Unit;
         var lastNote = notes.Count == 0 ? 0 : notes.Max(n => n.Off);
-        return new MidiFile([.. notes.OrderBy(n => n.On).Select(n => new FileNote(n.Midi, Seconds(n.On), Seconds(n.Off), n.Velocity))], bpm, meter.Count, meter.Unit,
+        return new MidiFile([.. notes.OrderBy(n => n.On).Select(n => new FileNote(n.Midi, Seconds(n.On), Seconds(n.Off), n.Velocity, n.Channel))], bpm, meter.Count, meter.Unit,
             Seconds(Math.Max(lastNote, 0)), barTicks > 0 ? (int)Math.Ceiling(lastNote / (double)barTicks) : 0)
         {
             Division = division,

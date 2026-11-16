@@ -25,8 +25,21 @@ public sealed partial class PrimaStore
     public Task<RoutineGenerationJob?> GetRoutineJobAsync(string id) => RunAsync(async c =>
         ReadRoutine<RoutineGenerationJob>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineGeneration WHERE Id = @id", new { id })));
 
-    public Task<List<RoutineGenerationJob>> GetRoutineJobsAsync() => RunAsync(async c =>
-        (await c.QueryAsync<string>("SELECT Data FROM RoutineGeneration ORDER BY Updated DESC LIMIT 30")).Select(d => ReadRoutine<RoutineGenerationJob>(d)!).ToList());
+    /// <summary>
+    /// Every request that isn't a routine yet, newest first. All of them, not the last few updated: accepting a request updates it,
+    /// so a few taken from all would let one still waiting drop off behind the routines accepted after it.
+    /// </summary>
+    public Task<List<RoutineGenerationJob>> GetRoutineJobsNotAcceptedAsync() => RunAsync(async c =>
+        (await c.QueryAsync<string>("SELECT Data FROM RoutineGeneration WHERE State <> @accepted ORDER BY Updated DESC", new { accepted = (int)RoutineGenerationState.Accepted }))
+            .Select(d => ReadRoutine<RoutineGenerationJob>(d)!).ToList());
+
+    /// <summary>
+    /// Takes a request off for good: one that isn't a routine and isn't being asked just now (waiting to be asked, or asking). False
+    /// when there's no such request.
+    /// </summary>
+    public Task<bool> DeleteRoutineJobAsync(string id) => RunAsync(async c => await c.ExecuteAsync(
+        "DELETE FROM RoutineGeneration WHERE Id=@id AND State NOT IN (@queued,@running,@accepted)",
+        new { id, queued = (int)RoutineGenerationState.Queued, running = (int)RoutineGenerationState.Running, accepted = (int)RoutineGenerationState.Accepted }) == 1);
 
     public Task CreateRoutineJobAsync(RoutineGenerationJob job) => RunAsync(c => c.ExecuteAsync(
         "INSERT INTO RoutineGeneration(Id,Revision,State,Updated,Data) VALUES(@Id,@Revision,@state,@updated,@data)",
@@ -79,10 +92,15 @@ public sealed partial class PrimaStore
     public Task<List<RoutineDefinition>> GetRoutineDefinitionsAsync() => RunAsync(async c =>
         (await c.QueryAsync<string>("SELECT Data FROM RoutineDefinition ORDER BY Accepted DESC")).Select(d => ReadRoutine<RoutineDefinition>(d)!).ToList());
 
-    /// <summary>The last day each routine had an activity practiced on it, by revision.</summary>
+    /// <summary>
+    /// The last day each routine had time played on one of its activities, by revision: an activity only opened, or skipped, wasn't
+    /// practiced.
+    /// </summary>
     public Task<Dictionary<string, DateOnly>> GetRoutineLastPracticedAsync() => RunAsync(async c =>
-        (await c.QueryAsync<(string Revision, string Day)>("SELECT d.Revision, MAX(d.Day) FROM RoutineExecution e JOIN RoutineDay d ON d.Id = e.DayId GROUP BY d.Revision"))
-            .ToDictionary(r => r.Revision, r => DateOnly.Parse(r.Day, CultureInfo.InvariantCulture)));
+        (await c.QueryAsync<(string Revision, string Day, string Data)>("SELECT d.Revision, d.Day, e.Data FROM RoutineExecution e JOIN RoutineDay d ON d.Id = e.DayId"))
+            .Where(r => ReadRoutine<RoutineExecution>(r.Data)!.ActiveSeconds > 0)
+            .GroupBy(r => r.Revision)
+            .ToDictionary(g => g.Key, g => g.Max(r => DateOnly.Parse(r.Day, CultureInfo.InvariantCulture))));
 
     /// <summary>Follows an accepted routine: Today uses it from now on, its progress today as it was if it was practiced today.</summary>
     public Task FollowRoutineAsync(string revision) => RunAsync(async c =>

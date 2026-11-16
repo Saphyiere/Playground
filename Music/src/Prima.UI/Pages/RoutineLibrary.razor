@@ -40,15 +40,32 @@ else
     {
         <section class="settings-section" aria-labelledby="asked-heading">
             <h2 id="asked-heading" class="section-title">Asked for</h2>
-            <p class="section-note">Requests that aren't routines yet: open one to look over what came back, ask again, or see why it didn't finish. The ones you've accepted are your routines, below.</p>
+            <p class="section-note">Requests that aren't routines yet: open one to look over what came back, ask again, or see why it didn't finish. Dismiss one you don't want, for good, once it isn't being asked. The ones you've accepted are your routines, below.</p>
             <ul class="piece-list routine-requests">
                 @foreach (var job in asked)
                 {
-                    <li>
+                    <li class="routine-request">
                         <a class="piece-row" data-piano="off" data-routine-job="@job.Id" data-state="@job.State.ToString().ToLowerInvariant()" href="@($"routine/jobs/{job.Id}")">
                             <span class="piece-title">@JobTitle(job)</span>
                             <span class="piece-meta">@JobState(job) · @job.Request.Minutes min@(job.Source is { } source ? $" · {source.Title}" : "") · @job.Updated.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)</span>
                         </a>
+                        @* One being asked just now stays: what Claude sends back would have nowhere to go. Taking one off asks first. *@
+                        @if (job.State is not (RoutineGenerationState.Queued or RoutineGenerationState.Running))
+                        {
+                            @if (dismissing == job.Id)
+                            {
+                                <span class="routine-request-actions">
+                                    <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="routine-dismiss-confirm" disabled="@busy" @onclick="() => Dismiss(job.Id)">Dismiss it</button>
+                                    <button type="button" class="mu-btn" data-piano="off" @onclick="() => dismissing = null">Keep it</button>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="routine-request-actions">
+                                    <button type="button" class="mu-btn" data-piano="off" data-action="routine-dismiss" @onclick="() => dismissing = job.Id">Dismiss…</button>
+                                </span>
+                            }
+                        }
                     </li>
                 }
             </ul>
@@ -111,6 +128,8 @@ else
     private bool loading = true;
     private bool busy;
     private string? problem;
+    // The request whose Dismiss… was tapped, asking whether to take it off for good.
+    private string? dismissing;
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,7 +145,7 @@ else
             active = await Routines.ActiveAsync();
             day = active is null ? null : await Routines.TodayAsync();
             routines = await Routines.RoutinesAsync();
-            asked = [.. (await Routines.RecentAsync()).Where(j => j.State != RoutineGenerationState.Accepted)];
+            asked = await Routines.RecentAsync();
             practiced = await Routines.LastPracticedAsync();
         }
         catch (Exception error)
@@ -156,6 +175,19 @@ else
     }
 
 
+    // A request taken off for good. One asked again since it was tapped stays, being asked.
+    private async Task Dismiss(string id)
+    {
+        busy = true;
+        try
+        {
+            if (!await Routines.DismissAsync(id)) problem = "That request is being asked just now: it can be dismissed once it's back.";
+            dismissing = null;
+            await Load();
+        }
+        finally { busy = false; }
+    }
+
     private async Task StopFollowing()
     {
         busy = true;
@@ -177,9 +209,10 @@ else
         return day == today ? "today" : day == today.AddDays(-1) ? "yesterday" : day.ToString("d MMM", CultureInfo.InvariantCulture);
     }
 
-    // What a request is called: what came back, or else what was asked for, or the piece it's for.
+    // What a request is called: what came back, or else what was asked for, or the piece it's for. Only Claude's words are
+    // respelled: the goal typed and the piece's title stay as they were written.
     private static string JobTitle(RoutineGenerationJob job) =>
-        RoutineWords.American(job.Draft?.Title ?? (job.Request.Goal is { Length: > 0 } goal ? goal : job.Source?.Title ?? "Practice routine"));
+        job.Draft?.Title is { } title ? RoutineWords.American(title) : job.Request.Goal is { Length: > 0 } goal ? goal : job.Source?.Title ?? "Practice routine";
 
     private static string JobState(RoutineGenerationJob job) => job.State switch
     {

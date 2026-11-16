@@ -718,6 +718,14 @@ another way to read the music.
   piece. A hymn goes by its title, with its tune's name where a title has two tunes ("Blest Be the Tie That Binds (Dennis)"),
   under the work "Hymns", so the Library shelves it with the chorales; its composer is the tune's, and a tune that's no one's (a
   hymnbook's, a people's, the chant's) is Traditional, its credit saying where it's from.
+- **Shelves**: the Library shelves each piece by its composer's name (the period) and its title's and work's words (the kind),
+  as concept.md says, and a few of this collection's composers by their own names where a namesake's would mislead: the
+  hymnal's Hans Leo Hassler, older than any shelf, with the Baroque (not with J. W. Hässler, Classical), William G. Fischer with
+  the Romantics (not with J. C. F. Fischer, Baroque), and Ralph Vaughan Williams under V, his surname read whole, as is
+  Mendelssohn Bartholdy's; J. C. F. Bach is Classical with his brothers, and Richard Strauss is in 1890–1930. Sweelinck's
+  Fantasia cromatica, Frescobaldi's toccatas and capriccios and C. P. E. Bach's fantasias are character pieces, a fantasy or
+  toccata with a fugue in its title is with the fugues, and Debussy's Golliwogg's Cake-walk is a dance and his Doctor Gradus ad
+  Parnassum a character piece.
 - **Left out as it's prepared**: a score the Core can't read is named and left out rather than stopping the run (two PDMX
   scores in the builds before 15 November's last, whose MEI has a note without a pitch: `MeiReader.ReadTone` throws on it,
   which an import on the tablet would too; neither is chosen now).

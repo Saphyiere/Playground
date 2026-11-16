@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace Prima.UI.Host;
 
@@ -43,11 +44,13 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
         var lines = (message ?? "").Replace("\r", "").Trim().Split('\n');
         var rest = string.Join('\n', lines.Skip(1).Append(detail ?? "").Where(l => l.Length > 0));
         var problem = new Problem(at ?? clock.GetLocalNow(), level, source, lines[0].Trim(), rest.Replace("\r", "").TrimEnd());
+        // A line that looks like the start of an entry, the message's own or one of the detail's, is set in, so the file reads back
+        // the same.
+        string SetIn(string line) => line.StartsWith(Mark, StringComparison.Ordinal) ? " " + line : line;
         var entry = new StringBuilder()
             .Append(Mark).Append(problem.At.ToString(When, CultureInfo.InvariantCulture)).Append(" · ").Append(level).Append(" · ").Append(source).Append('\n')
-            .Append(problem.Message).Append('\n');
-        // A line of the detail that looks like the start of an entry is set in, so the file reads back the same.
-        foreach (var line in problem.Detail.Split('\n').Where(l => l.Length > 0)) entry.Append(line.StartsWith(Mark, StringComparison.Ordinal) ? " " : "").Append(line).Append('\n');
+            .Append(SetIn(problem.Message)).Append('\n');
+        foreach (var line in problem.Detail.Split('\n').Where(l => l.Length > 0)) entry.Append(SetIn(line)).Append('\n');
         entry.Append('\n');
         try
         {
@@ -89,6 +92,9 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
         return [.. found.Take(count)];
     }
 
+    /// <summary>Every problem kept, newest first: this file's and the one before's.</summary>
+    public IReadOnlyList<Problem> All() => Recent(int.MaxValue);
+
     /// <summary>Everything kept, both files, gone.</summary>
     public void Clear()
     {
@@ -116,10 +122,30 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
             if (head.Length < 3 || !DateTimeOffset.TryParseExact(head[0], When, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) continue;
             var body = new List<string>();
             while (i + 1 < lines.Length && !lines[i + 1].StartsWith(Mark, StringComparison.Ordinal)) body.Add(lines[++i]);
-            var said = body.FirstOrDefault() ?? "";
+            // A message is kept trimmed, so a space before it is only ever the one that set it in.
+            var said = (body.FirstOrDefault() ?? "").TrimStart();
             yield return new Problem(at, head[1], head[2], said, string.Join('\n', body.Skip(1)).TrimEnd());
         }
     }
+}
+
+/// <summary>
+/// Work nobody waited for that failed (a task whose failure nothing looked at: the page's failing renders end up there too), kept
+/// in the problem log when it's found, unless it was only stopped or its page had gone. A page that has gone throws
+/// <see cref="ObjectDisposedException"/> from its script (a module or an object it held, let go with it) or its renderer: that's
+/// the page going, not something going wrong.
+/// </summary>
+public static class UnwaitedWork
+{
+    public static void Keep(ILogger logger, AggregateException failed)
+    {
+        if (failed.InnerExceptions.All(e => e is OperationCanceledException or JSDisconnectedException || PageGone(e))) return;
+
+        logger.LogWarning(failed, "Work nobody waited for failed: {Message}", failed.GetBaseException().Message);
+    }
+
+    private static bool PageGone(Exception e) => e is ObjectDisposedException { ObjectName: { } what }
+        && (what.StartsWith("Microsoft.JSInterop.", StringComparison.Ordinal) || what.StartsWith("Microsoft.AspNetCore.Components.", StringComparison.Ordinal));
 }
 
 /// <summary>

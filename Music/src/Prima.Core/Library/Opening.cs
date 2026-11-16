@@ -3,9 +3,10 @@ using Prima.Core.Music;
 namespace Prima.Core.Library;
 
 /// <summary>
-/// A piece's opening, to hear before choosing it in the Library: its notes from the start for about half a minute, in seconds,
+/// A piece's opening, to hear before choosing it in the Library: its notes from the first for about half a minute, in seconds,
 /// from its notation at the tempo it starts at (its first mark, else the one it goes at most, else 80 a minute), or from the MIDI a
-/// PDF came with; and those notes as a small MIDI file, for a player that takes one (the tablet's own, without the piano).
+/// PDF came with, its drums left out; and those notes as a small MIDI file, for a player that takes one (the tablet's own, without
+/// the piano).
 /// </summary>
 public static class Opening
 {
@@ -15,28 +16,38 @@ public static class Opening
     // A note's last moment, past the opening's end, so the last chord rings a little rather than stopping dead.
     private const double Ring = 1.5;
 
-    /// <summary>The opening of a piece's notation: each note it expects played (a tied note once, held through its ties).</summary>
+    /// <summary>
+    /// The opening of a piece's notation: each note it expects played (a tied note once, held through its ties), from the first.
+    /// </summary>
     public static IReadOnlyList<FileNote> Of(Score score, double seconds = Seconds)
     {
+        var expected = score.Expected();
+        if (expected.Count == 0) return [];
+
         var changes = score.TempoChanges();
         var perMinute = changes.Count > 0 && changes[0] is { Index: 0, Tick: 0 } first ? first.PerMinute : score.MainTempo() ?? 80;
         var secondsPerTick = 60 / perMinute / Ticks.Quarter;
-        return [.. score.Expected()
-            .Select(n => new FileNote(n.Midi, n.Tick * secondsPerTick, (n.Tick + n.Length) * secondsPerTick, 72))
+        // It starts at the first note, as a MIDI file's opening does: the rests a piece starts with (a drum part's intro, kept only
+        // as time, among them) aren't played through, and a pickup's notes, timed before the first full bar's downbeat, are heard.
+        var from = expected.Min(n => n.Tick);
+        return [.. expected
+            .Select(n => new FileNote(n.Midi, (n.Tick - from) * secondsPerTick, (n.Tick - from + n.Length) * secondsPerTick, 72))
             .Where(n => n.Start < seconds)
             .Select(n => n with { End = Math.Min(n.End, seconds + Ring) })
             .OrderBy(n => n.Start)
             .ThenBy(n => n.Midi)];
     }
 
-    /// <summary>The opening of the MIDI a PDF came with, from its first note.</summary>
+    /// <summary>The opening of the MIDI a PDF came with, from its first note, without its drums.</summary>
     public static IReadOnlyList<FileNote> Of(MidiFile midi, double seconds = Seconds)
     {
-        if (midi.Notes.Count == 0) return [];
+        // A drum kit's notes would be keys on the piano, so they're left out, and a drummer's count-in with them.
+        var keys = midi.Notes.Where(n => n.Channel != MidiFile.DrumChannel).ToList();
+        if (keys.Count == 0) return [];
 
         // A file that waits before its first note (a count-in, a pickup written from the bar's start) starts at that note.
-        var start = midi.Notes.Min(n => n.Start);
-        return [.. midi.Notes
+        var start = keys.Min(n => n.Start);
+        return [.. keys
             .Where(n => n.Start - start < seconds)
             .Select(n => new FileNote(n.Midi, n.Start - start, Math.Min(n.End, start + seconds + Ring) - start, n.Velocity))
             .OrderBy(n => n.Start)

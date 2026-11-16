@@ -188,23 +188,33 @@ a PDF plays out; this is what came of it.
   collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled
   pieces and your own imports are never touched. The Library then holds about 3,170 pieces, so a list is drawn again a second
   at a time at most while pieces are stored, and the search follows once typing pauses.
-- **Finding your way** (the Library's home): a search across everything, then **Working on** (the pieces played in the last
-  month, eight at most, the latest first, each with when it was last played and how that run went), then **Near your level**: a
-  few of the pieces to play along with whose most reads from your sight-reading level to two above it (since a piece to learn
-  sits above what you read at sight; with none there, the easiest there are), the ones not opened yet first and the rest in an
-  order of the day's, so the shelf changes daily, with all of them a tap away. Then the ways in, each a key with how many pieces
-  it holds: **Composers** (the twelve with the most, and all of them by surname under their initials), **Periods** (Baroque,
-  Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer), **Kinds** (sonatas, études, preludes and
-  fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of them
-  is a character piece), **Levels** (where most of a piece reads) and **Lists** (everything, PDFs, your imports). A list opened
-  from one of them can be cut to the pieces to play along with or the PDFs, and searched; a composer's pieces are grouped by
+- **Finding your way** (the Library's home): a search across everything (accents aside: "Dvorak" finds Dvořák), then **Working
+  on** (the pieces played in the last month, eight at most, the latest first, each with when it was last played and how that
+  run went), then **Near your level**: a few of the pieces to play along with whose most reads from your sight-reading level to
+  two above it (since a piece to learn sits above what you read at sight; with none there, the easiest there are), the ones not
+  opened yet first and the rest in an order of the day's, so the shelf changes daily, with all of them a tap away. Then the
+  ways in, each a key with how many pieces it holds: **Composers** (the twelve with the most, and all of them by surname under
+  their initials: a surname of two words whole, so Ralph Vaughan Williams is under V and Mendelssohn Bartholdy under M, a name
+  written surname first by what's before its comma, and "Jr." or "II" after a name no part of it), **Periods** (Baroque,
+  Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer, a few by their own names where a namesake's
+  would mislead: Hans Leo Hassler, older than any of them, with the Baroque, the hymn writer William G. Fischer with the
+  Romantics, J. C. F. Bach with his brothers in Classical, Richard Strauss in 1890–1930), **Kinds** (sonatas, études, preludes
+  and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of
+  them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says more, as a fantasy and fugue
+  or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum isn't an étude), **Levels**
+  (where most of a piece reads) and **Lists** (everything, PDFs, your imports). With no piece naming a composer (imported MIDI
+  files and PDFs, say) there's no Composers, and the other ways in are there all the same. A list opened from one of them can
+  be cut to the pieces to play along with or the PDFs, and searched, All composers by name; a composer's pieces are grouped by
   kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each
-  letter their surnames start with. PDFs are left to their own list where near your level is concerned, since a PDF's level
-  is only about where its collection sits, or what its MIDI reads at.
-- **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from the start, at the tempo it starts
-  at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is plugged
-  in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it came with;
-  one without MIDI or read notes has nothing to play. One opening at a time: ■ stops it, another's ▶ starts that one instead, and
+  letter their surnames start with; the pieces without a composer are a group of their own there, with a key of their own, and
+  aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
+  about where its collection sits, or what its MIDI reads at.
+- **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from its first note (a pickup's
+  included; rests it starts with, and a drum part's bars before the piano comes in, aren't played through), at the tempo it
+  starts at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is
+  plugged in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it
+  came with, without its drum channel, from its first note; one without MIDI or read notes has nothing to play. One opening at
+  a time: ■ stops it, another's ▶ starts that one instead (the last tapped, even while the one before is still being read), and
   it stops by itself at the opening's end or when the Library is left. A line at the top says what's playing and where.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
@@ -440,7 +450,8 @@ a PDF plays out; this is what came of it.
   heard on the piano and scrolled at its tempo. One piece imported opens; several stay in the Library with a line saying
   what came in and what couldn't: a file that can't be read is named there, whatever it trips on, and the others still come
   in. A part with no pitches, like a drum kit's, is printed with the piece but has no keys to play: its notes only keep their
-  time. A MIDI file is written out as notation first, since it holds
+  time, and its own rests and marks (its loud and soft) aren't the pianist's to read, so they don't change the piece's level
+  or how its playing is judged. A MIDI file is written out as notation first, since it holds
   when notes sound, not how they're written: the hands from its tracks (or middle C), the bars from its time signatures, the
   key from its signature or its notes, each beat snapped to sixteenths, thirty-seconds or triplets, a hand's held notes as a
   second voice, ties across beats and barlines, and its first tempo kept, unprinted, as the piece's own. Notation software lets each note go a little before its written end (a file
@@ -462,16 +473,21 @@ and switch between them. **Ask for routine** in its head asks for another (Exerc
 
 - **Following**: the routine Today has, with its minutes, activities and how many are done today, **Practice it** (My routine,
   its activities to start) and **Use the standard daily plan**. With none followed, Today has the daily plan.
-- **Asked for**: requests that aren't routines yet, newest first, each with what it's called, where it is (Asking Claude…,
-  Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and when. Each opens the request: its
-  proposal to look over and use, or why it didn't finish and **Retry request**. The list follows a request as it changes.
+- **Asked for**: every request that isn't a routine yet, however many are accepted after it, newest first, each with what it's
+  called, where it is (Asking Claude…, Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and
+  when. Each opens the request: its proposal to look over and use, or why it didn't finish and **Retry request**. The list
+  follows a request as it changes. **Dismiss…** beside one that isn't being asked just now asks, then takes it off for good;
+  one waiting to be asked or asking Claude stays until it's back.
 - **Your routines**: every routine accepted, newest first, an adjusted one too (Adjusted), each a card with its minutes and
-  activities, its summary, its activities by name, when it was accepted and last practiced, and its piece. **Follow** makes it
-  the one Today has; the one followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its
-  own progress for the day, so switching back finds today's done activities still done.
+  activities, its summary, its activities by name, when it was accepted and last practiced (the last day one of its activities
+  had time played: one only opened, or skipped, isn't practice), and its piece. **Follow** makes it the one Today has; the one
+  followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its own progress for the day,
+  so switching back finds today's done activities still done.
 
-The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity.
-Routines Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it.
+The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity,
+an exercise or a drill opened from a routine among them (Exercises and Drills are lit when they're opened from there). Routines
+Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
+Claude's words are respelled, never the goal you typed or a piece's title.
 
 ### Tools
 
@@ -555,14 +571,18 @@ restores like a copy. A copy kept from before an update that didn't check out st
 (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the
 settings: the music isn't progress, and only a copy or an export carries it. Nothing leaves the tablet unless you send it.
 
-**Problems:** what went wrong, newest first, each line its time, how bad (Warning, Error, Critical), what said it (a screen, a
-job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (all of them, to paste into a
-message) and **Clear…**. Everything Prima logs as a warning or an error goes in: a screen that stopped, a job that failed, the
-page that stopped answering, anything thrown that nothing caught (kept as Android closes Prima). They're kept in `errors.log`
-in Prima's folder too (Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even
-when Prima won't open; past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it
-stopped answering at the time, so it keeps what Blazor said in its own storage, and its yellow bar says it ("Prima stopped
-answering taps", why, and that it's kept); Prima writes it in the log the next time it starts, as of when it happened.
+**Problems:** what went wrong, the newest twelve, each line its time, how bad (Warning, Error, Critical), what said it (a
+screen, a job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (every problem
+kept, both files', not only the twelve shown, to paste into a message) and **Clear…**. Everything Prima logs as a warning or an
+error goes in: a screen that stopped, a job that failed, the page that stopped answering, anything thrown that nothing caught
+(kept as Android closes Prima), and work nobody waited for that failed, but not what a page that has gone throws as it goes (a
+call into its script once it was let go). They're kept in `errors.log` in Prima's folder too
+(Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even when Prima won't open;
+past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it stopped answering at
+the time, so it keeps what Blazor said just before its yellow bar showed in its own storage, even a line it leaves out at any
+other time (a call back into a page that had gone, say), and never an older problem in its place (with nothing said just then,
+"It didn't say why."); the bar says it ("Prima stopped answering taps", why, and that it's kept); Prima writes it in the log
+the next time it starts, as of when it happened.
 
 ## The sight-reading flow
 

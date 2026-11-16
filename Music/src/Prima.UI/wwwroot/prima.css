@@ -737,6 +737,24 @@ body {
     margin-bottom: var(--space-4);
 }
 
+/* A request in Routines' Asked for: the request, then Dismiss… beside it (or, asking, Dismiss it and Keep it). */
+.routine-request {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    border-top: 1px solid var(--seam);
+}
+
+.routine-request > .piece-row {
+    border-top: none;
+}
+
+.routine-request-actions {
+    display: flex;
+    gap: var(--space-3);
+}
+
 .today-routine .piece-row {
     color: var(--on-screen);
     border-color: var(--on-screen-muted);

@@ -85,8 +85,9 @@ else if (note is not null)
 
 @if (By == "composers")
 {
-    // Every composer, listed by surname under its first letter.
-    @foreach (var letter in Composers().GroupBy(c => Initial(c.Name)).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+    // Every composer, listed by surname under its first letter; Find here leaves the ones whose names have what's typed.
+    var found = Composers().Where(c => string.IsNullOrWhiteSpace(search) || Shelves.Finds(c.Name, search)).ToList();
+    @foreach (var letter in found.GroupBy(c => Initial(c.Name)).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
     {
         <section class="settings-section" aria-labelledby="@($"letter-{letter.Key}")">
             <h2 id="@($"letter-{letter.Key}")" class="section-title">@letter.Key</h2>
@@ -97,6 +98,10 @@ else if (note is not null)
                 }
             </div>
         </section>
+    }
+    @if (found.Count == 0 && !string.IsNullOrWhiteSpace(search))
+    {
+        <p class="page-note">Nothing here for “@search”.</p>
     }
 }
 else if (By is null && string.IsNullOrWhiteSpace(search))
@@ -111,7 +116,8 @@ else if (By is null && string.IsNullOrWhiteSpace(search))
                 @foreach (var piece in working)
                 {
                     var last = played[piece.Id].Last;
-                    @row((piece, $"{piece.Composer} · {PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}"))
+                    // A piece without a composer (an import's) starts with when, not with a dot.
+                    @row((piece, string.Join(" · ", new[] { piece.Composer, $"{PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}" }.Where(s => !string.IsNullOrEmpty(s)))))
                 }
             </ul>
         </section>
@@ -146,6 +152,11 @@ else if (By is null && string.IsNullOrWhiteSpace(search))
                 <a class="mu-btn shelf-chip shelf-all" href="library?by=composers">All @composers.Count composers</a>
             </div>
         </section>
+    }
+    // The other ways in hold every piece, whether or not it names a composer: a Library of imported MIDI files and PDFs, which
+    // name none, opens on them too.
+    @if (pieces.Count > 0)
+    {
         <section class="settings-section" aria-labelledby="by-period">
             <h2 id="by-period" class="section-title">Periods</h2>
             <div class="shelf">
@@ -208,18 +219,19 @@ else
         ? shown.GroupBy(p => kindOf[p.Id]).OrderBy(g => Shelves.Kinds.ToList().IndexOf(g.Key)).ToList()
         : shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? NotGiven : p.Composer).OrderBy(g => g.Key == NotGiven).ThenBy(g => Initial(g.Key), StringComparer.Ordinal)
             .ThenBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
+    var composers = By == "composer" ? 1 : ComposersIn(groups);
     @if (By == "near")
     {
         <p class="section-note">@NearNote() The PDFs are under PDFs, by level.</p>
     }
     @if (shown.Count > 0)
     {
-        <p class="section-note">@(shown.Count == 1 ? "1 piece" : $"{shown.Count} pieces")@(groups.Count > 1 ? (By == "composer" ? $" of {groups.Count} kinds" : $" by {groups.Count} composers") : "").</p>
+        <p class="section-note">@(shown.Count == 1 ? "1 piece" : $"{shown.Count} pieces")@(By == "composer" ? (groups.Count > 1 ? $" of {groups.Count} kinds" : "") : composers > 1 ? $" by {composers} composers" : "").</p>
     }
     @if (groups.Count > 2)
     {
         // Straight to a group, in a long list.
-        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : groups.Count > MostKeys ? "Composers by surname" : "Composers")">
+        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : composers > MostKeys ? "Composers by surname" : "Composers")">
             @foreach (var (label, count, at) in Keys(groups))
             {
                 <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{at}")">@label <span class="shelf-count">@count</span></a>
@@ -357,7 +369,8 @@ else
         (holding, search) = (false, e.Value?.ToString());
     }
 
-    // The pieces of the list open, in the format chosen, found by the search; the home's search looks through everything.
+    // The pieces of the list open, in the format chosen, found by the search (accents aside: "Dvorak" finds Dvořák); the home's
+    // search looks through everything.
     private IEnumerable<PieceRecord> Shown()
     {
         var (from, to) = By == "near" ? NearLevels() : default;
@@ -376,7 +389,7 @@ else
             "notation" => p.PlaysAlong,
             "pdf" => p.IsPdf,
             _ => true,
-        }).Where(p => string.IsNullOrWhiteSpace(search) || $"{p.Title} {p.Composer} {p.Work}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+        }).Where(p => string.IsNullOrWhiteSpace(search) || Shelves.Finds($"{p.Title} {p.Composer} {p.Work}", search));
     }
 
     // Where most of a piece reads, as its level shelf has it; 0 when it isn't graded.
@@ -433,12 +446,15 @@ else
 
     // The keys above a long list's groups, each with how many pieces it leads to and the group it goes to: one for each kind or
     // composer, or with more composers than that, one for each letter their surnames start with, going to the first of them.
-    // The pieces without a composer keep a key of their own.
+    // The pieces without a composer keep a key of their own, and aren't counted as a composer.
     private IEnumerable<(string Label, int Count, int At)> Keys(List<IGrouping<string, PieceRecord>> groups) =>
-        By == "composer" || groups.Count <= MostKeys
+        By == "composer" || ComposersIn(groups) <= MostKeys
             ? groups.Select((g, i) => (g.Key, g.Count(), i))
             : groups.Select((g, i) => (Group: g, At: i)).GroupBy(x => x.Group.Key == NotGiven ? NotGiven : Initial(x.Group.Key))
                 .Select(letter => (letter.Key, letter.Sum(x => x.Group.Count()), letter.First().At));
+
+    // How many composers a list's groups are by: the group of pieces without one isn't a composer.
+    private static int ComposersIn(List<IGrouping<string, PieceRecord>> groups) => groups.Count(g => g.Key != NotGiven);
 
     private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
 

@@ -164,7 +164,7 @@ else if (stage == Stage.Estimate)
                     <h3><span class="pdfread-lamp fail"></span>No provider key on this tablet</h3>
                     <p>Add the provider API key in Settings before converting.</p>
                     <div class="pdfread-actions">
-                        <a data-piano="off" class="mu-btn mu-primary" href="settings">Open Settings</a>
+                        <a data-piano="off" class="mu-btn mu-primary" href="settings?tab=claude">Open Settings</a>
                     </div>
                 </div>
             }
@@ -252,7 +252,7 @@ else
                     <div class="pdfread-actions">
                         @if (result.StoppedBy is AnswerKind.NoKey or AnswerKind.KeyRejected)
                         {
-                            <a data-piano="off" class="mu-btn mu-primary" href="settings">Open Settings</a>
+                            <a data-piano="off" class="mu-btn mu-primary" href="settings?tab=claude">Open Settings</a>
                             <button type="button" data-piano="off" class="mu-btn" @onclick="NewConversion">@again</button>
                         }
                         else

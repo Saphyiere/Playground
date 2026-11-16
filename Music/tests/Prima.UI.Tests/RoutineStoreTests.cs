@@ -147,7 +147,10 @@ public class RoutineStoreTests
         var older = await host.Store.AcceptRoutineAsync(first.Id);
         var today = new DateOnly(2026, 11, 15);
         var day = (await host.Store.GetOrCreateRoutineDayAsync(today))!;
-        await host.Store.CompleteRoutineExecutionAsync((await host.Store.BeginRoutineExecutionAsync(day.Id, "jump")).Id);
+        // Practised: a minute played, then done ("last practiced" needs time played).
+        var practised = await host.Store.BeginRoutineExecutionAsync(day.Id, "jump");
+        await host.Store.CheckpointRoutineExecutionAsync(practised.Id, 60);
+        await host.Store.CompleteRoutineExecutionAsync(practised.Id);
         var newer = await host.Store.AcceptRoutineAsync(second.Id);
 
         Assert.Equal([newer.Revision, older.Revision], (await host.Store.GetRoutineDefinitionsAsync()).Select(r => r.Revision));
@@ -161,6 +164,32 @@ public class RoutineStoreTests
         Assert.Equal(RoutineItemState.Done, Assert.Single((await host.Store.GetOrCreateRoutineDayAsync(today))!.Items).State);
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.Store.FollowRoutineAsync("gone"));
         Assert.Equal(older.Revision, (await host.Store.GetActiveRoutineAsync())!.Revision);
+    }
+
+    // The owner's rule 38, decided 15 November (the review of main at a7ab94d, part 5): "last practiced" needs time played; an
+    // activity only opened or skipped doesn't count.
+    [Fact]
+    public async Task LastPracticedNeedsTimePlayedAnActivityOnlyOpenedOrSkippedDoesntCount()
+    {
+        await using var host = new ComponentHost();
+        var job = ReadyJob();
+        await host.Store.CreateRoutineJobAsync(job);
+        var routine = await host.Store.AcceptRoutineAsync(job.Id);
+        var (monday, tuesday, wednesday) = (new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 10), new DateOnly(2026, 11, 11));
+
+        // Monday, the activity opened and left; Tuesday, skipped.
+        await host.Store.BeginRoutineExecutionAsync((await host.Store.GetOrCreateRoutineDayAsync(monday))!.Id, "jump");
+        var skipped = await host.Store.BeginRoutineExecutionAsync((await host.Store.GetOrCreateRoutineDayAsync(tuesday))!.Id, "jump");
+        await host.Store.CompleteRoutineExecutionAsync(skipped.Id, skipped: true);
+
+        Assert.False((await host.Store.GetRoutineLastPracticedAsync()).ContainsKey(routine.Revision));
+
+        // Wednesday, played for half a minute and then skipped: that was practice.
+        var played = await host.Store.BeginRoutineExecutionAsync((await host.Store.GetOrCreateRoutineDayAsync(wednesday))!.Id, "jump");
+        await host.Store.CheckpointRoutineExecutionAsync(played.Id, 30);
+        await host.Store.CompleteRoutineExecutionAsync(played.Id, skipped: true);
+
+        Assert.Equal(wednesday, (await host.Store.GetRoutineLastPracticedAsync())[routine.Revision]);
     }
 
     internal static RoutineGenerationJob ReadyJob()

@@ -149,7 +149,10 @@ app.MapGet("/seed/routines", async (PrimaStore store) =>
         RoutineGenerationState.Ready, Item("notes", 4), Item("intervals", 4), Item("octave-jump", 3));
     await store.AcceptRoutineAsync(reading.Id);
     var day = (await store.GetOrCreateRoutineDayAsync(today))!;
-    await store.CompleteRoutineExecutionAsync((await store.BeginRoutineExecutionAsync(day.Id, "notes")).Id);
+    // Played for four minutes, then done: "last practiced" needs time played.
+    var done = await store.BeginRoutineExecutionAsync(day.Id, "notes");
+    await store.CheckpointRoutineExecutionAsync(done.Id, 240);
+    await store.CompleteRoutineExecutionAsync(done.Id);
     await Job("Left-hand chords", "Chord shapes for the waltz's left hand, then the bars they're in.", "Left-hand chords in the waltz",
         RoutineGenerationState.Ready, Item("jump-ladder", 4), Item("geography", 3));
     await Job("", "", "The jumps in the Aria", RoutineGenerationState.Failed);
