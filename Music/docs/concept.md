@@ -341,7 +341,8 @@ a PDF plays out; this is what came of it.
   90% right in time, a notch down under 80%, else the same again, first thing next time. Timing and touch: the bars where
   the timing goes out two notches slower, then the bars of a marking that hasn't come out. Playing it: the bar that kept
   slipping, and once through, cold, first thing next time. No two steps are on the same bars. The first of them stays on the
-  piece's front, under About this piece, as **Next**, with **Start there**.
+  piece's front, under About this piece, as **Next**, with **Start there**; a session that leaves nothing to do leaves none
+  there.
 
   Under those, **what was played**, as before: each stretch practiced (its bars: the whole piece, from a bar, or round a
   loop; the hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best

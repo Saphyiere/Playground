@@ -1288,10 +1288,11 @@ else
         reviewed = [.. runs.Where(r => r.Session == session.Id)];
         review = SessionReview.Of(reviewed, LastBar);
         // In words, with every run kept on the piece before this session behind it: what it came to, where the piece stands
-        // now, and what to do next, which the piece's front keeps for next time.
+        // now, and what to do next, which the piece's front keeps for next time. A session that left nothing to do leaves the
+        // front no Next, as the piece opened again shows; one with no run in it leaves the last one's.
         var today = DateOnly.FromDateTime(DateTime.Now);
         story = SessionStory.Of(reviewed, runs.Where(r => r.Session != session.Id), Shape, today);
-        if (story.Steps.Count > 0) next = (today, story.Steps);
+        if (reviewed.Count > 0) next = story.Steps.Count > 0 ? (today, story.Steps) : null;
         (stage, outcome, picked) = (Stage.LookBack, null, null);
         if (fullScreen) await ToggleFullScreen();
     }

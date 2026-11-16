@@ -122,7 +122,8 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   | Timing and touch | the bars where the timing goes out, two notches slower; the bars of a marking that hasn't come out; a bar with a wrong note still; the whole piece, as above |
   | Playing it | the bar that kept having a wrong note (in half the times through, twice at least; three bars or more with just two each are slips moving around, not a bar); once through, cold, first thing next time |
 
-  The first step stays on the piece's front, under About this piece: **Next**, with **Start there**. This takes back the
+  The first step stays on the piece's front, under About this piece: **Next**, with **Start there** (none after a session
+  that left nothing to do; a session with no run in it leaves the last one's). This takes back the
   first design's "No 'next time' line: it suggests". The owner's complaint is that the ending does nothing, and a thing to
   do with a key that starts it is the least that does something. It suggests from the session's own figures and says which;
   it doesn't plan a week, which stays with Routines. If the owner would still rather the app didn't suggest, Next and the
