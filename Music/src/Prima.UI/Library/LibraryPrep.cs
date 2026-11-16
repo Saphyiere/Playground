@@ -203,6 +203,7 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                     imported.Add(id);
                     continue;
                 case ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc" or ".mid" or ".midi":
+                    (string Mei, PieceRecord Piece, IReadOnlyList<BundledExcerpt> Excerpts) music;
                     try
                     {
                         // A MIDI file has no notation of its own: the Core writes it out (MidiNotation says how), and it's read as MEI.
@@ -210,13 +211,18 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                         var bytes = score is null ? data : System.Text.Encoding.UTF8.GetBytes(MeiWriter.Write(score));
                         var (mei, graded, excerpts) = await ReadMusic(bytes, score is null ? extension.TrimStart('.') : "mei", record);
                         var (fileTitle, composer) = Header(mei);
-                        await store.SavePieceAsync(graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, mei, excerpts);
-                        imported.Add(id);
+                        music = (mei, graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, excerpts);
                     }
-                    catch (Exception e) when (e is JSException or System.Xml.XmlException or FormatException or InvalidOperationException or ArgumentException)
+                    // Whatever a file trips on, in Verovio or in the Core, it's named and the rest still come in: a file from anywhere can
+                    // hold what no list of errors foresees, as a drum part's notes without pitches once did, stopping the screen.
+                    catch (Exception e) when (e is not OperationCanceledException)
                     {
                         notes.Add($"{name} couldn't be read as music.");
+                        continue;
                     }
+
+                    await store.SavePieceAsync(music.Piece, music.Mei, music.Excerpts);
+                    imported.Add(id);
                     continue;
                 case ".mscz" or ".mscx":
                     notes.Add($"{name}: export it from MuseScore as MusicXML (File, Export), then import that.");

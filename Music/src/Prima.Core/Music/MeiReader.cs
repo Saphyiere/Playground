@@ -11,7 +11,8 @@ namespace Prima.Core.Music;
 /// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
 /// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A note under an 8va, 15ma or 8vb line is read
 /// at the octave it sounds (its oct.ges, which Verovio writes from MusicXML), keeping the one it's printed in as the tone's
-/// <see cref="Tone.Ottava"/>; the line itself Verovio engraves. A piece's slurs, dynamics, hairpins, pedal
+/// <see cref="Tone.Ottava"/>; the line itself Verovio engraves. A note without a pitch, like a drum part's, isn't played: it takes
+/// its time as an unseen rest. A piece's slurs, dynamics, hairpins, pedal
 /// marks and ornaments are read as its <see cref="Score.FileMarks"/>, for judging how it's played; Verovio engraves them from
 /// the MEI itself.
 /// </summary>
@@ -253,7 +254,15 @@ public static class MeiReader
             var isGrace = grace || element.Attribute("grace") is not null;
             var length = isGrace ? 0 : Length(element, actual, normal);
             List<XElement> notes = element.Name.LocalName == "chord" ? [.. element.Elements(Mei + "note")] : [element];
-            var tones = notes.Select(note => ReadTone(note, element)).ToList();
+            var tones = notes.Select(note => ReadTone(note, element)).OfType<Tone>().ToList();
+            // With no pitch to play, a drum's note or chord takes its time unseen, as a space does.
+            if (tones.Count == 0)
+            {
+                if (length > 0) Events.Add(new Rest(IdOf(element), Tick, length) { Tuplet = tuplet, Hidden = true });
+                Tick += length;
+                return;
+            }
+
             // Its articulations, on it or its notes, as attributes or elements, each a list ("stacc acc"): a staccatissimo, spiccato or
             // portato is played short as a staccato is.
             var artics = element.DescendantsAndSelf().Where(e => e.Name.LocalName is "note" or "chord" or "artic").Select(e => (string?)e.Attribute("artic")).OfType<string>()
@@ -267,12 +276,14 @@ public static class MeiReader
             Tick += length;
         }
 
-        private Tone ReadTone(XElement note, XElement holder)
+        // A note's key, or none for a note without a pitch: a drum's, which is placed on its staff (loc) but has no key to play.
+        private Tone? ReadTone(XElement note, XElement holder)
         {
-            var step = Enum.Parse<Step>(((string)note.Attribute("pname")!).ToUpperInvariant());
-            // The octave it's printed in, and the one it sounds in, which is the key to play: under an 8va, 15ma or 8vb line the
-            // file gives that as well.
-            var octave = (int)note.Attribute("oct")!;
+            if ((string?)note.Attribute("pname") is not { } pname || (int?)note.Attribute("oct") is not { } octave) return null;
+
+            var step = Enum.Parse<Step>(pname.ToUpperInvariant());
+            // The octave it's printed in (oct), and the one it sounds in, which is the key to play: under an 8va, 15ma or 8vb line
+            // the file gives that as well.
             var sounds = (int?)note.Attribute("oct.ges") ?? octave;
             var accid = note.Element(Mei + "accid");
             var written = (string?)note.Attribute("accid") ?? (string?)accid?.Attribute("accid");
