@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Playground.AI.Assist;
 using Prima.Core.Music;
 using Prima.Core.Transcription;
@@ -104,14 +105,17 @@ public class NotationReviewTests
         var source = new ConversionSource(new string('a', 64), "r1", [new("bar1", 1, 1, 0, "1", new(0, 0, 1, 1))], true);
         var view = host.Context.Render<NotationReviewPanel>(p => p.Add(c => c.PieceId, piece.Id).Add(c => c.Source, source)
             .Add(c => c.Initial, [new BarReplacement("bar1", Bar(), [])]).Add(c => c.SelectedBarId, "bar1"));
-        view.WaitForElement("[data-action=accept-bar]").Click();
+        // Each tap waited for, so what's checked after it is what the tap did, not a render still under way.
+        view.WaitForElement("[data-action=accept-bar]");
+        await view.InvokeAsync(() => view.Find("[data-action=accept-bar]").ClickAsync(new MouseEventArgs()));
         view.WaitForElement("[data-action=reopen-bar]");
         Assert.Empty(view.FindAll("[data-action=edit-bar]"));
         Assert.True((await host.Store.GetNotationReviewAsync(piece.Id, source.Revision))!.Current.Bars[0].Accepted);
 
-        view.Find("[data-action=reopen-bar]").Click();
-        view.WaitForElement("[data-action=edit-bar]").Click();
-        Assert.Single(view.FindComponents<BarEditor>());
+        await view.InvokeAsync(() => view.Find("[data-action=reopen-bar]").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement("[data-action=edit-bar]");
+        await view.InvokeAsync(() => view.Find("[data-action=edit-bar]").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Single(view.FindComponents<BarEditor>()));
     }
 
     [Fact]
