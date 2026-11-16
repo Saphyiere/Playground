@@ -154,14 +154,14 @@
         <div class="grid-2">
             <button type="button" class="btn tall" disabled="@(running.Count > 0 || stopped.Count == 0)" @onclick="AddSet">Add a set</button>
             <button type="button" class="btn tall" disabled="@(running.Count > 0)" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
-            <button type="button" class="btn tall" disabled="@(running.Count > 0 || next is null || state.Plan.Count == 0)" @onclick="() => Flow.Skip(next!.ExerciseIds)">Skip @(next is null ? "exercise" : state.Names(next.ExerciseIds))</button>
+            <button type="button" class="btn tall" disabled="@(running.Count > 0 || next is null || state.Plan.Count == 0)" @onclick="() => Flow.Skip(next!.ExerciseIds)"><FitLabel Text="@($"Skip {(next is null ? "exercise" : state.Names(next.ExerciseIds))}")" Short="Skip exercise" /></button>
             <a class="btn tall" href="workout" @onclick="@(() => Navigation.Replace("workout"))" @onclick:preventDefault>Back to simple</a>
         </div>
 
         <div class="push-down">
             @if (running.Count > 0)
             {
-                <button type="button" class="btn-primary stop" @onclick="Stop">Stop @state.Names(running.Select(s => s.ExerciseId))</button>
+                <button type="button" class="btn-primary stop" @onclick="Stop"><FitLabel Text="@($"Stop {state.Names(running.Select(s => s.ExerciseId))}")" Short="Stop" /></button>
             }
             else
             {

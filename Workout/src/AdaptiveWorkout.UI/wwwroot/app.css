@@ -36,6 +36,34 @@
     border-top: 1px solid var(--rule);
 }
 
+/* A button's words when they may not fit (FitLabel): the long ones on one line, or the plain ones once the label is marked short.
+   Until it's measured, long words that don't fit end in an ellipsis rather than leave the box. */
+.fit {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.fit::before {
+    content: attr(data-long);
+}
+
+.fit.short::before {
+    content: attr(data-short);
+}
+
+.btn > .fit {
+    flex: 0 1 auto;
+}
+
+/* Buttons side by side keep their words inside their box. */
+.grid-2 > .btn, .grid-3 > .btn {
+    min-width: 0;
+    overflow: hidden;
+}
+
 /* −15s, +15s and Save: the same width, so they line up from screen to screen. */
 .btn.adjust {
     width: 88px;

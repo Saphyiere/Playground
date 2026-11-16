@@ -45,6 +45,8 @@
             var step = state.Describe(first);
             var round = running.Count > 1;
             var measure = state.Exercises[first.ExerciseId].Measure;
+            // The clock leaves out any time the set was held while the workout was paused.
+            var setSince = first.StartedAt!.Value.AddSeconds(first.PausedSeconds);
             @* Keyed by the set, so each new step is a fresh element and its entrance animation plays. *@
             <div class="step" @key="@($"running-{first.Order}")">
                 <div class="stack tight">
@@ -82,10 +84,10 @@
 
                 <section class="block bare" aria-label="@(round ? "Round time" : measure == ExerciseMeasure.Time ? "Time" : "Set time")">
                     <p class="inline"><span class="live-dot"></span><span class="label">@(round ? "Round" : measure == ExerciseMeasure.Time ? "Time" : "Set")</span></p>
-                    <Clock Since="first.StartedAt!.Value" Class="number xl" />
+                    <Clock Since="setSince" Class="number xl" />
                     @if (Theme == Theme.Telemetry)
                     {
-                        <SecondsRuler Since="first.StartedAt!.Value" />
+                        <SecondsRuler Since="setSince" />
                     }
                 </section>
 

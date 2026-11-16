@@ -36,7 +36,7 @@
                 <button type="button" class="set-line @(open ? "picked" : "")" aria-expanded="@(open ? "true" : "false")" @onclick="() => Open(set)">
                     <span class="caption">@number@if (set.WarmUp) { <span class="sr-only">, warm-up</span> }</span>
                     <span class="body">@(timed ? TimeText.Format(TimeSpan.FromSeconds(set.DurationSeconds ?? 0)) : $"{SetSummary.WeightText(set.Weight)} × {set.Reps ?? 0}")</span>
-                    <span class="caption">@(timed || set.StartedAt is null || set.StoppedAt is null ? "" : TimeText.Format(set.StoppedAt.Value - set.StartedAt.Value))</span>
+                    <span class="caption">@(timed || set.StoppedAt is null || set.Ran() is not { } ran ? "" : TimeText.Format(ran))</span>
                     @if (Samples is not null)
                     {
                         <span class="caption">@(set is { StartedAt: { } start, StoppedAt: { } stop } && WorkoutStats.HeartRate(Samples, start, stop) is { } bpm ? bpm.Average.ToString(CultureInfo.CurrentCulture) : "")</span>

@@ -151,7 +151,8 @@ the workout itself after a moment, answers a question or looks back at a week fr
 in their names: `/claude/key` puts a key on the "phone"
 (`?clear=true` takes it off), `/claude/file` leaves a key file to be found, and `/claude/script?delay=8000&fail=offline` slows it
 down or makes it fail. `/seed/lookback` sets up a back day ready for **Finish**; `/seed/plateau` has rows gone flat, with a back day
-open; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
+open; `/seed/chest` has a chest day open with exercise names as long as real ones, incline next, and `/seed/chest-superset` has its
+superset next, for the buttons that have to hold their words; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
 split, with the exercises tagged (Pull-ups by me) and one, Hanging leg raises, not yet; `/seed/week` is the same with this week's
 lifts a step up, food on most days and weigh-ins, so with a key Today asks for this week's look back as it opens.
 

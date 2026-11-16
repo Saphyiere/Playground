@@ -1,4 +1,5 @@
 @page "/workout/add"
+@implements IDisposable
 @inject WorkoutFlow Flow
 @inject WorkoutStore Store
 @inject AppNavigation Navigation
@@ -9,7 +10,7 @@
 {
     <div class="screen">
         <PageHeader Back="workout" BackText="@state.Name" Title="Add to today" Small="true" Live="true" />
-        <p class="note">It goes after everything else in today's workout. The session itself stays as it is.</p>
+        <p class="note">It goes after everything else in today's workout. The session itself stays as it is. Paused while this is open: nothing starts by itself.</p>
 
         @if (sessions.Count > 0)
         {
@@ -47,8 +48,12 @@
             return;
         }
 
+        Flow.Pause();
         foreach (var template in await Store.GetTemplatesAsync()) sessions.Add((template, (await Store.GetTemplateExercisesAsync(template.Id)).Count));
     }
+
+    // Changing the workout pauses it: no rest countdown starts the next set meanwhile, on the phone or from the watch.
+    public void Dispose() => Flow.Resume();
 
     private async Task AddSessionAsync(SessionTemplate template)
     {

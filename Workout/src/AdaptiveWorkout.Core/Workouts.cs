@@ -81,6 +81,12 @@ public sealed class WorkoutSession
     public DateTimeOffset? CoolDownStartedAt { get; set; }
 
     /// <summary>
+    /// When the workout was paused, as its edit screen opened: until it's resumed nothing starts by itself, and a running set's
+    /// clock holds. Empty when it isn't paused.
+    /// </summary>
+    public DateTimeOffset? PausedAt { get; set; }
+
+    /// <summary>
     /// How this workout compared with the last time of each of its exercises, worked out once after Finish (see
     /// <see cref="Progress"/>): 0.03 is 3% better. Empty when none of its exercises had a last time.
     /// </summary>
@@ -119,6 +125,9 @@ public sealed class WorkoutSet
     /// <summary>Time exercises: the stopwatch, or a typed duration when logged afterward.</summary>
     public int? DurationSeconds { get; set; }
 
+    /// <summary>How long the set was held while the workout was paused, which isn't part of how long it ran (see <see cref="WorkoutSets.Ran"/>).</summary>
+    public int PausedSeconds { get; set; }
+
     public bool HitGoal { get; set; }
 
     /// <summary>How many more reps I could have done, when I said: 0 to 3, where 3 is three or more. Empty when I didn't say.</summary>
@@ -138,6 +147,18 @@ public static class WorkoutSets
     /// time's weights, the last times, improvement and plateaus, each muscle's hard sets, volume, and the usual rest.
     /// </summary>
     public static IEnumerable<WorkoutSet> Working(this IEnumerable<WorkoutSet> sets) => sets.Where(s => !s.WarmUp);
+
+    /// <summary>
+    /// How long a set ran: from its start to its stop (to <paramref name="now"/> while it runs), less the time it was held while the
+    /// workout was paused. Empty for a set logged afterward, which has no times.
+    /// </summary>
+    public static TimeSpan? Ran(this WorkoutSet set, DateTimeOffset? now = null)
+    {
+        if (set.StartedAt is not { } start || (set.StoppedAt ?? now) is not { } end) return null;
+
+        var ran = end - start - TimeSpan.FromSeconds(set.PausedSeconds);
+        return ran < TimeSpan.Zero ? TimeSpan.Zero : ran;
+    }
 }
 
 public sealed class FoodEntry

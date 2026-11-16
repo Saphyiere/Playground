@@ -33,6 +33,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         get
         {
             if (Current is not { } state) return null;
+            if (state.Session.PausedAt is { } pausedSince) return new WorkoutStatus(true, "Paused", pausedSince, null, null);
             if (state.Session.CoolDownStartedAt is { } coolingSince) return new WorkoutStatus(true, "Cool-down", coolingSince, null, null);
             if (state.Running is [var first, ..] running) return new WorkoutStatus(false, state.Names(running.Select(s => s.ExerciseId)), first.StartedAt!.Value, null, null);
 
@@ -96,6 +97,9 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     {
         if (Current is not { } state || exerciseIds.Count == 0) return;
 
+        // A set I start myself, from a screen that paused the workout, ends the pause.
+        Resume();
+
         // The first exercise ends the warm-up as it starts. A set started during the cool-down puts the cool-down off until the end again.
         var now = DateTimeOffset.Now;
         if (state.WarmingUp || state.CoolingDown)
@@ -132,6 +136,8 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     /// <summary>Starts whatever comes next, e.g. from the watch: the next set or round, else a planned cool-down. Does nothing while a set runs.</summary>
     public void StartNext()
     {
+        if (Paused) return;
+
         if (Current is { Running: [], Next: { } next }) StartSets(next.ExerciseIds);
         else StartCoolDown();
     }
@@ -139,13 +145,53 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     /// <summary>
     /// The rest countdown ran out: starts the next set or round, from the rest screen's countdown or the watch's. A cool-down waits
     /// for a tap. The watch says when its countdown ended (<paramref name="endsAt"/>); when that's no longer this rest's (another
-    /// set started meanwhile, or the countdown changed), nothing starts.
+    /// set started meanwhile, or the countdown changed), nothing starts. Nothing starts while the workout is paused.
     /// </summary>
     public void RestIsUp(DateTimeOffset? endsAt = null)
     {
+        if (Paused) return;
+
         if (endsAt is { } heard && (Status?.RestEndsAt is not { } end || (end - heard).Duration() > TimeSpan.FromSeconds(2))) return;
 
         if (Current is { Running: [], Next: { } next }) StartSets(next.ExerciseIds);
+    }
+
+    /// <summary>True while the workout is paused: a screen that changes it is open.</summary>
+    public bool Paused => Current?.Session.PausedAt is not null;
+
+    /// <summary>
+    /// Pauses the workout, as a screen that changes it opens: until <see cref="Resume"/> nothing starts by itself, on the phone or
+    /// from the watch, whose countdown is called off, and a running set's clock holds. Rest is the time since the last set whatever
+    /// the app does, so it goes on counting.
+    /// </summary>
+    public void Pause()
+    {
+        if (Current is not { Session.PausedAt: null } state) return;
+
+        state.Session.PausedAt = DateTimeOffset.Now;
+        Save(store.SavePauseAsync(state.Session));
+        Announce();
+    }
+
+    /// <summary>
+    /// Ends the pause. A set that was running carries on from where its clock held: the time it was held is kept with it, and
+    /// isn't part of how long it ran. A rest countdown that ran out meanwhile starts nothing; the rest screen shows how far over it is.
+    /// </summary>
+    public void Resume()
+    {
+        if (Current is not { Session.PausedAt: { } pausedAt } state) return;
+
+        var now = DateTimeOffset.Now;
+        foreach (var set in state.Running)
+        {
+            var heldFrom = set.StartedAt is { } started && started > pausedAt ? started : pausedAt;
+            set.PausedSeconds += Math.Max(0, (int)Math.Round((now - heldFrom).TotalSeconds));
+            Save(store.UpdateSetAsync(set));
+        }
+
+        state.Session.PausedAt = null;
+        Save(store.SavePauseAsync(state.Session));
+        Announce();
     }
 
     /// <summary>Another set of what I just did (another round of a superset), e.g. past its planned sets.</summary>
@@ -176,13 +222,13 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     /// <summary>Stops the running set, or a superset's round, all at once; for a time exercise the stopwatch becomes its duration.</summary>
     public void StopSet()
     {
-        if (Current is not { Running: [_, ..] running } state) return;
+        if (Paused || Current is not { Running: [_, ..] running } state) return;
 
         var now = DateTimeOffset.Now;
         foreach (var set in running)
         {
             set.StoppedAt = now;
-            if (state.Exercises[set.ExerciseId].Measure == ExerciseMeasure.Time) set.DurationSeconds = (int)Math.Round((now - set.StartedAt!.Value).TotalSeconds);
+            if (state.Exercises[set.ExerciseId].Measure == ExerciseMeasure.Time) set.DurationSeconds = (int)Math.Round(set.Ran()!.Value.TotalSeconds);
             Save(store.UpdateSetAsync(set));
         }
 
@@ -270,7 +316,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     /// <summary>After the last exercise: saves the set being logged and starts the cool-down, which runs until Finish.</summary>
     public void StartCoolDown()
     {
-        if (Current is not { Running: [], WarmingUp: false, CoolDownNext: true } state) return;
+        if (Paused || Current is not { Running: [], WarmingUp: false, CoolDownNext: true } state) return;
 
         foreach (var entry in state.ToConfirm) Save(store.UpdateSetAsync(entry));
         state.LoggedThrough = state.LastOrder;
@@ -284,6 +330,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     {
         if (Current is not { } state) return null;
 
+        Resume();
         StopSet();
         foreach (var entry in state.ToConfirm) Save(store.UpdateSetAsync(entry));
         state.Session.FinishedAt = DateTimeOffset.Now;
@@ -506,7 +553,10 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         var plan = await store.GetSessionPlanAsync(open.Id);
         if (plan.Count == 0 && open.TemplateId is long templateId) plan = PlanEdits.Copy(await store.GetTemplateExercisesAsync(templateId));
         Current = await CreateStateAsync(open, [.. sets.Where(s => s.SessionId == open.Id)], plan);
-        Announce();
+
+        // Left paused when the app closed: the screen that paused it is gone, so it carries on from here.
+        if (Paused) Resume();
+        else Announce();
     }
 
     // Replaces today's plan and saves it. A running set (or round) belonged to what changed, so it's thrown away and `startNow`,

@@ -178,6 +178,8 @@ I can leave simple mode at any moment, like leaving full screen. **Advanced mode
 3. **Break.** The rest timer, live heart rate (in Telemetry with its last minute, the set's stop marked on it), and the set just done, or a superset's round, under its place in the plan (**Set 2 of 3**, **Superset · round 1 of 3**): for each exercise its name, then weight × reps and **Hit goal** on one line, pre-filled, and under them how many more reps I could have done, if I like (**Left in the tank: 0 · 1 · 2 · 3+**, one tap, again to clear, in hairline boxes until one is picked). Every change is saved as it's made, so there's nothing to confirm, and a note shows only when a tick does something: **Next time: 105 lb** beside the name once Hit goal is ticked. A bodyweight set has no unit. A **⋯** button at the end of the name opens what's rarely needed: **Warm-up**, for a lighter set done to get ready (see *Warm-up sets*); **Assisted**, when the weight is help from the machine (kept as a minus); and **Today's sets**, every set of the workout one by one, where tapping a set changes its numbers, Hit goal or Warm-up, or deletes it (a set done by mistake), after asking once. Time exercises need nothing: the stopwatch was the duration. With nothing to enter (after a time exercise, or when the workout is opened again), the break shows **Today so far** instead: every exercise done in this workout in short form (`3 × 10 at 100`, with a warm-up set written small under it: `Warm-up 12 at 60`), with **Edit** to the same sets. What's next follows from the sets left. One big button at the bottom names what's next: **Start set 3**, or **Start pull-ups**. It only starts the next set, closing the lines as they stand. Above it, **Next** names what's next with the weight and reps it starts at (`140 lb × 8`, each exercise of a round on its own line, and a note when it went up for a hit goal, and **Flat for 4 workouts** when the exercise has gone flat: see *Plateaus*), so the weights can be ready before the rest is up. More of what I just did starts from the numbers in the lines above, so then Next is one line (**Next · Set 3 of 3**, with the flat note when there is one); after a warm-up set it shows its numbers again, since the next set starts from another weight.
 4. **Finish workout** is always reachable, in every state.
 
+A button holds its words. When a name is too long for it, the big button says **Start next exercise** or **Start superset**, and the others **Another set**, **Move on** or **Skip exercise**; Next, above them, names it in full.
+
 The break screen reads **Rest 0:48**: the word big beside the timer, counting up. **Tapping the time** turns it into a countdown (and back); the choice sticks for later rests.
 
 - **It learns:** the countdown after an exercise starts from the one I set for it last time; never set, from how long I usually rested after it last time (the middle rest, to the nearest 15 seconds); with nothing to go on, 1:30. **−15s** and **+15s** adjust it, and that's remembered.
@@ -232,6 +234,8 @@ Unticking it makes it an ordinary set again. Time exercises have no warm-up sets
 ### Changing today's workout
 
 Machines are taken all the time, so a workout never has to follow its session exactly. Each workout gets its own copy of the session's exercises when it starts; changing it never touches the session.
+
+**Changing pauses the workout.** While Change, Add more, Today's sets or the exercise picker is open, nothing starts by itself: a rest countdown that runs out starts no set, on the phone or from the watch, whose countdown is called off, and the watch and the notification say **Paused**. A set that was running holds its clock, and the time it was held isn't part of how long it ran. Rest is the time since the last set whatever the app does, so it goes on counting: back on the break screen, a countdown that ran out meanwhile shows how far over it is and waits for a tap. A workout left paused when the app closes carries on when it opens again.
 
 **Change** sits on the set screen and next to "Next:" on the break screen. It opens for that exercise:
 
@@ -509,6 +513,7 @@ Session            Id, TemplateId (empty = just tracking), StartedAt, FinishedAt
                    WarmUp, WarmUpEndedAt         (copied from the template at Start; warming up from StartedAt until the first set)
                    CoolDown, CoolDownStartedAt   (cooling down from Start cool-down until FinishedAt)
                    AverageBpm                    (worked out at Finish; 0 without readings)
+                   PausedAt                      (while a screen that changes the workout is open; empty otherwise)
 Exercise           Id, Name (unique, ignoring case and extra spaces), Measure (Weight | Time)
                    TaggedBy                     (who tagged its muscles: claude or owner; empty until tagged)
 ExerciseMuscle     ExerciseId, Muscle, Main     (the muscles an exercise trains: Main for the ones it's done for, else it helps)
@@ -519,6 +524,7 @@ Set                Id, SessionId, ExerciseId, Order,
                    HitGoal                      (checked on any break screen)
                    RepsLeft                     (how many more reps it had in it: 0 to 3, 3 meaning three or more; empty when not said)
                    WarmUp                       (a lighter set done to get ready: kept, but not one of the exercise's sets)
+                   PausedSeconds                (how long it was held while the workout was paused: not part of how long it ran)
 HeartRateSample    At, Bpm                      (matched to sessions, sets and rests by time)
 FoodEntry          Id, At, Calories
 BodyWeightEntry    Id, At, Weight, WeightUnit

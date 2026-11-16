@@ -79,7 +79,7 @@ else if (State.Next is { } next)
     }
     else if (State is { CanMoveOn: true, MoveOn: { } moveOn })
     {
-        <button type="button" class="btn tall" @onclick="() => Start(moveOn)">Move on to @State.Names(moveOn.ExerciseIds)</button>
+        <button type="button" class="btn tall" @onclick="() => Start(moveOn)"><FitLabel Text="@($"Move on to {State.Names(moveOn.ExerciseIds)}")" Short="Move on" /></button>
     }
     else if (State.CanMoveOn)
     {
@@ -90,9 +90,28 @@ else if (State.Next is { } next)
     }
     else if (!goingOn && CanGoOn && !takenApart)
     {
-        <button type="button" class="btn tall" @onclick="StartAnotherAsync">@(State.LastRound is [var only] ? $"Another set of {State.Exercises[only.ExerciseId].Name}" : "Another round")</button>
+        <button type="button" class="btn tall" @onclick="StartAnotherAsync">
+            @if (State.LastRound is [var only])
+            {
+                <FitLabel Text="@($"Another set of {State.Exercises[only.ExerciseId].Name}")" Short="Another set" />
+            }
+            else
+            {
+                @("Another round")
+            }
+        </button>
     }
-    <button type="button" class="btn-primary go" @onclick="() => Start(next)">@(goingOn ? $"Start {(next.IsRound ? "round" : "set")} {next.SetNumber}" : $"Start {names}")</button>
+    @* The big button names what it starts when the name fits; the names are in full under Next either way. *@
+    <button type="button" class="btn-primary go" @onclick="() => Start(next)">
+        @if (goingOn)
+        {
+            @($"Start {(next.IsRound ? "round" : "set")} {next.SetNumber}")
+        }
+        else
+        {
+            <FitLabel Text="@($"Start {names}")" Short="@(next.IsRound ? "Start superset" : "Start next exercise")" />
+        }
+    </button>
 }
 else if (State.WarmingUp)
 {

@@ -1,0 +1,46 @@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@* A button's words when they may not fit its box: the long ones, with an exercise's name, when they fit on one line, else the plain
+   ones. The names are written in full above the button, so the plain words lose nothing. The look's stylesheet draws the words
+   from the label's attributes, and a small script says when the long ones don't fit, measured as drawn. A screen reader gets the
+   long ones either way. *@
+<span class="fit" aria-hidden="true" data-long="@Text" data-short="@Short" @ref="label"></span><span class="sr-only">@Text</span>
+
+@code {
+    private ElementReference label;
+    private IJSObjectReference? module;
+
+    /// <summary>The words with the name in them: "Start Pull-ups + Dips".</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    /// <summary>The plain words for when those don't fit: "Start superset".</summary>
+    [Parameter, EditorRequired] public string Short { get; set; } = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AdaptiveWorkout.UI/Components/FitLabel.razor.js");
+            await module.InvokeVoidAsync("fit", label);
+        }
+        catch (JSException)
+        {
+            // Not measured: the long words stay, cut short with an ellipsis if they don't fit.
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (module is not null) await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

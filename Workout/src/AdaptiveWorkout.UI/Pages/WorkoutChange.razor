@@ -1,4 +1,5 @@
 @page "/workout/change"
+@implements IDisposable
 @inject WorkoutFlow Flow
 @inject AppNavigation Navigation
 
@@ -12,6 +13,7 @@
     var others = state.StillToDo().Where(other => other != id && together?.Contains(other) != true).Select(other => state.Exercises[other]).ToList();
     <div class="screen">
         <PageHeader Back="workout" BackText="@state.Name" Label="Today only" Title="@($"Change {target.Name}")" Small="true" Live="true" />
+        <p class="note">Paused while this is open: nothing starts by itself.</p>
 
         @* In the superset that's next or running, Change opens on one of its exercises: this picks which of them to change. *@
         @if (together is not null)
@@ -84,7 +86,11 @@
         state = Flow.Current ?? await Flow.LoadAsync();
         targetId = Exercise is long id && state?.Exercises.ContainsKey(id) == true ? id : state?.ChangeTarget;
         if (targetId is null) await Navigation.ReturnToAsync(state is null ? "" : "workout");
+        else Flow.Pause();
     }
+
+    // Changing the workout pauses it: no rest countdown starts the next set meanwhile, on the phone or from the watch.
+    public void Dispose() => Flow.Resume();
 
     private Task DoFirstAsync(Exercise exercise)
     {

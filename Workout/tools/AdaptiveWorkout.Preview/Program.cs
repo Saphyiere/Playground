@@ -81,6 +81,27 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     await store.SaveRoutineAsync(new Routine { Name = "Upper lower" }, [back.Id, legs.Id, null, push.Id, legs.Id, null, null]);
     if (scenario != "noroutine") await store.SetActiveRoutineAsync(sixDays.Id);
 
+    // A chest day with names as long as real ones, for the buttons that have to hold them, and two supersets. Only its own
+    // scenarios have it, so the others' exercises and sessions stay as they were.
+    var chest = new SessionTemplate { Name = "Chest day" };
+    Exercise? flatDumbbells = null, inclineDumbbells = null;
+    if (scenario is "chest" or "chest-superset")
+    {
+        flatDumbbells = await store.GetOrCreateExerciseAsync("Flat chest press dumbbells", ExerciseMeasure.Weight);
+        inclineDumbbells = await store.GetOrCreateExerciseAsync("Incline chest press dumbbells", ExerciseMeasure.Weight);
+        var fly = await store.GetOrCreateExerciseAsync("Dumbbell fly", ExerciseMeasure.Weight);
+        var crossover = await store.GetOrCreateExerciseAsync("Cable crossover", ExerciseMeasure.Weight);
+        await store.SaveTemplateAsync(chest,
+        [
+            new() { ExerciseId = flatDumbbells.Id, Order = 0, PlannedSets = 3 },
+            new() { ExerciseId = inclineDumbbells.Id, Order = 1, PlannedSets = 3 },
+            new() { ExerciseId = fly.Id, Order = 2, PlannedSets = 3, SupersetGroup = 3 },
+            new() { ExerciseId = crossover.Id, Order = 3, SupersetGroup = 3 },
+            new() { ExerciseId = pushdown.Id, Order = 4, PlannedSets = 3, SupersetGroup = 5 },
+            new() { ExerciseId = skulls.Id, Order = 5, SupersetGroup = 5 },
+        ]);
+    }
+
     if (scenario == "years")
     {
         // Three years of training until three weeks ago: four workouts a week, 15 sets each; four meals a day; a weigh-in a day.
@@ -334,7 +355,7 @@ async Task<string> Seed(string scenario, WorkoutStore store)
     if (scenario is "today" or "sessions" or "noroutine" or "trend" or "years" or "warmup" or "food" or "food-nobody" or "checks" or "muscles" or "week") return $"seeded {scenario}";
 
     // Open workouts, one per scenario. Sets stopped a little while ago.
-    var open = scenario switch { "track" => null, "auto" or "auto-last" => (long?)arms.Id, "done" => legs.Id, _ => back.Id };
+    var open = scenario switch { "track" => null, "auto" or "auto-last" => (long?)arms.Id, "done" => legs.Id, "chest" or "chest-superset" => chest.Id, _ => back.Id };
     var session = new WorkoutSession { TemplateId = open, StartedAt = now.AddMinutes(-16) };
     await store.StartSessionAsync(session);
     var n = 1;
@@ -349,6 +370,11 @@ async Task<string> Seed(string scenario, WorkoutStore store)
         case "long": await Done(rows, 100, 10, 1500); await Done(rows, 100, 10, 725); break; // a 12-minute rest
         case "plateau": await Done(rows, 95, 10, 300); await Done(rows, 95, 10, 48); break;
         case "track": await Done(walk, null, 0, 300); await Done(walk, null, 0, 40); break;
+        case "chest": await Done(flatDumbbells!, 60, 10, 600); await Done(flatDumbbells!, 60, 10, 400); await Done(flatDumbbells!, 60, 10, 48); break; // incline is next
+        case "chest-superset": // both presses done: the superset with the long names is next
+            await Done(flatDumbbells!, 60, 10, 1500); await Done(flatDumbbells!, 60, 10, 1300); await Done(flatDumbbells!, 60, 10, 1100);
+            await Done(inclineDumbbells!, 40, 10, 800); await Done(inclineDumbbells!, 40, 10, 500); await Done(inclineDumbbells!, 40, 10, 48);
+            break;
         default: await Done(rows, 100, 10, 600); await Done(rows, 100, 10, 400); await Done(rows, 100, 10, 48); break;
     }
     return scenario;

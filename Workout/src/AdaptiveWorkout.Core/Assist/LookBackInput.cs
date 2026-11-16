@@ -127,8 +127,9 @@ public static class LookBackFacts
                 var set = rounds[r][m];
                 var measure = exercises[set.ExerciseId].Measure;
                 var today = ordered.Working().Where(s => s.ExerciseId == set.ExerciseId).ToList();
+                // How long it ran leaves out any time it was held while the workout was paused.
                 int? seconds = measure == ExerciseMeasure.Time && set.DurationSeconds is int typed ? typed
-                    : set is { StartedAt: { } start, StoppedAt: { } stop } && stop >= start ? (int)Math.Round((stop - start).TotalSeconds) : null;
+                    : set is { StartedAt: { } start, StoppedAt: { } stop } && stop >= start ? (int)Math.Round(set.Ran()!.Value.TotalSeconds) : null;
                 var during = set is { StartedAt: { } s1, StoppedAt: { } s2 } ? WorkoutStats.HeartRate(readings, s1, s2) : null;
                 var flags = new List<SetFlag>();
                 if (measure == ExerciseMeasure.Weight && !set.WarmUp)
@@ -205,7 +206,7 @@ public static class LookBackFacts
         if (seconds is not int ran) return;
 
         var usual = Median(others.Where(s => s is { StartedAt: not null, StoppedAt: not null } && s.StoppedAt >= s.StartedAt)
-            .Select(s => (s.StoppedAt!.Value - s.StartedAt!.Value).TotalSeconds));
+            .Select(s => s.Ran()!.Value.TotalSeconds));
         if (ran > 180) flags.Add(new SetFlag(SetFlagKind.LongSet, usual is double u ? $"Ran {Time(ran)}; its sets usually run {Time(u)}" : $"Ran {Time(ran)}"));
         else if (usual is double typical && ran > 3 * typical && ran > 60) flags.Add(new SetFlag(SetFlagKind.LongSet, $"Ran {Time(ran)}; its sets usually run {Time(typical)}"));
     }
