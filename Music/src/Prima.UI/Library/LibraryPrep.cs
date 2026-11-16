@@ -10,7 +10,7 @@ namespace Prima.UI.Library;
 /// <summary>
 /// Brings music into the Library. Bundled pieces come prepared (the Library tool engraved, split, graded and cut them when the
 /// bundle was built), so the first time the Library opens they're only stored, in the background; a PDF is listed as it is. A
-/// collection the tool built for this tablet alone (its local collection, a zip) is stored the same way when it's imported. An
+/// collection the tool built for this tablet alone (its local collection, a few zips) is stored the same way when it's imported. An
 /// imported file goes through Verovio to MEI in the web view, and is then numbered, cut and graded away from the screen's thread.
 /// </summary>
 public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRuntime js)

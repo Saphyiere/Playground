@@ -176,14 +176,18 @@ a PDF plays out; this is what came of it.
   is the whole collection to open or engrave. Tempo changes a score keeps only for playback (bare numbers, which MuseScore hides)
   are left out, from the bundle and from pieces stored before, since they'd print on the music. An import is read and graded on
   the tablet, away from the screen's thread.
-- **A local collection**: more music for this tablet alone, never in the repo, whose terms allow personal, non-commercial use
-  but not a place in a public repo. The Library tool builds it on the PC (`-- local`): Craig Sapp's Humdrum editions (Mozart's,
-  Haydn's and Scarlatti's sonatas, Joplin's rags, Bach's 370 chorales on a grand staff) and the DCML's research corpora as
-  MuseScore files (Beethoven's sonatas, Bach's suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The
-  Seasons, Debussy, and more), both CC BY-NC-SA 4.0: about 1,200 pieces, prepared like the bundle and packed in one file.
-  **Import files** with that file stores them in the background with the same meter, its pieces credited like the
-  collection's; those already here stay as they are. The list then holds about 1,500 pieces, so it's drawn again a second at a
-  time at most while pieces are stored, and the search follows once typing pauses.
+- **A local collection**: more music for this tablet alone, never in the repo: music whose terms allow personal,
+  non-commercial use but not a place in a public repo, and more public-domain music than the repo should carry. The Library
+  tool builds it on the PC (`-- local`): Craig Sapp's Humdrum editions (Mozart's, Haydn's and Scarlatti's sonatas, Joplin's
+  rags, Bach's 370 chorales on a grand staff), the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's
+  suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Bartók's Bagatelles, and more)
+  and ASAP's concert scores (the Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), all CC BY-NC-SA 4.0;
+  more of PDMX's public-domain piano music; and the rest of the Mutopia Project's keyboard music as PDFs with their MIDI, each
+  PDF at the level its MIDI reads at. About 2,650 pieces, all keyboard music, prepared like the bundle and packed in a few
+  zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores its pieces in
+  the background with the same meter, credited like the collection's; those already here stay as they are. The list then holds
+  about 2,950 pieces, so it's drawn again a second at a time at most while pieces are stored, and the search follows once
+  typing pauses.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as

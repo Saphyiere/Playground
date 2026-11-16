@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Prima.Core.Library;
@@ -27,6 +28,201 @@ internal static class Mutopia
     ];
 
     private static readonly XNamespace Mp = "http://www.mutopiaproject.org/piece-data/0.1/";
+
+    // Music for a keyboard alone, as a piece's "for" says it: "Piano", "Harpsichord, Piano", "Piano/Harpsichord/Clavichord".
+    private static readonly Regex Keyboard = new(@"^(piano|pianoforte|harpsichord|clavichord|clavier|keyboard|fortepiano|virginals?|spinet)(\s*(,|/|or|and)\s*(piano|pianoforte|harpsichord|clavichord|clavier|keyboard|fortepiano|virginals?|spinet))*\.?$", RegexOptions.IgnoreCase);
+
+    // A header field in a piece's LilyPond source: mutopiainstrument = "Piano".
+    private static readonly Regex Header = new(@"^\s*(mutopiainstrument|instrument|license|copyright|composer)\s*=\s*""([^""]*)""", RegexOptions.Multiline);
+
+    // The project's composers, by its own codes, as the other sources name them; any other's name is read from its piece.
+    private static readonly Dictionary<string, string> Composers = new()
+    {
+        ["AdamA"] = "Adolphe Adam", ["AlbenizIMF"] = "Isaac Albéniz", ["AlkanCV"] = "Charles-Valentin Alkan", ["AndreJ"] = "Johann André",
+        ["BachCPE"] = "Carl Philipp Emanuel Bach", ["BachJS"] = "Johann Sebastian Bach", ["BartokB"] = "Béla Bartók", ["BeethovenLv"] = "Ludwig van Beethoven",
+        ["BehrF"] = "Franz Behr", ["BendaJA"] = "Jiří Antonín Benda", ["BizetG"] = "Georges Bizet", ["BrahmsJ"] = "Johannes Brahms",
+        ["BurgmullerJFF"] = "Friedrich Burgmüller", ["ChopinFF"] = "Frédéric Chopin", ["ClementiM"] = "Muzio Clementi", ["CouperinF"] = "François Couperin",
+        ["CzernyC"] = "Carl Czerny", ["DebussyC"] = "Claude Debussy", ["DussekJL"] = "Jan Ladislav Dussek", ["FieldJ"] = "John Field",
+        ["FischerJKF"] = "Johann Caspar Ferdinand Fischer", ["FrobergerJJ"] = "Johann Jakob Froberger", ["GobbaertsL"] = "Louis Streabbog",
+        ["GottschalkLM"] = "Louis Moreau Gottschalk", ["GriegE"] = "Edvard Grieg", ["HandelGF"] = "George Frideric Handel", ["HanonCL"] = "Charles-Louis Hanon",
+        ["HaydnFJ"] = "Joseph Haydn", ["JoplinS"] = "Scott Joplin", ["KuhlauF"] = "Friedrich Kuhlau", ["LisztF"] = "Franz Liszt",
+        ["MendelssohnF"] = "Felix Mendelssohn", ["MozartWA"] = "Wolfgang Amadeus Mozart", ["MussorgskyM"] = "Modest Mussorgsky", ["PurcellH"] = "Henry Purcell",
+        ["RameauJP"] = "Jean-Philippe Rameau", ["SatieE"] = "Erik Satie", ["ScarlattiD"] = "Domenico Scarlatti", ["SchubertF"] = "Franz Schubert",
+        ["SchumannR"] = "Robert Schumann", ["ScriabinA"] = "Alexander Scriabin", ["TchaikovskyPI"] = "Pyotr Ilyich Tchaikovsky", ["TelemannGP"] = "Georg Philipp Telemann",
+        ["Mendelssohn-BartholdyF"] = "Felix Mendelssohn", ["ChabrierEA"] = "Emmanuel Chabrier", ["DiabelliA"] = "Anton Diabelli", ["DvorakA"] = "Antonín Dvořák",
+        ["FaureG"] = "Gabriel Fauré", ["FranckC"] = "César Franck", ["GranadosE"] = "Enrique Granados", ["HaydnJM"] = "Michael Haydn",
+        ["PachelbelJ"] = "Johann Pachelbel", ["PleyelIJ"] = "Ignace Pleyel", ["Rimsky-KorsakovN"] = "Nikolai Rimsky-Korsakov", ["Saint-SaensC"] = "Camille Saint-Saëns",
+        ["BuxtehudeD"] = "Dieterich Buxtehude", ["KuhnauJ"] = "Johann Kuhnau", ["RachmaninoffS"] = "Sergei Rachmaninoff", ["GershwinG"] = "George Gershwin",
+        ["ElgarE"] = "Edward Elgar", ["GlazunovA"] = "Alexander Glazunov", ["RegerM"] = "Max Reger", ["StraussJJ"] = "Johann Strauss II",
+        ["TurpinT"] = "Tom Turpin", ["VivaldiA"] = "Antonio Vivaldi", ["WanhalJ"] = "Johann Baptist Vanhal", ["MinkusLA"] = "Ludwig Minkus",
+        ["VerdiG"] = "Giuseppe Verdi", ["BlumenthalJ"] = "Jacques Blumenthal", ["StanchinskyAV"] = "Alexei Stanchinsky", ["PeaseAH"] = "Alfred H. Pease",
+        ["PejacsevichD"] = "Dora Pejačević", ["Yaniewicz"] = "Feliks Yaniewicz", ["KumarR"] = "Ramana Kumar", ["MuellerAE"] = "August Eberhard Müller",
+        ["SousaJP"] = "John Philip Sousa",
+        ["Anonymous"] = "Anonymous", ["Traditional"] = "Traditional",
+    };
+
+    /// <summary>
+    /// The rest of the Mutopia Project's music for a keyboard alone (piano, harpsichord, clavichord), for the local collection: every
+    /// piece the project's sources on GitHub say is for one, with a licence that allows it (public domain, CC BY, CC BY-SA, read again
+    /// from the piece's .rdf on the site), as its A4 PDF and MIDI. What the repo's bundle has stays out. A piece engraved as several
+    /// PDFs (a suite's movements, zipped) comes as a piece a PDF, each with the MIDI of the same name. Each is graded from its MIDI,
+    /// written out as notation the way an import is (MidiNotation), so the Library places it at its own level, where the bundle's
+    /// carry their collection's. The site's robots.txt allows everything; it's read a file at a time, a quarter second apart.
+    /// </summary>
+    public static async Task<List<BundledPiece>> FetchMore(HttpClient http, string cache, string output, IReadOnlySet<string> bundled)
+    {
+        Console.WriteLine("Mutopia: the project's sources, to find its keyboard music…");
+        var repo = await Github.Fetch(http, cache, "MutopiaProject", "MutopiaProject", "ftp");
+        var ftp = Path.Combine(repo, "ftp");
+        var found = new List<(string Path, string Composer)>();
+        foreach (var folder in Directory.EnumerateDirectories(ftp, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            var name = Path.GetFileName(folder);
+            if (!File.Exists(Path.Combine(folder, name + ".ly")) && !Directory.Exists(Path.Combine(folder, name + "-lys"))) continue;
+
+            var fields = new Dictionary<string, string>();
+            foreach (var source in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Where(f => f.EndsWith(".ly", StringComparison.Ordinal) || f.EndsWith(".ily", StringComparison.Ordinal)))
+            {
+                foreach (Match m in Header.Matches(await File.ReadAllTextAsync(source))) fields.TryAdd(m.Groups[1].Value, m.Groups[2].Value);
+            }
+            var instrument = fields.GetValueOrDefault("mutopiainstrument") ?? fields.GetValueOrDefault("instrument") ?? "";
+            var licence = fields.GetValueOrDefault("license") ?? fields.GetValueOrDefault("copyright") ?? "";
+            var path = Path.GetRelativePath(ftp, folder).Replace('\\', '/');
+            if (!Keyboard.IsMatch(instrument.Trim()) || Licence(licence).Name is null || bundled.Contains(Id(name))) continue;
+
+            // "Johann Sebastian Bach (1685-1750)" is Johann Sebastian Bach; "SCOTT JOPLIN." is Scott Joplin; with no name in the
+            // piece, the project's code for it, "DoonanSC", is S. C. Doonan.
+            var code = path.Split('/')[0];
+            var byCode = Regex.Match(code, "^([A-Z][a-z]+(?:-[A-Z][a-z]+)*)([A-Z]*)$") is { Success: true } c
+                ? $"{string.Concat(c.Groups[2].Value.Select(i => $"{i}. "))}{c.Groups[1].Value}" : code;
+            var composer = Composers.GetValueOrDefault(code) ?? Regex.Replace(fields.GetValueOrDefault("composer") ?? byCode, @"\s*\([^)]*\d[^)]*\)\s*$|^by\s+|\.$", "", RegexOptions.IgnoreCase).Trim();
+            if (composer.Length > 0 && composer.All(c => !char.IsLower(c))) composer = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(composer.ToLowerInvariant());
+            found.Add((path, composer.Length > 0 ? composer : code));
+        }
+        Console.WriteLine($"Mutopia: {found.Count} pieces for a keyboard not in the bundle; fetching each one's PDF and MIDI (a few minutes, quicker once they're here)…");
+
+        // A piece goes by its folder's name, as the bundle's do, unless another piece's folder has the same name (Bizet's and
+        // Scriabin's "prelude"): then each goes by its whole path. Its files in the cache always do.
+        var shared = found.GroupBy(f => Path.GetFileName(f.Path), StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rdfs = Path.Combine(cache, "mutopia");
+        Directory.CreateDirectory(rdfs);
+        var pieces = new List<BundledPiece>();
+        foreach (var (i, (path, composer)) in found.Index())
+        {
+            var id = shared.Contains(Path.GetFileName(path)) ? Id(path) : Id(Path.GetFileName(path));
+            pieces.AddRange(await FetchMorePiece(http, path, id, composer, rdfs, output));
+            if ((i + 1) % 50 == 0) Console.WriteLine($"Mutopia: {i + 1} of {found.Count} pieces…");
+        }
+        Console.WriteLine($"Mutopia: {pieces.Count} pieces, {pieces.Count(p => p.Anchor is not null)} graded from their MIDI.");
+        return pieces;
+    }
+
+    private static string Id(string folder) => "mutopia-" + Regex.Replace(folder, "[^A-Za-z0-9-]", "-");
+
+    private static async Task<List<BundledPiece>> FetchMorePiece(HttpClient http, string path, string id, string composer, string rdfs, string output)
+    {
+        // The .rdf says what the site has, and is kept: a second run reads it from the cache.
+        var url = Ftp + path + "/";
+        var folder = Path.GetFileName(path);
+        var key = Path.Combine(rdfs, path.Replace('/', '-'));
+        var cached = key + ".rdf";
+        var rdfText = File.Exists(cached) ? await File.ReadAllTextAsync(cached) : await Polite(() => Get(http, $"{url}{folder}.rdf"));
+        if (rdfText is null) return [];
+        if (!File.Exists(cached)) await File.WriteAllTextAsync(cached, rdfText);
+
+        var rdf = XDocument.Parse(rdfText).Descendants(Mp + "title").FirstOrDefault()?.Parent;
+        string Field(string name) => rdf?.Element(Mp + name)?.Value.Trim() ?? "";
+        var (licence, licenceUrl) = Licence(Field("licence"));
+        if (rdf is null || !Keyboard.IsMatch(Field("for")) || licence is null || Field("pdfFileA4") is not { Length: > 0 } pdf) return [];
+
+        var title = Title(Field("title"), Field("opus"));
+        var number = Regex.Match(Field("id"), @"-(\d+)$").Groups[1].Value;
+        var maintainer = Field("maintainer");
+        var credit = $"Typeset{(maintainer.Length > 0 ? $" by {maintainer}" : "")} for the Mutopia Project{(Field("source") is { Length: > 0 } source ? $", from {source}" : "")}; {licence}.";
+        var info = number.Length > 0 ? $"https://www.mutopiaproject.org/cgibin/piece-info.cgi?id={number}" : url;
+        BundledPiece Piece(string partId, string partTitle, string file, string? midi) => new(partId, partTitle, composer, Field("opus"), "pdf", file, midi,
+            Pdmx.Hash(Path.Combine(output, file)), Name, info, licence, licenceUrl, credit, Tier.A, null, midi is null ? null : Level(Path.Combine(output, midi), partTitle));
+
+        if (!pdf.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            var file = $"pieces/{id}.pdf";
+            if (!await Fetched(http, url + pdf, Path.Combine(output, file))) return [];
+            string? midi = null;
+            if (Field("midFile") is { Length: > 0 } mid && mid.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) && await Fetched(http, url + mid, Path.Combine(output, "pieces", id + ".mid"))) midi = $"pieces/{id}.mid";
+            return [Piece(id, title, file, midi)];
+        }
+
+        // Several PDFs, and as many MIDI files: each PDF a piece, with the MIDI of its name ("…-allemande-a4.pdf", "…-allemande.mid").
+        var pdfs = key + "-a4-pdfs.zip";
+        var mids = key + "-mids.zip";
+        if (!await Fetched(http, url + pdf, pdfs)) return [];
+        var midiOf = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        if (Field("midFile") is { Length: > 0 } midZip && midZip.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && await Fetched(http, url + midZip, mids))
+        {
+            using var zip = ZipFile.OpenRead(mids);
+            foreach (var entry in zip.Entries.Where(e => e.Name.EndsWith(".mid", StringComparison.OrdinalIgnoreCase)))
+            {
+                using var stream = entry.Open();
+                using var bytes = new MemoryStream();
+                await stream.CopyToAsync(bytes);
+                midiOf[Path.GetFileNameWithoutExtension(entry.Name)] = bytes.ToArray();
+            }
+        }
+
+        var parts = new List<BundledPiece>();
+        using (var zip = ZipFile.OpenRead(pdfs))
+        {
+            // In their order, numbers as numbers: "2-…" before "10-…".
+            var entries = zip.Entries.Where(e => e.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(e => Regex.Replace(e.Name, @"\d+", m => m.Value.PadLeft(4, '0')), StringComparer.Ordinal).ToList();
+            foreach (var entry in entries)
+            {
+                var stem = Regex.Replace(Path.GetFileNameWithoutExtension(entry.Name), "-a4$", "");
+                var partId = $"{id}-{Regex.Replace(stem, "[^A-Za-z0-9-]", "-")}";
+                var file = $"pieces/{partId}.pdf";
+                entry.ExtractToFile(Path.Combine(output, file), overwrite: true);
+                string? midi = null;
+                if (midiOf.TryGetValue(stem, out var bytes))
+                {
+                    midi = $"pieces/{partId}.mid";
+                    await File.WriteAllBytesAsync(Path.Combine(output, midi), bytes);
+                }
+                // The part's name is its file's, less the piece's: "french-suite-3-allemande" is "Allemande". A file named for no
+                // word ("bwv-827-1", "10title-hub") gives the part its number in the piece.
+                var name = Regex.Replace(stem.StartsWith(folder, StringComparison.OrdinalIgnoreCase) ? stem[folder.Length..] : stem, "[-_]+", " ").Trim();
+                var words = Regex.Matches(name, @"\p{L}{3,}").Select(m => m.Value.ToLowerInvariant()).Where(w => w is not ("title" or "hub" or "part" or "page" or "bwv")).ToList();
+                var label = words.Count > 0 ? $"{char.ToUpperInvariant(name[0])}{name[1..]}" : $"{entries.IndexOf(entry) + 1}";
+                parts.Add(Piece(partId, $"{title}: {label}", file, midi));
+            }
+        }
+        return parts;
+    }
+
+    // A piece's level from its MIDI written out as notation, as an import of it would be graded; null when it can't be read.
+    private static int? Level(string midi, string title)
+    {
+        try
+        {
+            var score = MidiNotation.Read(File.ReadAllBytes(midi), title);
+            return score.Expected().Count == 0 ? null : Excerpts.PieceGrade(score, Excerpts.Cut(score)).Level;
+        }
+        catch (Exception e) when (e is FormatException or InvalidOperationException or ArgumentException or IndexOutOfRangeException or EndOfStreamException or InvalidDataException)
+        {
+            return null;
+        }
+    }
+
+    // A request to the site, a quarter second after the last.
+    private static async Task<T> Polite<T>(Func<Task<T>> request)
+    {
+        await Task.Delay(250);
+        return await request();
+    }
+
+    // A file from the site, unless it's here already.
+    private static async Task<bool> Fetched(HttpClient http, string url, string path) =>
+        File.Exists(path) && new FileInfo(path).Length > 0 || await Polite(() => Save(http, url, path));
 
     public static async Task<List<BundledPiece>> Fetch(HttpClient http, string output)
     {
