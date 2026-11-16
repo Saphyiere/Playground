@@ -84,11 +84,12 @@ public sealed record SyncFile(string Path, long Size, DateTimeOffset Modified, s
 
 /// <summary>
 /// A copy kept from before an update, after the app's first start with the update didn't hold all of it: kept, whatever copies
-/// come after, until it's restored or let go.
+/// come after, until it's restored or let go. A store can hold more than one, each in <c>held.json</c>.
 /// </summary>
 public sealed record SyncHeld(string Copy, string Update, string Why, DateTimeOffset Since);
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, WriteIndented = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(SyncManifest))]
 [JsonSerializable(typeof(SyncHeld))]
+[JsonSerializable(typeof(List<SyncHeld>))]
 internal sealed partial class SyncJson : JsonSerializerContext;

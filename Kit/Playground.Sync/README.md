@@ -28,7 +28,7 @@ A store holds the copies, laid out the same way wherever it is:
 ```
 copies/20261115T153000123Z.json   a copy's manifest, named for when it was taken (UTC), so the newest sorts last
 blobs/3f1c…e9                     each file's content, named by its SHA-256
-held.json                         a copy kept from before an update that didn't check out (below)
+held.json                         the copies kept from before an update that didn't check out (below)
 ```
 
 The manifest says what the copy holds: the app and its version, when and why it was taken (`Asked`, `Scheduled`, `BeforeUpdate`,
@@ -60,6 +60,10 @@ another runs waits its turn.
    each item's copy goes in at once, and if one can't, those before it go back. A database's journal goes with it.
 3. Only the items the copy has are replaced: a database on its own replaces the database alone. A fresh copy is taken after.
 
+`RestoreAsync` throws only when nothing was restored. Once the copy is in place it's restored, whatever comes after: when the copy
+restored was held and can't be let go, or the app's side of `WhileRestoring` fails once the work is done, the status says the copy
+was restored, and why it's still held.
+
 Copies to restore come from the app's own store (`FindCopiesAsync(Store)`), a folder the person picks (`ISyncPicker`: a store of
 an install before, or one pushed from a PC), an export, or a database file on its own, such as a backup from before copies were
 kept whole (`OpenFileAsync`).
@@ -79,6 +83,10 @@ The updater ([Playground.Updates](../Playground.Updates/README.md)) takes a full
   holds all of it: each database opens cleanly and has every table with at least its rows, and every file in its folders is there. Only then is
   a fresh copy taken, in its place. If it doesn't hold all of it, that copy is **held** (`held.json`, `Status.Held` with why): kept
   whatever copies come after, until it's restored or let go (`ReleaseHeldAsync`). A fresh copy is taken all the same, beside it.
+  A later update that loses data too holds its own beside it: a store holds as many as there are (`Status.Holding`, newest
+  first, `Status.Held` the newest's), and restoring one lets go of it only when it's held in this install's own store, so one
+  found in another install's folder leaves this install's held. If a copy can't be held (the store can't be written to just
+  then), the status and the log say so, and no copy is taken in its place until the next start checks again.
 - **Otherwise**, a copy is taken when there's none yet, the last is older than `RefreshAfter` (two days), or it's dated after now
   (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
 

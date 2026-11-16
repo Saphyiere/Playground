@@ -901,7 +901,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   and SHA-256) and each file's content under its fingerprint, so only what changed is written; the newest copy is kept, and the
   content it needs. One is taken as Prima starts when the last is more than two days old, before each update, and when asked. The
   first start after an update checks the data file opens cleanly with every table and at least its rows, and every file imported is there;
-  if not, the copy from before is held (kept beside the newer ones until restored or let go). Claude's key never goes in one: it's
+  if not, the copy from before is held (kept beside the newer ones, and beside any held already, until restored or let go); if it
+  can't be held, Settings says so and no copy takes its place until the next start checks again. Claude's key never goes in one: it's
   in secure storage, and every file a copy reads is searched for it, the copy stopping before it writes anything if it's found.
   The look's id in the tablet's preferences isn't copied (it's the data file's Look setting again), nor whether Prima has asked to
   show notifications (the install's own).

@@ -233,7 +233,7 @@
         }
         catch (Exception)
         {
-            // Nothing changed, and the status says why.
+            // Nothing was restored, and the status says why: once a copy is in place the restore doesn't throw, whatever comes after.
             return;
         }
         // Everything is the copy's now: its settings and look, and every screen drawn afresh.

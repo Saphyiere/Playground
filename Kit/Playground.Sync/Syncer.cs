@@ -64,13 +64,12 @@ public sealed class Syncer
     /// <summary>The app's own store: copies go here first, and its newest is the one the status shows.</summary>
     public ISyncStore Store => stores[0];
 
-    /// <summary>Reads the newest copy in the app's own store, and one held from before an update, into <see cref="Status"/>.</summary>
+    /// <summary>Reads the newest copy in the app's own store, and those held there, into <see cref="Status"/>.</summary>
     public async Task RefreshAsync(CancellationToken ct = default)
     {
         try
         {
-            var copies = await CopiesInAsync(Store, ct);
-            Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = copies.FirstOrDefault(c => c.Held is not null)?.Held });
+            Show(await CopiesInAsync(Store, ct));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -127,8 +126,9 @@ public sealed class Syncer
             progress?.Report(1);
             var said = files == 0 ? "Copied: nothing had changed since the copy before."
                 : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
+            await ShowOwnAsync(copy, ct);
             // Just after a restore, what the screen says is the restore.
-            Set(s => s with { Last = copy, Known = true, Message = reason == SyncReason.AfterRestore ? s.Message : said });
+            Set(s => s with { Message = reason == SyncReason.AfterRestore ? s.Message : said });
             return (SyncCopy)copy!;
         }, keepMessage: reason == SyncReason.AfterRestore, ct);
 
@@ -157,7 +157,8 @@ public sealed class Syncer
             await RefreshAsync(ct);
             if (Status.Last is StoreCopy { Manifest: { Reason: SyncReason.BeforeUpdate } before } last && before.Version != options.Version)
             {
-                await CheckAfterUpdateAsync(last, ct);
+                // A copy taken now would take the place of the one from before, which the check couldn't hold.
+                if (!await CheckAfterUpdateAsync(last, ct)) return;
                 await CopyAsync(SyncReason.AfterUpdate, ct: ct);
             }
             else if (Due())
@@ -198,6 +199,7 @@ public sealed class Syncer
             var total = Math.Max(1, plan.Sum(p => copy.Manifest.FilesOf(p.Copied.Name).Sum(f => f.Size)));
             long fetched = 0;
             var placements = new List<Placement>();
+            var placed = false;
             try
             {
                 foreach (var (live, copied) in plan)
@@ -205,16 +207,39 @@ public sealed class Syncer
                     placements.Add(await StageAsync(copy, live, copied, n => report($"Fetching the copy: {SyncText.Size(fetched += n)} of {SyncText.Size(total)}", (double)fetched / total), ct));
                 }
                 report("Putting it in place", 1);
-                await (options.WhileRestoring ?? (work => work()))(() => PlaceAsync(placements));
+                await (options.WhileRestoring ?? (work => work()))(async () =>
+                {
+                    await PlaceAsync(placements);
+                    placed = true;
+                });
+            }
+            catch (Exception e) when (placed && e is not OperationCanceledException)
+            {
+                // Everything was in place when the app's side of it failed: the data is the copy's, whatever came after.
+                logger?.LogWarning(e, "A restore was in place when the app's side of it failed: {Message}", e.Message);
             }
             finally
             {
                 foreach (var placement in placements) placement.Clean();
             }
 
-            // The copy held from before an update goes when it's the one restored; restoring another leaves it held.
-            if (copy.Held is not null) await Store.DeleteAsync(SyncPaths.Held, CancellationToken.None);
-            Set(s => s with { Held = copy.Held is null ? s.Held : null, Message = $"Restored the copy from {SyncText.When(copy.Made, time)}." });
+            // The copy restored isn't held any more when it's this install's own; restoring another, or one held in another folder,
+            // leaves this install's held. Letting it go comes after the data is the copy's, so if it can't be, that's all it says.
+            var said = $"Restored the copy from {SyncText.When(copy.Made, time)}.";
+            if (copy.Held is { } held)
+            {
+                try
+                {
+                    await ReleaseAsync(Store, held, CancellationToken.None);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    logger?.LogWarning(e, "A copy restored couldn't be let go: {Message}", e.Message);
+                    said += $" It's still held: it couldn't be let go ({Reason(e)}).";
+                }
+            }
+            await ShowOwnAsync(null, CancellationToken.None);
+            Set(s => s with { Message = said });
             return true;
         }, keepMessage: false, ct);
 
@@ -325,11 +350,28 @@ public sealed class Syncer
         return Described(new DatabaseFileCopy(path, alone));
     }, ct);
 
-    /// <summary>Lets go of the copy held from before an update: the next copy takes its place, as with any other.</summary>
+    /// <summary>Lets go of the newest copy held (the one <see cref="SyncStatus.Held"/> is), when there's one.</summary>
     public async Task ReleaseHeldAsync(CancellationToken ct = default)
     {
-        await Store.DeleteAsync(SyncPaths.Held, ct);
-        Set(s => s with { Held = null, Message = "The copy from before the update goes with the next copy." });
+        if (!Status.Known) await RefreshAsync(ct);
+        if (Status.Holding.FirstOrDefault() is { } newest) await ReleaseHeldAsync(newest, ct);
+    }
+
+    /// <summary>Lets go of a copy held in the app's own store: newer copies take its place from then on, as with any other.</summary>
+    public async Task ReleaseHeldAsync(SyncCopy copy, CancellationToken ct = default)
+    {
+        if (copy.Held is not { } held) return;
+        await gate.WaitAsync(ct);
+        try
+        {
+            await ReleaseAsync(Store, held, ct);
+            await ShowOwnAsync(null, ct);
+            Set(s => s with { Message = "Let go: newer copies take its place, as with any other." });
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     // ---- Taking a copy ----
@@ -467,27 +509,35 @@ public sealed class Syncer
         var key = SyncPaths.Copy(named);
         using (var json = new MemoryStream(manifest.ToJson())) await store.WriteAsync(key, json, ct);
         report("Tidying up", 1);
-        var held = await ReadHeldAsync(store, ct);
-        await TidyAsync(store, key, manifest, held, copies, ct);
+        await TidyAsync(store, key, manifest, copies, ct);
         return (Described(new StoreCopy(store, key, manifest, null)), files, bytes);
     }
 
     /// <summary>
-    /// Deletes the copies before <paramref name="key"/> (but a held one), then each piece of content no copy left needs. When a kept
-    /// copy's manifest can't be read, no content goes: better kept than lost.
+    /// Deletes the copies before <paramref name="key"/> (but those held), then each piece of content no copy left needs. When a
+    /// held copy's manifest can't be read, nothing goes: better kept than lost. The copy is made by then, so what can't be tidied
+    /// away is left for the next one, and logged.
     /// </summary>
-    private async Task TidyAsync(ISyncStore store, string key, SyncManifest manifest, SyncHeld? held, List<string> before, CancellationToken ct)
+    private async Task TidyAsync(ISyncStore store, string key, SyncManifest manifest, List<string> before, CancellationToken ct)
     {
-        var needed = manifest.Files.Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
-        if (held is not null && held.Copy != key)
+        try
         {
-            if (await ReadManifestAsync(store, held.Copy, ct) is not { } kept) return;
-            needed.UnionWith(kept.Files.Select(f => SyncPaths.Blob(f.Sha256)));
+            var holds = await ReadHoldsAsync(store, ct);
+            var needed = manifest.Files.Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
+            foreach (var held in holds.Where(h => h.Copy != key && before.Contains(h.Copy)))
+            {
+                if (await ReadManifestAsync(store, held.Copy, ct) is not { } kept) return;
+                needed.UnionWith(kept.Files.Select(f => SyncPaths.Blob(f.Sha256)));
+            }
+            foreach (var old in before.Where(k => k != key && !holds.Any(h => h.Copy == k))) await store.DeleteAsync(old, ct);
+            foreach (var blob in await store.ListAsync(SyncPaths.Blobs, ct))
+            {
+                if (!needed.Contains(blob.Key)) await store.DeleteAsync(blob.Key, ct);
+            }
         }
-        foreach (var old in before.Where(k => k != key && k != held?.Copy)) await store.DeleteAsync(old, ct);
-        foreach (var blob in await store.ListAsync(SyncPaths.Blobs, ct))
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            if (!needed.Contains(blob.Key)) await store.DeleteAsync(blob.Key, ct);
+            logger?.LogWarning(e, "A copy in {Store} couldn't tidy away what no copy needs any more: {Message}", store.Name, e.Message);
         }
     }
 
@@ -544,21 +594,32 @@ public sealed class Syncer
 
     /// <summary>
     /// Checks the app's data holds all the copy from before an update did; when it doesn't, holds that copy (kept whatever copies
-    /// come after) and says why.
+    /// come after, beside any held already) and says why. False when it couldn't check, or couldn't hold the copy: that's said in
+    /// the status and the log, and no copy may take its place until the next start checks again.
     /// </summary>
-    private async Task CheckAfterUpdateAsync(StoreCopy before, CancellationToken ct)
+    private async Task<bool> CheckAfterUpdateAsync(StoreCopy before, CancellationToken ct)
     {
         var update = before.Manifest.Update ?? $"version {options.Version}";
         await gate.WaitAsync(ct);
+        string? why = null;
         try
         {
             Set(s => s with { Step = SyncStep.Checking, Progress = new SyncProgress($"Checking your data after the update to {update}", 0), Message = "", Failed = false });
-            if (await Task.Run(() => Missing(before.Manifest), ct) is not { } why) return;
+            if ((why = await Task.Run(() => Missing(before.Manifest), ct)) is null) return true;
 
-            var held = new SyncHeld(before.Key, update, why, time.GetUtcNow());
-            using (var json = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(held, SyncJson.Default.SyncHeld))) await before.Store.WriteAsync(SyncPaths.Held, json, ct);
+            await HoldAsync(before.Store, new SyncHeld(before.Key, update, why, time.GetUtcNow()), ct);
             logger?.LogWarning("After the update to {Update}, the data had less than the copy taken just before it: {Why}. That copy is kept until it's restored or let go.", update, why);
-            Set(s => s with { Held = held });
+            await ShowOwnAsync(null, ct);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            var said = why is null
+                ? $"Your data couldn't be checked after the update to {update}: {Reason(e)}. It's checked again as {options.App} next starts."
+                : $"After the update to {update}, the data had less than the copy taken just before it ({why}), but that copy couldn't be held: {Reason(e)}. It's tried again as {options.App} next starts.";
+            Set(s => s with { Message = said, Failed = true });
+            logger?.LogWarning(e, "After the update to {Update}, {What}: {Message}", update, why is null ? "the data couldn't be checked" : $"the copy from before ({why}) couldn't be held", e.Message);
+            return false;
         }
         finally
         {
@@ -715,14 +776,34 @@ public sealed class Syncer
 
     private async Task<List<StoreCopy>> CopiesInAsync(ISyncStore store, CancellationToken ct)
     {
-        var held = await ReadHeldAsync(store, ct);
+        var holds = await ReadHoldsAsync(store, ct);
         var copies = new List<StoreCopy>();
         foreach (var key in (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).OrderByDescending(k => k, StringComparer.Ordinal))
         {
             // One that can't be read is a copy that stopped as its manifest was written, or not this app's.
-            if (await ReadManifestAsync(store, key, ct) is { } manifest && manifest.App == options.App && Valid(manifest)) copies.Add(Described(new StoreCopy(store, key, manifest, held?.Copy == key ? held : null)));
+            if (await ReadManifestAsync(store, key, ct) is { } manifest && manifest.App == options.App && Valid(manifest)) copies.Add(Described(new StoreCopy(store, key, manifest, holds.FirstOrDefault(h => h.Copy == key))));
         }
         return copies;
+    }
+
+    /// <summary>The app's own copies, newest first, into the status: the newest, and those held (<see cref="SyncStatus.Held"/> the newest one's).</summary>
+    private void Show(IReadOnlyList<StoreCopy> copies)
+    {
+        List<SyncCopy> holding = [.. copies.Where(c => c.Held is not null)];
+        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding });
+    }
+
+    /// <summary>The app's own copies as they now are, into the status; when they can't be read again, at least the one just taken.</summary>
+    private async Task ShowOwnAsync(StoreCopy? taken, CancellationToken ct)
+    {
+        try
+        {
+            Show(await CopiesInAsync(Store, ct));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            if (taken is not null) Set(s => s with { Known = true, Last = taken });
+        }
     }
 
     private static async Task<SyncManifest?> ReadManifestAsync(ISyncStore store, string key, CancellationToken ct)
@@ -731,18 +812,54 @@ public sealed class Syncer
         return json is null ? null : SyncManifest.FromJson(json);
     }
 
-    private static async Task<SyncHeld?> ReadHeldAsync(ISyncStore store, CancellationToken ct)
+    /// <summary>The copies a store holds (held.json): a list of them, or one alone, as a store an install before this one kept has it.</summary>
+    private static async Task<List<SyncHeld>> ReadHoldsAsync(ISyncStore store, CancellationToken ct)
     {
         await using var json = await store.OpenReadAsync(SyncPaths.Held, ct);
-        if (json is null) return null;
+        if (json is null) return [];
         try
         {
-            return await JsonSerializer.DeserializeAsync(json, SyncJson.Default.SyncHeld, ct);
+            using var document = await JsonDocument.ParseAsync(json, cancellationToken: ct);
+            List<SyncHeld?> holds = document.RootElement.ValueKind == JsonValueKind.Array
+                ? [.. document.RootElement.Deserialize(SyncJson.Default.ListSyncHeld) ?? []]
+                : [document.RootElement.Deserialize(SyncJson.Default.SyncHeld)];
+            return [.. holds.OfType<SyncHeld>().Where(h => h.Copy is not null && SyncPaths.IsCopy(h.Copy))];
         }
         catch (JsonException)
         {
-            return null;
+            return [];
         }
+    }
+
+    /// <summary>Writes the copies a store holds, or deletes held.json when it holds none.</summary>
+    private static async Task WriteHoldsAsync(ISyncStore store, List<SyncHeld> holds, CancellationToken ct)
+    {
+        if (holds.Count == 0)
+        {
+            await store.DeleteAsync(SyncPaths.Held, ct);
+            return;
+        }
+        using var json = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(holds, SyncJson.Default.ListSyncHeld));
+        await store.WriteAsync(SyncPaths.Held, json, ct);
+    }
+
+    /// <summary>
+    /// Holds a copy in a store, beside those held already. A copy held already stays held as it was; one whose copy has gone (taken
+    /// away by hand) is dropped.
+    /// </summary>
+    private static async Task HoldAsync(ISyncStore store, SyncHeld held, CancellationToken ct)
+    {
+        var holds = await ReadHoldsAsync(store, ct);
+        if (holds.Any(h => h.Copy == held.Copy)) return;
+        var listed = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+        await WriteHoldsAsync(store, [.. holds.Where(h => listed.Contains(h.Copy)), held], ct);
+    }
+
+    /// <summary>Lets go of a hold in a store: that very one, so a copy held in another store (another install's) lets go of nothing here.</summary>
+    private static async Task ReleaseAsync(ISyncStore store, SyncHeld held, CancellationToken ct)
+    {
+        var holds = await ReadHoldsAsync(store, ct);
+        if (holds.Remove(held)) await WriteHoldsAsync(store, holds, ct);
     }
 
     private T Described<T>(T copy)
@@ -812,14 +929,17 @@ public sealed class Syncer
         }
     }
 
+    /// <summary>Why something failed, as part of a sentence.</summary>
+    private static string Reason(Exception e) => e switch
+    {
+        SyncSecretException secret => $"{secret.File} holds a secret, which copies never take",
+        SqliteException sqlite => $"the database couldn't be read ({sqlite.Message})",
+        _ => e.Message.TrimEnd('.'),
+    };
+
     private static string Trouble(SyncStep step, Exception e)
     {
-        var why = e switch
-        {
-            SyncSecretException secret => $"{secret.File} holds a secret, which copies never take",
-            SqliteException sqlite => $"the database couldn't be read ({sqlite.Message})",
-            _ => e.Message.TrimEnd('.'),
-        };
+        var why = Reason(e);
         return e is SyncException && why.EndsWith("restored", StringComparison.Ordinal) ? why + "." : step switch
         {
             SyncStep.Copying => $"No copy was made: {why}. The last one is as it was.",
