@@ -20,6 +20,9 @@
 
     private IJSObjectReference? module;
     private long otherKeyNs;
+    // Gone with its screen: the layout is made afresh for each new screen (Routes keys it by the page), and work queued just
+    // before, by the move to that screen, finds the page's module disposed.
+    private bool disposed;
 
     protected override void OnInitialized()
     {
@@ -56,9 +59,9 @@
         {
             try
             {
-                if (module is not null) await module.InvokeVoidAsync("press", e.Note == Go ? "go" : "again");
+                if (!disposed && module is not null) await module.InvokeVoidAsync("press", e.Note == Go ? "go" : "again");
             }
-            catch (Exception e) when (e is JSDisconnectedException or JSException)
+            catch (Exception e) when (e is JSDisconnectedException or JSException or ObjectDisposedException)
             {
             }
         });
@@ -69,9 +72,9 @@
     {
         try
         {
-            if (module is not null) await module.InvokeVoidAsync("showKeys", Keyboard.Name is not null && Settings.PianoButtons);
+            if (!disposed && module is not null) await module.InvokeVoidAsync("showKeys", Keyboard.Name is not null && Settings.PianoButtons);
         }
-        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        catch (Exception e) when (e is JSDisconnectedException or JSException or ObjectDisposedException)
         {
         }
     }
@@ -82,6 +85,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        disposed = true;
         Keyboard.Received -= OnReceived;
         Keyboard.Changed -= OnChanged;
         Nav.LocationChanged -= OnLocationChanged;
