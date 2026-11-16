@@ -243,6 +243,63 @@ public class PrimaSyncTests
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 
+    // A copy is taken after practice (a piece's session finished, a routine's activity done) when the last is a day old, and never
+    // while a run is being played.
+    [Fact]
+    public async Task AfterPractice_ACopyIsTaken_WhenTheLastIsADayOld_NeverWhileARunIsPlayed()
+    {
+        await using var tablet = new Tablet();
+        await tablet.FillAsync();
+        var store = new FolderStore(tablet.Copies, "Documents/Prima backups");
+        // The last copy was taken two days ago.
+        await new Syncer(tablet.Sync.Options, [store], new Ago(TimeSpan.FromDays(2))).CopyAsync(ct: Ct);
+        await tablet.Sync.RefreshAsync(Ct);
+        var practiced = 0;
+        tablet.Store.Practiced += () => practiced++;
+        // A drill's item waits on the keys: a run is being played.
+        tablet.Runs.DrillAnswer = _ => [];
+
+        var started = DateTimeOffset.Now.AddMinutes(-20);
+        var session = await tablet.Store.StartSessionAsync("import-1", "standard", started);
+        await tablet.Store.SaveSessionAsync(new PracticeSession(session, "import-1", started, TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(5), false, DateTimeOffset.Now, "standard", DateTimeOffset.Now));
+
+        Assert.Equal(1, practiced);
+        await Task.Delay(500, Ct);
+        Assert.Single(await tablet.Sync.FindCopiesAsync(store, Ct));
+        // Once the run is over, the copy is taken.
+        tablet.Runs.DrillAnswer = null;
+        for (var i = 0; i < 400 && tablet.Sync.Status.Last?.Manifest.Reason != SyncReason.AfterPractice; i++) await Task.Delay(25, Ct);
+        Assert.Equal(SyncReason.AfterPractice, tablet.Sync.Status.Last?.Manifest.Reason);
+
+        // A routine's activity done is practice too (one skipped isn't); with the last copy just taken, no other follows it.
+        await tablet.Store.SaveTrackAsync("exercise-routine", new[] { "octave-jump" });
+        var job = RoutineStoreTests.ReadyJob();
+        await tablet.Store.CreateRoutineJobAsync(job);
+        await tablet.Store.AcceptRoutineAsync(job.Id);
+        var day = (await tablet.Store.GetOrCreateRoutineDayAsync(DateOnly.FromDateTime(DateTime.Now)))!;
+        var execution = await tablet.Store.BeginRoutineExecutionAsync(day.Id, "jump");
+        await tablet.Store.CompleteRoutineExecutionAsync(execution.Id, skipped: true);
+        Assert.Equal(1, practiced);
+        await tablet.Store.CompleteRoutineExecutionAsync(execution.Id);
+        Assert.Equal(2, practiced);
+        await Task.Delay(500, Ct);
+        Assert.Equal(2, (await tablet.Sync.FindCopiesAsync(store, Ct)).Count);
+    }
+
+    // Your data says when copies are taken.
+    [Fact]
+    public async Task YourData_SaysWhenCopiesAreTaken()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"prima-copies-{Guid.NewGuid():N}");
+        await using var host = new ComponentHost(copies: new FolderStore(folder, "Documents/Prima backups"));
+
+        var view = host.Context.Render<DataCopies>();
+
+        view.WaitForAssertion(() => Assert.Equal(
+            "Prima keeps a copy of everything but Claude's key in Documents/Prima backups on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore and Start over. Only what changed is written.",
+            view.Find("[role=status]").TextContent));
+    }
+
     // How many copies there are and what they take: the music imported is kept once for all of them, so each costs about a data file.
     [Fact]
     public async Task YourData_SaysHowManyCopiesThereAre_AndWhatTheyTake()
@@ -276,6 +333,12 @@ public class PrimaSyncTests
 
         view.WaitForAssertion(() => Assert.Equal("No file chosen.", view.Find("[role=status]").TextContent));
         Assert.Empty(view.FindAll(".copy-choice"));
+    }
+
+    /// <summary>The time some while ago: for a copy taken then.</summary>
+    private sealed class Ago(TimeSpan by) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => System.GetUtcNow() - by;
     }
 
     private static void AssertKeyless(byte[] bytes, string where)
@@ -321,6 +384,8 @@ public class PrimaSyncTests
         public Syncer Sync => services.GetRequiredService<Syncer>();
 
         public IAssistKeyStore Keys => services.GetRequiredService<IAssistKeyStore>();
+
+        public Prima.UI.Practice.SessionRegistry Runs => services.GetRequiredService<Prima.UI.Practice.SessionRegistry>();
 
         public ProblemLog Problems => services.GetRequiredService<ProblemLog>();
 

@@ -194,13 +194,18 @@ public sealed partial class PrimaStore
         await transaction.CommitAsync();
     });
 
-    public Task CompleteRoutineExecutionAsync(string id, bool skipped = false) => RunAsync(async c =>
+    /// <summary>Marks a routine's activity done, or skipped; done is practice finished (<see cref="Practiced"/>).</summary>
+    public async Task CompleteRoutineExecutionAsync(string id, bool skipped = false)
     {
-        var execution = ReadRoutine<RoutineExecution>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineExecution WHERE Id=@id", new { id })) ?? throw new InvalidOperationException("The routine execution was not found.");
-        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
-        await WriteRoutineExecutionAsync(c, execution with { State = skipped ? RoutineItemState.Skipped : RoutineItemState.Done }, transaction);
-        await transaction.CommitAsync();
-    });
+        await RunAsync(async c =>
+        {
+            var execution = ReadRoutine<RoutineExecution>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineExecution WHERE Id=@id", new { id })) ?? throw new InvalidOperationException("The routine execution was not found.");
+            await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+            await WriteRoutineExecutionAsync(c, execution with { State = skipped ? RoutineItemState.Skipped : RoutineItemState.Done }, transaction);
+            await transaction.CommitAsync();
+        });
+        if (!skipped) Practiced?.Invoke();
+    }
 
     private static async Task WriteRoutineExecutionAsync(SqliteConnection c, RoutineExecution execution, SqliteTransaction? transaction = null)
     {

@@ -15,11 +15,13 @@ namespace Playground.Sync;
 /// fingerprinted (SHA-256, the last copy's kept when its size and time haven't changed), and only content a store doesn't hold yet
 /// written; the copy's manifest last, then whatever no copy kept needs any more goes. A store keeps its three newest copies, the
 /// newest at least a week old (with the oldest younger than that, which comes to be it), and every one held.</item>
-/// <item><see cref="StartAsync"/>, as the app starts: the first time after an update, checks the app holds all the copy from before
-/// it did and only then takes a fresh one (a copy that doesn't check out is held); otherwise takes one when the last is more than
-/// <see cref="SyncOptions.RefreshAfter"/> old.</item>
-/// <item><see cref="RestoreAsync"/> puts a copy's data in place of the app's, all of it or none; <see cref="ExportAsync"/> writes
-/// everything into one archive, to hand on.</item>
+/// <item><see cref="StartAsync"/>, as the app starts: the first time after an update, checks at once that the app holds all of the
+/// person's the copy from before it did, and only then takes a fresh one (a copy that doesn't check out is held); otherwise takes
+/// one when the last is more than <see cref="SyncOptions.RefreshAfter"/> old, as <see cref="CopyIfDueAsync"/> does after practice,
+/// once the app is <see cref="SyncOptions.Quiet"/>.</item>
+/// <item><see cref="RestoreAsync(SyncCopy, CancellationToken)"/> puts a copy's data in place of the app's, all of it or none, what
+/// was there kept first and held; <see cref="KeepAsync"/> holds a copy before the app changes its data itself;
+/// <see cref="ExportAsync"/> writes everything into one archive, to hand on.</item>
 /// </list>
 /// Secrets never go in a copy: excluded names are never read, and a copy that would hold a secret stops before it writes anything.
 /// One piece of work runs at a time, in the background, and <see cref="Changed"/> is raised from whatever thread it's on.
@@ -199,8 +201,38 @@ public sealed class Syncer
             {
                 gate.Release();
             }
-            if (updated is not null) await CopyAsync(SyncReason.AfterUpdate, ct: ct);
-            else if (Due()) await CopyAsync(SyncReason.Scheduled, ct: ct);
+            if (updated is null)
+            {
+                await CopyIfDueAsync(SyncReason.Scheduled, ct);
+                return;
+            }
+            if (options.Quiet is { } quiet) await quiet(ct);
+            await CopyAsync(SyncReason.AfterUpdate, ct: ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
+        {
+            // Said in the status, and logged where it happened.
+        }
+    }
+
+    /// <summary>
+    /// Takes a copy in the background when one is due (<see cref="Due"/>), once the app is quiet (<see cref="SyncOptions.Quiet"/>):
+    /// as the app starts, and after practice. What goes wrong is in the status, and the log.
+    /// </summary>
+    public async Task CopyIfDueAsync(SyncReason reason = SyncReason.Scheduled, CancellationToken ct = default)
+    {
+        try
+        {
+            if (options.Quiet is { } quiet) await quiet(ct);
+            if (!Status.Known) await RefreshAsync(ct);
+            await RunAsync<SyncCopy?>(SyncStep.Copying, "Getting ready", async report =>
+            {
+                if (options.BeforeCopy is { } before) await before();
+                return await CopyWithinAsync(reason, null, stores, say: true, report, null, ct);
+            }, keepMessage: false, ct, unless: () => !Due());
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -1009,11 +1041,13 @@ public sealed class Syncer
     /// Runs one piece of work at a time, on the thread pool, with the status saying what it's doing and how far it is; a failure
     /// becomes the status's sentence, is logged, and is thrown on.
     /// </summary>
-    private async Task<T> RunAsync<T>(SyncStep step, string doing, Func<Action<string, double>, Task<T>> work, bool keepMessage, CancellationToken ct)
+    private async Task<T> RunAsync<T>(SyncStep step, string doing, Func<Action<string, double>, Task<T>> work, bool keepMessage, CancellationToken ct, Func<bool>? unless = null)
     {
         await gate.WaitAsync(ct);
         try
         {
+            // Work that's no longer wanted once its turn comes (a copy another has made unneeded) leaves the status as it is.
+            if (unless?.Invoke() == true) return default!;
             Set(s => s with { Step = step, Progress = new SyncProgress(doing, 0), Message = keepMessage ? s.Message : "", Failed = keepMessage && s.Failed });
             Interlocked.Exchange(ref shownAt, 0);
             return await Task.Run(() => work(Report), ct);

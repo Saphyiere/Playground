@@ -907,7 +907,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   and SHA-256) and each file's content under its fingerprint, so only what changed is written. The three newest copies are kept;
   besides them, the newest at least a week old, and the oldest younger than that, which comes to be it; and every one held, with
   the content they need. The music imported is kept once for all of them, so each copy costs about a copy of the data file.
-  One is taken as Prima starts when the last is more than two days old, before each update, and when asked. The
+  One is taken after practice (a piece's session finished, a routine's activity done) and as Prima starts, when the last is more
+  than a day old, but never while a run is being played; before each update, restore and Start over; and when asked. The
   first start after an update checks at once, before any screen can change anything, that the data file opens cleanly and has at
   least the rows of what's the owner's own (the settings, tracks, runs, practice days and sessions, routines, and the pieces
   imported; not the bundled or collection pieces and their excerpts, which Prima takes out and puts back itself), and that every

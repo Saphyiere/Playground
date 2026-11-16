@@ -33,8 +33,8 @@ held.json                         the copies held: from before an update that di
 ```
 
 The manifest says what the copy holds: the app and its version, when and why it was taken (`Asked`, `Scheduled`, `BeforeUpdate`,
-`AfterUpdate`, `AfterRestore`, `BeforeRestore`, `BeforeChange`), each item (a database with each table's rows, and the rows of what's
-`Counted`), and each file with its size, time and SHA-256. A
+`AfterUpdate`, `AfterRestore`, `BeforeRestore`, `BeforeChange`, `AfterPractice`), each item (a database with each table's rows,
+and the rows of what's `Counted`), and each file with its size, time and SHA-256. A
 copy is named a millisecond after the newest before it when the clock is behind that one, so the newest still sorts last, but its
 manifest dates it now: a copy once taken with the clock ahead doesn't date the ones after it.
 
@@ -108,10 +108,13 @@ The updater ([Playground.Updates](../Playground.Updates/README.md)) takes a full
   first, `Status.Held` the newest's), and restoring one lets go of it only when it's held in this install's own store, so one
   found in another install's folder leaves this install's held. If a copy can't be held (the store can't be written to just
   then), the status and the log say so, and no copy is taken in its place until the next start checks again.
-- **Otherwise**, a copy is taken when there's none yet, the last is older than `RefreshAfter` (two days), or it's dated after now
+- **Otherwise**, a copy is taken when there's none yet, the last is older than `RefreshAfter` (a day), or it's dated after now
   (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
 
 A copy waits `StartDelay` (15 seconds) first, so the app's first screen isn't slowed; the check after an update doesn't.
+`CopyIfDueAsync(reason)` takes one the same way whenever the app asks (Prima: after practice, `AfterPractice`). A copy the app
+didn't ask for, at the start or after practice, waits for `Quiet` first (Prima: until no run is being played), so it never takes
+from what's timed.
 
 ## Where copies go
 

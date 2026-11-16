@@ -4,6 +4,7 @@ using Playground.AI.Assist;
 using Playground.Sync;
 using Playground.Updates;
 using Prima.UI.Host;
+using Prima.UI.Practice;
 
 namespace Prima.UI.Storage;
 
@@ -48,13 +49,19 @@ public static class PrimaSync
         new("Piece (imported)", "Piece", "Origin = 'import'"),
     ];
 
-    /// <summary>What Prima syncs, from its services (the store, the problem log, the key and its file, the version installed).</summary>
+    /// <summary>
+    /// What Prima syncs, from its services (the store, the problem log, the key and its file, the version installed, the run being
+    /// played). Copies in the background wait while a run is being played, and one is taken after practice (a piece's session
+    /// finished, a routine's activity done) when the last is a day old.
+    /// </summary>
     public static SyncOptions Options(IServiceProvider services, string databasePath)
     {
         var store = services.GetRequiredService<PrimaStore>();
         var problems = services.GetRequiredService<ProblemLog>();
         var keyFile = services.GetRequiredService<ClaudeKeyFile>();
         var keys = services.GetRequiredService<IAssistKeyStore>();
+        var runs = services.GetRequiredService<SessionRegistry>();
+        store.Practiced += () => _ = services.GetRequiredService<Syncer>().CopyIfDueAsync(SyncReason.AfterPractice);
         return new SyncOptions("Prima")
         {
             Items =
@@ -70,6 +77,7 @@ public static class PrimaSync
             Version = services.GetService<IInstaller>()?.InstalledVersion ?? "",
             WorkFolder = Path.Combine(Path.GetTempPath(), "prima-sync", Path.GetFileNameWithoutExtension(databasePath)),
             BeforeCopy = store.FlushAsync,
+            Quiet = runs.QuietAsync,
             WhileRestoring = store.WhileClosedAsync,
             Describe = Describe,
         };

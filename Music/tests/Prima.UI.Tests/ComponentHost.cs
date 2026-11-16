@@ -35,8 +35,10 @@ internal sealed class ComponentHost : IAsyncDisposable
     // nothing about the page. Ten seconds for every wait; one that passes waits no longer than it did.
     static ComponentHost() => BunitContext.DefaultWaitTimeout = TimeSpan.FromSeconds(10);
 
-    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null)
+    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, Playground.Sync.ISyncStore? copies = null)
     {
+        // Where the copies go: a store of the test's own, or, without one, a temporary folder in the copies' work folder.
+        if (copies is not null) Context.Services.AddSingleton(copies);
         Context.Services.AddSingleton(Problems);
         Context.Services.AddSingleton<ILoggerFactory>(new KeptLogs(new ProblemLogProvider(Problems)));
         Context.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));

@@ -129,7 +129,7 @@
 
     // What's said under the buttons: what was just picked, or how the last piece of work went, or what the copies are.
     private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
-        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: every two days, and before each update. Only what changed is written."
+        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore and Start over. Only what changed is written."
         : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
 
     // How many copies there are and what they take together: the music imported is kept once for them all, so each copy costs

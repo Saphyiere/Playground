@@ -21,14 +21,14 @@ public class StartTests
     }
 
     [Fact]
-    public async Task StartAsync_LeavesACopyUnderTwoDaysOld_AndTakesAnotherAfterThat()
+    public async Task StartAsync_LeavesACopyUnderADayOld_AndTakesAnotherAfterThat()
     {
         using var app = new App();
         using var store = new TempFolder();
         var clock = new Clock();
         var first = await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(ct: Ct);
 
-        clock.Now = clock.Now.AddDays(1.9);
+        clock.Now = clock.Now.AddDays(0.9);
         var syncer = app.Syncer(new FolderStore(store.Path), time: clock);
         await syncer.StartAsync(Ct);
         Assert.Equal(first.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
@@ -120,6 +120,39 @@ public class StartTests
         await syncer.StartAsync(Ct);
 
         Assert.Equal("prima.db is gone", syncer.Status.Held?.Why);
+    }
+
+    // After practice as at the start, a copy is taken when the last is more than a day old, and only once the app is quiet (no run
+    // being played).
+    [Fact]
+    public async Task CopyIfDueAsync_TakesACopyWhenTheLastIsADayOld_OnceTheAppIsQuiet()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        var clock = new Clock();
+        var playing = new TaskCompletionSource();
+        var syncer = app.Syncer(new FolderStore(store.Path), app.Options() with { Quiet = ct => playing.Task.WaitAsync(ct) }, clock);
+        var first = await syncer.CopyAsync(ct: Ct);
+
+        // Under a day on, none is due.
+        playing.SetResult();
+        clock.Now = clock.Now.AddHours(23);
+        await syncer.CopyIfDueAsync(SyncReason.AfterPractice, Ct);
+        Assert.Equal(first.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
+
+        // Over a day on, one is, but not while a run is being played.
+        playing = new TaskCompletionSource();
+        clock.Now = clock.Now.AddHours(2);
+        var waiting = syncer.CopyIfDueAsync(SyncReason.AfterPractice, Ct);
+        await Task.Delay(300, Ct);
+        Assert.False(waiting.IsCompleted);
+        Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
+
+        playing.SetResult();
+        await waiting;
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal((SyncReason.AfterPractice, clock.Now), (copies[0].Manifest.Reason, copies[0].Made));
+        Assert.Equal(2, copies.Count);
     }
 
     // Only what's the person's own is counted after an update: what the app put there itself and takes out (a bundled piece) can go.

@@ -33,8 +33,14 @@ public sealed record SyncOptions(string App)
     /// </summary>
     public Func<Func<Task>, Task>? WhileRestoring { get; init; }
 
-    /// <summary>A copy older than this is replaced when the app starts: two days.</summary>
-    public TimeSpan RefreshAfter { get; init; } = TimeSpan.FromDays(2);
+    /// <summary>A copy is taken as the app starts, and after practice (<see cref="Syncer.CopyIfDueAsync"/>), when the last is older than this: a day.</summary>
+    public TimeSpan RefreshAfter { get; init; } = TimeSpan.FromDays(1);
+
+    /// <summary>
+    /// What a copy the app didn't ask for (as it starts, after practice) waits for before it starts, such as a run being played
+    /// finishing, so it never takes from what's timed. Without it, it starts at once.
+    /// </summary>
+    public Func<CancellationToken, Task>? Quiet { get; init; }
 
     /// <summary>How long the work on start waits, so it doesn't slow the app's first screen.</summary>
     public TimeSpan StartDelay { get; init; } = TimeSpan.FromSeconds(15);

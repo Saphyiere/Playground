@@ -26,6 +26,9 @@ public enum SyncReason
 
     /// <summary>Just before the app changed the data itself (Prima's Start over): what was there, held.</summary>
     BeforeChange,
+
+    /// <summary>After practice, the last copy being more than a day old.</summary>
+    AfterPractice,
 }
 
 /// <summary>

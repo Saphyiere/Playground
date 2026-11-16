@@ -53,8 +53,8 @@ public static class ServiceCollectionExtensions
         // it over USB), from every warning or error logged by Prima, the Kit or Blazor.
         services.TryAddSingleton(new ProblemLog(Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", ProblemLog.FileName)));
         services.TryAddEnumerable(ServiceDescriptor.Singleton<ILoggerProvider, ProblemLogProvider>());
-        // A copy of everything Prima keeps but Claude's key, refreshed as Prima starts when two days old and in full before an update
-        // installs, which Settings › Your data shows, restores and exports.
+        // A copy of everything Prima keeps but Claude's key, taken as Prima starts and after practice when the last is a day old, and
+        // in full before an update installs, which Settings › Your data shows, restores and exports.
         services.AddSync(sp => PrimaSync.Options(sp, databasePath));
         services.AddSingleton<PracticeLifecycle>();
         services.AddSingleton<Click>();
