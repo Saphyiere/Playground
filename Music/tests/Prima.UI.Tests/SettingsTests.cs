@@ -195,6 +195,40 @@ public class SettingsTests
         Assert.Null(await host.Store.GetTrackAsync<Prima.UI.Practice.DrillTrack>("drill:playback"));
     }
 
+    // The owner's rule 43, decided 15 November (the review of main at a7ab94d, part 5): Copy in Problems copies every problem kept,
+    // not the newest 12; the list still shows 12.
+    [Fact]
+    public async Task CopyInProblemsCopiesEveryProblemKeptThoughTheListShowsTwelve()
+    {
+        var clipboard = new Clipboard(new BrowserCalls());
+        await using var host = new ComponentHost(js: clipboard);
+        for (var i = 1; i <= 15; i++) host.Problems.Keep("Error", "Prima.Test", $"Problem {i}");
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app&section=problems");
+        var view = host.Context.Render<Settings>();
+        view.WaitForAssertion(() => Assert.Equal(12, view.FindAll("#problems .problem").Count));
+
+        await view.InvokeAsync(() => view.FindAll("#problems button").Single(b => b.TextContent == "Copy").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Contains("Copied 15 problems.", view.Find("#problems").TextContent));
+        Assert.Equal(15, clipboard.Text!.Split("\n\n").Length);
+        Assert.All(Enumerable.Range(1, 15), i => Assert.Contains($"\nProblem {i}\n", clipboard.Text + "\n"));
+        Assert.Equal(12, view.FindAll("#problems .problem").Count);
+    }
+
+    // The page's browser, keeping what was put on the clipboard.
+    private sealed class Clipboard(BrowserCalls browser) : Microsoft.JSInterop.IJSRuntime
+    {
+        public string? Text { get; private set; }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, default, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "navigator.clipboard.writeText") Text = (string?)args?[0];
+            return browser.InvokeAsync<TValue>(identifier, cancellationToken, args);
+        }
+    }
+
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).
     private static Task Open(IRenderedComponent<Settings> view, string tab) => view.InvokeAsync(() => view.FindAll("[role=tab]").Single(t => t.TextContent == tab).Click());
 

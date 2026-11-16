@@ -563,16 +563,18 @@ restores like a copy. A copy kept from before an update that didn't check out st
 (and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the
 settings: the music isn't progress, and only a copy or an export carries it. Nothing leaves the tablet unless you send it.
 
-**Problems:** what went wrong, newest first, each line its time, how bad (Warning, Error, Critical), what said it (a screen, a
-job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (all of them, to paste into a
-message) and **Clear…**. Everything Prima logs as a warning or an error goes in: a screen that stopped, a job that failed, the
-page that stopped answering, anything thrown that nothing caught (kept as Android closes Prima). They're kept in `errors.log`
-in Prima's folder too (Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even
-when Prima won't open; past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it
-stopped answering at the time, so it keeps what Blazor said just before its yellow bar showed in its own storage, even a line
-it leaves out at any other time (a call back into a page that had gone, say), and never an older problem in its place (with
-nothing said just then, "It didn't say why."); the bar says it ("Prima stopped answering taps", why, and that it's kept); Prima
-writes it in the log the next time it starts, as of when it happened.
+**Problems:** what went wrong, the newest twelve, each line its time, how bad (Warning, Error, Critical), what said it (a
+screen, a job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (every problem
+kept, both files', not only the twelve shown, to paste into a message) and **Clear…**. Everything Prima logs as a warning or an
+error goes in: a screen that stopped, a job that failed, the page that stopped answering, anything thrown that nothing caught
+(kept as Android closes Prima), and work nobody waited for that failed, but not what a page that has gone throws as it goes (a
+call into its script once it was let go). They're kept in `errors.log` in Prima's folder too
+(Android/data/com.saphyiere.prima/files, where `claude-key.txt` goes), which a PC reaches over USB even when Prima won't open;
+past half a megabyte it becomes `errors.old.log` and a new one starts. The page can't tell Prima why it stopped answering at
+the time, so it keeps what Blazor said just before its yellow bar showed in its own storage, even a line it leaves out at any
+other time (a call back into a page that had gone, say), and never an older problem in its place (with nothing said just then,
+"It didn't say why."); the bar says it ("Prima stopped answering taps", why, and that it's kept); Prima writes it in the log
+the next time it starts, as of when it happened.
 
 ## The sight-reading flow
 

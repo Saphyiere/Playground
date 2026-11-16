@@ -62,7 +62,7 @@ public static class MauiProgram
     }
 
     // Thrown with nothing to catch it: kept in the problem log as Android closes Prima. Work nobody waited for that failed is kept
-    // when it's found (the page's failing renders end up there too), unless it was only stopped, or its page had gone.
+    // when it's found (UnwaitedWork says when), unless it was only stopped, or its page had gone.
     private static void KeepWhatNothingCaught(ILogger logger)
     {
         Android.Runtime.AndroidEnvironment.UnhandledExceptionRaiser += (_, e) => logger.LogCritical(e.Exception, "Prima stopped: {Message}", e.Exception.Message);
@@ -70,10 +70,6 @@ public static class MauiProgram
         {
             if (e.ExceptionObject is Exception error) logger.LogCritical(error, "Prima stopped: {Message}", error.Message);
         };
-        TaskScheduler.UnobservedTaskException += (_, e) =>
-        {
-            if (e.Exception.InnerExceptions.All(i => i is OperationCanceledException or Microsoft.JSInterop.JSDisconnectedException)) return;
-            logger.LogWarning(e.Exception, "Work nobody waited for failed: {Message}", e.Exception.GetBaseException().Message);
-        };
+        TaskScheduler.UnobservedTaskException += (_, e) => UnwaitedWork.Keep(logger, e.Exception);
     }
 }

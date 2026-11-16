@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace Prima.UI.Host;
 
@@ -91,6 +92,9 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
         return [.. found.Take(count)];
     }
 
+    /// <summary>Every problem kept, newest first: this file's and the one before's.</summary>
+    public IReadOnlyList<Problem> All() => Recent(int.MaxValue);
+
     /// <summary>Everything kept, both files, gone.</summary>
     public void Clear()
     {
@@ -123,6 +127,25 @@ public sealed class ProblemLog(string path, TimeProvider? time = null)
             yield return new Problem(at, head[1], head[2], said, string.Join('\n', body.Skip(1)).TrimEnd());
         }
     }
+}
+
+/// <summary>
+/// Work nobody waited for that failed (a task whose failure nothing looked at: the page's failing renders end up there too), kept
+/// in the problem log when it's found, unless it was only stopped or its page had gone. A page that has gone throws
+/// <see cref="ObjectDisposedException"/> from its script (a module or an object it held, let go with it) or its renderer: that's
+/// the page going, not something going wrong.
+/// </summary>
+public static class UnwaitedWork
+{
+    public static void Keep(ILogger logger, AggregateException failed)
+    {
+        if (failed.InnerExceptions.All(e => e is OperationCanceledException or JSDisconnectedException || PageGone(e))) return;
+
+        logger.LogWarning(failed, "Work nobody waited for failed: {Message}", failed.GetBaseException().Message);
+    }
+
+    private static bool PageGone(Exception e) => e is ObjectDisposedException { ObjectName: { } what }
+        && (what.StartsWith("Microsoft.JSInterop.", StringComparison.Ordinal) || what.StartsWith("Microsoft.AspNetCore.Components.", StringComparison.Ordinal));
 }
 
 /// <summary>

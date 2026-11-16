@@ -576,14 +576,16 @@ else if (!finder.FoundAny)
         return at >= 0 ? path[(at + 1)..] : path;
     }
 
-    // Every problem shown, in full, on the clipboard: to paste into a message.
+    // Every problem kept, in full, on the clipboard: to paste into a message. The list shows the newest twelve; what's sent is all
+    // of them, the file before this one's too.
     private async Task CopyProblems()
     {
-        var text = string.Join("\n\n", problems.Select(p => $"{p.At:yyyy-MM-dd HH:mm:ss zzz} · {p.Level} · {p.Source}\n{p.Message}{(p.Detail.Length > 0 ? "\n" + p.Detail : "")}"));
+        var all = Problems.All();
+        var text = string.Join("\n\n", all.Select(p => $"{p.At:yyyy-MM-dd HH:mm:ss zzz} · {p.Level} · {p.Source}\n{p.Message}{(p.Detail.Length > 0 ? "\n" + p.Detail : "")}"));
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-            problemNote = $"Copied {problems.Count} {(problems.Count == 1 ? "problem" : "problems")}.";
+            problemNote = $"Copied {all.Count} {(all.Count == 1 ? "problem" : "problems")}.";
         }
         catch (JSException)
         {

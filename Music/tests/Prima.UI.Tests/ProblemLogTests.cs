@@ -75,6 +75,38 @@ public class ProblemLogTests : IDisposable
         Assert.Equal("The page stopped answering at /library/sweden (15 Nov 13:56:12): TypeError: strip.replaceChildren is not a function", kept.Message);
     }
 
+    // The owner's rule 44, decided 15 November (the review of main at a7ab94d, part 5): what a page that has gone throws
+    // (ObjectDisposedException from its script) isn't kept as "Work nobody waited for failed". Anything else that failed with
+    // nobody waiting is, an ObjectDisposedException of Prima's own among it.
+    [Fact]
+    public void WhatAPageThatHasGoneThrowsIsntKeptAsWorkNobodyWaitedFor()
+    {
+        using var provider = new ProblemLogProvider(log);
+        var logger = provider.CreateLogger("Prima.Tablet");
+        // A call into the page's script once it was let go with the page: its module, or an object it held for the script.
+        var held = Microsoft.JSInterop.DotNetObjectReference.Create(new object());
+        held.Dispose();
+        var heldGone = Assert.Throws<ObjectDisposedException>(() => held.Value);
+        var moduleGone = new ObjectDisposedException("Microsoft.JSInterop.Implementation.JSObjectReference");
+
+        UnwaitedWork.Keep(logger, new AggregateException(heldGone));
+        UnwaitedWork.Keep(logger, new AggregateException(moduleGone, new OperationCanceledException()));
+
+        Assert.Empty(log.Recent());
+
+        var cancelled = new CancellationTokenSource();
+        cancelled.Dispose();
+        var ours = Assert.Throws<ObjectDisposedException>(() => cancelled.Token);
+        UnwaitedWork.Keep(logger, new AggregateException(ours));
+        UnwaitedWork.Keep(logger, new AggregateException(moduleGone, new InvalidOperationException("The store failed")));
+
+        var kept = log.Recent();
+        Assert.Equal(2, kept.Count);
+        Assert.All(kept, p => Assert.StartsWith("Work nobody waited for failed: ", p.Message));
+        Assert.Contains("The store failed", $"{kept[0].Message}\n{kept[0].Detail}");
+        Assert.Contains("System.Threading.CancellationTokenSource", $"{kept[1].Message}\n{kept[1].Detail}");
+    }
+
     [Fact]
     public void ClearTakesBothFiles()
     {
