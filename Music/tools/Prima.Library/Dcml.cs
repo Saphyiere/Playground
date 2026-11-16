@@ -9,10 +9,10 @@ namespace Prima.Library;
 /// The DCML's annotated corpora (EPFL's Digital and Cognitive Musicology Lab, github.com/DCMLab, CC BY-NC-SA 4.0), for the local
 /// collection: research editions of keyboard music as MuseScore files. Each is converted to MusicXML with webmscore
 /// (mscx-to-mxl.cjs), then prepared like any MusicXML, and named from its corpus's metadata. Works first published after 1930,
-/// still in copyright in the US, stay out; so do the corpora that aren't keyboard music (songs, quartets, operas, the solo violin
-/// and cello works), the Mozart sonatas (Sapp's edition has them), Rachmaninoff's Corelli Variations (1931, the whole of
-/// rachmaninoff_piano) and Schulhoff's Suite dansante en jazz (1931). debussy_piano and romantic_piano_corpus only gather corpora
-/// that are here already.
+/// still in copyright in the US, stay out, and so does a piece whose metadata gives no year composed; so do the corpora that
+/// aren't keyboard music (songs, quartets, operas, the solo violin and cello works), the Mozart sonatas (Sapp's edition has them),
+/// Rachmaninoff's Corelli Variations (1931, the whole of rachmaninoff_piano) and Schulhoff's Suite dansante en jazz (1931).
+/// debussy_piano and romantic_piano_corpus only gather corpora that are here already.
 /// </summary>
 internal static class Dcml
 {
@@ -117,9 +117,10 @@ internal static class Dcml
             {
                 // A field as text: no MuseScore font tags, one line.
                 string F(string name) => at.TryGetValue(name, out var i) ? Regex.Replace(Regex.Replace(row[i], "<[^>]*>", ""), @"\s+", " ").Trim() : "";
+                // A piece is kept by the year it was composed, which must be given: one finished after 1930, or with no year, stays out.
                 var piece = F(at.ContainsKey("piece") ? "piece" : "fname");
                 var mscx = Path.Combine(folder, F("rel_path") is { Length: > 0 } rel ? rel : $"MS3/{piece}.mscx");
-                if (!File.Exists(mscx) || int.TryParse(F("composed_end").Split('-')[0], out var year) && year > 1930) continue;
+                if (!File.Exists(mscx) || !int.TryParse(F("composed_end").Split('-')[0], out var year) || year > 1930) continue;
 
                 var number = F("movementNumber");
                 var movement = $"{(int.TryParse(number, out var n) && n < Roman.Length ? Roman[n] : number)}. {F("movementTitle").Replace(" - ", " – ")}";
