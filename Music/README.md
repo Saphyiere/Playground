@@ -153,7 +153,10 @@ adb push artifacts/prima-collection /sdcard/Download/
 Then in Prima, **Library › Import files**, open Downloads › prima-collection and pick `prima-collection.zip`. It's stored in
 the background, with its progress at the top of the Library (a minute or two). Then the same for each of the other zips, one at
 a time: the tablet reads a zip it imports whole, so picking them all at once holds them all in memory. A zip whose pieces are
-all there already says so and adds nothing, so importing one again is harmless. The hymns are `prima-collection-hymns.zip`
+all there already says so and adds nothing, so importing one again is harmless. A collection built again needs nothing done by
+hand: each of its zips names the whole collection, so the first one imported takes out of the Library the collection's pieces
+the new build no longer has (their runs stay in your history), and each brings its pieces' titles and credits up to date.
+Bundled pieces and your own imports are never touched. The hymns are `prima-collection-hymns.zip`
 (2.6 MB, about 10 seconds to store); once it's in, they're under Chorales and hymns in the Library's kinds.
 
 The zips stay in Download when Prima is uninstalled, so after a reinstall, import them again. Prima's own copies (Settings ›

@@ -147,7 +147,9 @@ if (!local)
 // The collection as files for the tablet, a zip or a few for each part: the manifest of what's in it and what the app reads (the
 // MEI, any PDFs and MIDI), not the sources. The tablet reads a zip it imports whole into memory, so none is much over 40 MB; a part
 // that would be is split, its pieces in order. The scholarly editions (CC BY-NC-SA 4.0, for this tablet only) are the zip of old,
-// prima-collection.zip; PDMX, Mutopia and the hymns have one each.
+// prima-collection.zip; PDMX, Mutopia and the hymns have one each. Each zip's manifest also names every piece in the whole
+// collection, so importing any one of them takes out of the tablet's Library the collection's pieces this build no longer has.
+var whole = LibraryManifest.Kept(manifest.Pieces).ToList();
 var folder = Path.Combine(artifacts, "prima-collection");
 Directory.CreateDirectory(folder);
 foreach (var old in Directory.GetFiles(folder, "prima-collection*.zip")) File.Delete(old);
@@ -185,7 +187,7 @@ foreach (var (name, holds, sources) in parts)
         {
             await using (var writer = new StreamWriter(zip.CreateEntry("manifest.json", CompressionLevel.SmallestSize).Open()))
             {
-                await writer.WriteAsync(new LibraryManifest(1, built, groups[i]).Write());
+                await writer.WriteAsync(new LibraryManifest(1, built, groups[i], whole).Write());
             }
             foreach (var file in groups[i].SelectMany(Files)) zip.CreateEntryFromFile(Path.Combine(output, file), file, CompressionLevel.NoCompression);
         }

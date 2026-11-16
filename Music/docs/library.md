@@ -635,7 +635,11 @@ pieces, megabytes and licences. Nothing in it is committed.
 On 15 November a local Release build uninstalled Prima on the tablet and took the collection imported on 6 November with it.
 The tool, run again from an empty cache, fetched and built the same 1,201 pieces (same ids and levels) in 7 minutes; the
 6 November zip and manifest are kept in `artifacts/prima-collection-2026-11-06`. The collection then grew by the sources added
-below that day.
+below that day. Late that day it was built again with the rules the owner decided after a review (PDMX kept by its scores' own
+composers, Mutopia's suites and opus numbers read right, share-alike as a tier of its own): 2,871 pieces, where the build before
+had 2,972. 102 pieces went (98 from PDMX, 4 of Mutopia's whole-suite PDFs) and one PDMX piece came, a better copy of Bach's
+C major prelude; the rest kept their ids, so importing the new zips on the tablet takes out the 102 and brings the titles,
+works and tiers of the rest up to date (Import, below).
 
 | Source | What | Licence (checked as it's read) | Pieces | Left out, and why |
 |---|---|---|---|---|
@@ -684,13 +688,14 @@ another way to read the music.
   length rather than 4/4's; where its first bar isn't four beats, Prima numbers it 0, as it does a pickup. Then Verovio
   writes the MEI again as it reads it, like every other piece's. The edition's zip is found from the site's home page, so a
   new edition is fetched when there is one.
-- **Size and time**: 2,972 pieces, 153 MB in six zips (the editions 38 MB, PDMX 16, Mutopia's PDFs 96 in
+- **Size and time**: 2,871 pieces, 149 MB in six zips (the editions 38 MB, PDMX 14, Mutopia's PDFs 95 in
   three, the hymns 2.6). A first run takes about an hour, half of it the PDMX archive's download and Mutopia's files; a
   second, about 7 minutes (`-- local hymns` on the whole collection took 5:45, the hymns' own fetching and converting half a
-  minute of it). Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for
-  each of Mutopia's, about 10 for the hymns'); on 6 November the tablet took about a minute for the 1,201 pieces then.
+  minute of it; the whole of `-- local` on 15 November, with 238 PDMX files read again from the archive in the cache, 7:00).
+  Stored in the preview in about a minute in all (27 seconds for the editions' zip, 15 for PDMX's, 4 to 6 for each of
+  Mutopia's, about 10 for the hymns'); on 6 November the tablet took about a minute for the 1,201 pieces then.
   Prima's data file grows by about 340 MB of MEI and 105,000 excerpts (the hymns' share 12 MB and 4,082), with 97 MB of PDFs
-  and MIDI beside it. The Library lists about 3,250 pieces then: in the preview it opened in half a second and a search
+  and MIDI beside it. The Library lists about 3,170 pieces then: in the preview it opened in half a second and a search
   settled in a quarter of one (desktop Chromium, before the hymns; the tablet is slower).
 - **Levels** (a piece's hardest excerpt): Sapp's 7–12, mostly 7–8; the DCML's and ASAP's mostly 10–12; PDMX's from 4, its
   teaching pieces; Mutopia's PDFs, graded from their MIDI, 7–12, and 20 with no MIDI aren't graded. The hymns 7 (245 of them,
@@ -789,6 +794,15 @@ looked at then too, is in the table above):
   103 the notation is what it was and sounds the file's notes exactly; the Pineapple Rag, which LilyPond played at 7/8 of each
   note, is now written at full lengths (112 tied notes and 17 rests, where it had 182 and 70). Performance MIDI comes out
   ragged, and a pickup comes out as a full bar.
+- **The local collection's zips** (decided 15 November): stored as the tool prepared them. Each zip's manifest also names every
+  piece of the whole collection (by the ids the Library keeps them under), so importing any one zip of a collection built again
+  first brings the details of its pieces already there up to date (title, composer, work, credit, licence, tier; their music
+  and excerpts stay) and takes out the collection's pieces the new build no longer has, with their excerpts, readings and
+  files, whichever zip comes first. A piece taken out keeps its runs and practice sessions, as one removed by hand does: the
+  practice days and the routines' evidence still count them, the Library and You no longer list it, Today calls it "A piece",
+  and it's its own again if a later collection brings it back. Bundled pieces and the owner's own imports are never touched,
+  and a zip from before collections named themselves whole takes nothing out. Nothing is removed by hand: the wrongly credited
+  PDMX pieces of the 15 November build go when the collection built after it is imported.
 
 ### The full-page view
 

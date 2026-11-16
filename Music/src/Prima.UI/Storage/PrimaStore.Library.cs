@@ -180,6 +180,59 @@ public sealed partial class PrimaStore
         await transaction.CommitAsync();
     });
 
+    /// <summary>
+    /// A collection the Library tool built, as one of its zips is imported, against the collection's pieces already here, as one
+    /// piece of work: each of its pieces here takes its details (title, composer, work, credit, licence and tier; its music and
+    /// excerpts stay), and, when it names every piece of the whole collection (<paramref name="whole"/>), the collection's pieces
+    /// it no longer has go, with their excerpts, readings and files. A piece that goes keeps its runs and practice sessions, as one
+    /// removed by hand does: the practice days still count them, and they're its own again if a later collection brings it back.
+    /// Bundled pieces and the owner's own imports are never touched. How many pieces' details changed, and how many went.
+    /// </summary>
+    public async Task<(int Changed, int Removed)> RefreshCollectionAsync(IReadOnlyList<(string Id, string Title, BundledPiece Piece)> pieces, IReadOnlyCollection<string>? whole)
+    {
+        var (changed, gone) = await RunAsync(async c =>
+        {
+            await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+            var updated = 0;
+            foreach (var (id, title, p) in pieces)
+            {
+                updated += await c.ExecuteAsync("""
+                    UPDATE Piece SET Title = @title, Composer = @Composer, Work = @Work, Credit = @Credit, Licence = @Licence, LicenceUrl = @LicenceUrl, SourceUrl = @SourceUrl, Tier = @tier
+                    WHERE Id = @id AND Origin = 'collection' AND (Title IS NOT @title OR Composer IS NOT @Composer OR Work IS NOT @Work OR Credit IS NOT @Credit
+                        OR Licence IS NOT @Licence OR LicenceUrl IS NOT @LicenceUrl OR SourceUrl IS NOT @SourceUrl OR Tier IS NOT @tier)
+                    """, new { id, title, p.Composer, p.Work, p.Credit, p.Licence, p.LicenceUrl, p.SourceUrl, tier = p.Tier.ToString() }, transaction);
+            }
+
+            List<(string Id, string Format, string? File, string? Midi)> removed = [];
+            if (whole is not null)
+            {
+                var kept = whole.ToHashSet(StringComparer.Ordinal);
+                removed = [.. (await c.QueryAsync<(string Id, string Format, string? File, string? Midi)>("SELECT Id, Format, File, Midi FROM Piece WHERE Origin = 'collection'", transaction: transaction))
+                    .Where(p => !kept.Contains(p.Id))];
+                foreach (var piece in removed)
+                {
+                    await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id = piece.Id }, transaction);
+                }
+            }
+            await transaction.CommitAsync();
+            return (updated, removed);
+        });
+
+        // A PDF's file and its MIDI, kept beside the imports, go with it.
+        foreach (var file in gone.Where(p => p.Format == "pdf").SelectMany(p => new[] { p.File, p.Midi }).OfType<string>())
+        {
+            try
+            {
+                File.Delete(Path.Combine(FilesPath, file));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Left where it is: it takes up room, nothing more.
+            }
+        }
+        return (changed, gone.Count);
+    }
+
     public Task DeletePieceAsync(string id) => RunAsync(c => c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }));
 
     /// <summary>A PDF's reading: waiting to be reviewed, or kept; null when it has none.</summary>

@@ -178,13 +178,16 @@ a PDF plays out; this is what came of it.
   rags, Bach's 370 chorales on a grand staff), the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's
   suites, Chopin's mazurkas, all of Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Bartók's Bagatelles, and more)
   and ASAP's concert scores (the Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), all CC BY-NC-SA 4.0;
-  more of PDMX's public-domain piano music; the rest of the Mutopia Project's keyboard music as PDFs with their MIDI, each
-  PDF at the level its MIDI reads at; and the Open Hymnal's public-domain hymns, four voices on the grand staff with their
-  verses under the notes, shelved with the chorales. About 2,970 pieces, all keyboard music, prepared like the bundle and
+  more of PDMX's public-domain piano music, each score's own composer one who died before 1931; the rest of the Mutopia
+  Project's keyboard music as PDFs with their MIDI, each PDF at the level its MIDI reads at, those under CC BY-SA share-alike
+  (a tier of their own, as in the bundle); and the Open Hymnal's public-domain hymns, four voices on the grand staff with their
+  verses under the notes, shelved with the chorales. About 2,870 pieces, all keyboard music, prepared like the bundle and
   packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip stores
-  its pieces in the background with the same meter, credited like the collection's; those already here stay as they are. The
-  Library then holds about 3,250 pieces, so a list is drawn again a second at a time at most while pieces are stored, and the
-  search follows once typing pauses.
+  its pieces in the background with the same meter, credited like the collection's; those already here take its titles and
+  credits. Each zip names the whole collection it's part of, so importing any one of a collection built again takes out the
+  collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled
+  pieces and your own imports are never touched. The Library then holds about 3,170 pieces, so a list is drawn again a second
+  at a time at most while pieces are stored, and the search follows once typing pauses.
 - **Finding your way** (the Library's home): a search across everything, then **Working on** (the pieces played in the last
   month, eight at most, the latest first, each with when it was last played and how that run went), then **Near your level**: a
   few of the pieces to play along with whose most reads from your sight-reading level to two above it (since a piece to learn
@@ -872,8 +875,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   dynamic and hairpin, each bar's staccato, tenuto and accents, its gaps under slurs, the pedal); and the marks it left on
   the music, for the in-depth review. A run kept before 15 November has no time, lean or markings, and the look back says
   less of it.
-- **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle never takes out the
-  others), with their sources and licences, levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
+- **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle or a local collection
+  built again never takes out the others), with their sources, licences and tiers (A: public domain or CC BY; SA: share-alike;
+  B: non-commercial), levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation
   piece keeps where it was left too: its page, the bar it was to start from, its loop's last bar, and the first bar on the

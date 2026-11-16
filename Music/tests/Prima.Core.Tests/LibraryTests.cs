@@ -309,4 +309,18 @@ public class CollectionTests
         Assert.Contains("\"tier\": \"SA\"", manifest.Write());
         Assert.Equal(Tier.SA, Assert.Single(LibraryManifest.Read(manifest.Write()).Pieces).Tier);
     }
+
+    [Fact]
+    public void ACollectionsZipNamesTheWholeCollectionByTheIdsItsPiecesAreKeptUnder()
+    {
+        // A PDF kept as itself, and a prepared piece kept as its two parts. The bundle's manifest names no collection.
+        var parts = new BundledPiece("pdmx-album", "Album", "Robert Schumann", "", "mxl", "pieces/pdmx-album.mxl", null, "", "PDMX", "", "CC0 1.0", "", "", Tier.A, 8,
+            Prepared: [new PreparedPiece("pdmx-album-01", "Album, No. 1", "pieces/pdmx-album-01.mei.gz", 5, 5, "", 4, []), new PreparedPiece("pdmx-album-02", "Album, No. 2", "pieces/pdmx-album-02.mei.gz", 6, 6, "", 4, [])]);
+
+        var zip = new LibraryManifest(1, "2026-11-15", [ShareAlike], [.. LibraryManifest.Kept([ShareAlike, parts])]);
+
+        Assert.Equal(["mutopia-op68-1", "pdmx-album-01", "pdmx-album-02"], LibraryManifest.Read(zip.Write()).Collection);
+        Assert.DoesNotContain("\"collection\"", new LibraryManifest(1, "2026-11-15", [ShareAlike]).Write());
+        Assert.Null(LibraryManifest.Read(new LibraryManifest(1, "2026-11-15", [ShareAlike]).Write()).Collection);
+    }
 }
