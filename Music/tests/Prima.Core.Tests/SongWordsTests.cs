@@ -137,6 +137,33 @@ public class SongWordsTests
     }
 
     [Fact]
+    public void ADirectionMadeOfMusicsOwnWordsIsNeverALineOfASong()
+    {
+        // The owner's four, one a bar, as many directions of three words or more as a song's lines would be; and the ritardando
+        // of Beethoven's last sonata, spaced out over the bars it slows, as long as a verse.
+        string[] players =
+        [
+            "D.C. al Fine", "poco a poco cresc.", "Allegro ma non troppo", "dim. e rit.",
+            "ritar - - - - - - - - - - - - - - - - - - - - - - - dan - - - - - - - - - - - - - - - - do",
+        ];
+        string Bar(int i, string direction) => $"""<staff n="1"><layer n="1"><note xml:id="n{i}" pname="e" oct="5" dur="1"/></layer></staff>{Bass}<dir staff="1" tstamp="1">{direction}</dir>""";
+
+        // They don't make a piece a song, and it comes back as it is.
+        var piece = Piece([.. players.Select((p, i) => Bar(i + 1, p))]);
+        Assert.False(SongWords.Has(piece));
+        Assert.Same(piece, SongWords.Prepare(piece, shown: true));
+        Assert.Same(piece, SongWords.Prepare(piece, shown: false));
+
+        // In a song, its lines typed as text in the same bars, they aren't moved under the notes, and they stay with Lyrics off.
+        var song = Piece([.. players.Select((p, i) => Bar(i + 1, p) + $"""<dir staff="1" tstamp="1">the words of line {i + 1}</dir>""")]);
+        Assert.True(SongWords.Has(song));
+        var shown = SongWords.Prepare(song, shown: true);
+        Assert.Equal([.. players.Select((_, i) => ($"n{i + 1}", $"1:the words of line {i + 1}"))], Lines(shown));
+        Assert.Equal(players, XDocument.Parse(shown).Descendants(Mei + "dir").Select(d => d.Value));
+        Assert.Equal(players, XDocument.Parse(SongWords.Prepare(song, shown: false)).Descendants(Mei + "dir").Select(d => d.Value));
+    }
+
+    [Fact]
     public void TheBundlesDirectionsAreNeverTakenForWords()
     {
         // Of the bundled pieces, only the one with lyrics (Karussell-Walzer) has words: no piece's directions (Satie's advice, Italian

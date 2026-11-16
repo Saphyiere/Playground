@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
@@ -13,7 +14,8 @@ namespace Prima.Core.Music;
 /// text over or under the music (directions), which Verovio places without spacing the notes for them, so they pile up on each
 /// other and crush their bars into a corner of the line. <see cref="Prepare"/> gives each voice's lyrics and each verse a line of
 /// its own, and moves words typed as text onto a line under the notes they start at. A whole verse typed as text (a direction as
-/// long as a verse, printed after the music) isn't for playing and is left off; so are all the words when they're hidden.
+/// long as a verse, printed after the music) isn't for playing and is left off; so are all the words when they're hidden. A
+/// player's direction made of music's own words ("D.C. al Fine", "poco a poco cresc.") is never a song's: it stays as it is.
 /// </summary>
 public static class SongWords
 {
@@ -26,6 +28,69 @@ public static class SongWords
     private static readonly Regex Directions = new(@"<dir\b(?:[^>]*?/>|[^>]*>(?<text>[\s\S]*?)</dir>)", RegexOptions.Compiled);
     private static readonly Regex Tags = new("<[^>]+>", RegexOptions.Compiled);
     private static readonly Regex Space = new(@"\s+", RegexOptions.Compiled);
+    private static readonly Regex NotAWord = new(@"[^\p{L}\p{Nd}]+", RegexOptions.Compiled);
+
+    // Music's own words, as a player's directions are written (in Italian) and cut short, without accents or capitals: a direction
+    // made of these and the words that join them ("D.C. al Fine", "poco a poco cresc.", "Allegro ma non troppo", "dim. e rit.") is
+    // a player's, however many words it has, and never a line of a song.
+    private static readonly HashSet<string> MusicWords =
+    [
+        // How fast, and faster or slower
+        .. Of("""
+            tempo tempi grave largo larghetto larghissimo lento lentissimo lentamente adagio adagietto adagissimo andante andantino
+            moderato allegretto allegro allegrissimo vivace vivacissimo vivo vivamente presto prestissimo mosso moto movimento mov
+            comodo giusto istesso stesso primo prima secondo seconda doppio veloce tosto principio cadenza recitando recitativo
+            accelerando accel acceler acc stringendo string stretto incalzando affrettando affrettato animando ritardando ritard rit
+            ritar ritenuto riten rallentando rallent rall allargando allarg slargando slentando calando calmando smorzando smorz
+            morendo perdendosi perdendo mancando trattenuto rubato fermata lunga piacere libitum lib abbandonando abbandono
+            """),
+        // How loud, and how much
+        .. Of("""
+            piano pianissimo forte fortissimo mezzo mezza mezzoforte mezzopiano sforzando sforzato sforz sf sfz sffz sfp fz fp rf
+            rfz rinforzando rinforz rinf crescendo cresc cres decrescendo decresc diminuendo dimin dim p pp ppp pppp mp mf f ff fff
+            ffff possibile niente
+            poco pochissimo poch pochettino pochetino molto molta assai troppo tanto piu meno sempre subito sub quasi ancora ben gran
+            somma pieno
+            """),
+        // How it's played
+        .. Of("""
+            dolce dolcissimo dolcemente cantabile cant cantando canto espressivo espress espr espressione affettuoso amoroso
+            appassionato passione agitato animato anim brillante brio brioso bravura calmo calmato calma calore deciso delicato
+            delicatissimo dolente dolore doloroso eleganza energico eroico fantasia fuoco furioso furia giocoso giocosamente
+            grandioso grazioso grazia gusto improvvisato intimo lamentoso languido languendo largamente leggiero leggero legg
+            leggierissimo leggieramente leggiermente leggermente leggerezza lusingando maestoso marcato marcata marcatissimo marc
+            marziale mesto misterioso nobile nobilmente pesante piacevole pietoso placido pomposo rigore risoluto scherzando
+            scherzoso scorrevole semplice sentimento sereno serioso soave sonoro sostenuto sost spiritoso spirito anima strepitoso
+            strepito tenebroso teneramente tenerezza tranquillo tranq tumultuoso affannato vertiginoso vigoroso ballabile slancio
+            forza grande grand distinto distintamente
+            legato legatissimo leg staccato staccatissimo stacc portato portamento martellato accentato accentuato pizzicato pizz
+            arco tremolo trem glissando gliss arpeggio arpeggiato arpeggiando arp trillo tr vibrato tenuto ten tenuta tenute
+            """),
+        // The hands, the pedals, the voices
+        .. Of("""
+            ped pedale sordino sordini corda corde mano mani destra sinistra md ms rh lh voce voci tema melodia basso parte
+            accompagnamento accomp arpa sopra sotto discrezione
+            """),
+        // Where to go, and what's played there ("Tempo di Valse", "Minuetto da capo")
+        .. Of("""
+            capo dc ds segno fine coda volta volti vs attacca segue bis ripresa replica ripetizione ossia loco ottava 8va 8vb 15ma
+            alta bassa simile sim tacet tutti solo soli unisono unis divisi div pezzo
+            valse valzer marcia minuetto menuetto menuett menuet trio scherzo scherzino gavotta gavotte bourree passepied sarabanda
+            sarabande giga gigue polacca siciliana pastorale musette aria fuga turca breve preludio maggiore minore
+            """),
+    ];
+
+    // The words that join music's own ("a", "e", "ma", "il", the "I" of "Tempo I"): a direction of these alone ("la la la") is no
+    // player's.
+    private static readonly HashSet<string> Joining =
+    [
+        .. Of("""
+            a ad al all alla alle allo ai e ed ma non o con col coll colla coi senza sin sino fino il lo la le l i gli un una uno di
+            del dell della dei da dal dall dalla in nel nella per come poi tutte tutta tutto due tre si
+            """),
+    ];
+
+    private static string[] Of(string words) => words.Split((char[])[' ', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
     /// <summary>Whether the music has a song's words to show: lyrics, or its lines typed as text.</summary>
     public static bool Has(string mei) => HasLyrics(mei) || Scan(mei).Typed;
@@ -52,7 +117,7 @@ public static class SongWords
             return mei;
         }
         var directions = document.Descendants(Mei + "dir").Select(d => (Dir: d, Text: TextOf(d))).ToList();
-        directions.Where(d => d.Text.Length > VerseLength).Select(d => d.Dir).Remove();
+        directions.Where(d => IsVerse(d.Text)).Select(d => d.Dir).Remove();
         var typed = scan.Typed ? directions.Where(d => IsLine(d.Text)).ToList() : [];
 
         if (!shown)
@@ -71,7 +136,8 @@ public static class SongWords
 
     // The directions, read from the text without parsing it: how many are whole verses, and whether the music's lines of words are
     // typed as text. They are when there are many directions of a few words (four at least, and one every four bars), as a song's
-    // lines run through it; a player's directions (dolce, a tempo, poco rit.) are a word or two, or few.
+    // lines run through it; a player's directions are a word or two (dolce, a tempo), or few, and one made of music's own words
+    // (poco a poco cresc.) never counts.
     private static (int Verses, bool Typed) Scan(string mei)
     {
         if (!mei.Contains("<dir", StringComparison.Ordinal)) return (0, false);
@@ -79,12 +145,45 @@ public static class SongWords
         var texts = Directions.Matches(mei).Select(m => Space.Replace(System.Net.WebUtility.HtmlDecode(Tags.Replace(m.Groups["text"].Value, t => t.Value.StartsWith("<lb", StringComparison.Ordinal) ? " " : "")), " ").Trim()).ToList();
         var lines = texts.Count(IsLine);
         var bars = Regex.Count(mei, @"<measure\b");
-        return (texts.Count(t => t.Length > VerseLength), lines >= 4 && lines * 4 >= bars);
+        return (texts.Count(IsVerse), lines >= 4 && lines * 4 >= bars);
     }
 
-    // A line of a song's words: three words or more, shorter than a verse. Dashes between a word's parts ("ri - tar - dan - do")
-    // aren't words.
-    private static bool IsLine(string text) => text.Length <= VerseLength && text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Count(w => w.Any(char.IsLetter)) >= 3;
+    // A line of a song's words: three words or more, shorter than a verse, and not a player's direction. Dashes between a word's
+    // parts ("ri - tar - dan - do") aren't words.
+    private static bool IsLine(string text) => text.Length <= VerseLength && text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Count(w => w.Any(char.IsLetter)) >= 3 && !IsPlayers(text);
+
+    // A whole verse typed as text: longer than a line, and not a player's direction (a "ritar - - - dan - - - do" drawn out over
+    // the bars it slows).
+    private static bool IsVerse(string text) => text.Length > VerseLength && !IsPlayers(text);
+
+    // Whether a direction is a player's: made of music's own words and the words that join them, one of music's own at least.
+    // Its words are read without accents or capitals, as the letters and digits between other marks ("D.C." two, "8va" one), and
+    // a word spaced out in parts ("ri - tar - dan - do", "cre scen do") read whole.
+    private static bool IsPlayers(string text)
+    {
+        var plain = new StringBuilder(text.Length);
+        foreach (var c in text.Normalize(NormalizationForm.FormKD))
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) plain.Append(char.ToLowerInvariant(c));
+        var parts = NotAWord.Split(plain.ToString()).Where(p => p.Any(char.IsLetter)).ToList();
+        if (parts.Count == 0) return false;
+
+        // How far the first parts can be read: 0 not at all, 1 as joining words only, 2 with one of music's own among them. A word
+        // is read from up to eight parts.
+        var reach = new int[parts.Count + 1];
+        reach[0] = 1;
+        for (var from = 0; from < parts.Count; from++)
+        {
+            if (reach[from] == 0) continue;
+            var word = "";
+            for (var to = from + 1; to <= Math.Min(parts.Count, from + 8); to++)
+            {
+                word += parts[to - 1];
+                if (MusicWords.Contains(word)) reach[to] = 2;
+                else if (Joining.Contains(word)) reach[to] = Math.Max(reach[to], reach[from]);
+            }
+        }
+        return reach[^1] == 2;
+    }
 
     // A direction's words, a line break between two of its lines read as a space.
     private static string TextOf(XElement element) =>
