@@ -27,8 +27,11 @@ internal static class Prepare
         ],
     };
 
-    public static async Task<List<BundledPiece>> Run(IReadOnlyList<BundledPiece> pieces, string root, string output, string? modules = null)
+    /// <param name="grandStaff">Only keyboard music: the local collection's, where a melody alone or one instrument's part (one
+    /// staff), or from PDMX a song's voice above its piano (more than two), would ask to be played whole.</param>
+    public static async Task<List<BundledPiece>> Run(IReadOnlyList<BundledPiece> pieces, string root, string output, string? modules = null, bool grandStaff = false)
     {
+        var notGrand = 0;
         var engraved = Directory.CreateTempSubdirectory("prima-mei");
         try
         {
@@ -42,7 +45,8 @@ internal static class Prepare
             ];
             foreach (var (kind, format, arguments) in runs.Where(r => pieces.Any(p => p.Format == r.Format)))
             {
-                Console.WriteLine($"Preparing {pieces.Count(p => p.Format == format)} {kind} pieces: Verovio engraves them (a minute or two)…");
+                var count = pieces.Count(p => p.Format == format);
+                Console.WriteLine($"Preparing {count} {kind} pieces: Verovio engraves them ({(count > 1000 ? "several minutes" : "a minute or two")})…");
                 Process node;
                 try
                 {
@@ -73,8 +77,22 @@ internal static class Prepare
                     continue;
                 }
 
-                // A score's hidden playback tempos (bare numbers) are left out: Verovio would print them on the music.
-                var parts = Collections.Split(MeiReader.WithoutBareTempos(await File.ReadAllTextAsync(raw)));
+                // A score's hidden playback tempos (bare numbers) are left out: Verovio would print them on the music. A score the
+                // Core can't read (a note without a pitch, say) is left out, named, rather than stopping the rest.
+                // The local collection's pieces go without their instrument's name, as its MuseScore and Humdrum ones are made: it
+                // would print as "Piano" beside the first system and "Pno." beside the rest.
+                IReadOnlyList<string> parts;
+                try
+                {
+                    var mei = MeiReader.WithoutBareTempos(await File.ReadAllTextAsync(raw));
+                    if (grandStaff) mei = System.Text.RegularExpressions.Regex.Replace(mei, @"<(label|labelAbbr)\b[^>]*>[\s\S]*?</\1>", "");
+                    parts = Collections.Split(mei);
+                }
+                catch (Exception e) when (Unreadable(e))
+                {
+                    Console.WriteLine($"  Left out {piece.Title} ({piece.Id}): Prima couldn't read Verovio's MEI ({e.GetType().Name}).");
+                    continue;
+                }
                 var made = new List<PreparedPiece>();
                 var names = PartNames.GetValueOrDefault(piece.Work) is { } known && known.Length == parts.Count ? known : null;
                 for (var i = 0; i < parts.Count; i++)
@@ -82,22 +100,36 @@ internal static class Prepare
                     // A part with a name of its own goes by it ("Träumerei, No. 7"), the work being shown beside it.
                     var name = names is null ? piece.Title : names[i];
                     var (id, title) = parts.Count == 1 ? (piece.Id, piece.Title) : ($"{piece.Id}-{i + 1:00}", $"{name}, No. {i + 1}");
-                    var score = MeiReader.Read(parts[i]);
-                    if (score.Expected().Count == 0) continue;
-
-                    var cuts = Excerpts.Cut(score);
-                    var (level, typical, reasons) = Excerpts.PieceGrade(score, cuts);
-                    var file = $"pieces/{id}.mei.gz";
-                    await using (var gzip = new GZipStream(File.Create(Path.Combine(output, file)), CompressionLevel.SmallestSize))
+                    try
                     {
-                        await gzip.WriteAsync(Encoding.UTF8.GetBytes(MeiReader.Renumber(parts[i], score)));
+                        var score = MeiReader.Read(parts[i]);
+                        if (score.Expected().Count == 0) continue;
+                        // A keyboard edition's three staves (Debussy, Liszt) are a pianist's; PDMX's, more often a voice above a piano.
+                        if (grandStaff && Staves(parts[i]) is var staves && (staves < 2 || staves > 2 && piece.Source == Pdmx.Name))
+                        {
+                            notGrand++;
+                            continue;
+                        }
+
+                        var cuts = Excerpts.Cut(score);
+                        var (level, typical, reasons) = Excerpts.PieceGrade(score, cuts);
+                        var file = $"pieces/{id}.mei.gz";
+                        await using (var gzip = new GZipStream(File.Create(Path.Combine(output, file)), CompressionLevel.SmallestSize))
+                        {
+                            await gzip.WriteAsync(Encoding.UTF8.GetBytes(MeiReader.Renumber(parts[i], score)));
+                        }
+                        var excerpts = cuts.Select(c => new BundledExcerpt(c.FirstBar, c.LastBar, c.Grade.Level, Math.Round(c.Grade.Within, 3))).ToList();
+                        made.Add(new PreparedPiece(id, title, file, level, typical, reasons, score.Bars.Count(b => b.Number > 0), excerpts));
                     }
-                    var excerpts = cuts.Select(c => new BundledExcerpt(c.FirstBar, c.LastBar, c.Grade.Level, Math.Round(c.Grade.Within, 3))).ToList();
-                    made.Add(new PreparedPiece(id, title, file, level, typical, reasons, score.Bars.Count(b => b.Number > 0), excerpts));
+                    catch (Exception e) when (Unreadable(e))
+                    {
+                        Console.WriteLine($"  Left out {title} ({id}): Prima couldn't read Verovio's MEI ({e.GetType().Name}).");
+                    }
                 }
                 if (parts.Count > 1) Console.WriteLine($"  {piece.Title}: one score holding {parts.Count} pieces, split into them.");
                 if (made.Count > 0) prepared.Add(piece with { Prepared = made });
             }
+            if (notGrand > 0) Console.WriteLine($"  Left out {notGrand} pieces that aren't keyboard music (one staff, or from PDMX more than two).");
             return prepared;
         }
         finally
@@ -113,4 +145,12 @@ internal static class Prepare
             }
         }
     }
+
+    // What reading a score's MEI throws when the score has something the Core doesn't expect.
+    private static bool Unreadable(Exception e) => e is NullReferenceException or FormatException or InvalidOperationException or ArgumentException
+        or IndexOutOfRangeException or KeyNotFoundException or System.Xml.XmlException;
+
+    // How many staves a piece's MEI has, by their numbers: a later scoreDef can name the same staff again.
+    private static int Staves(string mei) =>
+        System.Text.RegularExpressions.Regex.Matches(mei, @"<staffDef\b[^>]*\bn=""(\d+)""").Select(m => m.Groups[1].Value).Distinct().Count();
 }

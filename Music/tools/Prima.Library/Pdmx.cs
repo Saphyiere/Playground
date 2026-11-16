@@ -78,29 +78,156 @@ internal static class Pdmx
 
         var chosen = Choose(csv);
         Console.WriteLine($"PDMX: {chosen.Count} pieces chosen.");
-        var missing = chosen.Where(r => !File.Exists(Path.Combine(output, PieceFile(r)))).ToDictionary(r => Entry(r.Mxl), r => r);
-        if (missing.Count > 0)
-        {
-            // One pass through the 1.9 GB archive, writing only the chosen files; it stops once it has them all.
-            Console.WriteLine($"PDMX: reading the MusicXML archive for {missing.Count} files (1.9 GB, read once)…");
-            using var response = await http.GetAsync($"{Files}/mxl.tar.gz/content", HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-            var total = response.Content.Headers.ContentLength;
-            var wanted = missing.Count;
-            await using var body = new Progress(await response.Content.ReadAsStreamAsync(), total, 100, read => $"PDMX: {read} of {total / 1_000_000 ?? 0} MB read, {wanted - missing.Count} of {wanted} found…");
-            await using var gzip = new GZipStream(body, CompressionMode.Decompress);
-            using var tar = new TarReader(gzip);
-            while (missing.Count > 0 && await tar.GetNextEntryAsync() is { } entry)
-            {
-                if (entry.DataStream is null || !missing.Remove(Entry(entry.Name), out var row)) continue;
+        await Extract(http, cache, output, chosen);
+        return [.. chosen.Where(r => File.Exists(Path.Combine(output, PieceFile(r)))).Select(r => ToPiece(r, output))];
+    }
 
-                await using var file = File.Create(Path.Combine(output, PieceFile(row)));
-                await entry.DataStream.CopyToAsync(file);
-            }
-            if (missing.Count > 0) Console.WriteLine($"PDMX: {missing.Count} files weren't in the archive: {string.Join(", ", missing.Keys.Take(5))}");
+    // Writes the chosen files that aren't there yet from the MusicXML archive: the copy in the cache when there is one (the local
+    // collection keeps it, 1.9 GB, so a change to its selection doesn't download it again), otherwise one pass through it as it
+    // downloads. Either way it stops once it has them all.
+    private static async Task Extract(HttpClient http, string cache, string output, IReadOnlyList<Row> chosen)
+    {
+        var missing = chosen.Where(r => !File.Exists(Path.Combine(output, PieceFile(r)))).ToDictionary(r => Entry(r.Mxl), r => r);
+        if (missing.Count == 0) return;
+
+        var archive = Path.Combine(cache, "mxl.tar.gz");
+        var kept = File.Exists(archive);
+        Console.WriteLine($"PDMX: reading the MusicXML archive{(kept ? " in the cache" : "")} for {missing.Count} files (1.9 GB, read once)…");
+        using var response = kept ? null : await http.GetAsync($"{Files}/mxl.tar.gz/content", HttpCompletionOption.ResponseHeadersRead);
+        response?.EnsureSuccessStatusCode();
+        var total = kept ? new FileInfo(archive).Length : response!.Content.Headers.ContentLength;
+        var wanted = missing.Count;
+        await using var body = new Progress(kept ? File.OpenRead(archive) : await response!.Content.ReadAsStreamAsync(), total, 100,
+            read => $"PDMX: {read} of {total / 1_000_000 ?? 0} MB read, {wanted - missing.Count} of {wanted} found…");
+        await using var gzip = new GZipStream(body, CompressionMode.Decompress);
+        using var tar = new TarReader(gzip);
+        while (missing.Count > 0 && await tar.GetNextEntryAsync() is { } entry)
+        {
+            if (entry.DataStream is null || !missing.Remove(Entry(entry.Name), out var row)) continue;
+
+            await using var file = File.Create(Path.Combine(output, PieceFile(row)));
+            await entry.DataStream.CopyToAsync(file);
+        }
+        if (missing.Count > 0) Console.WriteLine($"PDMX: {missing.Count} files weren't in the archive: {string.Join(", ", missing.Keys.Take(5))}");
+    }
+
+    /// <summary>
+    /// More of PDMX, for the local collection: solo piano music tagged public domain or CC0 without a licence conflict, PDMX's own
+    /// best copy of it (its best unique arrangement), not an arrangement by its title, by a composer who died before 1931 (so all
+    /// they wrote is out of copyright in the US, which a PD tag alone doesn't make sure of), named as the score's composer or
+    /// artist (not only in its title, where a transcriber's own piece can name the one it's after). The works the repo's bundle
+    /// takes from PDMX stay out, and copies of one piece by different users are reduced to the best rated. The archive is kept in
+    /// the cache.
+    /// </summary>
+    public static async Task<List<BundledPiece>> FetchMore(HttpClient http, string cache, string output)
+    {
+        var csv = Path.Combine(cache, "PDMX.csv");
+        if (!File.Exists(csv))
+        {
+            Console.WriteLine("PDMX: downloading its index (225 MB)…");
+            await Download(http, $"{Files}/PDMX.csv/content", csv);
+        }
+        var archive = Path.Combine(cache, "mxl.tar.gz");
+        if (!File.Exists(archive))
+        {
+            Console.WriteLine("PDMX: downloading its MusicXML archive into the cache (1.9 GB, once; half an hour or more)…");
+            await Download(http, $"{Files}/mxl.tar.gz/content", archive);
         }
 
-        return [.. chosen.Where(r => File.Exists(Path.Combine(output, PieceFile(r)))).Select(r => ToPiece(r, output))];
+        var chosen = ChooseMore(csv);
+        Console.WriteLine($"PDMX: {chosen.Count} more pieces chosen, by {chosen.Select(r => r.Work.Composer).Distinct().Count()} composers.");
+        await Extract(http, cache, output, chosen);
+        return [.. chosen.Where(r => File.Exists(Path.Combine(output, PieceFile(r)))).Select(r => ToPiece(r, output) with { Title = Clean(r.Title, r.Work.Composer), Work = "" })];
+    }
+
+    // Composers who died before 1931, and how a score names them (a surname alone is enough for most). Where two share a name,
+    // the one named more fully comes first: Leopold before Wolfgang Mozart, Clara before Robert Schumann, Carl Philipp Emanuel,
+    // Johann Christian and Wilhelm Friedemann before Johann Sebastian Bach.
+    private static readonly (string Name, Regex Who)[] Composers = [.. new (string, string)[]
+    {
+        ("Leopold Mozart", @"leopold mozart"), ("Wolfgang Amadeus Mozart", @"mozart"),
+        ("Carl Philipp Emanuel Bach", @"c\.?\s?p\.?\s?e\.?\s?bach|carl philipp emanuel"), ("Johann Christian Bach", @"j\.?\s?c\.?\s?bach|johann christian bach"),
+        ("Wilhelm Friedemann Bach", @"friedemann"), ("Johann Sebastian Bach", @"\bbach\b"),
+        ("Clara Schumann", @"clara (wieck|schumann)"), ("Robert Schumann", @"schumann"),
+        ("Fanny Mendelssohn", @"fanny (mendelssohn|hensel)|\bhensel\b"), ("Felix Mendelssohn", @"mendelssohn"),
+        ("Michael Haydn", @"michael haydn"), ("Joseph Haydn", @"\bhaydn"),
+        ("Alessandro Scarlatti", @"alessandro scarlatti"), ("Domenico Scarlatti", @"scarlatti"),
+        ("Ludwig van Beethoven", @"beethoven"), ("Frédéric Chopin", @"chopin|szopen"), ("Franz Liszt", @"\bliszt"), ("Franz Schubert", @"schubert"),
+        ("Johannes Brahms", @"\bbrahms"), ("Claude Debussy", @"debussy"), ("Erik Satie", @"\bsatie"), ("Edvard Grieg", @"\bgrieg"),
+        ("Pyotr Ilyich Tchaikovsky", @"tchaikovsk|tschaikowsk|chaikovsk|tchaikowsk|čajkovsk"), ("Muzio Clementi", @"clementi"), ("Carl Czerny", @"czerny|černý"),
+        ("Friedrich Burgmüller", @"burgm(ü|u|ue)ller"), ("Cornelius Gurlitt", @"gurlitt"), ("Henry Lemoine", @"lemoine"), ("Jean-Baptiste Duvernoy", @"duvernoy"),
+        ("Friedrich Kuhlau", @"kuhlau"), ("Anton Diabelli", @"diabelli"), ("Scott Joplin", @"joplin"), ("George Frideric Handel", @"h(a|ä|ae)ndel"),
+        ("François Couperin", @"couperin"), ("Jean-Philippe Rameau", @"rameau"), ("Henry Purcell", @"purcell"), ("Georg Philipp Telemann", @"telemann"),
+        ("Johann Pachelbel", @"pachelbel"), ("Gabriel Fauré", @"faur(é|e)\b"), ("Camille Saint-Saëns", @"saint[- ]sa(ë|e)ns"), ("Isaac Albéniz", @"alb(é|e)niz"),
+        ("Enrique Granados", @"granados"), ("Antonín Dvořák", @"dvo(ř|r)(á|a)k"), ("Modest Mussorgsky", @"mussorgsk|moussorgsk|musorgsk"),
+        ("Alexander Scriabin", @"scriabin|skryabin"), ("Edward MacDowell", @"macdowell"), ("Stephen Heller", @"stephen heller|\bheller\b"),
+        ("Louis Köhler", @"k(ö|o|oe)hler"), ("Ferdinand Beyer", @"ferdinand beyer|\bbeyer\b"), ("Henri Bertini", @"bertini"), ("Louis Streabbog", @"streabbog|gobbaerts"),
+        ("Fritz Spindler", @"spindler"), ("Heinrich Lichner", @"lichner"), ("Giuseppe Concone", @"concone"), ("Albert Loeschhorn", @"loeschhorn|löschhorn"),
+        ("Daniel Gottlob Türk", @"(daniel|gottlob).*t(ü|u)rk|t(ü|u)rk.*(daniel|gottlob)"), ("Christian Petzold", @"petzold"),
+        ("Johann Nepomuk Hummel", @"\bhummel"), ("John Field", @"john field"), ("Carl Maria von Weber", @"carl maria von weber|c\.\s?m\.\s?(von )?weber"),
+        ("Moritz Moszkowski", @"moszkowski"), ("Emmanuel Chabrier", @"chabrier"), ("César Franck", @"c(é|e)sar franck"), ("Charles-Valentin Alkan", @"\balkan\b"),
+        ("Anatoly Lyadov", @"lyadov|liadov|liadow"), ("Anton Arensky", @"arensky"), ("Nikolai Rimsky-Korsakov", @"rimsky"), ("Alexander Borodin", @"borodin"),
+        ("Mily Balakirev", @"balakirev"), ("Mikhail Glinka", @"glinka"), ("Louis Moreau Gottschalk", @"gottschalk"), ("Jan Ladislav Dussek", @"dussek|dusík"),
+        ("Leoš Janáček", @"jan(á|a)(č|c)ek"), ("Bedřich Smetana", @"smetana"), ("Ferruccio Busoni", @"busoni"), ("Max Reger", @"max reger"),
+        ("Carl Reinecke", @"reinecke"), ("Charles-Louis Hanon", @"\bhanon"), ("Anton Rubinstein", @"anton rubinstein"), ("Ignaz Moscheles", @"moscheles"),
+        ("Johann Baptist Cramer", @"j\.?\s?b\.?\s?cramer|johann baptist cramer"), ("Jan Pieterszoon Sweelinck", @"sweelinck"), ("William Byrd", @"\bbyrd\b"),
+        ("Orlando Gibbons", @"orlando gibbons"), ("John Bull", @"john bull"), ("Girolamo Frescobaldi", @"frescobaldi"), ("Johann Jakob Froberger", @"froberger"),
+        ("Dieterich Buxtehude", @"buxtehude"), ("Antonio Soler", @"antonio soler|padre soler"), ("Louis-Claude Daquin", @"daquin|d'aquin"),
+        ("Theodor Oesten", @"oesten"), ("Heinrich Wohlfahrt", @"wohlfahrt"), ("Franz Behr", @"franz behr"), ("Albert Ellmenreich", @"ellmenreich"),
+        ("Joachim Raff", @"joachim raff"), ("Adolph von Henselt", @"henselt"), ("Sigismond Thalberg", @"thalberg"), ("Benjamin Godard", @"benjamin godard"),
+        ("Georges Bizet", @"\bbizet"), ("Charles Gounod", @"gounod"), ("Richard Wagner", @"richard wagner"), ("Ignace Pleyel", @"pleyel"),
+        ("James Hook", @"james hook"), ("Christian Gottlob Neefe", @"neefe"), ("Johann Philipp Kirnberger", @"kirnberger"), ("Leopold Koželuch", @"ko(ž|z)eluc?h"),
+        ("Johann Wilhelm Hässler", @"h(ä|a|ae)(ss|ß)ler"), ("Domenico Cimarosa", @"cimarosa"),
+    }.Select(c => (c.Item1, new Regex(c.Item2, RegexOptions.IgnoreCase)))];
+
+    // Arrangements and the like, by words in the title, as for the bundle, and reductions of orchestral, chamber and stage music,
+    // and Bach's chorales (Sapp's 370 are in the collection already); variations stay here, being some of the music itself.
+    private static readonly Regex ArrangedMore = new(Arranged.ToString().Replace("|variations?", "") +
+        @"|symphon\w*|(?<!italian )concerto|overture|\bopera\b|piano score|vocal score|\bvln\b|\bvla\b|quartet|quintet|nutcracker|swan lake|chorales?\b|harmoni[sz]ations?",
+        RegexOptions.IgnoreCase);
+
+    // Genres that aren't the composers' own music: a PD composer's name on a pop song, a game theme or a film's.
+    private static readonly Regex Popular = new(@"rock|pop|hiphop|jazz|electronic|soundtrack|rbfunksoul|latin|reggae|country|blues", RegexOptions.IgnoreCase);
+
+    private static List<Row> ChooseMore(string csvPath)
+    {
+        using var reader = new StreamReader(csvPath, Encoding.UTF8);
+        var header = Csv.Read(reader).First();
+        var at = header.Select((name, i) => (name, i)).ToDictionary(p => p.name, p => p.i);
+        string F(string[] row, string name) => row[at[name]];
+
+        var rows = new List<Row>();
+        foreach (var row in Csv.Read(reader))
+        {
+            if (row.Length < header.Length) continue;
+            if (F(row, "subset:no_license_conflict") != "True" || F(row, "license") is not ("publicdomain" or "cc-zero")) continue;
+            if (F(row, "tracks") is not ("0" or "0-0") || F(row, "is_best_unique_arrangement") != "True" || F(row, "is_draft") == "True") continue;
+
+            var title = Repair(F(row, "title"));
+            var subtitle = Repair(F(row, "subtitle"));
+            var composer = Repair(F(row, "composer_name"));
+            if (title is null || subtitle is null || composer is null) continue;
+
+            var who = $"{composer} {Repair(F(row, "artist_name")) ?? ""}";
+            var text = $"{title} {(subtitle == "NA" ? "" : subtitle)}";
+            var bars = int.TryParse(F(row, "song_length.bars"), out var b) ? b : 0;
+            if (ArrangedMore.IsMatch(text) || ArrangedMore.IsMatch(composer) || bars < 8 || Popular.IsMatch(F(row, "genres"))) continue;
+
+            // What the bundle takes from PDMX (its named works) is the bundle's.
+            if (Works.Any(w => w.Who.IsMatch(who) && w.What.IsMatch(text))) continue;
+            if (Composers.FirstOrDefault(c => c.Who.IsMatch(who)) is not { Name: not null } match) continue;
+
+            var rating = double.TryParse(F(row, "rating"), System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 0;
+            var ratings = int.TryParse(F(row, "n_ratings"), out var n) ? n : 0;
+            rows.Add(new Row(F(row, "mxl"), Clean(title), who, F(row, "license"), F(row, "license_url"), rating, ratings, bars, F(row, "metadata"),
+                new Work("", match.Name, match.Who, match.Who, false)));
+        }
+
+        // Copies of one piece by different users: the same composer and catalogue numbers (or, without any, the same title and
+        // length). The best rated stays.
+        return [.. rows.GroupBy(r => (r.Work.Composer, Catalogue.Keys(Clean(r.Title, r.Work.Composer)) is { Count: > 0 } keys && keys.All(k => !k.StartsWith("name:", StringComparison.Ordinal))
+                ? string.Join(' ', keys.Order(StringComparer.Ordinal)) : $"{Clean(r.Title, r.Work.Composer).ToLowerInvariant()} {r.Bars}"))
+            .Select(g => g.OrderByDescending(r => r.Rating).ThenByDescending(r => r.Ratings).ThenBy(r => r.Mxl, StringComparer.Ordinal).First())];
     }
 
     private static List<Row> Choose(string csvPath)
@@ -157,10 +284,15 @@ internal static class Pdmx
         return repaired.Contains('�') || Regex.IsMatch(repaired, "[ÃÐ]") ? null : repaired;
     }
 
-    private static string Clean(string title)
+    // The title without the composer's name, which is shown on its own: the bundle's composers', and the one given ("Frédéric
+    // Chopin", then "Chopin").
+    private static string Clean(string title, string? composer = null)
     {
-        var t = Names.Aggregate(title, (s, name) => Regex.Replace(s, $@"(?<![\p{{L}}]){Regex.Escape(name)}(?![\p{{L}}])", "", RegexOptions.IgnoreCase));
-        t = Regex.Replace(t, @"\(\s*\)|\(piano solo\)|\(real audio\)|for piano\b.*$|this one!", "", RegexOptions.IgnoreCase);
+        var names = composer is null ? Names : [.. Names.Append(composer).Append(composer.Split(' ')[^1]).Distinct().OrderByDescending(n => n.Length)];
+        var t = names.Aggregate(title, (s, name) => Regex.Replace(s, $@"(?<![\p{{L}}]){Regex.Escape(name)}(?![\p{{L}}])", "", RegexOptions.IgnoreCase));
+        t = Regex.Replace(t, @"\(\s*\)|\(piano solo\)|\(real audio\)|for piano\b.*$|this one!|\{[^}]*\}", "", RegexOptions.IgnoreCase);
+        // A composer's initials left behind ("J. Ph. Rameau: Les Sauvages" is "Les Sauvages").
+        if (composer is not null) t = Regex.Replace(t, @"^\s*(?:[A-Z][a-z]?\.\s*)+[:\-–]\s*", "");
         t = Regex.Replace(t, @"\s{2,}", " ");
         t = Regex.Replace(t, @"^[\s\-–:.,/]+|[\s\-–:,/]+$", "");
         t = Regex.Replace(t, @"\s+by\s*$", "", RegexOptions.IgnoreCase);

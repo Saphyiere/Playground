@@ -6,13 +6,15 @@ namespace Prima.Library;
 
 /// <summary>
 /// Public GitHub repositories, kept in the cache as plain folders holding only what a source reads: the repository's top-level
-/// files and the one folder asked for (kern, MS3). A shallow, sparse git clone downloads just those, and its .git is then taken
-/// away; without git, the repository's zip is unpacked the same way. A folder is whole once it holds <c>.fetched</c>: a second
-/// run uses it as it is (delete it to fetch again), and one a stopped run left half-done is fetched again.
+/// files and the one folder asked for (kern, MS3, ftp), or one file name wherever it is (ASAP's xml_score.musicxml). A shallow,
+/// sparse git clone downloads just those, and its .git is then taken away; without git, the repository's zip is unpacked the same
+/// way. A folder is whole once it holds <c>.fetched</c>: a second run uses it as it is (delete it to fetch again), and one a
+/// stopped run left half-done is fetched again.
 /// </summary>
 internal static class Github
 {
-    public static async Task<string> Fetch(HttpClient http, string cache, string owner, string repo, string keep)
+    /// <param name="keep">The folder kept beside the top-level files; or, with <paramref name="everywhere"/>, the file name kept in every folder.</param>
+    public static async Task<string> Fetch(HttpClient http, string cache, string owner, string repo, string keep, bool everywhere = false)
     {
         var folder = Path.Combine(cache, "github", $"{owner}-{repo}");
         var whole = Path.Combine(folder, ".fetched");
@@ -33,10 +35,13 @@ internal static class Github
         Console.WriteLine($"  {owner}/{repo}…");
         try
         {
-            // Git keeps line endings as they are (core.autocrlf, which on Windows would otherwise turn them into CRLF).
+            // Git keeps line endings as they are (core.autocrlf, which on Windows would otherwise turn them into CRLF), and writes
+            // paths longer than Windows' 260 characters (core.longpaths: Mutopia's operas nest their parts deep).
             await Git(Path.GetDirectoryName(folder)!, "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", "-c", "core.autocrlf=false",
-                $"https://github.com/{owner}/{repo}.git", folder);
-            await Git(folder, "sparse-checkout", "set", keep);
+                "-c", "core.longpaths=true", $"https://github.com/{owner}/{repo}.git", folder);
+            // A file wherever it is: the top-level files (/*), no folder as a whole (!/*/), and that name at any depth.
+            if (everywhere) await Git(folder, "sparse-checkout", "set", "--no-cone", "/*", "!/*/", keep);
+            else await Git(folder, "sparse-checkout", "set", keep);
         }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException)
         {
@@ -48,9 +53,10 @@ internal static class Github
             {
                 foreach (var entry in archive.Entries)
                 {
-                    // Inside the zip's one top folder: the files beside it, and the folder kept.
+                    // Inside the zip's one top folder: the files beside it, and the folder kept (or the file kept, wherever it is).
                     var path = entry.FullName[(entry.FullName.IndexOf('/') + 1)..];
-                    if (path.Length == 0 || path.EndsWith('/') || path.Contains('/') && !path.StartsWith(keep + "/", StringComparison.Ordinal)) continue;
+                    var kept = everywhere ? entry.Name == keep : path.StartsWith(keep + "/", StringComparison.Ordinal);
+                    if (path.Length == 0 || path.EndsWith('/') || path.Contains('/') && !kept) continue;
 
                     var target = Path.Combine(folder, path);
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -70,7 +76,7 @@ internal static class Github
         {
             Console.WriteLine($"  Kept {owner}/{repo}'s .git: {e.Message}");
         }
-        await File.WriteAllTextAsync(whole, $"{owner}/{repo}: the top-level files and {keep}, fetched {DateTime.UtcNow:yyyy-MM-dd}.");
+        await File.WriteAllTextAsync(whole, $"{owner}/{repo}: the top-level files and {(everywhere ? "every " : "")}{keep}, fetched {DateTime.UtcNow:yyyy-MM-dd}.");
         return folder;
 
         // Runs git in a folder; Process.Start throws a Win32Exception when git isn't installed.

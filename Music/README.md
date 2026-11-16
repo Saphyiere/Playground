@@ -98,30 +98,59 @@ to the grader, say). Downloads are kept in `artifacts/library-cache`, so a secon
 
 ### More music, for your tablet only
 
-The tool also builds a **local collection**: about 1,200 more pieces whose terms allow personal, non-commercial use (CC BY-NC-SA
-4.0) but not a place in this public repo, so they're never committed. They're Craig Sapp's Humdrum editions (Mozart's, Haydn's
-and Scarlatti's sonatas, Joplin, Bach's 370 chorales) and the DCML's research corpora as MuseScore files (Beethoven's sonatas,
-Bach's English and French Suites, Chopin's mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy, Liszt, the Bach
-sons and more), converted with webmscore. [docs/library.md](docs/library.md) has the list and what's left out. It needs Node.js
-with npm, and git (without git it downloads each repository as a zip):
+The tool also builds a **local collection**: several thousand more pieces that aren't committed, either because their terms
+allow personal, non-commercial use (CC BY-NC-SA 4.0) but not a place in this public repo, or because there's too much of it for
+the repo. [docs/library.md](docs/library.md) has what's in it, what's left out and why, and the other sources looked at. Its
+sources:
+
+- **humdrum**: Craig Sapp's Humdrum editions (Mozart's, Haydn's and Scarlatti's sonatas, Joplin, Bach's 370 chorales), CC BY-NC-SA 4.0.
+- **dcml**: the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's English and French Suites, Chopin's
+  mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy with his Études and Arabesques, Liszt, Bartók's Bagatelles,
+  Koželuch's sonatas, Frescobaldi, Poulenc, the Bach sons and more), converted with webmscore, CC BY-NC-SA 4.0.
+- **asap**: the scores of the ASAP dataset (Bach's Well-Tempered Clavier, Chopin's études, ballades and scherzos, Liszt,
+  Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
+- **pdmx**: more of PDMX, public-domain and CC0 piano music by composers who died before 1931, beyond the named works the repo keeps.
+- **mutopia**: the rest of the Mutopia Project's keyboard music, as PDF with its MIDI (public domain, CC BY and CC BY-SA),
+  each graded from its MIDI.
+
+It needs Node.js with npm, and git (without git it downloads each repository as a zip):
 
 ```bash
 dotnet run --project Music/tools/Prima.Library -- local
 ```
 
-It fetches from each repository only the folder it reads (`kern` or `MS3`) and the files beside it, about 300 MB in all, into
-`artifacts/library-cache` as plain files (a sparse git clone, its `.git` then removed). It installs Verovio's build that reads
-Humdrum and webmscore from npm there, converts and prepares everything into `artifacts/library-local`, and packs it as
-`artifacts/prima-collection.zip` (about 26 MB). A first run takes about 7 minutes. If it stops because Windows won't let it
-delete a folder in the cache, something has a file in it open (Visual Studio's Git window, or a virus scan of the new files):
-close it, or delete the folder yourself, and run it again; it picks up where it stopped. Copy that file to the tablet (over USB, or through a cloud drive) and open it
-in the Library with **Import files**; it's stored in the background, a minute or so. `-- local humdrum` or `-- local dcml`
-runs one source again, `-- local prepare` only prepares again.
+It fetches from each repository only what it reads (the `kern`, `MS3` or `ftp` folder, or ASAP's scores) and the files beside
+it, into `artifacts/library-cache` as plain files (a sparse git clone, its `.git` then removed), with PDMX's index and its 1.9 GB
+archive of MusicXML, kept there so a change to the selection doesn't download it again: about 2.8 GB in all. It installs
+Verovio's build that reads Humdrum and webmscore from npm there, converts and prepares everything into `artifacts/library-local`,
+and packs it into `artifacts/prima-collection`: a zip for each part, none much over 40 MB, and `contents.txt`, which says what
+each holds, by source, with its licence. A first run takes about an hour, most of it the PDMX archive's download and Mutopia's
+files, which its site gives one at a time; a second, about ten minutes. If it stops because Windows won't let it delete a
+folder in the cache, something has a file in it open (Visual Studio's Git window, or a virus scan of the new files): close it,
+or delete the folder yourself, and run it again; it picks up where it stopped. `-- local mutopia` (or `humdrum`, `dcml`,
+`asap`, `pdmx`) runs one source again, `-- local prepare` only prepares again, and `--artifacts D:\Prima` puts the cache, the
+collection and the zips in another folder.
+
+**Onto the tablet.** Copy the folder to the tablet's Download folder, with the tablet plugged in (or through a cloud drive):
+
+```powershell
+adb push artifacts/prima-collection /sdcard/Download/
+```
+
+Then in Prima, **Library › Import files**, open Downloads › prima-collection and pick `prima-collection.zip`. It's stored in
+the background, with its progress at the top of the Library (a minute or two). Then the same for each of the other zips, one at
+a time: the tablet reads a zip it imports whole, so picking them all at once holds them all in memory. A zip whose pieces are
+all there already says so and adds nothing, so importing one again is harmless.
+
+The zips stay in Download when Prima is uninstalled, so after a reinstall, import them again. Prima's own copies (Settings ›
+App & data) keep the collection once it's imported, with everything else, so restoring a copy brings it back too. The
+collection isn't built into the app: a release from GitHub couldn't have it, and an update would take out music that a build
+from the PC had put in the bundle.
 
 Imports on the tablet (**Import files**, one or several at once): MusicXML (`.musicxml`, `.xml`, `.mxl`), MEI, ABC, MIDI
 (written out as notation: best from a file exported from notation software), PDF, and zips of any of them, like a download that
 bundles a song's files. A PDF picked or zipped with a MIDI file of the same name takes that MIDI too, to be heard on the piano
-and scrolled at its tempo. The local collection's zip is recognised by its manifest. For MuseScore files or Humdrum, export
+and scrolled at its tempo. The local collection's zips are recognised by their manifests. For MuseScore files or Humdrum, export
 MusicXML on the PC first.
 
 ## PDF conversion and review
@@ -285,5 +314,6 @@ The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SI
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
-Mutopia Project. The local collection's pieces are CC BY-NC-SA 4.0 and credited the same way. The Library tool fetches webmscore
+Mutopia Project. The local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
+this tablet only, and its pieces from PDMX and Mutopia are on the same terms as the bundle's. The Library tool fetches webmscore
 (GPL) and Verovio from npm to convert them; neither goes into the app beyond the Verovio it already has.

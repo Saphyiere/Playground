@@ -9,8 +9,10 @@ namespace Prima.Library;
 /// The DCML's annotated corpora (EPFL's Digital and Cognitive Musicology Lab, github.com/DCMLab, CC BY-NC-SA 4.0), for the local
 /// collection: research editions of keyboard music as MuseScore files. Each is converted to MusicXML with webmscore
 /// (mscx-to-mxl.cjs), then prepared like any MusicXML, and named from its corpus's metadata. Works first published after 1930,
-/// still in copyright in the US, stay out; so do the corpora that aren't keyboard music (the solo violin and cello works), the
-/// Mozart sonatas (Sapp's edition has them) and Rachmaninoff's Corelli Variations (1931).
+/// still in copyright in the US, stay out; so do the corpora that aren't keyboard music (songs, quartets, operas, the solo violin
+/// and cello works), the Mozart sonatas (Sapp's edition has them), Rachmaninoff's Corelli Variations (1931, the whole of
+/// rachmaninoff_piano) and Schulhoff's Suite dansante en jazz (1931). debussy_piano and romantic_piano_corpus only gather corpora
+/// that are here already.
 /// </summary>
 internal static class Dcml
 {
@@ -21,26 +23,33 @@ internal static class Dcml
     private static readonly (string Repo, string Composer)[] Corpora =
     [
         ("bach_en_fr_suites", "Johann Sebastian Bach"),
+        ("bartok_bagatelles", "Béla Bartók"),
         ("beethoven_piano_sonatas", "Ludwig van Beethoven"),
         ("chopin_mazurkas", "Frédéric Chopin"),
         ("couperin_clavecin", "François Couperin"),
         ("cpe_bach_keyboard", "Carl Philipp Emanuel Bach"),
         ("debussy_childrens_corner", "Claude Debussy"),
+        ("debussy_deux_arabesques", "Claude Debussy"),
         ("debussy_estampes", "Claude Debussy"),
+        ("debussy_etudes", "Claude Debussy"),
         ("debussy_images", "Claude Debussy"),
         ("debussy_other_piano_pieces", "Claude Debussy"),
         ("debussy_pour_le_piano", "Claude Debussy"),
         ("debussy_preludes", "Claude Debussy"),
         ("debussy_suite_bergamasque", "Claude Debussy"),
         ("dvorak_silhouettes", "Antonín Dvořák"),
+        ("frescobaldi_fiori_musicali", "Girolamo Frescobaldi"),
         ("grieg_lyric_pieces", "Edvard Grieg"),
         ("handel_keyboard", "George Frideric Handel"),
         ("jc_bach_sonatas", "Johann Christian Bach"),
+        ("kozeluh_sonatas", "Leopold Koželuch"),
         ("liszt_pelerinage", "Franz Liszt"),
         ("medtner_tales", "Nikolai Medtner"),
+        ("poulenc_mouvements_perpetuels", "Francis Poulenc"),
         ("ravel_piano", "Maurice Ravel"),
         ("scarlatti_sonatas", "Domenico Scarlatti"),
         ("schumann_kinderszenen", "Robert Schumann"),
+        ("sweelinck_keyboard", "Jan Pieterszoon Sweelinck"),
         ("tchaikovsky_seasons", "Pyotr Ilyich Tchaikovsky"),
         ("wf_bach_sonatas", "Wilhelm Friedemann Bach"),
     ];
@@ -50,6 +59,7 @@ internal static class Dcml
     // bohémienne (L. 9, 1932) and the Page d'album (L. 133, 1933) aren't here, and so are left out.
     private static readonly Dictionary<string, (string Title, string Work)> Debussy = new()
     {
+        ["l066-01"] = ("Première arabesque", "Deux arabesques"), ["l066-02"] = ("Deuxième arabesque", "Deux arabesques"),
         ["l067"] = ("Mazurka", "Piano pieces"), ["l068"] = ("Rêverie", "Piano pieces"), ["l069"] = ("Danse (Tarentelle styrienne)", "Piano pieces"),
         ["l070"] = ("Ballade", "Piano pieces"), ["l071"] = ("Valse romantique", "Piano pieces"), ["l082"] = ("Nocturne", "Piano pieces"),
         ["l099"] = ("D'un cahier d'esquisses", "Piano pieces"), ["l105"] = ("Masques", "Piano pieces"), ["l106"] = ("L'isle joyeuse", "Piano pieces"),
@@ -75,6 +85,12 @@ internal static class Dcml
         ["l123-06"] = ("General Lavine – eccentric", "Préludes, Book 2"), ["l123-07"] = ("La terrasse des audiences du clair de lune", "Préludes, Book 2"),
         ["l123-08"] = ("Ondine", "Préludes, Book 2"), ["l123-09"] = ("Hommage à S. Pickwick Esq. P.P.M.P.C.", "Préludes, Book 2"), ["l123-10"] = ("Canope", "Préludes, Book 2"),
         ["l123-11"] = ("Les tierces alternées", "Préludes, Book 2"), ["l123-12"] = ("Feux d'artifice", "Préludes, Book 2"),
+        ["l136-01"] = ("Pour les cinq doigts, d'après Monsieur Czerny", "Études, Book 1"), ["l136-02"] = ("Pour les tierces", "Études, Book 1"),
+        ["l136-03"] = ("Pour les quartes", "Études, Book 1"), ["l136-04"] = ("Pour les sixtes", "Études, Book 1"),
+        ["l136-05"] = ("Pour les octaves", "Études, Book 1"), ["l136-06"] = ("Pour les huit doigts", "Études, Book 1"),
+        ["l136-07"] = ("Pour les degrés chromatiques", "Études, Book 2"), ["l136-08"] = ("Pour les agréments", "Études, Book 2"),
+        ["l136-09"] = ("Pour les notes répétées", "Études, Book 2"), ["l136-10"] = ("Pour les sonorités opposées", "Études, Book 2"),
+        ["l136-11"] = ("Pour les arpèges composés", "Études, Book 2"), ["l136-12"] = ("Pour les accords", "Études, Book 2"),
     };
 
     private static readonly string[] Roman = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
@@ -127,6 +143,13 @@ internal static class Dcml
                     "schumann_kinderszenen" => $"{F("movementTitle")}, Op. 15 No. {number}",
                     "wf_bach_sonatas" => $"{F("workTitle").Replace("Keyboard ", "")}, {opus}: {movement}",
                     "couperin_clavecin" or "handel_keyboard" or "tchaikovsky_seasons" => F("movementTitle"),
+                    "bartok_bagatelles" => $"Bagatelle, Op. 6 No. {number} ({F("movementTitle")})",
+                    // A mass's pieces by their own names; the Bergamasca and the Capriccio stand alone.
+                    "frescobaldi_fiori_musicali" => F("movementTitle") is { Length: > 0 } part ? part : F("workTitle"),
+                    // "Keyboard Sonata No. 1 in C Major" is "Sonata in C major, Op. 8 No. 1: I. Allegro molto".
+                    "kozeluh_sonatas" => $"Sonata in {Regex.Replace(Regex.Match(F("workTitle"), @" in (.+)$").Groups[1].Value, "Major|Minor", m => m.Value.ToLowerInvariant())}, {opus.Replace(", No.", " No.")}: {movement}",
+                    "poulenc_mouvements_perpetuels" => $"No. {number}, {F("movementTitle")}",
+                    "sweelinck_keyboard" => $"{F("workTitle")}, {F("workNumber")}",
                     _ => debussy.Title,
                 };
                 var work = repo switch
@@ -145,6 +168,11 @@ internal static class Dcml
                     "ravel_piano" => "Piano pieces",
                     "schumann_kinderszenen" => "Kinderszenen",
                     "tchaikovsky_seasons" => "The Seasons, Op. 37a",
+                    "bartok_bagatelles" => "14 Bagatelles, Op. 6",
+                    "frescobaldi_fiori_musicali" => F("movementTitle").Length > 0 ? $"Fiori musicali: {F("workTitle")}" : "Fiori musicali",
+                    "kozeluh_sonatas" => "Keyboard sonatas",
+                    "poulenc_mouvements_perpetuels" => "Trois mouvements perpétuels, FP 14",
+                    "sweelinck_keyboard" => "Keyboard works",
                     _ => debussy.Work,
                 };
                 if (string.IsNullOrWhiteSpace(title)) continue;
