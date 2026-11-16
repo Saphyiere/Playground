@@ -184,11 +184,17 @@ shows; copies go to each, and one that can't be used just then (a cloud drive, n
    Its `UpdateOptions` need no `DataFiles`: the updater takes the full copy instead.
 4. **The screens** show `Status` (the last copy, progress, a held copy, a sentence on how it went) and redraw on `Changed`; Back up
    now is `CopyAsync()`, Restore lists `FindCopiesAsync(Store)` and what `ISyncPicker` and `OpenFileAsync` find, then
-   `RestoreAsync`, and Export is `ExportAsync` handed to the share sheet. Prima's are in `Music/src/Prima.UI/Components/DataCopies.razor`.
-5. **The preview host** registers a `FolderStore` in a folder of its own and a stand-in `ISyncPicker` (Prima's, in its Program.cs).
+   `RestoreAsync`, and Export is `ExportAsync` handed to the share sheet. Prima's are in `Music/src/Prima.UI/Components/DataCopies.razor`,
+   Workout's in `Workout/src/AdaptiveWorkout.UI/Pages/YourData.razor`.
+5. **The preview host** registers a `FolderStore` in a folder of its own and a stand-in `ISyncPicker` (Prima's and Workout's, in
+   their Program.cs).
 
-Workout, next: `adaptiveworkout.db` and its Claude key's file excluded and key searched for, `AddAndroidSync("Workout backups")`
-in its phone host, its `DataFiles` gone, and its Settings showing the copies in Logbook and Telemetry.
+**Workout** keeps `adaptiveworkout.db` alone (`Workout/src/AdaptiveWorkout.UI/Storage/WorkoutSync.cs`), its Claude key's file
+excluded and the key searched for, with `AddAndroidSync("Workout backups")` in its phone host and its `DataFiles` gone. Its
+`Quiet` waits while a workout is open, and it takes a copy after Finish workout when one is due (as `AfterPractice`). Its
+`WhileRestoring` runs on its store's lane with the connections closed, refuses while a workout is open, and its workout flow reads
+everything again after; a data file the updater kept in Download before copies were kept whole restores through `OpenFileAsync`.
+Your data is a page of its own, opened from Settings, in Logbook and Telemetry.
 
 ## Build and test
 

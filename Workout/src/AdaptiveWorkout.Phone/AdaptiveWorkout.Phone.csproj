@@ -46,6 +46,8 @@
         <ProjectReference Include="..\..\..\Kit\Playground.Updates.Android\Playground.Updates.Android.csproj" />
         <!-- Keeps the app going while Claude answers, so leaving it doesn't lose an answer; it brings its service and permissions. -->
         <ProjectReference Include="..\..\..\Kit\Playground.AI.Assist.Android\Playground.AI.Assist.Android.csproj" />
+        <!-- Copies of the data in Documents/Workout backups, and the pickers to restore one; it brings its picker's activity. -->
+        <ProjectReference Include="..\..\..\Kit\Playground.Sync.Android\Playground.Sync.Android.csproj" />
     </ItemGroup>
 
 </Project>

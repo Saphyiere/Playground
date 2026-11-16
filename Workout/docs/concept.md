@@ -102,8 +102,29 @@ The icon at the top right of Today, after Stats:
 - **Updates:** the version on the phone (1.0 for a build from the PC), and the newest release from the repo's GitHub releases
   (Workout 1.0.N), with its changes, **Check** and **Install**, through the Kit's shared updater. The app checks at most once a
   day. Installing downloads it, checks it against GitHub's fingerprint and that it's signed with the same key as the copy on the
-  phone (so Android keeps my workouts), copies the data file to Download/Workout backups, and hands it to Android, which asks to
-  confirm; the first time, Android asks to let the app install apps.
+  phone (so Android keeps my workouts), takes a full copy of my data (Your data, below; the sentence under Install counts it up),
+  and hands it to Android, which asks to confirm; the first time, Android asks to let the app install apps. If the copy can't be
+  taken, nothing is installed. The first time the app starts after the update, it checks my data holds all the copy did before a
+  fresh copy takes its place.
+- **Your data:** the app keeps a copy of everything but Claude's key in Documents/Workout backups on the phone, where
+  uninstalling the app doesn't reach it, in a folder for each time the app was installed: as it opens when the last copy is a day
+  old (the very first time, at once), after **Finish workout** the same way, and before each update and restore; never on its own
+  while a workout is open. Only what changed is written. Settings shows the last copy, when and what it holds (workouts, sets,
+  food entries and weigh-ins), and **Back up and restore** opens **Your data**: **Last copy** with its size, **Copies kept** (the
+  three newest, one at least a week old, and any held) and what they take, **Back up now**, **Export everything** (one zip for the
+  share sheet, to Drive or the PC, which restores like a copy), and **Restore from a backup…**: this phone's copies, the copies of
+  every install in a folder chosen with **Choose a folder…** (the phone's folder picker, opening on Documents/Workout backups), or
+  with **Choose a file…** an export or a data file on its own, like those the app kept in Download/Workout backups before an update
+  until copies were kept whole. Choosing one says what it replaces: everything, the workouts with their sets and heart rate, the
+  routines, sessions and exercises, food, weigh-ins, Claude's look backs and answers, the settings and the look; Claude's key stays.
+  **Restore this copy** keeps a copy of what's here first, held, so the restore can be undone (not on a fresh install, with nothing
+  of mine yet), then puts all of the copy in place, or nothing if any of it is damaged or it isn't Workout's, and opens Your data
+  afresh, saying what was restored. If what's here can't be kept, nothing is restored and it says why, and **Restore without
+  keeping what's here** restores all the same. A restore waits while a workout is open: finish it first, and it's kept with the
+  rest of what's here. A copy held stands at the top, saying what it was kept from (an update after which my data had less than
+  the copy taken just before it, with what was missing, or a restore) and when, with **Restore it…** and **Let it go** of its own;
+  after an update, Settings says so too. A copy, restore or export under way shows its progress on a bar. Nothing leaves the
+  phone unless I send it.
 
 Everything is remembered.
 
@@ -563,7 +584,14 @@ Settings also keep, by key, what the scale added to maintenance (`MaintenanceAdj
 (`Trainer:<exercise>`: the workout it looked back at, weight, unit, reps, sets and rest), `LookBack` = `off` when the look back
 is turned off, and `WeekLookBack` = `off` when the week's is. The Claude key is never in the data file: it's in the phone's secure storage.
 
-**(proposed)** Stored locally on the phone (SQLite). Backup or Google sync later.
+All of it is in one SQLite file on the phone, `adaptiveworkout.db`, copied whole to Documents/Workout backups (Settings › Your
+data) through the Kit's sync: read with SQLite's backup while the app has it open, kept under its fingerprint, so a copy with
+nothing changed since the one before adds nothing, and searched for Claude's key, which a copy never holds. A copy restores only
+into Workout: it must have Exercise, WorkoutSession, WorkoutSet, FoodEntry and BodyWeightEntry, as every version's data file has,
+and one from an older version is brought up to date as the app opens it. What's counted as mine, which the first start after an
+update finds none of with fewer rows than the copy taken just before it, is every table but ExerciseMuscle (Claude tags the
+exercises again) and ClaudeCall (a log of what each call cost); the settings count too, but on their own they don't make a fresh
+install's data worth keeping before a restore. Copies to Google Drive as well, later.
 
 ## Build order
 
@@ -582,7 +610,7 @@ What's next, in order, with the research behind each part: [plan.md](plan.md). F
 - More exercise measures (distance, reps only).
 - A categorized exercise picker.
 - Macros.
-- Cloud backup with a Google account.
+- Copies to Google Drive with a Google account, as well as the phone's own in Documents (the Kit's sync has a place for it).
 
 ## Open questions
 

@@ -1,0 +1,409 @@
+@page "/settings/data"
+@using Playground.Sync
+@implements IDisposable
+@inject Syncer Sync
+@inject ISyncPicker Picker
+@inject ShareSheet Share
+@inject WorkoutStore Store
+@inject AppSettings AppSettings
+@inject ThemeSetting ThemeSetting
+@inject NavigationManager Nav
+
+@* Settings › Your data: the copies of everything the app keeps but Claude's key, through the Kit's sync (Storage/WorkoutSync). The
+   copies held stand first, newest first, each saying what it was kept from before (an update that didn't check out, or a restore)
+   and when, with Restore it… and Let it go of its own. Then when the last copy was made, its size and what it holds; how many copies
+   are kept and what they take; Back up now and Export everything (to send on); and Restore from a backup… (this phone's copies, or a
+   folder or a file chosen with the phone's pickers, then which copy, and what it replaces, what's here being kept first). A restore
+   waits while a workout is open. Work goes on in the background, its progress on the bar. *@
+
+<PageTitle>Your data</PageTitle>
+
+<div class="screen">
+    <PageHeader Back="settings" BackText="Settings" Title="Your data" />
+
+    @foreach (var kept in status.Holding)
+    {
+        <section class="copy-held stack" role="@(kept.Held!.From == SyncHeldFrom.Update ? "alert" : "group")" aria-label="@Head(kept)">
+            <p class="name copy-held-head">@Head(kept)</p>
+            <p class="note">@Said(kept)</p>
+            <div class="grid-2">
+                <button type="button" class="btn tall fill" disabled="@status.Busy" @onclick="() => ChooseHeld(kept)">Restore it…</button>
+                <button type="button" class="btn tall" disabled="@status.Busy" @onclick="() => LetGo(kept)">Let it go</button>
+            </div>
+        </section>
+    }
+
+    <section class="stack" aria-labelledby="copies-heading">
+        <h2 id="copies-heading" class="label">Copies</h2>
+        <div class="spread baseline">
+            <span class="label">Last copy</span>
+            @if (status.Last is { } last)
+            {
+                <span class="name big tabular">@SyncText.When(last.Made)</span>
+            }
+            else
+            {
+                <span class="note">@(status.Known ? "None yet" : "…")</span>
+            }
+        </div>
+        @if (status.Last is { } newest)
+        {
+            <p class="note">@SyncText.Size(newest.Size)&nbsp;· @newest.Summary</p>
+        }
+        @if (status.Copies > 0)
+        {
+            <div class="spread baseline">
+                <span class="label">Copies kept</span>
+                <span class="name tabular">@status.Copies @(status.Copies == 1 ? "copy" : "copies"), @SyncText.Size(status.Stored)</span>
+            </div>
+            <p class="note">@Kept()</p>
+        }
+        <div class="grid-2">
+            <button type="button" class="btn tall" disabled="@status.Busy" @onclick="BackUpNow">@(status.Step == SyncStep.Copying ? "Copying…" : "Back up now")</button>
+            <button type="button" class="btn tall" disabled="@status.Busy" @onclick="Export">@(status.Step == SyncStep.Exporting ? "Exporting…" : "Export everything")</button>
+        </div>
+        <button type="button" class="btn tall" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
+        @if (!restoring)
+        {
+            @Under
+        }
+    </section>
+
+    @if (restoring)
+    {
+        <section class="stack appear" aria-labelledby="restore-heading">
+            <h2 id="restore-heading" class="label" tabindex="-1" @ref="restoreHeading">Restore</h2>
+            @if (found.Count == 0)
+            {
+                <p class="note">@(looking ? "Looking for copies…" : $"This phone has no copy of its own yet. Choose the folder copies are in ({Sync.Store.Name}, a folder for each time the app was installed), an export, or a data file the app kept in Download/{WorkoutSync.Folder} before an update.")</p>
+            }
+            else
+            {
+                <div class="ledger" role="group" aria-label="Copies to restore">
+                    @foreach (var copy in found)
+                    {
+                        var picked = chosen == copy;
+                        <button type="button" class="row" aria-pressed="@(picked ? "true" : "false")" @onclick="() => Choose(copy)">
+                            <span class="status">
+                                @if (picked)
+                                {
+                                    <Mark Kind="MarkKind.Tick" Size="28" />
+                                }
+                            </span>
+                            <span class="row-text">
+                                <span class="name tabular">@SyncText.When(copy.Made)</span>
+                                <span class="note">@SyncText.Size(copy.Size)&nbsp;· @copy.Summary</span>
+                                <span class="caption">@Where(copy)</span>
+                            </span>
+                        </button>
+                    }
+                </div>
+            }
+            <div class="grid-2">
+                <button type="button" class="btn tall" disabled="@status.Busy" @onclick="PickFolder">Choose a folder…</button>
+                <button type="button" class="btn tall" disabled="@status.Busy" @onclick="PickFile">Choose a file…</button>
+            </div>
+            @if (chosen is { } choice)
+            {
+                <p class="note" tabindex="-1" @ref="restoreChoice">Everything in the app now is replaced by the copy from @SyncText.When(choice.Made): your workouts with their sets and heart rate, routines, sessions and exercises, food, weigh-ins, Claude's look backs and answers, and the settings and look. Claude's key stays as it is. What's here is kept first, held, so the restore can be undone.</p>
+                @if (workoutOpen)
+                {
+                    <p class="pen-note" role="status">A workout is open, and a restore waits until it's finished: finish it first, and it's kept with the rest of what's here.</p>
+                }
+                <div class="grid-2">
+                    <button type="button" class="btn tall fill" disabled="@(status.Busy || workoutOpen)" @onclick="() => Restore(choice, true)">Restore this copy</button>
+                    <button type="button" class="btn tall" @onclick="() => chosen = null">Keep what's here</button>
+                </div>
+                @if (unkept == choice)
+                {
+                    @* What's here couldn't be kept first (the status says why): restoring without it is a choice of its own. *@
+                    <button type="button" class="btn tall" disabled="@(status.Busy || workoutOpen)" @onclick="() => Restore(choice, false)">Restore without keeping what's here</button>
+                }
+            }
+            @* Under the buttons tapped: how the restore is going, or why it couldn't be done. *@
+            @if (status.Progress is not null || note is not null || status.Message.Length > 0)
+            {
+                @Under
+            }
+            <button type="button" class="btn-ghost" @onclick="CloseRestore">Cancel</button>
+        </section>
+    }
+</div>
+
+@code {
+    private SyncStatus status = null!;
+    private bool restoring;
+    private bool looking;
+    private List<SyncCopy> found = [];
+    private SyncCopy? chosen;
+    // The copy whose restore stopped because what's here couldn't be kept first.
+    private SyncCopy? unkept;
+    // A workout is open: a restore waits until it's finished.
+    private bool workoutOpen;
+    private string? note;
+    // On a phone the restore opens below the fold: once it's drawn, its heading is scrolled to, or with a copy chosen from elsewhere
+    // (a held copy's Restore it…, a file picked) what restoring it replaces, with the buttons under it.
+    private ElementReference restoreHeading;
+    private ElementReference restoreChoice;
+    private Shown show;
+
+    private enum Shown
+    {
+        Nothing,
+        Heading,
+        Choice,
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        status = Sync.Status;
+        Sync.Changed += Changed;
+        // The copies in this phone's folder are read once, as the app starts or this first opens.
+        if (!status.Known) await Sync.RefreshAsync();
+        status = Sync.Status;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var (shown, scroll) = (show, restoring);
+        show = Shown.Nothing;
+        if (!scroll) return;
+        if (shown == Shown.Choice && chosen is not null) await restoreChoice.FocusAsync(preventScroll: false);
+        else if (shown != Shown.Nothing) await restoreHeading.FocusAsync(preventScroll: false);
+    }
+
+    // Under the buttons last tapped: a piece of work's progress on the bar, and the sentence on how it went.
+    private RenderFragment Under => @<text>
+        @if (status.Progress is { } progress)
+        {
+            var percent = (int)Math.Round(progress.Fraction * 100);
+            <div class="stack tight" aria-live="polite">
+                <p class="spread baseline"><span class="caption">@progress.Doing</span><span class="caption tabular">@percent%</span></p>
+                <div class="copy-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="@progress.Doing">
+                    <span style="width: @percent.ToString(CultureInfo.InvariantCulture)%"></span>
+                </div>
+            </div>
+        }
+        <p class="note" role="status">@Note</p>
+    </text>;
+
+    // What's said under the buttons: what was just picked, or how the last piece of work went, or what the copies are.
+    private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
+        ? $"Workout keeps a copy of everything but Claude's key in {Sync.Store.Name} on this phone, where uninstalling the app doesn't reach it: after a workout and as the app opens once the last is a day old (never while a workout is open), and before each update and restore. Only what changed is written."
+        : $"Workout keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling the app deletes on this Android version: Export everything keeps one elsewhere.");
+
+    // Which copies stay, and why they take what they do: each holds the whole data file, kept once however many have it.
+    private string Kept() => "The three newest stay, with one at least a week old and any held. " + (status.Last?.Manifest.Files.FirstOrDefault(f => f.Path == WorkoutSync.DataFile) is { } data
+        ? $"Each holds the whole data file, {SyncText.Size(data.Size)} now, and one with nothing changed since the copy before adds nothing."
+        : "Each holds the whole data file, and one with nothing changed since the copy before adds nothing.");
+
+    private void Changed(SyncStatus now) => _ = InvokeAsync(() =>
+    {
+        status = now;
+        StateHasChanged();
+    });
+
+    private async Task BackUpNow()
+    {
+        note = null;
+        try
+        {
+            await Sync.CopyAsync();
+        }
+        catch (Exception)
+        {
+            // The status says why.
+        }
+    }
+
+    private async Task OpenRestore()
+    {
+        (restoring, chosen, unkept, note, looking, show) = (true, null, null, null, true, Shown.Heading);
+        workoutOpen = await Store.HasOpenWorkoutAsync();
+        try
+        {
+            found = [.. await Sync.FindCopiesAsync(Sync.Store)];
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"This phone's copies couldn't be read: {e.Message}";
+        }
+        looking = false;
+    }
+
+    private void CloseRestore()
+    {
+        (restoring, chosen, unkept, note) = (false, null, null, null);
+        ForgetPicked();
+    }
+
+    // A file picked to restore from is copied in to be read: it goes once the restore it was for closes.
+    private static void ForgetPicked()
+    {
+        try
+        {
+            if (Directory.Exists(WorkoutSync.PickedFolder)) Directory.Delete(WorkoutSync.PickedFolder, recursive: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private async Task Choose(SyncCopy copy)
+    {
+        chosen = copy;
+        workoutOpen = await Store.HasOpenWorkoutAsync();
+    }
+
+    // A copy held, chosen, ready to restore.
+    private async Task ChooseHeld(SyncCopy kept)
+    {
+        await OpenRestore();
+        chosen = found.FirstOrDefault(c => c.Held == kept.Held);
+        show = Shown.Choice;
+    }
+
+    private async Task PickFolder()
+    {
+        note = null;
+        try
+        {
+            var stores = await Picker.PickFolderAsync(CancellationToken.None);
+            if (stores.Count == 0)
+            {
+                note = "No folder of copies chosen.";
+                return;
+            }
+            var copies = new List<SyncCopy>();
+            foreach (var store in stores) copies.AddRange(await Sync.FindCopiesAsync(store));
+            if (copies.Count == 0) note = "That folder holds no copies of Workout's.";
+            Add(copies);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            note = $"That folder couldn't be read: {e.Message}";
+        }
+    }
+
+    private async Task PickFile()
+    {
+        note = null;
+        try
+        {
+            if (await Picker.PickFileAsync(WorkoutSync.PickedFolder, CancellationToken.None) is not { } path)
+            {
+                note = "No file chosen.";
+                return;
+            }
+            if (await Sync.OpenFileAsync(path) is not { } copy)
+            {
+                note = $"{Path.GetFileName(path)} isn't a copy of Workout's: an export (a .zip) or Workout's data file (a .db) is.";
+                return;
+            }
+            Add([copy]);
+            await Choose(found.FirstOrDefault(c => c.Made == copy.Made && c.Size == copy.Size) ?? copy);
+            show = Shown.Choice;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"That file couldn't be read: {e.Message}";
+        }
+    }
+
+    // Copies found, newest first, each once (a folder chosen may hold this phone's own).
+    private void Add(IEnumerable<SyncCopy> copies) =>
+        found = [.. found.Concat(copies.Where(c => !found.Any(f => f.Made == c.Made && f.Size == c.Size))).OrderByDescending(c => c.Made)];
+
+    // Restores the copy chosen, keeping what's here first unless asked not to (once keeping it has failed). Not while a workout is
+    // open: its sets would be saved over the copy.
+    private async Task Restore(SyncCopy copy, bool keep)
+    {
+        note = null;
+        workoutOpen = await Store.HasOpenWorkoutAsync();
+        if (workoutOpen) return;
+        try
+        {
+            await Sync.RestoreAsync(copy, keep);
+        }
+        catch (SyncKeepException)
+        {
+            // Nothing was restored: what's here couldn't be kept first, the status says why, and restoring without it is offered.
+            unkept = copy;
+            return;
+        }
+        catch (Exception)
+        {
+            // Nothing was restored, and the status says why: once a copy is in place the restore doesn't throw, whatever comes after.
+            workoutOpen = await Store.HasOpenWorkoutAsync();
+            return;
+        }
+        // Everything is the copy's now: its settings and look, the workout and history in memory (read again from it as they're next
+        // asked for), and every screen drawn afresh, opening here, where it says what was restored.
+        await Store.LoadAsync(AppSettings);
+        await ThemeSetting.ReloadAsync();
+        Nav.NavigateTo("settings/data", forceLoad: true);
+    }
+
+    private async Task Export()
+    {
+        note = null;
+        try
+        {
+            // The export before, if it's still in the cache, makes way.
+            if (Directory.Exists(WorkoutSync.ExportFolder)) Directory.Delete(WorkoutSync.ExportFolder, recursive: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+        try
+        {
+            var path = await Sync.ExportAsync(WorkoutSync.ExportFolder);
+            if (!await Share.OfferAsync(path, "Everything in Workout")) note = $"{Sync.Status.Message} On the phone the share sheet opens to send it on; here it's in {path}.";
+        }
+        catch (Exception)
+        {
+            // The status says why.
+        }
+    }
+
+    private async Task LetGo(SyncCopy kept)
+    {
+        note = null;
+        try
+        {
+            await Sync.ReleaseHeldAsync(kept);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            note = $"It couldn't be let go: {e.Message}";
+        }
+    }
+
+    // What a held copy was kept from before: an update, or a restore.
+    private static string From(SyncHeld held) => held.From switch
+    {
+        SyncHeldFrom.Update => $"before the update to {held.Update}",
+        SyncHeldFrom.Restore => "before a restore",
+        _ => $"before {held.Why}",
+    };
+
+    // A held copy's head: what it was kept from before, and when it was taken. A line breaks after a dot, not before it.
+    private static string Head(SyncCopy kept) => $"Kept from {From(kept.Held!)}\u00a0· {SyncText.When(kept.Made)}";
+
+    // Why a held copy is kept, and until when.
+    private static string Said(SyncCopy kept) => kept.Held!.From switch
+    {
+        SyncHeldFrom.Update => $"After the update, the app's data had less than the copy taken just before it: {kept.Held.Why}.",
+        SyncHeldFrom.Restore => $"Everything the app had when {kept.Held.Why} ({kept.Summary}).",
+        _ => $"Everything the app had before {kept.Held.Why} ({kept.Summary}).",
+    } + " It's kept, whatever copies come after, until you restore it or let it go.";
+
+    // Where a copy is, and what it was kept from before when it's held.
+    private static string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where}\u00a0· from {From(held)}" : copy.Where;
+
+    public void Dispose()
+    {
+        Sync.Changed -= Changed;
+        ForgetPicked();
+    }
+}

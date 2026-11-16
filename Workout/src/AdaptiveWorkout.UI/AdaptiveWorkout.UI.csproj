@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\..\Kit\Playground.Kit\Playground.Kit.csproj" />
     <!-- Updates from the repo's GitHub releases: Settings › Updates shows the updater. -->
     <ProjectReference Include="..\..\..\Kit\Playground.Updates\Playground.Updates.csproj" />
+    <!-- Copies of the data (Storage/WorkoutSync), which the updater takes a full one through first: Settings › Your data shows them. -->
+    <ProjectReference Include="..\..\..\Kit\Playground.Sync\Playground.Sync.csproj" />
   </ItemGroup>
 
 </Project>

@@ -47,7 +47,7 @@ What the app does and how its data is shaped: [docs/concept.md](docs/concept.md)
 3. Visual Studio: set **AdaptiveWorkout.Phone** as the startup project, pick the phone in the device dropdown, and press F5.
    CLI: `dotnet build src/AdaptiveWorkout.Phone -t:Run`
 
-The app opens on Today. F5 runs a Debug build, which opens slowly: it compiles each method on the phone the first time it runs, and with the debugger attached it also waits for Visual Studio. (`UseInterpreter` is off in both apps, so Debug builds at least run compiled code rather than Mono's interpreter, which gives up C# Hot Reload on the devices.) **For the copy you use day to day, install Release**: pick **Release** in Visual Studio's configuration dropdown and press **Ctrl+F5**, or run `dotnet build src/AdaptiveWorkout.Phone -t:Run -c Release`. Release compiles the whole app ahead of time (`AndroidEnableProfiledAot` is off), so it opens quickly. It takes a few minutes to build, installs over a Debug build, and keeps the app's data.
+The app opens on Today. F5 runs a Debug build, which opens slowly: it compiles each method on the phone the first time it runs, and with the debugger attached it also waits for Visual Studio. (`UseInterpreter` is off in both apps, so Debug builds at least run compiled code rather than Mono's interpreter, which gives up C# Hot Reload on the devices.) **The copy you use day to day comes from the GitHub releases** (*Updates from GitHub*, below), which compile the whole app ahead of time (`AndroidEnableProfiledAot` is off), so it opens quickly. Never build or install Release from the PC: a local Release install erased Prima's data on the tablet on 15 Nov 2026. Before installing any build from the PC, take a copy first: **Settings › Your data › Back up now** (*Your data*, below).
 
 Each start writes how long it took to the phone's log, as one line that `adb logcat -s AdaptiveWorkout` shows, like this (numbers made up):
 
@@ -120,11 +120,34 @@ The phone and watch apps are released with the other apps, from the repo's **Act
 key Visual Studio signs with, so a release installs over a copy from Visual Studio as an update, keeping its data, and the watch
 still pairs with the phone.
 
-- **The phone** updates itself: **Settings › Updates** shows the newest release, and **Install** checks it, keeps a copy of the
-  data in Download/Workout backups, and hands it to Android to confirm (the Kit's
-  [Playground.Updates](../Kit/Playground.Updates/README.md)).
+- **The phone** updates itself: **Settings › Updates** shows the newest release, and **Install** checks it, takes a full copy of
+  the data (*Your data*, below; nothing installs without it), and hands it to Android to confirm (the Kit's
+  [Playground.Updates](../Kit/Playground.Updates/README.md)). The first start after the update checks the data came through.
 - **The watch**, for now, from the PC over Wi-Fi: `adb connect` to the watch, then `adb install -r workout-watch.apk` from the
   release. Whether the watch can install its own updates, the way the phone does, is still to be tried on it.
+
+## Your data
+
+The phone keeps copies of everything the app keeps but Claude's key, all of it in its data file `adaptiveworkout.db`, through the
+Kit's [Playground.Sync](../Kit/Playground.Sync/README.md) (`src/AdaptiveWorkout.UI/Storage/WorkoutSync.cs`): in
+`Documents/Workout backups/Installed <when>` on the phone, a folder for each time the app was installed, where uninstalling the app
+doesn't reach it. A copy is taken as the app opens when the last is a day old (the first time, at once), after **Finish workout**
+the same way, never on its own while a workout is open, and before each update and restore; only what changed is written.
+**Settings › Your data** shows them, with **Back up now**, **Restore from a backup…** and **Export everything**
+([docs/concept.md](docs/concept.md), *Settings*).
+
+- **Onto the PC:** `pwsh tools/sync/pull-copy.ps1 -App Workout` (from the repo root) pulls the newest copy over adb into
+  `Documents\Workout copies`, only what the PC doesn't have yet, and writes `adaptiveworkout.db` out as it was. Or copy
+  `Documents/Workout backups` off in Explorer.
+- **Back onto the phone**, after a reinstall say: push the store folder the script wrote,
+  `adb push "<copies>\store\Installed …" "/sdcard/Documents/Workout backups/From the PC"`, then **Restore from a backup… › Choose a
+  folder…** and pick `Workout backups`.
+- **Before copies were kept whole**, the updater copied the data file alone into `Download/Workout backups` before each update
+  (`2026-11-10 1830 adaptiveworkout.db`, say). Those stay where they are; **Choose a file…** opens one, and it restores like a copy.
+
+A restore puts the whole copy in place, keeping what was there first, held, so it can be undone, and waits while a workout is open.
+The store leaves the data file alone meanwhile (`WorkoutStore.WhileClosedAsync`, its connections closed on its own lane), and the
+workout flow reads everything again afterwards, so nothing held in memory is written over the restored file.
 
 ## Design
 
@@ -159,6 +182,14 @@ Edit on a set that started by itself. Every seeded open workout keeps its sets a
 carries it over as an update would; `/seed/checks` has a half-logged day and a weigh-in far off the line; `/seed/muscles` has last week and this week of the six-day
 split, with the exercises tagged (Pull-ups by me) and one, Hanging leg raises, not yet; `/seed/week` is the same with this week's
 lifts a step up, food on most days and weigh-ins, so with a key Today asks for this week's look back as it opens.
+
+Its copies go to `copies/Installed 2026-03-01 090000` beside its data, and its folder picker picks all of `copies`. `/copies/none`
+clears them, `/copies/fresh` takes one now and `/copies/old` one three days old, `/copies/held` an update to 1.0.15 whose first
+start found half the sets gone (so the copy from before it is held), `/copies/other` a copy an earlier install kept, which **Choose
+a folder…** finds, `/copies/busy` a copy written slowly to see its progress (`/copies/fast` lets it finish), `/copies/damaged` a
+copy whose data file is damaged where it's kept, so restoring it can't be done, and `/copies/olddb` a data file as the updater kept
+it in Download, which **Choose a file…** picks next (`/copies/file?path=` picks any). A restore waits while a workout is open
+(`/seed/rest`, say). Run it on a port of its own when another session has 5199: `ASPNETCORE_URLS=http://127.0.0.1:5197`.
 
 ## Why these choices
 

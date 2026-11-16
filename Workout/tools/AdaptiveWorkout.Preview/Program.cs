@@ -12,6 +12,7 @@ using AdaptiveWorkout.UI.Workouts;
 using Microsoft.Data.Sqlite;
 using AdaptiveWorkout.Preview.Components;
 using Playground.AI.Assist;
+using Playground.Sync;
 using Playground.Updates;
 
 var dbPath = Path.Combine(AppContext.BaseDirectory, "preview.db");
@@ -25,9 +26,22 @@ builder.Services.AddSingleton<FlowRegistry>();
 // Claude answers from the workout itself (PreviewClaude), never the API; the key is kept in memory (AddAdaptiveWorkout's default).
 builder.Services.AddSingleton<PreviewClaude>();
 builder.Services.AddSingleton<IClaude>(sp => sp.GetRequiredService<PreviewClaude>());
+// Copies of the data (Kit/Playground.Sync, Storage/WorkoutSync): in "copies" beside the preview's data, a folder for this install as
+// the phone keeps them in Documents/Workout backups, and the folder picker finds every install's in it. A clock that can be set back,
+// for a copy days old; no wait before the copy a start takes. /copies/{scenario} sets one up.
+var copies = Path.Combine(AppContext.BaseDirectory, "copies");
+var clock = new PreviewClock();
+builder.Services.AddSingleton(clock);
+builder.Services.AddSingleton<TimeProvider>(clock);
+builder.Services.AddSingleton(new PreviewStore(new FolderStore(Path.Combine(copies, "Installed 2026-03-01 090000"), $"Documents/{WorkoutSync.Folder}")));
+builder.Services.AddSingleton<ISyncStore>(sp => sp.GetRequiredService<PreviewStore>());
+builder.Services.AddSingleton(new PreviewPicker(copies));
+builder.Services.AddSingleton<ISyncPicker>(sp => sp.GetRequiredService<PreviewPicker>());
+builder.Services.AddSingleton(sp => WorkoutSync.Options(sp, dbPath) with { StartDelay = TimeSpan.Zero });
 builder.Services.AddAdaptiveWorkout(dbPath);
-// Updates: GitHub and the phone stood in for (Kit/Playground.Updates); /updates/{scenario} sets what's installed and what's out.
-builder.Services.AddStandInUpdates(new UpdateOptions("workout", "workout.apk") { DataFiles = [dbPath], BackupFolder = "Workout backups" }, "Workout");
+// Updates: GitHub and the phone stood in for (Kit/Playground.Updates); /updates/{scenario} sets what's installed and what's out. A
+// full copy of the data is taken first, as on the phone.
+builder.Services.AddStandInUpdates(new UpdateOptions("workout", "workout.apk"), "Workout");
 // fresh per page load here, so reseeding between screenshots isn't masked by a cached workout; the newest is kept for /watch-next
 builder.Services.AddScoped<WorkoutFlow>(sp => sp.GetRequiredService<FlowRegistry>().Latest = ActivatorUtilities.CreateInstance<WorkoutFlow>(sp));
 
@@ -415,6 +429,83 @@ app.MapGet("/updates/{scenario}", async (string scenario, StandInUpdates standIn
     await updates.CheckAsync(evenIfRecent: true);
     return Results.Text($"{updates.Status.Step}: {updates.Status.Message}");
 });
+// Copies of the data, for Settings › Your data: "none" (no copy yet), "fresh" (one just now), "old" (one three days old, which the
+// next start replaces), "held" (an update to 1.0.15 whose first start found half the sets gone: the copy from before is kept),
+// "other" (a copy an install before this one kept, which the folder picker finds), "busy" (a copy writing slowly, to see its
+// progress; "fast" lets it finish), "damaged" (the newest copy's data file damaged in the store, so restoring it can't be done), and
+// "olddb" (a data file the updater kept in Download/Workout backups before copies were kept whole, which the file picker picks next).
+// A restore also waits while a workout is open (/seed/rest, say). /copies/file?path= is the next file the picker picks.
+app.MapGet("/copies/{scenario}", async (string scenario, Syncer sync, PreviewStore store, PreviewPicker picker, PreviewClock time, WorkoutStore workouts) =>
+{
+    switch (scenario)
+    {
+        case "none":
+            if (Directory.Exists(copies)) Directory.Delete(copies, recursive: true);
+            break;
+        case "fresh":
+            await sync.CopyAsync();
+            break;
+        case "old":
+            time.Offset = TimeSpan.FromDays(-3);
+            try { await sync.CopyAsync(SyncReason.Scheduled); }
+            finally { time.Offset = TimeSpan.Zero; }
+            break;
+        case "held":
+            // Taken on 1.0.14 just before the update; the update's first start then finds half the sets gone.
+            await sync.CopyAsync(SyncReason.BeforeUpdate, "Workout 1.0.15");
+            var manifest = Directory.GetFiles(Path.Combine(store.Folder.Root, "copies"), "*.json").Order(StringComparer.Ordinal).Last();
+            File.WriteAllText(manifest, File.ReadAllText(manifest).Replace($"\"version\": \"{sync.Options.Version}\"", "\"version\": \"1.0.14\""));
+            await workouts.FlushAsync();
+            using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
+            {
+                connection.Open();
+                new SqliteCommand("DELETE FROM WorkoutSet WHERE Id % 2 = 0", connection).ExecuteNonQuery();
+            }
+            // The check runs at once; the fresh copy after it waits while a workout is open, so this doesn't wait for it.
+            var starting = sync.StartAsync();
+            await Task.WhenAny(starting, Task.Delay(TimeSpan.FromSeconds(5)));
+            break;
+        case "other":
+            time.Offset = TimeSpan.FromDays(-13);
+            try { await new Syncer(sync.Options, [new FolderStore(Path.Combine(copies, "Installed 2026-01-12 181500"), $"Documents/{WorkoutSync.Folder}/Installed 2026-01-12 181500")], time).CopyAsync(SyncReason.Scheduled); }
+            finally { time.Offset = TimeSpan.Zero; }
+            break;
+        case "busy":
+            store.Slow = true;
+            await workouts.SetSettingAsync("Preview.Touched", DateTime.UtcNow.ToString("O"));
+            _ = sync.CopyAsync();
+            return Results.Text("copying slowly");
+        case "fast":
+            store.Slow = false;
+            return Results.Text("copying at full speed");
+        case "damaged":
+            // A byte of the newest copy's data file changed where it's kept (a card going bad, say): restoring it is checked first.
+            var damaged = await sync.CopyAsync();
+            var blob = Path.Combine(store.Folder.Root, "blobs", damaged.Manifest.Files.Single().Sha256);
+            var bytes = File.ReadAllBytes(blob);
+            bytes[^1] ^= 0xFF;
+            File.WriteAllBytes(blob, bytes);
+            break;
+        case "olddb":
+            // As the updater kept the data file before an update, before copies were kept whole: the file alone, in Download.
+            await workouts.FlushAsync();
+            var downloads = Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "Download", WorkoutSync.Folder)).FullName;
+            var kept = Path.Combine(downloads, "2026-11-10 1830 adaptiveworkout.db");
+            File.Copy(dbPath, kept, overwrite: true);
+            File.SetLastWriteTime(kept, new DateTime(2026, 11, 10, 18, 30, 0, DateTimeKind.Local));
+            picker.NextFile = kept;
+            return Results.Text($"next pick: {kept}");
+        default:
+            return Results.Text("none, fresh, old, held, other, busy, fast, damaged or olddb");
+    }
+    await sync.RefreshAsync();
+    return Results.Text($"{scenario}: {sync.Status.Last?.Made:O} {sync.Status.Message}");
+});
+app.MapGet("/copies/file", (string path, PreviewPicker picker) =>
+{
+    picker.NextFile = File.Exists(path) ? path : null;
+    return Results.Text(picker.NextFile is null ? "no such file" : $"next pick: {Path.GetFileName(path)}");
+});
 app.MapGet("/claude/key", async (bool? clear, IAssistKeyStore keys) =>
 {
     if (clear == true) await keys.RemoveAsync();
@@ -534,4 +625,96 @@ sealed class LogWatchLink(WorkoutStore store, List<string> log) : WatchLink(stor
 sealed class FlowRegistry
 {
     public WorkoutFlow? Latest { get; set; }
+}
+
+/// <summary>The preview's clock: the real one, set back by /copies/old for a copy days old.</summary>
+sealed class PreviewClock : TimeProvider
+{
+    public TimeSpan Offset { get; set; }
+
+    public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + Offset;
+}
+
+/// <summary>The preview's own copies, in a folder; slowed by /copies/busy, a little at a time, so a copy's progress can be seen.</summary>
+sealed class PreviewStore(FolderStore folder) : ISyncStore
+{
+    public FolderStore Folder => folder;
+
+    public bool Slow { get; set; }
+
+    public string Name => folder.Name;
+
+    public bool SurvivesUninstall => folder.SurvivesUninstall;
+
+    public Task<bool> ConnectAsync(CancellationToken ct) => folder.ConnectAsync(ct);
+
+    public Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct) => folder.ListAsync(prefix, ct);
+
+    public Task<Stream?> OpenReadAsync(string key, CancellationToken ct) => folder.OpenReadAsync(key, ct);
+
+    public Task WriteAsync(string key, Stream content, CancellationToken ct) => folder.WriteAsync(key, Slow ? new Trickle(content, this) : content, ct);
+
+    public Task DeleteAsync(string key, CancellationToken ct) => folder.DeleteAsync(key, ct);
+
+    /// <summary>A stream read 4 KB at a time, two fifths of a second apart, while the store is slow: a sample data file takes a while.</summary>
+    private sealed class Trickle(Stream inner, PreviewStore store) : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => inner.Length;
+
+        public override long Position { get => inner.Position; set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, Math.Min(count, 4096));
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (store.Slow) await Task.Delay(400, cancellationToken);
+            return await inner.ReadAsync(buffer[..Math.Min(buffer.Length, 4096)], cancellationToken);
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+}
+
+/// <summary>
+/// The preview's pickers: the folder picker picks the whole of "copies" (a folder for each install, as Documents/Workout backups is
+/// on the phone), and the file picker the file /copies/file or /copies/olddb named, once.
+/// </summary>
+sealed class PreviewPicker(string root) : ISyncPicker
+{
+    public string? NextFile { get; set; }
+
+    public Task<IReadOnlyList<ISyncStore>> PickFolderAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<ISyncStore>>(Directory.Exists(root)
+        ? [.. Directory.GetDirectories(root).Where(d => Directory.Exists(Path.Combine(d, "copies"))).Order(StringComparer.Ordinal)
+            .Select(d => new FolderStore(d, $"Documents/{WorkoutSync.Folder}/{Path.GetFileName(d)}"))]
+        : []);
+
+    public Task<string?> PickFileAsync(string folder, CancellationToken ct)
+    {
+        if (NextFile is not { } picked) return Task.FromResult<string?>(null);
+        NextFile = null;
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, Path.GetFileName(picked));
+        File.Copy(picked, path, overwrite: true);
+        return Task.FromResult<string?>(path);
+    }
 }
