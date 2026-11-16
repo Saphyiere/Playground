@@ -1,5 +1,6 @@
 using AngleSharp.Dom;
 using Bunit;
+using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,30 @@ public class WelcomeTests
         Assert.StartsWith("Kept.", timing.Find(".control-row-play .control-note").TextContent);
         Assert.Null(Key(timing, "Done"));
         Assert.Equal("Again", timing.Find(".control-row-play .mu-primary").TextContent);
+    }
+
+    // The owner, 15 November: no tour or guide yet, only these steps leading on cleanly. A new Prima opening on Today goes to the
+    // welcome, the welcome's main key to the timing, the timing's Done to Today, and Today then stays: nothing else comes between.
+    [Fact]
+    public async Task ANewPrimasFirstStepsAreOnlyTheWelcomeTheTimingAndToday()
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        var nav = (BunitNavigationManager)host.Context.Services.GetRequiredService<NavigationManager>();
+
+        host.Context.Render<Today>();
+        Assert.Equal("http://localhost/welcome", nav.Uri);
+        var welcome = host.Context.Render<Welcome>();
+        await welcome.InvokeAsync(() => welcome.Find(".control-row-play .mu-primary").ClickAsync(new MouseEventArgs()));
+        var timing = host.Context.Render<Timing>();
+        await Calibrate(host, timing, piano, clock);
+        await timing.InvokeAsync(() => Key(timing, "Keep this offset")!.ClickAsync(new MouseEventArgs()));
+        await timing.InvokeAsync(() => timing.Find(".control-row-play .mu-primary").ClickAsync(new MouseEventArgs()));
+        var today = host.Context.Render<Today>();
+        today.WaitForAssertion(() => Assert.NotEmpty(today.FindAll(".today-steps .mu-step")));
+
+        Assert.Equal("http://localhost/", nav.Uri);
+        Assert.Equal(["welcome", "tools/timing?from=welcome", ""], nav.History.Reverse().Select(h => h.Uri));
     }
 
     // With the timing set already, as after Start over, the welcome skips that step: its main key, the only one, goes straight to
