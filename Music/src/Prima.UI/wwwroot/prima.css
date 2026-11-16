@@ -4762,6 +4762,153 @@ html[data-full] .piece .summary {
     line-height: 22px;
 }
 
+/* Settings › Your data: the copies of everything Prima keeps (Components/DataCopies). A copy kept from before an update that didn't
+   check out stands first, edged in the accent. The work's progress is the meter. To restore, each copy found is a key chosen like a
+   toggle, its lamp lit: when it was made as a figure, then its size and what it holds, and where it is under them. */
+.copies-held {
+    max-width: 760px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: 2px solid var(--accent);
+    border-radius: var(--mu-r-panel);
+}
+
+/* Its lamp is lit in the accent, asking to be looked at, not the green that says all's well. */
+.copies-held-head > .mu-led {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+}
+
+[data-theme="vinyl"] .copies-held-head > .mu-led {
+    box-shadow: none;
+}
+
+.copies-held-head {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mu-print);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+}
+
+[data-theme="vinyl"] .copies-held-head {
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+}
+
+.copies-progress {
+    max-width: 520px;
+}
+
+.copies-restore {
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.copies-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.copy-choice {
+    width: 100%;
+    min-height: 56px;
+    padding: 10px 16px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto max-content minmax(0, 1fr);
+    grid-template-areas:
+        "led when what"
+        ". where where";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+    border: 1.5px solid var(--button-edge);
+    border-radius: var(--mu-r-control);
+    background: var(--button);
+    color: var(--on-button);
+    box-shadow: var(--shadow-cap);
+    font-family: var(--mu-ui);
+    text-align: left;
+    cursor: pointer;
+}
+
+.copy-choice > .mu-led {
+    grid-area: led;
+}
+
+.copy-choice[aria-pressed="true"] {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.copy-when {
+    grid-area: when;
+    font-family: var(--mu-figure);
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.copy-what {
+    grid-area: what;
+    min-width: 0;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--ink-muted);
+}
+
+.copy-where {
+    grid-area: where;
+    min-width: 0;
+    font-family: var(--mu-print);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--ink-muted);
+    overflow-wrap: anywhere;
+}
+
+[data-theme="vinyl"] .copy-choice {
+    border-color: var(--ink-faint);
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .copy-choice[aria-pressed="true"] {
+    border-color: var(--accent);
+}
+
+[data-theme="vinyl"] .copy-when {
+    font-size: 24px;
+    line-height: 26px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+[data-theme="vinyl"] .copy-choice[aria-pressed="true"] .copy-when {
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .copy-where {
+    font-size: 13px;
+}
+
 /* Reading a PDF's notes with Claude, in the music's place (Transcription/ReadNotes): what it will cost, each system's steps while
    it reads, then each system's print over the reading engraved, its doubtful bars tinted on both. A system's step is a lamp:
    waiting, working, done, in doubt or failed. */

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Keeps a full, restorable copy of an app's data somewhere that outlives the app: its SQLite databases (copied consistently while
+    they're open), folders of files, and anything else it writes out itself, never its secrets. Only what changed is written. Plain
+    .NET, no UI: each app shows Syncer.Status in its own look. Where copies go is an ISyncStore: a folder (on Android, the device's
+    shared Documents, through Playground.Sync.Android), and later a cloud drive. It guards the app's updates too: the updater
+    (Playground.Updates) takes a full copy through it before an update installs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Playground.Updates\Playground.Updates.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Playground.Sync.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -10,12 +10,16 @@ How every app updates itself from the repo's GitHub releases, which the Release 
   aside, so another app's releases are never taken for this one's. It asks at most once in 20 hours, unless `evenIfRecent`, so an
   app calls it each time it starts. GitHub's API is used without signing in: 60 requests an hour from one address.
 - **`InstallAsync()`** downloads the release with progress, checks it against the size and SHA-256 GitHub gives, checks it's
-  signed with the installed app's key, copies the app's data files to Downloads, and hands it to Android's installer, which asks
-  the person to confirm. Each step that fails stops it with nothing installed, and a sentence for the screen.
+  signed with the installed app's key, keeps a copy of the app's data, and hands it to Android's installer, which asks the person
+  to confirm. Each step that fails stops it with nothing installed, and a sentence for the screen.
+- **The copy:** an app that syncs its data ([Playground.Sync](../Playground.Sync/README.md)) registers an `IUpdateSafeguard`, and
+  the updater takes a full copy of everything the app keeps through it, its progress in the status's sentence; the first time the
+  app starts after, it's checked against the app before a fresh one replaces it. An app without one has its `DataFiles` copied to
+  Downloads instead.
 
 **Why an update can't lose the app's data:** Android replaces an app and keeps its data only when the new copy is signed with the
-same key; the updater checks that before installing, and refuses otherwise. The copy in Downloads is there in case of anything
-else: an uninstall doesn't reach it.
+same key; the updater checks that before installing, and refuses otherwise. The copy is there in case of anything else: an
+uninstall doesn't reach it.
 
 ## Using it in an app
 
@@ -25,10 +29,12 @@ else: an uninstall doesn't reach it.
 2. **The host** registers it with what the app releases as, and checks at start:
 
    ```csharp
-   builder.Services.AddAndroidUpdates(new UpdateOptions("prima", "prima.apk") { DataFiles = [databasePath], BackupFolder = "Prima backups" });
+   builder.Services.AddAndroidUpdates(new UpdateOptions("workout", "workout.apk") { DataFiles = [databasePath], BackupFolder = "Workout backups" });
    // after builder.Build():
    _ = app.Services.GetRequiredService<Updater>().CheckAsync();
    ```
+
+   An app that syncs its data (Prima) leaves `DataFiles` out: `new UpdateOptions("prima", "prima.apk")`.
 
 3. **The screens** take `Updater`, show its `Status` with Check and Install, and redraw on `Changed`, which can come from any
    thread.

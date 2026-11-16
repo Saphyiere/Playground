@@ -20,6 +20,13 @@ public class LookSetting(ISettingStore store)
     /// <summary>Reads the saved look; later calls wait on the same read.</summary>
     public Task LoadAsync() => loading ??= LoadSavedAsync();
 
+    /// <summary>Reads the saved look again, after Prima's data was replaced by a copy's (a restore), and shows it.</summary>
+    public async Task ReloadAsync()
+    {
+        await (loading = LoadSavedAsync());
+        Changed?.Invoke();
+    }
+
     public void Choose(Look look)
     {
         if (look == Current) return;

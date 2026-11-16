@@ -17,8 +17,8 @@ Java 21, Node 22, Python 3 with Pillow, and headless Chromium under `/opt/pw-bro
 - Build the highest-level project a change touches, not a solution: `dotnet build Workout/src/AdaptiveWorkout.Phone/AdaptiveWorkout.Phone.csproj`
   builds the Core and UI under it too. Leave no warnings.
 - Tests are xUnit v3 on Microsoft.Testing.Platform, for each app's business logic (`*.Core`) only:
-  `dotnet test --project Workout/tests/AdaptiveWorkout.Core.Tests`. The Kit's AI framework has its own:
-  `dotnet test --project Kit/Playground.AI.Assist.Tests`.
+  `dotnet test --project Workout/tests/AdaptiveWorkout.Core.Tests`. The Kit's libraries have their own:
+  `dotnet test --project Kit/Playground.AI.Assist.Tests`, `Kit/Playground.Updates.Tests` and `Kit/Playground.Sync.Tests`.
 - All output goes to `artifacts/` at the root.
 - The apps' releases come from `.github/workflows/release.yml`, run from the repo's Actions tab: each app that changed, built,
   tested and signed with the owner's PC key, as its own release, described by `release.json` in its folder

@@ -3,8 +3,6 @@
 @inject IKeyboard Keyboard
 @inject PrimaSettings Options
 @inject PrimaStore Store
-@inject IFiles Files
-@inject NavigationManager Nav
 @inject AppNavigation Navigation
 @inject IClaude Claude
 @inject IAssistKeyStore Keys
@@ -317,7 +315,7 @@ else if (!finder.FoundAny)
 
 @* App & data: Updates, your data, and the problems Prima kept. Another section about the data (keeping it in step with the PC, say)
    joins them as a SettingsSection with Tab="app", its Setting holding the words it's found by. *@
-<SettingsSection Tab="app" Id="updates" Title="Updates" Note="New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a copy of it in Downloads first, in case.">
+<SettingsSection Tab="app" Id="updates" Title="Updates" Note="New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a full copy of it first (Your data, below), in case.">
     <Setting Name="This tablet" Words="@($"Check, version, Newest, Install, {Updates.Status.Message}")">
         <div class="control-row">
             <span class="control-label">This tablet</span>
@@ -353,11 +351,13 @@ else if (!finder.FoundAny)
     </Setting>
 </SettingsSection>
 
-<SettingsSection Tab="app" Id="data" Title="Your data" Note="Everything is in one file on this tablet: settings, levels, notes and every attempt. Nothing leaves it unless you send it.">
-    <Setting Words="Back up, Restore a backup, Start over, Clear my progress, the share sheet, Drive, the PC">
+@* The copies of everything but Claude's key (DataCopies, through the Kit's sync), then starting over. *@
+<SettingsSection Tab="app" Id="data" Title="Your data" Note="Everything is on this tablet: settings, levels, notes, every attempt and the music imported. Nothing leaves it unless you send it.">
+    <Setting Name="Last copy" Words="Back up now, Restore from a backup, Export everything, backup, backups, a copy, copies, sync, restore, export, zip, Choose a folder, Choose a file, Documents, Prima backups, Claude's key">
+        <DataCopies />
+    </Setting>
+    <Setting Words="Start over, Clear my progress, Keep it">
         <div class="control-row">
-            <button type="button" class="mu-btn" @onclick="BackUp">Back up</button>
-            <button type="button" class="mu-btn" @onclick="Restore">Restore a backup</button>
             @if (confirming)
             {
                 <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="StartOver">Clear my progress</button>
@@ -368,7 +368,10 @@ else if (!finder.FoundAny)
                 <button type="button" class="mu-btn" @onclick="() => (confirming, dataNote) = (true, null)">Start over…</button>
             }
         </div>
-        <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up first if you might want it." : dataNote ?? "Back up opens the share sheet, to save the file to Drive or send it to the PC.")</p>
+        @if (confirming || dataNote is not null)
+        {
+            <p class="section-note" role="status">@(confirming ? "This clears levels, notes, history and the streak; settings stay. Back up now first if you might want it." : dataNote)</p>
+        }
     </Setting>
 </SettingsSection>
 
@@ -625,30 +628,6 @@ else if (!finder.FoundAny)
         var lastWeek = await Store.GetDaysAsync(DateOnly.FromDateTime(DateTime.Now).AddDays(-7));
         gradually = Prima.Core.Practice.DailyPlan.GoGradually(minutes, lastWeek.Sum(d => d.Minutes) / 7);
         await Save(() => Options.DailyMinutes = minutes);
-    }
-
-    private async Task BackUp()
-    {
-        await Store.FlushAsync();
-        dataNote = await Files.OfferAsync(Store.DatabasePath, "Prima backup") ? "Backed up." : "Backing up works on the tablet.";
-    }
-
-    private async Task Restore()
-    {
-        if (await Files.PickAsync() is not { } picked)
-        {
-            dataNote = "No backup chosen.";
-            return;
-        }
-
-        if (!await Store.RestoreAsync(picked.Data))
-        {
-            dataNote = $"{picked.Name} isn't a Prima backup; nothing changed.";
-            return;
-        }
-
-        await Store.LoadAsync(Options);
-        Nav.NavigateTo("", forceLoad: true);
     }
 
     private async Task StartOver()

@@ -6,7 +6,7 @@ Personal apps for my Android phone, tablet and Galaxy Watch, built with .NET 10.
 |---|---|
 | [Workout](Workout/README.md) | Workout tracker: routines, sets with heart rate from the watch, rest timer, calories, body weight and stats. Phone and watch. |
 | [Music](Music/README.md) | Prima: sight-reading and piano practice with the P-225B over USB MIDI, in its own Studio and Vinyl looks. Tablet. |
-| [Kit](Kit/README.md) | What the apps share: the Logbook and Telemetry looks (Workout's), their fonts, the common pieces of a screen, and the way back. |
+| [Kit](Kit/README.md) | What the apps share: the Logbook and Telemetry looks (Workout's), their fonts, the common pieces of a screen, the way back, asking Claude, updates, and copies of their data. |
 
 ## Layout
 
@@ -22,6 +22,7 @@ tools/
   cloud-setup.sh          The cloud environment's setup script.
   release/                The Release workflow's script, and how keys and installing from the PC work (its README).
   screens/screens.mjs     Takes screenshots of an app's preview host, for checking screens from a cloud session.
+  sync/pull-copy.ps1      Pulls an app's newest copy of its data off a phone or tablet onto the PC, over adb.
 docs/
   claude-research.md      Research on the apps asking Claude: a workout trainer, a practice teacher, PDFs into notation.
 Kit/                      The shared looks and screen pieces, a Razor class library every app's UI references, and

@@ -10,8 +10,9 @@ namespace Playground.Updates;
 /// <item><see cref="CheckAsync"/> asks GitHub for the newest release, at most once in 20 hours unless asked again, so an app can
 /// call it each time it starts.</item>
 /// <item><see cref="InstallAsync"/> downloads it, checks it against the size and SHA-256 GitHub gives, checks it's signed with
-/// the installed app's key, copies the app's data files somewhere an uninstall wouldn't reach, and hands it to the device's
-/// installer, which asks the person to confirm. A step that fails stops it there, with nothing installed.</item>
+/// the installed app's key, keeps a copy of the app's data somewhere an uninstall wouldn't reach (a full one through the app's
+/// <see cref="IUpdateSafeguard"/>, or its data files), and hands it to the device's installer, which asks the person to confirm. A
+/// step that fails stops it there, with nothing installed.</item>
 /// </list>
 /// A release's build is N in its version 1.0.N; a copy built on the PC is 1.0, older than any release.
 /// </summary>
@@ -21,14 +22,16 @@ public sealed class Updater
 
     private readonly UpdateOptions options;
     private readonly IInstaller installer;
+    private readonly IUpdateSafeguard? safeguard;
     private readonly TimeProvider time;
     private readonly HttpClient http;
     private readonly SemaphoreSlim busy = new(1, 1);
 
-    public Updater(UpdateOptions options, IInstaller installer, TimeProvider? time = null, HttpMessageHandler? handler = null)
+    public Updater(UpdateOptions options, IInstaller installer, TimeProvider? time = null, HttpMessageHandler? handler = null, IUpdateSafeguard? safeguard = null)
     {
         this.options = options;
         this.installer = installer;
+        this.safeguard = safeguard;
         this.time = time ?? TimeProvider.System;
         http = handler is null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
         http.Timeout = TimeSpan.FromMinutes(15);
@@ -101,11 +104,24 @@ public sealed class Updater
             }
 
             var kept = "";
-            if (options.DataFiles.Count > 0)
+            if (safeguard is not null || options.DataFiles.Count > 0)
             {
                 try
                 {
-                    kept = $" A copy of your data is in {await installer.KeepCopiesAsync(options.DataFiles, options.BackupFolder, ct)}.";
+                    // The download is done (its progress stays full): what's left before Android's installer is the copy, whose
+                    // progress is told in the sentence, reported on the copy's own thread so it's all said before the next step.
+                    Set(Status with { Message = "Keeping a copy of your data first…" });
+                    var shown = -1;
+                    var where = safeguard is not null
+                        ? await safeguard.KeepBeforeUpdateAsync(release, new Inline<double>(p =>
+                        {
+                            var percent = (int)(Math.Clamp(p, 0, 1) * 100);
+                            if (percent == shown) return;
+                            shown = percent;
+                            Set(Status with { Message = $"Keeping a copy of your data first… {percent}%" });
+                        }), ct)
+                        : await installer.KeepCopiesAsync(options.DataFiles, options.BackupFolder, ct);
+                    kept = $" A copy of your data is in {where}.";
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -191,6 +207,12 @@ public sealed class Updater
     }
 
     private static string Megabytes(long bytes) => (bytes / 1_000_000.0).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+
+    /// <summary>Progress reported on the thread doing the work, unlike <see cref="Progress{T}"/>, which posts it for later.</summary>
+    private sealed class Inline<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 
     private static void TryEmpty(string folder)
     {

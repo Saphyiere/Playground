@@ -106,10 +106,10 @@ public sealed class GridClick(IClock clock) : IClick
     public long BeatTime(int beat) => startNs + (long)Math.Round(plan?.Offset(beat) ?? 0);
 }
 
-/// <summary>Files outside the app: backing the database up somewhere, and picking a file (a backup to restore, music to import).</summary>
+/// <summary>Files outside the app: sending an export somewhere, and picking a file (music to import).</summary>
 public interface IFiles
 {
-    /// <summary>Offers a file to be saved or sent elsewhere (the tablet's share sheet); false where the host can't.</summary>
+    /// <summary>Offers a file to be saved or sent elsewhere (the tablet's share sheet), as it is; false where the host can't.</summary>
     Task<bool> OfferAsync(string path, string title);
 
     /// <summary>Lets the owner pick a file; its name and bytes, or null if none was picked or the host can't.</summary>

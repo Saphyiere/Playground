@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Playground.AI.Assist;
+using Playground.Sync;
 using Playground.Updates;
 using Prima.Core.Transcription;
 using Prima.UI;
 using Prima.UI.Host;
 using Prima.UI.Looks;
+using Prima.UI.Storage;
 
 namespace Prima.Tablet;
 
@@ -35,10 +37,13 @@ public static class MauiProgram
         builder.Services.AddSingleton<IAssistKeyStore, SecureKeyStore>();
         builder.Services.AddSingleton(new ClaudeKeyFile(Path.Combine(shared, AssistKey.FileName)));
         builder.Services.AddSingleton(new ProblemLog(Path.Combine(shared, ProblemLog.FileName)));
+        // Copies of everything Prima keeps but the key (Storage/PrimaSync), in Documents/Prima backups, a folder for each install,
+        // where uninstalling Prima doesn't reach them; and the tablet's pickers, to restore one an install before kept.
+        builder.Services.AddAndroidSync(PrimaSync.Folder);
         var database = Path.Combine(FileSystem.AppDataDirectory, "prima.db");
         builder.Services.AddPrima(database);
-        // Updates from the repo's GitHub releases (prima-1.0.N, with prima.apk); a copy of the data goes to Download/Prima backups first.
-        builder.Services.AddAndroidUpdates(new UpdateOptions("prima", "prima.apk") { DataFiles = [database], BackupFolder = "Prima backups" });
+        // Updates from the repo's GitHub releases (prima-1.0.N, with prima.apk); a full copy of the data is taken first.
+        builder.Services.AddAndroidUpdates(new UpdateOptions("prima", "prima.apk"));
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
@@ -49,6 +54,9 @@ public static class MauiProgram
         KeepWhatNothingCaught(app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Prima.Tablet"));
         // At most once in 20 hours; Settings › Updates shows what it found.
         _ = app.Services.GetRequiredService<Updater>().CheckAsync();
+        // In the background, once the first screen is up: the first start after an update checks the data holds all the copy from
+        // before it did, then copies it afresh; otherwise a copy more than two days old is replaced. Settings › Your data shows it.
+        _ = app.Services.GetRequiredService<Syncer>().StartAsync();
         return app;
     }
 
