@@ -89,4 +89,19 @@ public class PracticeClockTests
         Assert.Equal(20 * 60 + 10, clock.Playing.TotalSeconds);
         Assert.Equal(5 * 60 + 10, clock.Idle.TotalSeconds);
     }
+
+    // A session is left until another day when it was last played before today and longer ago than a pause: one played on past
+    // midnight is the same sitting a few minutes after it, and one left overnight, or a pause before midnight, is finished.
+    [Theory]
+    [InlineData("2026-11-15 23:58", "2026-11-16 00:03", false)]
+    [InlineData("2026-11-15 23:50", "2026-11-16 00:04", false)]
+    [InlineData("2026-11-15 23:40", "2026-11-16 00:05", true)]
+    [InlineData("2026-11-15 18:00", "2026-11-16 09:00", true)]
+    [InlineData("2026-11-16 08:00", "2026-11-16 11:00", false)]
+    public void ASessionPlayedOnPastMidnightIsNotLeftUntilAnotherDay(string lastPlayed, string now, bool left)
+    {
+        static DateTimeOffset Local(string at) => new(DateTime.ParseExact(at, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal));
+
+        Assert.Equal(left, PracticeClock.LeftUntilAnotherDay(Local(lastPlayed), Local(now)));
+    }
 }

@@ -659,11 +659,12 @@ else
                 var kept = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
                 history = PieceHistory.Of(kept);
                 next = SessionStory.Next(kept, Shape, DateOnly.FromDateTime(DateTime.Now));
-                // A session left going is paused, to carry on or finish; one left until another day is finished as of the last
-                // thing played in it, and the piece opens on its front.
+                // A session left going is paused, to carry on or finish; one left until another day (played before today, and longer
+                // ago than a pause: not one played on past midnight) is finished as of the last thing played in it, and the piece
+                // opens on its front.
                 if ((await Store.GetSessionsAsync(Id)).LastOrDefault(s => s.Finished is null) is { } open)
                 {
-                    if (DateOnly.FromDateTime(open.LastPlayed.LocalDateTime) < DateOnly.FromDateTime(DateTime.Now)) await Store.SaveSessionAsync(open with { Paused = true, Finished = open.LastPlayed });
+                    if (PracticeClock.LeftUntilAnotherDay(open.LastPlayed, DateTimeOffset.Now)) await Store.SaveSessionAsync(open with { Paused = true, Finished = open.LastPlayed });
                     // Practiced full screen, as Practice is: the page goes full screen as soon as it can.
                     else (session, clock, counted, covered, stage, fullScreen) = (open, new PracticeClock(DateTimeOffset.Now, open.Playing, open.Idle, paused: true, lastPlayed: open.LastPlayed), open.Playing, true, Stage.Practice, true);
                 }

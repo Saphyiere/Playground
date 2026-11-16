@@ -14,6 +14,14 @@ public sealed class PracticeClock
     /// <summary>How long with nothing played before the session pauses to ask whether you're still practicing.</summary>
     public static readonly TimeSpan PauseAfter = TimeSpan.FromMinutes(15);
 
+    /// <summary>
+    /// Whether a session last played at <paramref name="lastPlayed"/> was left until another day by <paramref name="now"/>: played
+    /// before today, and longer ago than <see cref="PauseAfter"/>. A session played on past midnight is the same sitting a few
+    /// minutes after it, not one left overnight.
+    /// </summary>
+    public static bool LeftUntilAnotherDay(DateTimeOffset lastPlayed, DateTimeOffset now) =>
+        DateOnly.FromDateTime(lastPlayed.LocalDateTime) < DateOnly.FromDateTime(now.LocalDateTime) && now - lastPlayed > PauseAfter;
+
     // The time counted up to; until when a key keeps you playing; whether a run is going; and the last thing done, played or a
     // carrying on, from which the pause is counted.
     private DateTimeOffset counted;
