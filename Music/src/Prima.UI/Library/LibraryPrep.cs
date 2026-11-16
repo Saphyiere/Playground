@@ -8,8 +8,9 @@ using Prima.UI.Storage;
 namespace Prima.UI.Library;
 
 /// <summary>
-/// Brings music into the Library. Bundled pieces come prepared (the Library tool engraved, split, graded and cut them when the
-/// bundle was built), so the first time the Library opens they're only stored, in the background; a PDF is listed as it is. A
+/// Brings music into the Library. Bundled pieces (Prima's own) come prepared (the Library tool engraved, split, graded and cut them
+/// when the bundle was built), so the first time the Library opens they're only stored, in the background; a PDF is listed as it
+/// is. Those kept out (all of them after Settings' Remove library, or one removed by hand) aren't, until they're put back. A
 /// collection the tool built for this tablet alone (its local collection, a few zips) is stored the same way when it's imported. An
 /// imported file goes through Verovio to MEI in the web view, and is then numbered, cut and graded away from the screen's thread.
 /// </summary>
@@ -34,8 +35,26 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
     /// <summary>Starts preparing the bundled pieces that aren't in the Library yet; while it runs, a second call is the same run.</summary>
     public Task EnsureAsync() => running ??= Run();
 
+    /// <summary>
+    /// Puts Prima's own pieces back in the Library, every one, those removed by hand too: they're let in and stored again as on
+    /// the first open, once anything being stored now is done.
+    /// </summary>
+    public Task PutBackAsync() => running = PutBack(running ?? Task.CompletedTask);
+
+    private async Task PutBack(Task before)
+    {
+        // Whatever came of it: what was being stored says so itself.
+        await Task.WhenAny(before);
+        await store.PutOwnPiecesBackAsync();
+        await Run();
+    }
+
     private async Task Run()
     {
+        // Prima's own taken out of the Library aren't put back by itself: none of them after Remove library, nor one removed by hand.
+        var (allOut, removed) = await store.GetOwnPiecesOutAsync();
+        if (allOut) return;
+
         var manifest = await bundle.ManifestAsync();
         if (manifest is null) return;
 
@@ -47,7 +66,7 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         var have = await store.GetPieceIdsAsync();
         await store.RefreshBundleAsync([.. entries.Select(e => (e.Part?.Id ?? e.Piece.Id, e.Part?.Title ?? e.Piece.Title, e.Piece))]);
 
-        var missing = entries.Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
+        var missing = entries.Where(e => (e.Part?.Id ?? e.Piece.Id) is var id && !have.Contains(id) && !removed.Contains(id)).ToList();
         if (missing.Count > 0) await StoreAll(missing, "bundle", bundle.ReadAsync, null);
     }
 
@@ -67,9 +86,10 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
             var record = new PieceRecord(id, origin, part?.Title ?? piece.Title, piece.Composer, piece.Work, part is null ? "pdf" : "mei", piece.File, piece.Midi,
                 part?.Level ?? piece.Anchor, part?.TypicalLevel ?? piece.Anchor, part?.Reasons, part?.Bars ?? piece.Bars, piece.Source, piece.SourceUrl,
                 piece.Licence, piece.LicenceUrl, piece.Credit, piece.Tier.ToString(), null, null, null, DateTimeOffset.Now, null);
+            var saved = true;
             try
             {
-                if (part is null && origin == "bundle") await store.SavePieceAsync(record, null, []);
+                if (part is null && origin == "bundle") saved = await store.SavePieceAsync(record, null, []);
                 else if (part is null)
                 {
                     var pdf = await read(piece.File) ?? throw new InvalidOperationException($"{piece.File} isn't in it.");
@@ -87,13 +107,15 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                         using var reader = new StreamReader(new GZipStream(new MemoryStream(bytes), CompressionMode.Decompress));
                         return reader.ReadToEnd();
                     });
-                    await store.SavePieceAsync(record, mei, part.Excerpts);
+                    saved = await store.SavePieceAsync(record, mei, part.Excerpts);
                 }
             }
             catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException)
             {
                 Skipped.Add(record.Title);
             }
+            // One of Prima's own isn't stored once they've all been taken out meanwhile (Remove library), nor will the rest be.
+            if (!saved && origin == "bundle" && (await store.GetOwnPiecesOutAsync()).All) break;
             Progress = (Progress.Done + 1, Progress.Total);
             Changed?.Invoke();
         }

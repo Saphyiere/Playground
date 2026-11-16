@@ -462,6 +462,12 @@ a PDF plays out; this is what came of it.
   dynamics are gone, as are any lyrics it carries (a song's words come with its MusicXML). One recorded from playing comes
   out ragged, and a pickup comes out as a full bar. MuseScore and Humdrum files need converting to MusicXML on the PC first
   (the Library tool does it for its corpora).
+- **Taking pieces out**: a piece's **Remove from the Library…**, under About this piece, takes it out once asked again, with
+  its excerpts and readings, and an import's or a collection's PDF and MIDI. Its runs stay, so its days and the streak still
+  count them, and every screen that lists pieces goes on without it. One of Prima's own stays out: the Library doesn't put it
+  back when it stores the collection again. The Library says so in a line at the end of its home, with **Put it back** (**Put
+  them back** for more than one), which stores every one of Prima's own again, as on the first open, with the meter showing how
+  far it's got.
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
@@ -914,7 +920,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation
   piece keeps where it was left too: its page, the bar it was to start from, its loop's last bar, and the first bar on the
   screen. Imported
-  files, and a local collection's PDFs and MIDI, sit beside the data file.
+  files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces removed by hand are kept as
+  settings, each by its id, so a copy and a restore carry them, until the Library puts them back.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
   (Read again's included), and when it was kept.
