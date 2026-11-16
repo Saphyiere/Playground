@@ -189,8 +189,9 @@ a PDF plays out; this is what came of it.
   fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of them
   is a character piece), **Levels** (where most of a piece reads) and **Lists** (everything, PDFs, your imports). A list opened
   from one of them can be cut to the pieces to play along with or the PDFs, and searched; a composer's pieces are grouped by
-  kind, any other list's by composer, and a long list starts with a key for each group. PDFs are left to their own list where
-  near your level is concerned, since a PDF's level is only about where its collection sits, or what its MIDI reads at.
+  kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each
+  letter their surnames start with. PDFs are left to their own list where near your level is concerned, since a PDF's level
+  is only about where its collection sits, or what its MIDI reads at.
 - **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from the start, at the tempo it starts
   at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is plugged
   in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it came with;

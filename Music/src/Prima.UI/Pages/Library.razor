@@ -202,10 +202,12 @@ else
 {
     var shown = Shown().ToList();
     // A composer's pieces by kind (their works are too many and too unevenly named to group by); any other list's by composer,
-    // each with its works together.
+    // each with its works together, by surname under its letter (an accented one with its plain letter), the pieces without one
+    // last.
     var groups = By == "composer"
         ? shown.GroupBy(p => kindOf[p.Id]).OrderBy(g => Shelves.Kinds.ToList().IndexOf(g.Key)).ToList()
-        : shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? "Composer not given" : p.Composer).OrderBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
+        : shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? NotGiven : p.Composer).OrderBy(g => g.Key == NotGiven).ThenBy(g => Initial(g.Key), StringComparer.Ordinal)
+            .ThenBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
     @if (By == "near")
     {
         <p class="section-note">@NearNote() The PDFs are under PDFs, by level.</p>
@@ -217,10 +219,10 @@ else
     @if (groups.Count > 2)
     {
         // Straight to a group, in a long list.
-        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : "Composers")">
-            @foreach (var (group, i) in groups.Select((g, i) => (g, i)))
+        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : groups.Count > MostKeys ? "Composers by surname" : "Composers")">
+            @foreach (var (label, count, at) in Keys(groups))
             {
-                <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{i}")">@group.Key <span class="shelf-count">@group.Count()</span></a>
+                <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{at}")">@label <span class="shelf-count">@count</span></a>
             }
         </nav>
     }
@@ -253,6 +255,12 @@ else
     private static readonly System.Text.RegularExpressions.Regex Numbered = new(@"\d+");
 
     private static readonly (string Key, string Label)[] Formats = [("all", "All"), ("notation", "To play along"), ("pdf", "PDFs")];
+
+    private const string NotGiven = "Composer not given";
+
+    // Past this many composers, a list's keys go by letter: Chorales and hymns had 136 keys, a few screens of them above its
+    // first piece.
+    private const int MostKeys = 12;
 
     /// <summary>What the Library shows: composer, period, kind or level (with <see cref="Of"/>), near, all, pdf, mine or composers; the home when none.</summary>
     [SupplyParameterFromQuery(Name = "by")]
@@ -422,6 +430,15 @@ else
 
     // This list's own address, for a link to a group in it.
     private string Here() => Nav.Uri.Split('#')[0];
+
+    // The keys above a long list's groups, each with how many pieces it leads to and the group it goes to: one for each kind or
+    // composer, or with more composers than that, one for each letter their surnames start with, going to the first of them.
+    // The pieces without a composer keep a key of their own.
+    private IEnumerable<(string Label, int Count, int At)> Keys(List<IGrouping<string, PieceRecord>> groups) =>
+        By == "composer" || groups.Count <= MostKeys
+            ? groups.Select((g, i) => (g.Key, g.Count(), i))
+            : groups.Select((g, i) => (Group: g, At: i)).GroupBy(x => x.Group.Key == NotGiven ? NotGiven : Initial(x.Group.Key))
+                .Select(letter => (letter.Key, letter.Sum(x => x.Group.Count()), letter.First().At));
 
     private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
 
