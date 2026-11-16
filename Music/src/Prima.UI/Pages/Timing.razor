@@ -4,6 +4,7 @@
 @inject Click Click
 @inject PrimaSettings Settings
 @inject PrimaStore Store
+@inject NavigationManager Nav
 
 <PageTitle>Timing · Prima</PageTitle>
 
@@ -31,6 +32,11 @@
 </section>
 
 <div class="control-row control-row-play">
+    @if (LeadsOn && !running)
+    {
+        @* From the welcome, once an offset is kept: on to Today, as the main key. *@
+        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="ToToday">Done</button>
+    }
     @if (Keyboard.Name is null)
     {
         <p class="control-note">Plug in your keyboard first.</p>
@@ -42,10 +48,13 @@
     else
     {
         @* Not the piano's go key: the key you tap with may be that C♯. *@
-        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
+        <button type="button" class="mu-btn @(LeadsOn ? "" : "mu-primary")" data-piano="off" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
         @if (result is not null)
         {
-            <button type="button" class="mu-btn" @onclick="Save">Keep this offset</button>
+            @if (!(LeadsOn && saved))
+            {
+                <button type="button" class="mu-btn" @onclick="Save">Keep this offset</button>
+            }
             @if (saved)
             {
                 <p class="control-note">Kept. Every note from now on is shifted by @($"{-result.OffsetMs:+0;−0;0}") ms.</p>
@@ -66,6 +75,14 @@
 @code {
     private const int Beats = 16;
     private static readonly ClickPlan Plan = new(80, 4, 1, ClickStage.Throughout);
+
+    /// <summary>"welcome" when the welcome led here: once an offset is kept, Done leads on to Today.</summary>
+    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
+
+    // From the welcome, with an offset kept (now, or before coming back here): the way on is Today.
+    private bool LeadsOn => From == "welcome" && Settings.CalibratedOn is not null;
+
+    private void ToToday() => Nav.NavigateTo("");
 
     private readonly List<long> taps = [];
     private CalibrationResult? result;

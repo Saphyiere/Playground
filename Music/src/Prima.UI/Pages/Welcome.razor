@@ -57,7 +57,7 @@
 
     protected override void OnInitialized() => (name, cue, minutes) = (Settings.Name, Settings.Cue, Settings.DailyMinutes);
 
-    private Task Begin() => Finish("tools/timing");
+    private Task Begin() => Finish("tools/timing?from=welcome");
 
     private Task Later() => Finish("");
 
