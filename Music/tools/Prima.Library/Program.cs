@@ -14,7 +14,7 @@
 //   humdrum   Craig Sapp's Humdrum editions (Mozart's, Haydn's and Scarlatti's sonatas, Joplin, Bach's chorales), CC BY-NC-SA 4.0
 //   dcml      the DCML's MuseScore corpora (Beethoven's sonatas, Chopin's mazurkas, Debussy, Grieg and more), CC BY-NC-SA 4.0
 //   asap      ASAP's concert scores (Bach's Well-Tempered Clavier, Chopin's études and ballades, Liszt, Schubert), CC BY-NC-SA 4.0
-//   pdmx      more of PDMX: public-domain and CC0 piano music by composers who died before 1931
+//   pdmx      more of PDMX: public-domain and CC0 piano music whose own composer field names a composer who died before 1931
 //   mutopia   the rest of the Mutopia Project's keyboard music, as PDF and MIDI: public domain, CC BY and CC BY-SA (share-alike)
 //   hymns     the Open Hymnal's public-domain hymns, four voices on two staves with their verses (ABC, written as MEI by abc2svg)
 //

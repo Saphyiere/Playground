@@ -65,7 +65,8 @@ internal static class Pdmx
         "Chopin", "Satie", "Grieg", "Clementi", "Gurlitt", "Diabelli", "Burgmüller", "Kuhlau", "Joplin", "Petzold", "Bach",
     }.OrderByDescending(n => n.Length)];
 
-    private sealed record Row(string Mxl, string Title, string WhoText, string Licence, string LicenceUrl, double Rating, int Ratings, int Bars, string Metadata, Work Work);
+    /// <summary>A row chosen, with its title as the Library shows it and, for the local collection, as it's told from its copies.</summary>
+    private sealed record Row(string Mxl, string Title, string WhoText, string Licence, string LicenceUrl, double Rating, int Ratings, int Bars, string Metadata, Work Work, string? Plain = null);
 
     public static async Task<List<BundledPiece>> Fetch(HttpClient http, string cache, string output)
     {
@@ -113,11 +114,13 @@ internal static class Pdmx
 
     /// <summary>
     /// More of PDMX, for the local collection: solo piano music tagged public domain or CC0 without a licence conflict, PDMX's own
-    /// best copy of it (its best unique arrangement), not an arrangement by its title, by a composer who died before 1931 (so all
-    /// they wrote is out of copyright in the US, which a PD tag alone doesn't make sure of), named as the score's composer or
-    /// artist (not only in its title, where a transcriber's own piece can name the one it's after). The works the repo's bundle
-    /// takes from PDMX stay out, and copies of one piece by different users are reduced to the best rated. The archive is kept in
-    /// the cache.
+    /// best copy of it (its best unique arrangement), not an arrangement by its title or its composer field, whose own composer
+    /// field names a composer who died before 1931 (so all they wrote is out of copyright in the US, which a PD tag alone doesn't
+    /// make sure of), and credited to that composer. The uploader's artist field never counts: it names the music a score is linked
+    /// to (Chopin for Mompou's variations on his prelude, Beethoven for someone's "Für Ludwig"), and a score that names no composer
+    /// of its own isn't kept on it, nor on its title, where a transcriber's own piece can name the one it's after. The works the
+    /// repo's bundle takes from PDMX stay out, and copies of one piece by different users are reduced to the best rated. The archive
+    /// is kept in the cache.
     /// </summary>
     public static async Task<List<BundledPiece>> FetchMore(HttpClient http, string cache, string output)
     {
@@ -137,15 +140,15 @@ internal static class Pdmx
         var chosen = ChooseMore(csv);
         Console.WriteLine($"PDMX: {chosen.Count} more pieces chosen, by {chosen.Select(r => r.Work.Composer).Distinct().Count()} composers.");
         await Extract(http, cache, output, chosen);
-        return [.. chosen.Where(r => File.Exists(Path.Combine(output, PieceFile(r)))).Select(r => ToPiece(r, output) with { Title = Clean(r.Title, r.Work.Composer), Work = "" })];
+        return [.. chosen.Where(r => File.Exists(Path.Combine(output, PieceFile(r)))).Select(r => ToPiece(r, output) with { Work = "" })];
     }
 
     // Composers who died before 1931, and how a score names them (a surname alone is enough for most). Where two share a name,
-    // the one named more fully comes first: Leopold before Wolfgang Mozart, Clara before Robert Schumann, Carl Philipp Emanuel,
-    // Johann Christian and Wilhelm Friedemann before Johann Sebastian Bach.
+    // the one named more fully comes first: Leopold ("L. Mozart") before Wolfgang Mozart, Clara before Robert Schumann, Carl
+    // Philipp Emanuel, Johann Christian and Wilhelm Friedemann before Johann Sebastian Bach.
     private static readonly (string Name, Regex Who)[] Composers = [.. new (string, string)[]
     {
-        ("Leopold Mozart", @"leopold mozart"), ("Wolfgang Amadeus Mozart", @"mozart"),
+        ("Leopold Mozart", @"leopold mozart|\bl\.\s?mozart"), ("Wolfgang Amadeus Mozart", @"mozart"),
         ("Carl Philipp Emanuel Bach", @"c\.?\s?p\.?\s?e\.?\s?bach|carl philipp emanuel"), ("Johann Christian Bach", @"j\.?\s?c\.?\s?bach|johann christian bach"),
         ("Wilhelm Friedemann Bach", @"friedemann"), ("Johann Sebastian Bach", @"\bbach\b"),
         ("Clara Schumann", @"clara (wieck|schumann)"), ("Robert Schumann", @"schumann"),
@@ -154,20 +157,20 @@ internal static class Pdmx
         ("Alessandro Scarlatti", @"alessandro scarlatti"), ("Domenico Scarlatti", @"scarlatti"),
         ("Ludwig van Beethoven", @"beethoven"), ("Frédéric Chopin", @"chopin|szopen"), ("Franz Liszt", @"\bliszt"), ("Franz Schubert", @"schubert"),
         ("Johannes Brahms", @"\bbrahms"), ("Claude Debussy", @"debussy"), ("Erik Satie", @"\bsatie"), ("Edvard Grieg", @"\bgrieg"),
-        ("Pyotr Ilyich Tchaikovsky", @"tchaikovsk|tschaikowsk|chaikovsk|tchaikowsk|čajkovsk"), ("Muzio Clementi", @"clementi"), ("Carl Czerny", @"czerny|černý"),
+        ("Pyotr Ilyich Tchaikovsky", @"tchaikovsk|tschaikowsk|chaikovsk|tchaikowsk|čajkovsk|czajkowsk"), ("Muzio Clementi", @"clementi"), ("Carl Czerny", @"czerny|černý"),
         ("Friedrich Burgmüller", @"burgm(ü|u|ue)ller"), ("Cornelius Gurlitt", @"gurlitt"), ("Henry Lemoine", @"lemoine"), ("Jean-Baptiste Duvernoy", @"duvernoy"),
         ("Friedrich Kuhlau", @"kuhlau"), ("Anton Diabelli", @"diabelli"), ("Scott Joplin", @"joplin"), ("George Frideric Handel", @"h(a|ä|ae)ndel"),
         ("François Couperin", @"couperin"), ("Jean-Philippe Rameau", @"rameau"), ("Henry Purcell", @"purcell"), ("Georg Philipp Telemann", @"telemann"),
         ("Johann Pachelbel", @"pachelbel"), ("Gabriel Fauré", @"faur(é|e)\b"), ("Camille Saint-Saëns", @"saint[- ]sa(ë|e)ns"), ("Isaac Albéniz", @"alb(é|e)niz"),
         ("Enrique Granados", @"granados"), ("Antonín Dvořák", @"dvo(ř|r)(á|a)k"), ("Modest Mussorgsky", @"mussorgsk|moussorgsk|musorgsk"),
-        ("Alexander Scriabin", @"scriabin|skryabin"), ("Edward MacDowell", @"macdowell"), ("Stephen Heller", @"stephen heller|\bheller\b"),
+        ("Alexander Scriabin", @"scriabin|skryabin"), ("Edward MacDowell", @"mac\s?dowell"), ("Stephen Heller", @"stephen heller|\bheller\b"),
         ("Louis Köhler", @"k(ö|o|oe)hler"), ("Ferdinand Beyer", @"ferdinand beyer|\bbeyer\b"), ("Henri Bertini", @"bertini"), ("Louis Streabbog", @"streabbog|gobbaerts"),
         ("Fritz Spindler", @"spindler"), ("Heinrich Lichner", @"lichner"), ("Giuseppe Concone", @"concone"), ("Albert Loeschhorn", @"loeschhorn|löschhorn"),
         ("Daniel Gottlob Türk", @"(daniel|gottlob).*t(ü|u)rk|t(ü|u)rk.*(daniel|gottlob)"), ("Christian Petzold", @"petzold"),
         ("Johann Nepomuk Hummel", @"\bhummel"), ("John Field", @"john field"), ("Carl Maria von Weber", @"carl maria von weber|c\.\s?m\.\s?(von )?weber"),
         ("Moritz Moszkowski", @"moszkowski"), ("Emmanuel Chabrier", @"chabrier"), ("César Franck", @"c(é|e)sar franck"), ("Charles-Valentin Alkan", @"\balkan\b"),
         ("Anatoly Lyadov", @"lyadov|liadov|liadow"), ("Anton Arensky", @"arensky"), ("Nikolai Rimsky-Korsakov", @"rimsky"), ("Alexander Borodin", @"borodin"),
-        ("Mily Balakirev", @"balakirev"), ("Mikhail Glinka", @"glinka"), ("Louis Moreau Gottschalk", @"gottschalk"), ("Jan Ladislav Dussek", @"dussek|dusík"),
+        ("Mily Balakirev", @"balakir(e|i)v"), ("Mikhail Glinka", @"glinka"), ("Louis Moreau Gottschalk", @"gottschalk"), ("Jan Ladislav Dussek", @"dussek|dusík"),
         ("Leoš Janáček", @"jan(á|a)(č|c)ek"), ("Bedřich Smetana", @"smetana"), ("Ferruccio Busoni", @"busoni"), ("Max Reger", @"max reger"),
         ("Carl Reinecke", @"reinecke"), ("Charles-Louis Hanon", @"\bhanon"), ("Anton Rubinstein", @"anton rubinstein"), ("Ignaz Moscheles", @"moscheles"),
         ("Johann Baptist Cramer", @"j\.?\s?b\.?\s?cramer|johann baptist cramer"), ("Jan Pieterszoon Sweelinck", @"sweelinck"), ("William Byrd", @"\bbyrd\b"),
@@ -180,10 +183,11 @@ internal static class Pdmx
         ("Johann Wilhelm Hässler", @"h(ä|a|ae)(ss|ß)ler"), ("Domenico Cimarosa", @"cimarosa"),
     }.Select(c => (c.Item1, new Regex(c.Item2, RegexOptions.IgnoreCase)))];
 
-    // Arrangements and the like, by words in the title, as for the bundle, and reductions of orchestral, chamber and stage music,
-    // and Bach's chorales (Sapp's 370 are in the collection already); variations stay here, being some of the music itself.
+    // Arrangements and the like, by words in the title or the composer field, as for the bundle, and reductions of orchestral,
+    // chamber and stage music, Bach's chorales (Sapp's 370 are in the collection already), and music made from someone else's
+    // ("Inspired from Themes by …", an inversion, a major-minor reversal); variations stay here, being some of the music itself.
     private static readonly Regex ArrangedMore = new(Arranged.ToString().Replace("|variations?", "") +
-        @"|symphon\w*|(?<!italian )concerto|overture|\bopera\b|piano score|vocal score|\bvln\b|\bvla\b|quartet|quintet|nutcracker|swan lake|chorales?\b|harmoni[sz]ations?",
+        @"|symphon\w*|(?<!italian )concerto|overture|\bopera\b|piano score|vocal score|\bvln\b|\bvla\b|quartet|quintet|nutcracker|swan lake|chorales?\b|harmoni[sz]ations?|\binspired\b|\binver(sion|ted)\b|\brevers(al|ed)\b",
         RegexOptions.IgnoreCase);
 
     // Genres that aren't the composers' own music: a PD composer's name on a pop song, a game theme or a film's.
@@ -205,28 +209,31 @@ internal static class Pdmx
 
             var title = Repair(F(row, "title"));
             var subtitle = Repair(F(row, "subtitle"));
-            var composer = Repair(F(row, "composer_name"));
-            if (title is null || subtitle is null || composer is null) continue;
+            var field = Repair(F(row, "composer_name"));
+            if (title is null || subtitle is null || field is null) continue;
 
-            var who = $"{composer} {Repair(F(row, "artist_name")) ?? ""}";
+            // The score's own composer, its field read apart where the uploader's editor ran its lines together ("J.S. BachArr. Harry
+            // Allen", "Carl Czerny1791 - 1857") and without a stray backslash ("Georg Friedrich H\andel").
+            var composer = Regex.Replace(Regex.Replace(field.Replace("\\", ""), @"(?<=\p{Ll})(?=\p{Lu})|(?<=\p{L})(?=\d)", " "), @"\s+", " ").Trim();
             var text = $"{title} {(subtitle == "NA" ? "" : subtitle)}";
             var bars = int.TryParse(F(row, "song_length.bars"), out var b) ? b : 0;
             if (ArrangedMore.IsMatch(text) || ArrangedMore.IsMatch(composer) || bars < 8 || Popular.IsMatch(F(row, "genres"))) continue;
 
-            // What the bundle takes from PDMX (its named works) is the bundle's.
+            // What the bundle takes from PDMX (its named works, as the bundle chooses them) is the bundle's.
+            var who = $"{field} {Repair(F(row, "artist_name")) ?? ""}";
             if (Works.Any(w => w.Who.IsMatch(who) && w.What.IsMatch(text))) continue;
-            if (Composers.FirstOrDefault(c => c.Who.IsMatch(who)) is not { Name: not null } match) continue;
+            if (Composers.FirstOrDefault(c => c.Who.IsMatch(composer)) is not { Name: not null } match) continue;
 
             var rating = double.TryParse(F(row, "rating"), System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 0;
             var ratings = int.TryParse(F(row, "n_ratings"), out var n) ? n : 0;
-            rows.Add(new Row(F(row, "mxl"), Clean(title), who, F(row, "license"), F(row, "license_url"), rating, ratings, bars, F(row, "metadata"),
-                new Work("", match.Name, match.Who, match.Who, false)));
+            rows.Add(new Row(F(row, "mxl"), Titled(title, match.Name, match.Who), who, F(row, "license"), F(row, "license_url"), rating, ratings, bars, F(row, "metadata"),
+                new Work("", match.Name, match.Who, match.Who, false), Clean(Clean(title), match.Name)));
         }
 
-        // Copies of one piece by different users: the same composer and catalogue numbers (or, without any, the same title and
-        // length). The best rated stays.
-        return [.. rows.GroupBy(r => (r.Work.Composer, Catalogue.Keys(Clean(r.Title, r.Work.Composer)) is { Count: > 0 } keys && keys.All(k => !k.StartsWith("name:", StringComparison.Ordinal))
-                ? string.Join(' ', keys.Order(StringComparer.Ordinal)) : $"{Clean(r.Title, r.Work.Composer).ToLowerInvariant()} {r.Bars}"))
+        // Copies of one piece by different users: the same composer and catalogue numbers (or, without any, the same title, with no
+        // composer's name in it, and length). The best rated stays.
+        return [.. rows.GroupBy(r => (r.Work.Composer, Catalogue.Keys(r.Plain!) is { Count: > 0 } keys && keys.All(k => !k.StartsWith("name:", StringComparison.Ordinal))
+                ? string.Join(' ', keys.Order(StringComparer.Ordinal)) : $"{r.Plain!.ToLowerInvariant()} {r.Bars}"))
             .Select(g => g.OrderByDescending(r => r.Rating).ThenByDescending(r => r.Ratings).ThenBy(r => r.Mxl, StringComparer.Ordinal).First())];
     }
 
@@ -298,6 +305,120 @@ internal static class Pdmx
         t = Regex.Replace(t, @"\s+by\s*$", "", RegexOptions.IgnoreCase);
         return t.Length == 0 ? title : char.ToUpperInvariant(t[0]) + t[1..];
     }
+
+    // A first name or an initial written with a surname, before it or after it: "Aleksandr", "Jean-Philippe", "J.", "J.S.", "Ph.",
+    // "S", or a particle, "von" ("L.v.Beethoven").
+    private const string NameWord = @"(?:\p{Lu}\p{Ll}?\.)+|\p{Lu}[\p{Ll}'’]+(?:-\p{Lu}[\p{Ll}'’]+)*\.?|\p{Lu}|[Vv]an|[Vv]on|[Dd][aeiu]|[Ll][ae]|v\.";
+
+    private static readonly HashSet<string> Particles = new(["van", "von", "v.", "de", "da", "di", "du", "le", "la"], StringComparer.OrdinalIgnoreCase);
+
+    // Words a name after them belongs to: "Berceuse de Brahms", "Walzer von Diabelli", "Over the Field".
+    private static readonly HashSet<string> Belongs = new(["de", "del", "della", "di", "du", "des", "der", "den", "dem", "von", "van", "of", "from", "after",
+        "on", "upon", "to", "for", "nach", "sur", "and", "with", "für", "und", "et", "y", "aus", "the", "a", "an", "in", "at", "my", "our", "his", "her",
+        "their", "this", "that"], StringComparer.OrdinalIgnoreCase);
+
+    // A piece's words, not a person's, before a name ("Nocturne Chopin - Op. 9").
+    private static readonly Regex Piecelike = new(@"^(pr(é|e)lude|nocturne|sonat\w*|(é|e)tude|study|waltz|valse|minuet|menuet\w*|ballade?|fugue|fuga|invention|mazurka|polonaise|rondo|scherzo|impromptu|bagatelle|march|marche|gavotte|gigue|sarabande|allemande|courante|toccata|fantas\w*|romance|song|lied|dance|tanz|piano|suite|partita|variations?|theme|chorale?|canon|air|aria|op|opus|no|book|movement)$", RegexOptions.IgnoreCase);
+
+    // A title as the collection shows it, its composer shown beside it: the composer's name taken out where it labels the title,
+    // with the first names and initials written with it, at its start or end, set off by a dash or a colon, in brackets or after
+    // "by" ("Chopin - Nocturne", "Aleksandr Scriabin: Prelude", "Nocturne (F.Chopin Op.55. No.2)", "Le Coucou by Daquin (The
+    // Cuckoo)", "Polonaise W.A. Mozart"); kept where it's part of the title, a possessive ("Mozart's Twelve Variations") or a name
+    // in its middle ("Opus 27-2: Beethoven Moonlight"), and so are other composers' names ("33 Variations on a Waltz by Anton
+    // Diabelli Op. 120").
+    private static string Titled(string title, string composer, Regex who)
+    {
+        var names = composer.Split(' ');
+        var surname = names[^1];
+        string[] given = [.. names[..^1].Where(n => !Particles.Contains(n)).SelectMany(n => n.Split('-').Prepend(n)).Distinct()];
+        var initials = given.Select(g => char.ToUpperInvariant(g[0])).ToHashSet();
+        // The composer's own: a first name of theirs ("Frederic" for Frédéric), their initials ("J.S.", "W.A."), a particle.
+        bool Own(string word) => Particles.Contains(word) || given.Any(g => string.Equals(Fold(g), Fold(word.TrimEnd('.')), StringComparison.OrdinalIgnoreCase))
+            || Regex.IsMatch(word, @"^(\p{Lu}\.?)+$") && word.Where(char.IsLetter).All(initials.Contains);
+        // The composer as a score names them, or their surname alone ("Wagner" for Richard Wagner).
+        var named = new Regex($@"(?:{who})|(?<!\p{{L}}){Regex.Escape(surname)}(?!\p{{L}})", RegexOptions.IgnoreCase);
+
+        var cuts = new List<(int Start, int End)>();
+        foreach (Match core in named.Matches(title))
+        {
+            var start = core.Index;
+            var end = start + core.Length;
+            if (start > 0 && char.IsLetter(title[start - 1])) continue;
+
+            // The surname's whole word ("Tchaikovsk" is "Tchaikovsky"), unless it's a genitive, which is part of the title
+            // ("Mozart's", "Mozarts", "Pachelbel s Canon").
+            var word = Regex.Match(title[end..], @"^\p{L}*").Value;
+            if (word.Equals("s", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(title[(end + word.Length)..], @"^(['’]s\b|\ss\s)")) continue;
+            end += word.Length;
+            // The rest of a surname written with it: "Mendelssohn-Bartholdy", "Rimsky-Korsakov", Carl Philipp Emanuel "Bach".
+            if (Regex.Match(title[end..], @"^[-\s]Bartholdy\b", RegexOptions.IgnoreCase) is { Success: true } bartholdy) end += bartholdy.Length;
+            else if (!Fold(title[start..end]).Contains(Fold(surname), StringComparison.OrdinalIgnoreCase)
+                && Regex.Match(title[end..], $@"^(-{Regex.Escape(surname.Split('-')[^1])}|\s+{Regex.Escape(surname)})(?!\p{{L}})", RegexOptions.IgnoreCase) is { Success: true } rest)
+            {
+                end += rest.Length;
+            }
+
+            // First names after it, a name written surname first: "Bach Johann Sebastian", "Handel G.F.", "Czerny Carl.".
+            Match after;
+            while ((after = Regex.Match(title[end..], $@"^,?\s+(?<word>{NameWord})(?!\p{{L}})")).Success && after.Groups["word"].Value is var name
+                && !Particles.Contains(name) && (name.Length > 1 || name.EndsWith('.')) && Own(name))
+            {
+                end += after.Length;
+            }
+
+            // First names and initials before it: the composer's own ("Johann Sebastian", "C.", "W.A."), and any, up to three, where
+            // the name is set off at the start, in brackets or after a dash ("Aleksandr Scriabin -", "J. Ph. Rameau:").
+            int Back(int from, Func<string, bool> fits, int most)
+            {
+                for (var words = 0; words < most && Regex.Match(title[..from], $@"(?<!\p{{L}})(?<word>{NameWord})(?<gap>\s*)$") is { Success: true } before
+                    && (before.Groups["gap"].Length > 0 || before.Groups["word"].Value.EndsWith('.')) && fits(before.Groups["word"].Value); words++)
+                {
+                    from = before.Index;
+                }
+                return from;
+            }
+            var own = Back(start, Own, int.MaxValue);
+            // A particle alone before the surname is the title's: "Berceuse de Brahms", "Walzer von Diabelli".
+            own += Regex.Match(title[own..start], @"^(?:(?:[Vv]an|[Vv]on|[Dd][aeiu]|[Ll][ae]|v\.)\s*)+").Length;
+            var any = Back(own, w => !Piecelike.IsMatch(w.TrimEnd('.')), 3);
+            if (((any < own ? Cut(any, end, false) : null) ?? Cut(own, end, true)) is { } cut && cuts.All(c => cut.End <= c.Start || cut.Start >= c.End)) cuts.Add(cut);
+        }
+
+        var t = cuts.OrderByDescending(c => c.Start).Aggregate(title, (s, c) => s[..c.Start] + s[c.End..]);
+        t = Regex.Replace(t, @"\(\s*\)|\[\s*\]|\(piano solo\)|\(real audio\)|for piano\b.*$|this one!|\{[^}]*\}", "", RegexOptions.IgnoreCase);
+        t = Regex.Replace(t, @"\s{2,}", " ");
+        t = Regex.Replace(t, @"^[\s\-–:.,/]+|[\s\-–:,/]+$", "");
+        // A title that's only the composer's name ("Haydn - Joseph Haydn") stays as it was.
+        if (Regex.Matches(named.Replace(t, " "), @"\p{L}[\p{L}.'’-]*").All(w => Own(w.Value))) return title;
+        return char.ToUpperInvariant(t[0]) + t[1..];
+
+        // What to take out for a name from start to end, by what's around it; null where it's part of the title. Only the composer's
+        // own words (ownOnly) may stand with no dash or bracket to set them off.
+        (int Start, int End)? Cut(int start, int end, bool ownOnly)
+        {
+            var before = title[..start];
+            var after = title[end..];
+            var dashAfter = Regex.Match(after, @"^(\s+[-–—]+\s*|[-–—]+\s+|\s*[:;]\s*|\.\s+|,\s+)");
+            var space = Regex.Match(after, @"^\s+(?=\S)");
+            var ends = after.Trim().Length == 0;
+            var bracketEnds = Regex.IsMatch(after, @"^\s*\([^()]*\)\s*$");
+            var catalogueEnds = Regex.IsMatch(after, @"^\s+(op\.?|opus|kv?\.?|bwv|hwv|woo|wq|hob|wwv|[dslbz]\.)\s*\d[^()]*$", RegexOptions.IgnoreCase);
+            if (Regex.Match(before, @"(?<!\p{L})by\s+$", RegexOptions.IgnoreCase) is { Success: true } by && (ends || bracketEnds || catalogueEnds || dashAfter.Success || Regex.IsMatch(after, @"^\s*[)\]]")))
+                return (by.Index, end);
+            if (before.Trim().Length == 0)
+                return dashAfter.Success ? (start, end + dashAfter.Length) : ownOnly && space.Success ? (start, end + space.Length) : null;
+            if (Regex.IsMatch(before, @"[(\[]\s*$"))
+                return Regex.IsMatch(after, @"^\s*[)\]]") ? (start, end) : dashAfter.Success ? (start, end + dashAfter.Length) : space.Success ? (start, end + space.Length) : null;
+            if (Regex.Match(before, @"(\s+[-–—]+\s*|[-–—]+\s+|[:;,]\s*)$") is { Success: true } dash)
+                return ends || bracketEnds ? (dash.Index, end) : catalogueEnds ? (start, end + space.Length) : dashAfter.Success ? (start, end + dashAfter.Length) : null;
+            if (ownOnly && (ends || bracketEnds || catalogueEnds) && before.EndsWith(' ') && !Belongs.Contains(Regex.Match(before, @"(\p{L}+)\s*$").Groups[1].Value))
+                return catalogueEnds ? (start, end + space.Length) : (before.TrimEnd().Length, end);
+            return null;
+        }
+    }
+
+    // Without accents: "Frédéric" is "Frederic".
+    private static string Fold(string text) => string.Concat(text.Normalize(NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark));
 
     private static string Entry(string path) => path.TrimStart('.', '/');
 
