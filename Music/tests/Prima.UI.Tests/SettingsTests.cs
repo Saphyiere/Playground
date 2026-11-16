@@ -5,6 +5,7 @@ using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Playground.Sync;
 using Prima.UI.Components;
 using Prima.UI.Looks;
 using Prima.UI.Pages;
@@ -255,6 +256,56 @@ public class SettingsTests
             if (identifier == "navigator.clipboard.writeText") Text = (string?)args?[0];
             return browser.InvokeAsync<TValue>(identifier, cancellationToken, args);
         }
+    }
+
+    // Start over keeps a copy of everything first, held in Your data (named for it, with its time) until it's restored or let go.
+    [Fact]
+    public async Task StartingOverKeepsACopyFirst_HeldInYourData()
+    {
+        await using var host = new ComponentHost();
+        var sync = host.Context.Services.GetRequiredService<Syncer>();
+        await host.AddPiece();
+        await host.Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), 5);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var view = host.Context.Render<Settings>();
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.EndsWith("A copy of everything is kept first, held in Your data until you restore it or let it go.", StringComparison.Ordinal));
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+
+        Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
+        var kept = Assert.Single(sync.Status.Holding);
+        Assert.Equal((SyncHeldFrom.Change, "Start over"), (kept.Held!.From, kept.Held.Why));
+        Assert.Equal(1, kept.Manifest.Rows("prima.db", "PracticeDay"));
+        view.WaitForAssertion(() => Assert.Equal($"Kept from before Start over · {SyncText.When(kept.Made)}", view.Find(".copies-held-head").TextContent));
+        Directory.Delete(sync.Options.WorkFolder, recursive: true);
+    }
+
+    // When no copy can be kept first, nothing is cleared and the note says why; clearing without one is asked for apart.
+    [Fact]
+    public async Task StartingOverWithoutACopy_ClearsOnlyWhenAskedTo()
+    {
+        await using var host = new ComponentHost();
+        var sync = host.Context.Services.GetRequiredService<Syncer>();
+        await host.AddPiece();
+        await host.Store.AddMinutesAsync(DateOnly.FromDateTime(DateTime.Now), 5);
+        // A problem kept with the key in it: no copy can be taken.
+        host.Problems.Keep("Error", "Prima.UI.Pages.Settings", "The key test-key was refused");
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var view = host.Context.Render<Settings>();
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "A copy couldn't be kept first (errors.log holds a secret, which copies never take), so nothing was cleared.");
+        Assert.Single(await host.Store.GetDaysAsync(DateOnly.MinValue));
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear it without a copy").ClickAsync(new MouseEventArgs()));
+
+        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "Cleared. Today starts from the beginning, with the Library as it was.");
+        Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
+        Assert.Empty(sync.Status.Holding);
+        if (Directory.Exists(sync.Options.WorkFolder)) Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).

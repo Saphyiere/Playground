@@ -4,6 +4,7 @@ using Playground.AI.Assist;
 using Playground.Sync;
 using Playground.Updates;
 using Prima.UI.Host;
+using Prima.UI.Practice;
 
 namespace Prima.UI.Storage;
 
@@ -14,7 +15,8 @@ namespace Prima.UI.Storage;
 /// It's restored only into Prima (it has Prima's tables).</item>
 /// <item><c>library</c>: the music imported, and a local collection's PDFs and MIDI, beside the data file.</item>
 /// <item><c>prima.conversion</c>: what reading a PDF's notes made (the systems' pictures and engravings), beside it too.</item>
-/// <item><c>errors.log</c> and <c>errors.old.log</c>: the problems Prima kept.</item>
+/// <item><c>errors.log</c> and <c>errors.old.log</c>: the problems Prima kept, copied and exported to send on, but never put back
+/// by a restore: the tablet's own stay as they are.</item>
 /// </list>
 /// Claude's key lives in the tablet's secure storage, apart from all of these, and <c>claude-key.txt</c> is deleted once taken in;
 /// every file a copy reads is searched for the key all the same, and a copy that would hold it stops before writing anything. The
@@ -35,28 +37,51 @@ public static class PrimaSync
     /// <summary>The tables that tell a database is Prima's, which a restore checks for.</summary>
     public static readonly string[] Tables = ["Setting", "Track", "Attempt", "PracticeDay"];
 
-    /// <summary>What Prima syncs, from its services (the store, the problem log, the key and its file, the version installed).</summary>
+    /// <summary>
+    /// What in the data file is the owner's own, which the first start after an update finds none of with fewer rows than the copy
+    /// from before had: the settings, the tracks, every run, the practice days and sessions, the routines, and the pieces imported.
+    /// The bundled and collection pieces, and their excerpts, aren't: Prima takes out the bundled pieces a new bundle no longer has.
+    /// A restore keeps what's here first unless none of it but the settings has a row (a fresh install has those once it's welcomed).
+    /// </summary>
+    public static readonly SyncCount[] Counted =
+    [
+        SyncCount.Rows("Setting") with { Settings = true }, SyncCount.Rows("Track"), SyncCount.Rows("Attempt"), SyncCount.Rows("PracticeDay"), SyncCount.Rows("PracticeSession"),
+        SyncCount.Rows("RoutineGeneration"), SyncCount.Rows("RoutineDefinition"), SyncCount.Rows("RoutineDay"), SyncCount.Rows("RoutineExecution"), SyncCount.Rows("RoutineAttempt"),
+        new("Piece (imported)", "Piece", "Origin = 'import'"),
+    ];
+
+    /// <summary>
+    /// What Prima syncs, from its services (the store, the problem log, the key and its file, the version installed, the run being
+    /// played). Copies in the background wait while a run is being played, and one is taken after practice (a piece's session
+    /// finished, a routine's activity done) when the last is a day old.
+    /// </summary>
     public static SyncOptions Options(IServiceProvider services, string databasePath)
     {
         var store = services.GetRequiredService<PrimaStore>();
         var problems = services.GetRequiredService<ProblemLog>();
         var keyFile = services.GetRequiredService<ClaudeKeyFile>();
         var keys = services.GetRequiredService<IAssistKeyStore>();
+        var runs = services.GetRequiredService<SessionRegistry>();
+        store.Practiced += () => _ = services.GetRequiredService<Syncer>().CopyIfDueAsync(SyncReason.AfterPractice);
         return new SyncOptions("Prima")
         {
             Items =
             [
-                SyncItem.Database("prima.db", databasePath) with { RequiredTables = Tables },
+                SyncItem.Database("prima.db", databasePath) with { RequiredTables = Tables, Counted = Counted },
                 SyncItem.Folder("library", store.FilesPath),
                 SyncItem.Folder("prima.conversion", Path.ChangeExtension(databasePath, ".conversion")),
-                SyncItem.File(ProblemLog.FileName, problems.Path),
-                SyncItem.File(Path.GetFileName(problems.OldPath), problems.OldPath),
+                // The problems are copied and exported, to send on, but a restore leaves this tablet's as they are.
+                SyncItem.File(ProblemLog.FileName, problems.Path) with { Restored = false },
+                SyncItem.File(Path.GetFileName(problems.OldPath), problems.OldPath) with { Restored = false },
             ],
             Exclude = [AssistKey.FileName],
             Secrets = async _ => [.. new[] { await keys.GetAsync(), await WaitingKeyAsync(keyFile.Path) }.OfType<string>()],
+            // Beside the data file and in no item: a new key has every file read again, and the mark gives nothing of it back.
+            SecretsMark = Path.ChangeExtension(databasePath, ".searched"),
             Version = services.GetService<IInstaller>()?.InstalledVersion ?? "",
             WorkFolder = Path.Combine(Path.GetTempPath(), "prima-sync", Path.GetFileNameWithoutExtension(databasePath)),
             BeforeCopy = store.FlushAsync,
+            Quiet = runs.QuietAsync,
             WhileRestoring = store.WhileClosedAsync,
             Describe = Describe,
         };
@@ -73,12 +98,15 @@ public static class PrimaSync
         return files == 0 ? practiced : $"{practiced} · {files} imported {(files == 1 ? "file" : "files")}";
     }
 
-    // A key copied over USB and not taken in yet: never copied, wherever it might turn up.
+    // A key copied over USB and not taken in yet: never copied, wherever it might turn up. It's read as Prima takes it in (the key
+    // alone, or JSON with an apiKey), and a file that holds no key is searched for as it is.
     private static async Task<string?> WaitingKeyAsync(string path)
     {
         try
         {
-            return File.Exists(path) ? (await File.ReadAllTextAsync(path)).Trim() : null;
+            if (!File.Exists(path)) return null;
+            var text = (await File.ReadAllTextAsync(path)).Trim();
+            return AssistKey.Read(text) is { Length: > 0 } key ? key : text;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

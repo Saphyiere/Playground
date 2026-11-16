@@ -20,6 +20,15 @@ public enum SyncReason
 
     /// <summary>Just after a copy was restored.</summary>
     AfterRestore,
+
+    /// <summary>Just before a restore put another copy in its place: what was there, held, so the restore can be undone.</summary>
+    BeforeRestore,
+
+    /// <summary>Just before the app changed the data itself (Prima's Start over): what was there, held.</summary>
+    BeforeChange,
+
+    /// <summary>After practice, the last copy being more than a day old.</summary>
+    AfterPractice,
 }
 
 /// <summary>
@@ -41,6 +50,12 @@ public sealed record SyncManifest
     /// <summary>For a copy taken before an update, the release it was for ("Prima 1.0.13").</summary>
     public string? Update { get; init; }
 
+    /// <summary>
+    /// When all the content in the store was last read against its fingerprints, which a copy does once a week; carried from copy
+    /// to copy between.
+    /// </summary>
+    public DateTimeOffset? Checked { get; init; }
+
     public IReadOnlyList<SyncManifestItem> Items { get; init; } = [];
 
     public IReadOnlyList<SyncFile> Files { get; init; } = [];
@@ -61,7 +76,10 @@ public sealed record SyncManifest
     {
         try
         {
-            return JsonSerializer.Deserialize(json, SyncJson.Default.SyncManifest);
+            // One without its lists, or with a file or an item that has no name, isn't a copy (a file edited by hand, or another
+            // program's): it's left out like one that can't be read.
+            return JsonSerializer.Deserialize(json, SyncJson.Default.SyncManifest) is { Items: not null, Files: not null } manifest
+                && manifest.Items.All(i => i is { Name: not null }) && manifest.Files.All(f => f is { Path: not null, Sha256: not null }) ? manifest : null;
         }
         catch (JsonException)
         {
@@ -70,22 +88,46 @@ public sealed record SyncManifest
     }
 }
 
-/// <summary>An item as the copy has it: a database's tables, each with how many rows it had.</summary>
+/// <summary>
+/// An item as the copy has it: a database's tables, each with how many rows it had, and what in it was counted as the person's own
+/// (<see cref="DatabaseItem.Counted"/>), by name.
+/// </summary>
 public sealed record SyncManifestItem(string Name, SyncItemKind Kind)
 {
     public IReadOnlyDictionary<string, long>? Tables { get; init; }
+
+    public IReadOnlyDictionary<string, long>? Counts { get; init; }
 }
 
 /// <summary>A file in a copy: where it sits in it, its size and when it last changed, and the SHA-256 of its content.</summary>
 public sealed record SyncFile(string Path, long Size, DateTimeOffset Modified, string Sha256);
 
 /// <summary>
-/// A copy kept from before an update, after the app's first start with the update didn't hold all of it: kept, whatever copies
-/// come after, until it's restored or let go.
+/// A copy held: kept, whatever copies come after, until it's restored or let go. <see cref="From"/> says what it was kept from
+/// before: an update the app's first start after didn't find all of it in (<see cref="Update"/> the release, <see cref="Why"/>
+/// what was missing), a restore that put another copy in its place (<see cref="Why"/> which), or a change the app made itself
+/// (<see cref="Why"/> names it: "Start over"). A store can hold more than one, each in <c>held.json</c>.
 /// </summary>
-public sealed record SyncHeld(string Copy, string Update, string Why, DateTimeOffset Since);
+public sealed record SyncHeld(string Copy, string Update, string Why, DateTimeOffset Since)
+{
+    public SyncHeldFrom From { get; init; }
+}
+
+/// <summary>What a held copy was kept from before.</summary>
+public enum SyncHeldFrom
+{
+    /// <summary>An update that didn't check out: the only kind there was before restores and the app's changes held copies too.</summary>
+    Update,
+
+    /// <summary>A restore: what was there before it.</summary>
+    Restore,
+
+    /// <summary>A change the app made to the data itself (Prima's Start over): what was there before it.</summary>
+    Change,
+}
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, WriteIndented = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(SyncManifest))]
 [JsonSerializable(typeof(SyncHeld))]
+[JsonSerializable(typeof(List<SyncHeld>))]
 internal sealed partial class SyncJson : JsonSerializerContext;

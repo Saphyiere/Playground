@@ -55,18 +55,31 @@ public static class AssistKey
     {
         if (!File.Exists(path)) return new(KeyImportResult.NoFile, "");
         string text;
-        try { text = (await File.ReadAllTextAsync(path)).Trim(); }
+        try { text = await File.ReadAllTextAsync(path); }
         finally { File.Delete(path); }
 
-        var key = text;
-        if (text.StartsWith('{'))
-        {
-            try { key = JsonDocument.Parse(text).RootElement.TryGetProperty("apiKey", out var value) ? value.GetString() ?? "" : ""; }
-            catch (JsonException) { key = ""; }
-        }
-
+        var key = Read(text);
         if (!LooksRight(key)) return new(KeyImportResult.NotAKey, $"{FileName} didn't hold a Claude API key (one starts with sk-ant-).");
         await store.SetAsync(key);
         return new(KeyImportResult.Saved, Mask(key));
+    }
+
+    /// <summary>
+    /// What a key file holds as the key: its text alone, or the <c>apiKey</c> of JSON (empty when the JSON has none). An app's
+    /// backups search for it this way too, so a key waiting in its file never goes in one, whichever way it's written.
+    /// </summary>
+    public static string Read(string text)
+    {
+        text = text.Trim();
+        if (!text.StartsWith('{')) return text;
+        try
+        {
+            using var json = JsonDocument.Parse(text);
+            return json.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("apiKey", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
     }
 }

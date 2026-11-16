@@ -223,10 +223,21 @@ public sealed partial class PrimaStore
     /// <summary>
     /// Keeps a session's clock as it stands, and whether and when it finished. A finished session stays as it was finished: only
     /// carrying it on (<paramref name="reopen"/>) opens it again, so a save that comes late (a clock's tick as it finishes) can't.
+    /// One saved as finished is practice done (<see cref="Practiced"/>).
     /// </summary>
-    public Task SaveSessionAsync(PracticeSession s, bool reopen = false) => RunAsync(c => c.ExecuteAsync(
-        "UPDATE PracticeSession SET Playing = @playing, Idle = @idle, Paused = @paused, LastPlayed = @lastPlayed, Way = @Way, Finished = @finished WHERE Id = @Id AND (Finished IS NULL OR @reopen)",
-        new { s.Id, playing = s.Playing.TotalSeconds, idle = s.Idle.TotalSeconds, paused = s.Paused ? 1 : 0, lastPlayed = Iso(s.LastPlayed), s.Way, finished = s.Finished is { } at ? Iso(at) : null, reopen }));
+    public async Task SaveSessionAsync(PracticeSession s, bool reopen = false)
+    {
+        var saved = await RunAsync(c => c.ExecuteAsync(
+            "UPDATE PracticeSession SET Playing = @playing, Idle = @idle, Paused = @paused, LastPlayed = @lastPlayed, Way = @Way, Finished = @finished WHERE Id = @Id AND (Finished IS NULL OR @reopen)",
+            new { s.Id, playing = s.Playing.TotalSeconds, idle = s.Idle.TotalSeconds, paused = s.Paused ? 1 : 0, lastPlayed = Iso(s.LastPlayed), s.Way, finished = s.Finished is { } at ? Iso(at) : null, reopen }));
+        if (saved > 0 && s.Finished is not null) Practiced?.Invoke();
+    }
+
+    /// <summary>
+    /// Raised once practice is saved as done: a piece's session finished, or a routine's activity. Prima takes a copy then, when the
+    /// last is a day old (Storage/PrimaSync).
+    /// </summary>
+    public event Action? Practiced;
 
     /// <summary>A piece's sessions, oldest first.</summary>
     public Task<List<PracticeSession>> GetSessionsAsync(string piece) => RunAsync(async c =>

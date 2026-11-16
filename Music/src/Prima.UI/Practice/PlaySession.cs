@@ -261,4 +261,13 @@ public sealed class SessionRegistry
 
     /// <summary>The current drill item's answer: the notes to play (in order; a chord as one step), given whether to get it right.</summary>
     public Func<bool, IReadOnlyList<IReadOnlyList<int>>>? DrillAnswer { get; set; }
+
+    /// <summary>Whether a run is being played: a timed run counting in or going, or a drill item or a Wait for me run waiting on the keys.</summary>
+    public bool Playing => Current?.Phase is Phase.CountIn or Phase.Playing || DrillAnswer is not null;
+
+    /// <summary>Waits until no run is being played, looking every two seconds: what a copy in the background waits for, so it never takes from what's timed.</summary>
+    public async Task QuietAsync(CancellationToken ct)
+    {
+        while (Playing) await Task.Delay(TimeSpan.FromSeconds(2), ct);
+    }
 }

@@ -73,28 +73,119 @@ public class CopyTests
 
         var second = await syncer.CopyAsync(ct: Ct);
 
-        // SQLite's backup of a database that hasn't changed is the same, byte for byte, so nothing but the manifest is new.
+        // SQLite's backup of a database that hasn't changed is the same, byte for byte, so nothing but the manifest is new; and the
+        // copy before stays, one of the store's three newest.
         Assert.Equal([SyncPaths.Copy(second.Made)], store.Writes);
-        Assert.Equal([SyncPaths.Copy(first.Made)], store.Deletes);
+        Assert.Empty(store.Deletes);
+        Assert.Equal([first.Made, second.Made], (await syncer.FindCopiesAsync(store, Ct)).Select(c => c.Made).Order());
         Assert.Equal("Copied: nothing had changed since the copy before.", syncer.Status.Message);
     }
 
+    // Once no copy kept needs a file's content, it goes: here the first copy's, once a newer copy is a week older than the last.
     [Fact]
     public async Task CopyAsync_DeletesWhatNoCopyNeedsAnyMore()
     {
         using var app = new App();
         using var folder = new TempFolder();
-        var syncer = app.Syncer(new FolderStore(folder.Path));
+        var clock = new Clock();
+        var start = clock.Now;
+        var syncer = app.Syncer(new FolderStore(folder.Path), time: clock);
         var first = await syncer.CopyAsync(ct: Ct);
         var gone = first.Manifest.Files.Single(f => f.Path == "library/minuet.mid");
 
         File.Delete(app["library/minuet.mid"]);
-        var second = await syncer.CopyAsync(ct: Ct);
+        var kept = new List<SyncCopy>();
+        foreach (var day in new[] { 8, 9, 10, 15 })
+        {
+            clock.Now = start.AddDays(day);
+            app.Execute($"INSERT INTO Attempt (Piece, Notes) VALUES ('aria', 'day {day}')");
+            kept.Add(await syncer.CopyAsync(ct: Ct));
+        }
 
-        Assert.DoesNotContain(second.Manifest.Files, f => f.Path == "library/minuet.mid");
+        Assert.All(kept, k => Assert.DoesNotContain(k.Manifest.Files, f => f.Path == "library/minuet.mid"));
         Assert.False(File.Exists(folder["blobs/" + gone.Sha256]));
-        Assert.Equal(second.Manifest.Files.Select(f => f.Sha256).Distinct().Order(), Directory.GetFiles(folder["blobs"]).Select(Path.GetFileName).Order());
-        Assert.Equal([Path.GetFileName(SyncPaths.Copy(second.Made))], Directory.GetFiles(folder["copies"]).Select(Path.GetFileName));
+        Assert.Equal(kept.SelectMany(k => k.Manifest.Files).Select(f => f.Sha256).Distinct().Order(), Directory.GetFiles(folder["blobs"]).Select(Path.GetFileName).Order());
+        Assert.Equal(kept.Select(k => k.Made).OrderDescending(), (await syncer.FindCopiesAsync(new FolderStore(folder.Path), Ct)).Select(c => c.Made));
+    }
+
+    // A store keeps its three newest copies and, besides them, the newest at least a week old, and the oldest younger than that,
+    // which comes to be it; content any kept copy needs stays, and nothing else.
+    [Fact]
+    public async Task CopyAsync_KeepsTheThreeNewest_AndTheNewestAWeekOld()
+    {
+        using var app = new App();
+        using var folder = new TempFolder();
+        var clock = new Clock();
+        var start = clock.Now;
+        var syncer = app.Syncer(new FolderStore(folder.Path), time: clock);
+        // A copy a day for eleven days; the first has a file the rest don't.
+        var taken = new List<SyncCopy> { await syncer.CopyAsync(ct: Ct) };
+        File.Delete(app["library/minuet.mid"]);
+        for (var day = 1; day <= 10; day++)
+        {
+            clock.Now = start.AddDays(day);
+            app.Execute($"INSERT INTO Attempt (Piece, Notes) VALUES ('aria', 'day {day}')");
+            taken.Add(await syncer.CopyAsync(ct: Ct));
+        }
+
+        // Days 10, 9 and 8; day 0, the newest at least a week old (days 1 to 3 went before they were); and day 4, the oldest
+        // younger than a week, which comes to be the week-old one in three days.
+        var copies = await syncer.FindCopiesAsync(new FolderStore(folder.Path), Ct);
+        Assert.Equal([10, 9, 8, 4, 0], copies.Select(c => (int)(c.Made - start).TotalDays));
+        Assert.Equal(copies.SelectMany(c => c.Manifest.Files).Select(f => f.Sha256).Distinct().Order(), Directory.GetFiles(folder["blobs"]).Select(Path.GetFileName).Order());
+        Assert.True(File.Exists(folder["blobs/" + taken[0].Manifest.Files.Single(f => f.Path == "library/minuet.mid").Sha256]));
+        Assert.All(taken.Where(t => !copies.Any(c => c.Made == t.Made)), t => Assert.False(File.Exists(folder["blobs/" + t.Manifest.Files.Single(f => f.Path == "prima.db").Sha256])));
+        // The status says how many there are, and what they take: each piece of content once.
+        Assert.Equal(5, syncer.Status.Copies);
+        Assert.Equal(Directory.GetFiles(folder["blobs"]).Sum(f => new FileInfo(f).Length), syncer.Status.Stored);
+
+        // Three days on, day 4 is the week-old copy, and day 0 goes.
+        foreach (var day in new[] { 11, 12, 13 })
+        {
+            clock.Now = start.AddDays(day);
+            app.Execute($"INSERT INTO Attempt (Piece, Notes) VALUES ('aria', 'day {day}')");
+            await syncer.CopyAsync(ct: Ct);
+        }
+        Assert.Equal([13, 12, 11, 8, 4], (await syncer.FindCopiesAsync(new FolderStore(folder.Path), Ct)).Select(c => (int)(c.Made - start).TotalDays));
+    }
+
+    // Once a week (the first copy seven days or more after the last full check), every piece of content the store holds is read
+    // against its fingerprint: one that no longer matches is written again from the file on the device, and logged. Till then,
+    // content already there is taken as it is.
+    [Fact]
+    public async Task CopyAsync_ReadsWhatTheStoreHoldsOnceAWeek_AndWritesWhatsDamagedAgain()
+    {
+        using var app = new App();
+        using var folder = new TempFolder();
+        var clock = new Clock();
+        var start = clock.Now;
+        var logs = new Logs();
+        var store = new WatchedStore(new FolderStore(folder.Path));
+        var syncer = new Syncer(app.Options(), [store], clock, logs);
+        var first = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(first.Made, first.Manifest.Checked);
+
+        // The PDF's content goes bad in the store, its size the same.
+        var pdf = first.Manifest.Files.Single(f => f.Path == "library/minuet.pdf");
+        var bytes = File.ReadAllBytes(folder["blobs/" + pdf.Sha256]);
+        bytes[100] ^= 0xFF;
+        File.WriteAllBytes(folder["blobs/" + pdf.Sha256], bytes);
+
+        // Six days on, it's taken as it is.
+        clock.Now = start.AddDays(6);
+        store.Clear();
+        var second = await syncer.CopyAsync(ct: Ct);
+        Assert.DoesNotContain("blobs/" + pdf.Sha256, store.Writes);
+        Assert.Equal(first.Made, second.Manifest.Checked);
+
+        // A week after the last check, everything is read, and the PDF is written again from the device's file.
+        clock.Now = start.AddDays(7);
+        store.Clear();
+        var third = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(["blobs/" + pdf.Sha256, SyncPaths.Copy(third.Made)], store.Writes);
+        Assert.Equal(File.ReadAllBytes(app["library/minuet.pdf"]), File.ReadAllBytes(folder["blobs/" + pdf.Sha256]));
+        Assert.Equal(third.Made, third.Manifest.Checked);
+        Assert.Contains(logs.Lines, l => l.StartsWith($"blobs/{pdf.Sha256} in {folder.Path} no longer matches its fingerprint", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -182,6 +273,43 @@ public class CopyTests
         Assert.False(Directory.Exists(folder["blobs"]));
         Assert.Equal("No copy was made: errors.log holds a secret, which copies never take. The last one is as it was.", syncer.Status.Message);
         Assert.Empty(Directory.GetFileSystemEntries(app.WorkFolder));
+    }
+
+    // When the secrets searched for change, every file is read again: a file's size and time say nothing of whether it holds the new
+    // one. What was last searched for is kept as a mark in the app's own data: never in a copy, and nothing a secret can be got
+    // back from.
+    [Fact]
+    public async Task CopyAsync_WhenTheSecretsChange_ReadsEveryFileAgain()
+    {
+        using var app = new App();
+        using var folder = new TempFolder();
+        using var own = new TempFolder();
+        var key = App.Key;
+        var syncer = new Syncer(app.Options() with { Secrets = _ => Task.FromResult<IReadOnlyCollection<string>>([key]), SecretsMark = own["searched"] }, [new FolderStore(folder.Path)]);
+        var first = await syncer.CopyAsync(ct: Ct);
+
+        var mark = File.ReadAllText(own["searched"]);
+        Assert.DoesNotContain(key, mark);
+        Assert.DoesNotContain(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key))), mark, StringComparison.OrdinalIgnoreCase);
+        Assert.All(Directory.EnumerateFiles(folder.Path, "*", SearchOption.AllDirectories), f => Assert.DoesNotContain(mark, File.ReadAllText(f), StringComparison.Ordinal));
+
+        // A new key turns up in a file whose size and time stay as they were.
+        const string NewKey = "sk-ant-api03-ANewKeyThatCameAfterTheLastCopy-abcdef0123";
+        var pdf = app["library/minuet.pdf"];
+        var time = File.GetLastWriteTimeUtc(pdf);
+        var bytes = File.ReadAllBytes(pdf);
+        Encoding.UTF8.GetBytes(NewKey).CopyTo(bytes, 1000);
+        File.WriteAllBytes(pdf, bytes);
+        File.SetLastWriteTimeUtc(pdf, time);
+
+        // While the key is the one searched for, the file is taken by its size and time, unread.
+        var second = await syncer.CopyAsync(ct: Ct);
+        Assert.Equal(first.Manifest.Files.Single(f => f.Path == "library/minuet.pdf").Sha256, second.Manifest.Files.Single(f => f.Path == "library/minuet.pdf").Sha256);
+
+        // With the new key, every file is read again, and the copy stops on it.
+        key = NewKey;
+        var error = await Assert.ThrowsAsync<SyncSecretException>(() => syncer.CopyAsync(ct: Ct));
+        Assert.Equal("library/minuet.pdf", error.File);
     }
 
     [Fact]

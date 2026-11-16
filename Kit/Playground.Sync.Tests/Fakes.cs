@@ -179,6 +179,22 @@ sealed class WatchedStore(ISyncStore inner) : ISyncStore
     }
 }
 
+/// <summary>What the Syncer logged, each line as it was written.</summary>
+sealed class Logs : Microsoft.Extensions.Logging.ILogger<Syncer>
+{
+    public List<string> Lines { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state)
+        where TState : notnull => null;
+
+    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        lock (Lines) Lines.Add(formatter(state, exception));
+    }
+}
+
 /// <summary>The same as <see cref="TimeProvider.System"/>, but for now, which a test sets.</summary>
 sealed class Clock : TimeProvider
 {

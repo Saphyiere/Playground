@@ -21,32 +21,33 @@ public class StartTests
     }
 
     [Fact]
-    public async Task StartAsync_LeavesACopyUnderTwoDaysOld_AndReplacesAnOlderOne()
+    public async Task StartAsync_LeavesACopyUnderADayOld_AndTakesAnotherAfterThat()
     {
         using var app = new App();
         using var store = new TempFolder();
         var clock = new Clock();
         var first = await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(ct: Ct);
 
-        clock.Now = clock.Now.AddDays(1.9);
+        clock.Now = clock.Now.AddDays(0.9);
         var syncer = app.Syncer(new FolderStore(store.Path), time: clock);
         await syncer.StartAsync(Ct);
         Assert.Equal(first.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
 
+        // The one before stays beside it: a store keeps its three newest.
         clock.Now = clock.Now.AddDays(0.2);
         await app.Syncer(new FolderStore(store.Path), time: clock).StartAsync(Ct);
-        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
-        Assert.Equal(clock.Now, copy.Made);
-        Assert.Equal(SyncReason.Scheduled, copy.Manifest.Reason);
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal([clock.Now, first.Made], copies.Select(c => c.Made));
+        Assert.Equal(SyncReason.Scheduled, copies[0].Manifest.Reason);
     }
 
     [Fact]
-    public async Task StartAsync_AfterAnUpdate_ChecksTheData_ThenReplacesTheCopyFromBefore()
+    public async Task StartAsync_AfterAnUpdate_ChecksTheData_ThenCopiesItAfresh()
     {
         using var app = new App();
         using var store = new TempFolder();
         var clock = new Clock();
-        await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+        var before = await app.Syncer(new FolderStore(store.Path), time: clock).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
 
         // The update's first start: the same data, a newer version, and the practice that goes on.
         clock.Now = clock.Now.AddMinutes(2);
@@ -54,10 +55,14 @@ public class StartTests
         var syncer = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
         await syncer.StartAsync(Ct);
 
-        var copy = Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
-        Assert.Equal(SyncReason.AfterUpdate, copy.Manifest.Reason);
-        Assert.Equal("1.0.6", copy.Manifest.Version);
-        Assert.Equal(41, copy.Manifest.Rows("prima.db", "Attempt"));
+        // The fresh copy is the newest; the one from before stays beside it as any other, not held.
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal(2, copies.Count);
+        Assert.Equal(SyncReason.AfterUpdate, copies[0].Manifest.Reason);
+        Assert.Equal("1.0.6", copies[0].Manifest.Version);
+        Assert.Equal(41, copies[0].Manifest.Rows("prima.db", "Attempt"));
+        Assert.Equal(before.Made, copies[1].Made);
+        Assert.All(copies, c => Assert.Null(c.Held));
         Assert.Null(syncer.Status.Held);
     }
 
@@ -82,19 +87,25 @@ public class StartTests
         clock.Now = clock.Now.AddDays(3);
         await syncer.CopyAsync(ct: Ct);
         var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
-        Assert.Equal(2, copies.Count);
+        Assert.Equal(3, copies.Count);
         Assert.Equal(before.Made, copies.Single(c => c.Held is not null).Made);
         Assert.Equal(40, copies.Single(c => c.Held is not null).Manifest.Rows("prima.db", "Attempt"));
         Assert.All(copies.SelectMany(c => c.Manifest.Files), f => Assert.True(File.Exists(store["blobs/" + f.Sha256])));
+        // Copies long after keep it too, where it would otherwise have gone.
+        clock.Now = clock.Now.AddDays(11);
+        await syncer.CopyAsync(ct: Ct);
+        Assert.Contains(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Made == before.Made && c.Held is not null);
         // A later start says it still.
         var later = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6"), clock);
         await later.StartAsync(Ct);
         Assert.Equal(held, later.Status.Held);
 
+        // Let go, it's kept no longer than any other: the next copy leaves it out.
         await later.ReleaseHeldAsync(Ct);
         Assert.Null(later.Status.Held);
+        clock.Now = clock.Now.AddDays(1);
         await later.CopyAsync(ct: Ct);
-        Assert.Single(await later.FindCopiesAsync(new FolderStore(store.Path), Ct));
+        Assert.DoesNotContain(await later.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Made == before.Made);
     }
 
     [Fact]
@@ -109,6 +120,97 @@ public class StartTests
         await syncer.StartAsync(Ct);
 
         Assert.Equal("prima.db is gone", syncer.Status.Held?.Why);
+    }
+
+    // After practice as at the start, a copy is taken when the last is more than a day old, and only once the app is quiet (no run
+    // being played).
+    [Fact]
+    public async Task CopyIfDueAsync_TakesACopyWhenTheLastIsADayOld_OnceTheAppIsQuiet()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        var clock = new Clock();
+        var playing = new TaskCompletionSource();
+        var syncer = app.Syncer(new FolderStore(store.Path), app.Options() with { Quiet = ct => playing.Task.WaitAsync(ct) }, clock);
+        var first = await syncer.CopyAsync(ct: Ct);
+
+        // Under a day on, none is due.
+        playing.SetResult();
+        clock.Now = clock.Now.AddHours(23);
+        await syncer.CopyIfDueAsync(SyncReason.AfterPractice, Ct);
+        Assert.Equal(first.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
+
+        // Over a day on, one is, but not while a run is being played.
+        playing = new TaskCompletionSource();
+        clock.Now = clock.Now.AddHours(2);
+        var waiting = syncer.CopyIfDueAsync(SyncReason.AfterPractice, Ct);
+        await Task.Delay(300, Ct);
+        Assert.False(waiting.IsCompleted);
+        Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct));
+
+        playing.SetResult();
+        await waiting;
+        var copies = await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct);
+        Assert.Equal((SyncReason.AfterPractice, clock.Now), (copies[0].Manifest.Reason, copies[0].Made));
+        Assert.Equal(2, copies.Count);
+    }
+
+    // Only what's the person's own is counted after an update: what the app put there itself and takes out (a bundled piece) can go.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_CountsOnlyWhatsThePersonsOwn()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        await new Syncer(Counted(app), [new FolderStore(store.Path)]).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+
+        // The update takes out a piece that isn't the person's: nothing is held.
+        app.Execute("DELETE FROM Piece WHERE Id = 'aria'");
+        var syncer = new Syncer(Counted(app, "1.0.6"), [new FolderStore(store.Path)]);
+        await syncer.StartAsync(Ct);
+        Assert.Null(syncer.Status.Held);
+
+        // The next takes out one of theirs: the copy from before it is held, and says which.
+        await syncer.CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.7", ct: Ct);
+        app.Execute("DELETE FROM Piece WHERE Id = 'minuet'");
+        var later = new Syncer(Counted(app, "1.0.7"), [new FolderStore(store.Path)]);
+        await later.StartAsync(Ct);
+        Assert.Equal("prima.db's Piece (minuets) had 1 rows and has 0", later.Status.Held?.Why);
+    }
+
+    // A copy taken before counts were kept is checked by its tables' rows, for what's counted whole: the rows a condition picks can't
+    // be told from it.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_ChecksACopyTakenBeforeCountsByItsTables()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        await app.Syncer(new FolderStore(store.Path)).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+
+        app.Execute("DELETE FROM Piece WHERE Id = 'minuet'; DELETE FROM Attempt WHERE Id > 30");
+        var syncer = new Syncer(Counted(app, "1.0.6"), [new FolderStore(store.Path)]);
+        await syncer.StartAsync(Ct);
+
+        Assert.Equal("prima.db's Attempt had 40 rows and has 30", syncer.Status.Held?.Why);
+    }
+
+    // The check after an update runs as the app starts, before its screens can change the data; the copy after it keeps its wait.
+    [Fact]
+    public async Task StartAsync_AfterAnUpdate_ChecksAtOnce_AndCopiesAfterTheWait()
+    {
+        using var app = new App();
+        using var store = new TempFolder();
+        var before = await app.Syncer(new FolderStore(store.Path)).CopyAsync(SyncReason.BeforeUpdate, "Prima 1.0.6", ct: Ct);
+        app.Execute("DELETE FROM Attempt WHERE Id > 10");
+        var syncer = app.Syncer(new FolderStore(store.Path), app.Options("1.0.6") with { StartDelay = TimeSpan.FromMinutes(10) });
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var starting = syncer.StartAsync(stop.Token);
+        for (var i = 0; i < 400 && syncer.Status.Held is null; i++) await Task.Delay(25, Ct);
+
+        Assert.Equal("prima.db's Attempt had 40 rows and has 10", syncer.Status.Held?.Why);
+        Assert.Equal(before.Made, Assert.Single(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Made);
+        await stop.CancelAsync();
+        await starting;
     }
 
     [Fact]
@@ -140,8 +242,12 @@ public class StartTests
         await syncer.RestoreAsync((await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct)).Single(c => c.Held is not null), Ct);
 
         Assert.Equal(2, app.Count("Piece"));
-        Assert.Null(syncer.Status.Held);
-        Assert.False(File.Exists(store["held.json"]));
+        // The update's copy is held no more; what was here before the restore is, in its place, so the restore can be undone.
+        var holding = Assert.Single(syncer.Status.Holding);
+        Assert.Equal(SyncHeldFrom.Restore, holding.Held!.From);
+        Assert.Equal(SyncHeldFrom.Restore, syncer.Status.Held?.From);
+        Assert.Equal(0, holding.Manifest.Rows("prima.db", "Piece"));
+        Assert.DoesNotContain(await syncer.FindCopiesAsync(new FolderStore(store.Path), Ct), c => c.Held?.From == SyncHeldFrom.Update);
     }
 
     [Fact]
@@ -204,6 +310,16 @@ public class StartTests
         Assert.Equal(UpdateStep.Failed, updater.Status.Step);
         Assert.Equal("A copy of your data couldn't be kept first (the store went away), so nothing was installed.", updater.Status.Message);
     }
+
+    // The app's options, counting as the person's own the runs and the minuets (as Prima counts its imported pieces, not the bundled).
+    private static SyncOptions Counted(App app, string version = "1.0.5") => app.Options(version) with
+    {
+        Items =
+        [
+            SyncItem.Database("prima.db", app.Database) with { RequiredTables = ["Piece", "Attempt"], Counted = [new("Piece (minuets)", "Piece", "Title LIKE 'Minuet%'"), SyncCount.Rows("Attempt")] },
+            .. app.Options().Items.Skip(1),
+        ],
+    };
 
     [Fact]
     public void AddSync_GivesTheUpdaterItsSafeguard()

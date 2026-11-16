@@ -51,6 +51,15 @@ public sealed class KeyTests : IDisposable
         Assert.False(File.Exists(path));
     }
 
+    // What a key file holds as the key, read the way ImportAsync takes it in: an app's backups search for the same.
+    [Theory]
+    [InlineData(Key + "\r\n", Key)]
+    [InlineData($$"""{ "apiKey": "{{Key}}" }""", Key)]
+    [InlineData("""{ "apiKey": 42 }""", "")]
+    [InlineData("{ broken", "")]
+    [InlineData("my key goes here", "my key goes here")]
+    public void Read_TakesTheKeyAloneOrFromJson(string text, string key) => Assert.Equal(key, AssistKey.Read(text));
+
     [Fact]
     public async Task ImportAsync_WithoutAFileChangesNothing()
     {

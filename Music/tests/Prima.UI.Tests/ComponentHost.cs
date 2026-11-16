@@ -36,8 +36,10 @@ internal sealed class ComponentHost : IAsyncDisposable
     static ComponentHost() => BunitContext.DefaultWaitTimeout = TimeSpan.FromSeconds(10);
 
     /// <param name="safeguard">What keeps the data before an update, in place of Prima's copies: a test's own, one that fails, say.</param>
-    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null)
+    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null, Playground.Sync.ISyncStore? copies = null)
     {
+        // Where the copies go: a store of the test's own, or, without one, a temporary folder in the copies' work folder.
+        if (copies is not null) Context.Services.AddSingleton(copies);
         Context.Services.AddSingleton(Problems);
         Context.Services.AddSingleton<ILoggerFactory>(new KeptLogs(new ProblemLogProvider(Problems)));
         Context.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));

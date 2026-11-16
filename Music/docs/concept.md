@@ -561,15 +561,22 @@ after the update, it checks its data holds all the copy did before a fresh copy 
 
 Your data: Prima keeps a copy of everything but Claude's key in Documents/Prima backups on the tablet, where uninstalling Prima
 doesn't reach it (How the data is shaped, below). **Last copy** says when the newest was made, its size and what it holds (the runs
-and the days they were played on, and the files imported); a copy under way shows its progress on the meter. **Back up now** takes
+and the days they were played on, and the files imported), and **Copies kept** how many there are and what they take together;
+a copy under way shows its progress on the meter. **Back up now** takes
 one. **Restore from a backup…** lists this install's copies, and with **Choose a folder…** (the tablet's folder picker, opening on
 Documents/Prima backups) the copies of every install in the folder chosen, or with **Choose a file…** an export or a Prima data file
-on its own; choosing one says what it replaces, and **Restore this copy** puts all of it in place, or nothing if any of it is
-damaged, and opens Prima afresh. **Export everything** puts it all in one zip for the share sheet (to Drive, or to the PC), which
-restores like a copy. A copy kept from before an update that didn't check out stands first, saying what was missing, with
-**Restore it…** and **Let it go**. **Start over** clears your progress after asking: levels, notes, every run and practice day
-(and so the streak), and routines. The Library stays as it is, with the music imported and the collection, and so do the
-settings: the music isn't progress, and only a copy or an export carries it. Nothing leaves the tablet unless you send it.
+on its own; choosing one says what it replaces, and **Restore this copy** keeps a copy of what's here first, held, so the restore
+can be undone (not on a fresh install, with nothing of yours yet), then puts all of the copy in place but its problems (the
+tablet's own stay), or nothing if any of it is damaged, and opens Prima afresh on App & data, where it says what was restored. If
+what's here can't be kept, nothing is restored
+and it says why, and **Restore without keeping what's here** restores all the same. **Export everything** puts it all in one zip
+for the share sheet (to Drive, or to the PC), which restores like a copy. The copies held stand first, newest first, each saying
+what it was kept from before (an update that didn't check out, with what was missing; a restore; Start over) and when it was
+taken, with **Restore it…** and **Let it go** of its own. **Start over** clears your progress after asking: levels, notes, every
+run and practice day (and so the streak), and routines. The Library stays as it is, with the music imported and the collection,
+and so do the settings: the music isn't progress, and only a copy or an export carries it. A copy of everything is kept first,
+held in Your data; if it can't be, nothing is cleared, and **Clear it without a copy** clears all the same. Nothing leaves the
+tablet unless you send it.
 
 **Problems:** what went wrong, the newest twelve, each line its time, how bad (Warning, Error, Critical), what said it (a
 screen, a job) and what it said, opening on the rest of it (the stack, the page's own words), with **Copy** (every problem
@@ -924,14 +931,29 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   time, how bad and what said it, then what it said and the rest), so they're there even when the data file isn't.
 - **Copies** of all of it but Claude's key, through the Kit's sync (Kit/Playground.Sync): the data file (`prima.db`, snapshotted
   with SQLite's backup while Prima has it open), the music imported (`library`), what reading a PDF made (`prima.conversion`), and
-  the problem log (`errors.log`, `errors.old.log`). They're in Documents/Prima backups, in a folder for each install named for when
+  the problem log (`errors.log`, `errors.old.log`: copied and exported, but never put back by a restore, which leaves the
+  tablet's own as it is). They're in Documents/Prima backups, in a folder for each install named for when
   Prima was installed: Android lets an app read there only what the same install wrote, so a reinstalled Prima opens the copies of
   the one before with the folder picker. A copy is a manifest (when, which version, why, each table's rows, each file's size, time
-  and SHA-256) and each file's content under its fingerprint, so only what changed is written; the newest copy is kept, and the
-  content it needs. One is taken as Prima starts when the last is more than two days old, before each update, and when asked. The
-  first start after an update checks the data file opens cleanly with every table and at least its rows, and every file imported is there;
-  if not, the copy from before is held (kept beside the newer ones until restored or let go). Claude's key never goes in one: it's
+  and SHA-256) and each file's content under its fingerprint, so only what changed is written; once a week, everything the folder
+  holds is read again against its fingerprints, and what no longer matches is written again from the tablet's files (and logged,
+  in Problems). The three newest copies are kept;
+  besides them, the newest at least a week old, and the oldest younger than that, which comes to be it; and every one held, with
+  the content they need. The music imported is kept once for all of them, so each copy costs about a copy of the data file.
+  One is taken after practice (a piece's session finished, a routine's activity done) and as Prima starts, when the last is more
+  than a day old, but never while a run is being played; before each update, restore and Start over; and when asked. The
+  first start after an update checks at once, before any screen can change anything, that the data file opens cleanly and has at
+  least the rows of what's the owner's own (the settings, tracks, runs, practice days and sessions, routines, and the pieces
+  imported; not the bundled or collection pieces and their excerpts, which Prima takes out and puts back itself), and that every
+  file kept beside it (the music imported, what reading a PDF made) is there. If not, the copy from before is held (kept beside
+  the newer ones, and beside any held already, until restored or let go); if it can't be held, Settings says so and no copy takes
+  its place until the next start checks again. The copy after the check waits fifteen seconds. A restore and Start over each hold
+  a copy of what was there just before them too; `held.json` lists every copy held, with what it was kept from before and when it
+  was held. Claude's key never goes in one: it's
   in secure storage, and every file a copy reads is searched for it, the copy stopping before it writes anything if it's found.
+  A file unchanged since the last copy isn't read again while the key is the same; when it changes, every file is read and
+  searched afresh. What was last searched for is kept as a mark beside the data file (`prima.searched`, a keyed hash that gives
+  nothing of the key back), never in a copy.
   The look's id in the tablet's preferences isn't copied (it's the data file's Look setting again), nor whether Prima has asked to
   show notifications (the install's own).
 

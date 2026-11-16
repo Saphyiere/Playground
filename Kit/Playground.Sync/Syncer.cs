@@ -13,12 +13,15 @@ namespace Playground.Sync;
 /// <list type="bullet">
 /// <item><see cref="CopyAsync"/> takes a copy of every item into the app's stores: databases snapshotted while open, each file
 /// fingerprinted (SHA-256, the last copy's kept when its size and time haven't changed), and only content a store doesn't hold yet
-/// written; the copy's manifest last, then whatever no copy needs any more goes.</item>
-/// <item><see cref="StartAsync"/>, as the app starts: the first time after an update, checks the app holds all the copy from before
-/// it did and only then takes a fresh one (a copy that doesn't check out is held); otherwise takes one when the last is more than
-/// <see cref="SyncOptions.RefreshAfter"/> old.</item>
-/// <item><see cref="RestoreAsync"/> puts a copy's data in place of the app's, all of it or none; <see cref="ExportAsync"/> writes
-/// everything into one archive, to hand on.</item>
+/// written; the copy's manifest last, then whatever no copy kept needs any more goes. A store keeps its three newest copies, the
+/// newest at least a week old (with the oldest younger than that, which comes to be it), and every one held.</item>
+/// <item><see cref="StartAsync"/>, as the app starts: the first time after an update, checks at once that the app holds all of the
+/// person's the copy from before it did, and only then takes a fresh one (a copy that doesn't check out is held); otherwise takes
+/// one when the last is more than <see cref="SyncOptions.RefreshAfter"/> old, as <see cref="CopyIfDueAsync"/> does after practice,
+/// once the app is <see cref="SyncOptions.Quiet"/>.</item>
+/// <item><see cref="RestoreAsync(SyncCopy, CancellationToken)"/> puts a copy's data in place of the app's, all of it or none, what
+/// was there kept first and held; <see cref="KeepAsync"/> holds a copy before the app changes its data itself;
+/// <see cref="ExportAsync"/> writes everything into one archive, to hand on.</item>
 /// </list>
 /// Secrets never go in a copy: excluded names are never read, and a copy that would hold a secret stops before it writes anything.
 /// One piece of work runs at a time, in the background, and <see cref="Changed"/> is raised from whatever thread it's on.
@@ -28,6 +31,7 @@ public sealed class Syncer
     private const string Restoring = ".sync-restore";
     private const string Replaced = ".sync-old";
     private static readonly TimeSpan ProgressEvery = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan Week = TimeSpan.FromDays(7);
     private static readonly EnumerationOptions Everything = new() { RecurseSubdirectories = true, AttributesToSkip = 0 };
 
     private readonly SyncOptions options;
@@ -64,13 +68,12 @@ public sealed class Syncer
     /// <summary>The app's own store: copies go here first, and its newest is the one the status shows.</summary>
     public ISyncStore Store => stores[0];
 
-    /// <summary>Reads the newest copy in the app's own store, and one held from before an update, into <see cref="Status"/>.</summary>
+    /// <summary>Reads the newest copy in the app's own store, and those held there, into <see cref="Status"/>.</summary>
     public async Task RefreshAsync(CancellationToken ct = default)
     {
         try
         {
-            var copies = await CopiesInAsync(Store, ct);
-            Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = copies.FirstOrDefault(c => c.Held is not null)?.Held });
+            Show(await CopiesInAsync(Store, ct));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -90,59 +93,100 @@ public sealed class Syncer
     /// <param name="update">For a copy taken before an update, the release it's for.</param>
     /// <param name="progress">How far it is, 0 to 1, reported as it goes on its own thread.</param>
     public Task<SyncCopy> CopyAsync(SyncReason reason = SyncReason.Asked, string? update = null, IProgress<double>? progress = null, CancellationToken ct = default) =>
-        RunAsync(SyncStep.Copying, "Getting ready", async report =>
+        RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
         {
             if (options.BeforeCopy is { } before) await before();
-            var previous = (await CopiesInAsync(Store, ct)).FirstOrDefault();
-
-            // Reading counts for the first fifth of the bar, writing for the rest.
-            await using var gathering = await GatherAsync(previous?.Manifest, (doing, part) =>
-            {
-                report(doing, part);
-                progress?.Report(part * 0.2);
-            }, ct);
-
-            StoreCopy? copy = null;
-            var (files, bytes) = (0, 0L);
-            foreach (var store in stores)
-            {
-                try
-                {
-                    if (!await store.ConnectAsync(ct)) throw new SyncException($"{store.Name} can't be used just now");
-                    var written = await WriteCopyAsync(store, gathering, reason, update, (doing, part) =>
-                    {
-                        report(doing, part);
-                        if (store == Store) progress?.Report(0.2 + part * 0.8);
-                    }, ct);
-                    if (store != Store) continue;
-                    (copy, files, bytes) = written;
-                }
-                catch (Exception e) when (store != Store && e is not OperationCanceledException)
-                {
-                    // Another store (a cloud drive, say) that couldn't take it this time: the app's own has it.
-                    logger?.LogWarning(e, "A copy couldn't go to {Store}: {Message}", store.Name, e.Message);
-                }
-            }
-
-            progress?.Report(1);
-            var said = files == 0 ? "Copied: nothing had changed since the copy before."
-                : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
             // Just after a restore, what the screen says is the restore.
-            Set(s => s with { Last = copy, Known = true, Message = reason == SyncReason.AfterRestore ? s.Message : said });
-            return (SyncCopy)copy!;
+            return await CopyWithinAsync(reason, update, stores, say: reason != SyncReason.AfterRestore, check: true, report, progress, ct);
         }, keepMessage: reason == SyncReason.AfterRestore, ct);
 
     /// <summary>
-    /// What the app does as it starts, in the background after <see cref="SyncOptions.StartDelay"/>. The first time after an
-    /// update, it checks the app's data holds all the copy from before the update did (each database opens cleanly and has every
-    /// table and at least its rows, and every file in its folders is there), and only then takes a fresh copy; one that doesn't check out is held,
-    /// kept whatever copies come after, until it's restored or let go. Otherwise it takes a copy when there's none yet or the last
-    /// is older than <see cref="SyncOptions.RefreshAfter"/>. What goes wrong is in the status, and the log.
+    /// Keeps a copy of the data as it is, held, before the app changes the data itself: <paramref name="what"/> names the change
+    /// as the screen says it ("Start over"). It's kept whatever copies come after, until it's restored or let go. Throws when it
+    /// couldn't be kept, and the app should then leave its data as it is.
+    /// </summary>
+    public Task<SyncCopy> KeepAsync(string what, CancellationToken ct = default) =>
+        RunAsync<SyncCopy>(SyncStep.Copying, "Getting ready", async report =>
+        {
+            if (options.BeforeCopy is { } before) await before();
+            return await KeepWithinAsync(SyncHeldFrom.Change, what, SyncReason.BeforeChange, check: true, $"Kept a copy from before {what}, held until you restore it or let it go.", report, ct);
+        }, keepMessage: false, ct);
+
+    /// <summary>
+    /// Takes a copy into each of <paramref name="into"/> (the app's own store first) within a piece of work already running:
+    /// everything the app keeps gathered once, then written into each, a store's content all read again first once a week (when
+    /// <paramref name="check"/>). Says what it wrote (when <paramref name="say"/>), and shows the app's own copies after.
+    /// </summary>
+    private async Task<StoreCopy> CopyWithinAsync(SyncReason reason, string? update, IReadOnlyList<ISyncStore> into, bool say, bool check, Action<string, double> report, IProgress<double>? progress, CancellationToken ct)
+    {
+        var previous = (await CopiesInAsync(Store, ct)).FirstOrDefault();
+
+        // Reading counts for the first fifth of the bar, writing for the rest.
+        await using var gathering = await GatherAsync(previous?.Manifest, (doing, part) =>
+        {
+            report(doing, part);
+            progress?.Report(part * 0.2);
+        }, ct);
+
+        StoreCopy? copy = null;
+        var (files, bytes) = (0, 0L);
+        foreach (var store in into)
+        {
+            try
+            {
+                if (!await store.ConnectAsync(ct)) throw new SyncException($"{store.Name} can't be used just now");
+                var written = await WriteCopyAsync(store, gathering, reason, update, check, (doing, part) =>
+                {
+                    report(doing, part);
+                    if (store == Store) progress?.Report(0.2 + part * 0.8);
+                }, ct);
+                if (store != Store) continue;
+                (copy, files, bytes) = written;
+            }
+            catch (Exception e) when (store != Store && e is not OperationCanceledException)
+            {
+                // Another store (a cloud drive, say) that couldn't take it this time: the app's own has it.
+                logger?.LogWarning(e, "A copy couldn't go to {Store}: {Message}", store.Name, e.Message);
+            }
+        }
+
+        progress?.Report(1);
+        var said = files == 0 ? "Copied: nothing had changed since the copy before."
+            : $"Copied: {files} changed {(files == 1 ? "file" : "files")}, {SyncText.Size(bytes)} written.";
+        await ShowOwnAsync(copy, say ? said : null, ct);
+        return copy!;
+    }
+
+    /// <summary>
+    /// A copy of the data as it is into the app's own store alone, held: kept from before a restore, or a change the app makes. The
+    /// status shows it held with <paramref name="message"/>, when there's one.
+    /// </summary>
+    private async Task<StoreCopy> KeepWithinAsync(SyncHeldFrom from, string why, SyncReason reason, bool check, string? message, Action<string, double> report, CancellationToken ct)
+    {
+        var copy = await CopyWithinAsync(reason, null, [Store], say: false, check, report, null, ct);
+        var held = new SyncHeld(copy.Key, "", why, time.GetUtcNow()) { From = from };
+        await HoldAsync(Store, held, ct);
+        await ShowOwnAsync(copy, message, ct);
+        return Described(new StoreCopy(Store, copy.Key, copy.Manifest, held));
+    }
+
+    /// <summary>
+    /// What the app does as it starts, in the background. The first time after an update, it checks at once that the app's data
+    /// holds all of the person's the copy from before the update did (each database opens cleanly and has at least the rows of
+    /// what's counted as theirs, and every file in its folders is there), and only then, after <see cref="SyncOptions.StartDelay"/>,
+    /// takes a fresh copy; one that doesn't check out is held, kept whatever copies come after, until it's restored or let go.
+    /// Otherwise, after the delay, it takes a copy when one is due (<see cref="Due"/>). What goes wrong is in the status, and the log.
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default)
     {
         try
         {
+            await RefreshAsync(ct);
+            var updated = Status.Last is StoreCopy { Manifest: { Reason: SyncReason.BeforeUpdate } before } last && before.Version != options.Version ? last : null;
+            // The check after an update runs at once, before the app's screens can change its data. When it couldn't hold the copy
+            // from before, no copy is taken: it would take that one's place.
+            if (updated is not null && !await CheckAfterUpdateAsync(updated, ct)) return;
+
             if (options.StartDelay > TimeSpan.Zero) await Task.Delay(options.StartDelay, time, ct);
             // What an earlier run left in the work folder, once nothing is using it.
             await gate.WaitAsync(ct);
@@ -154,16 +198,13 @@ public sealed class Syncer
             {
                 gate.Release();
             }
-            await RefreshAsync(ct);
-            if (Status.Last is StoreCopy { Manifest: { Reason: SyncReason.BeforeUpdate } before } last && before.Version != options.Version)
+            if (updated is null)
             {
-                await CheckAfterUpdateAsync(last, ct);
-                await CopyAsync(SyncReason.AfterUpdate, ct: ct);
+                await CopyIfDueAsync(SyncReason.Scheduled, ct);
+                return;
             }
-            else if (Status.Last is null || time.GetUtcNow() - Status.Last.Made > options.RefreshAfter)
-            {
-                await CopyAsync(SyncReason.Scheduled, ct: ct);
-            }
+            if (options.Quiet is { } quiet) await quiet(ct);
+            await CopyAsync(SyncReason.AfterUpdate, ct: ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -175,12 +216,53 @@ public sealed class Syncer
     }
 
     /// <summary>
+    /// Takes a copy in the background when one is due (<see cref="Due"/>), once the app is quiet (<see cref="SyncOptions.Quiet"/>):
+    /// as the app starts, and after practice. What goes wrong is in the status, and the log.
+    /// </summary>
+    public async Task CopyIfDueAsync(SyncReason reason = SyncReason.Scheduled, CancellationToken ct = default)
+    {
+        try
+        {
+            if (options.Quiet is { } quiet) await quiet(ct);
+            if (!Status.Known) await RefreshAsync(ct);
+            await RunAsync<SyncCopy?>(SyncStep.Copying, "Getting ready", async report =>
+            {
+                if (options.BeforeCopy is { } before) await before();
+                return await CopyWithinAsync(reason, null, stores, say: true, check: true, report, null, ct);
+            }, keepMessage: false, ct, unless: () => !Due());
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
+        {
+            // Said in the status, and logged where it happened.
+        }
+    }
+
+    /// <summary>
+    /// Whether a copy is due: there's none yet, the last is older than <see cref="SyncOptions.RefreshAfter"/>, or it's dated after now
+    /// (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
+    /// </summary>
+    private bool Due()
+    {
+        var now = time.GetUtcNow();
+        return Status.Last is not { } last || last.Made > now || now - last.Made > options.RefreshAfter;
+    }
+
+    /// <summary>Puts a copy's data in place of the app's, keeping what's there first (<see cref="RestoreAsync(SyncCopy, bool, CancellationToken)"/>).</summary>
+    public Task RestoreAsync(SyncCopy copy, CancellationToken ct = default) => RestoreAsync(copy, keepWhatsHere: true, ct);
+
+    /// <summary>
     /// Puts a copy's data in place of the app's. Every file is fetched beside where it goes and checked against its fingerprint, and
     /// each database is checked (it opens cleanly, is the app's, and holds what its manifest says), before anything of the app's is
-    /// touched; then, while the app leaves its data alone (<see cref="SyncOptions.WhileRestoring"/>), each item goes in at once, and
-    /// if one can't, those before it go back. Only the items the copy has are replaced. A fresh copy is taken after.
+    /// touched. Then, while the app leaves its data alone (<see cref="SyncOptions.WhileRestoring"/>), a copy of the data as it is
+    /// goes into the app's own store, held until it's restored or let go, so a wrong restore can be undone: unless
+    /// <paramref name="keepWhatsHere"/> is false, or nothing here is the person's yet (a fresh install). If it can't be kept,
+    /// nothing is restored (<see cref="SyncKeepException"/>). Each item then goes in at once, and if one can't, those before it go
+    /// back. Only the items the copy has are replaced. A fresh copy is taken after.
     /// </summary>
-    public async Task RestoreAsync(SyncCopy copy, CancellationToken ct = default)
+    public async Task RestoreAsync(SyncCopy copy, bool keepWhatsHere, CancellationToken ct = default)
     {
         await RunAsync(SyncStep.Restoring, "Fetching the copy", async report =>
         {
@@ -188,28 +270,102 @@ public sealed class Syncer
             var total = Math.Max(1, plan.Sum(p => copy.Manifest.FilesOf(p.Copied.Name).Sum(f => f.Size)));
             long fetched = 0;
             var placements = new List<Placement>();
+            var (keep, placed) = (false, false);
             try
             {
                 foreach (var (live, copied) in plan)
                 {
                     placements.Add(await StageAsync(copy, live, copied, n => report($"Fetching the copy: {SyncText.Size(fetched += n)} of {SyncText.Size(total)}", (double)fetched / total), ct));
                 }
-                report("Putting it in place", 1);
-                await (options.WhileRestoring ?? (work => work()))(() => PlaceAsync(placements));
+                keep = keepWhatsHere && !await Task.Run(HoldsNothing, ct);
+                if (keep && options.BeforeCopy is { } before) await before();
+                await (options.WhileRestoring ?? (work => work()))(async () =>
+                {
+                    // Kept with the app's data held still, so nothing it writes falls between what's kept and what's restored.
+                    if (keep) await KeepWhatsHereAsync(copy, report, ct);
+                    report("Putting it in place", 1);
+                    await PlaceAsync(placements);
+                    placed = true;
+                });
+            }
+            catch (Exception e) when (placed && e is not OperationCanceledException)
+            {
+                // Everything was in place when the app's side of it failed: the data is the copy's, whatever came after.
+                logger?.LogWarning(e, "A restore was in place when the app's side of it failed: {Message}", e.Message);
             }
             finally
             {
                 foreach (var placement in placements) placement.Clean();
             }
 
-            // The copy held from before an update goes when it's the one restored; restoring another leaves it held.
-            if (copy.Held is not null) await Store.DeleteAsync(SyncPaths.Held, CancellationToken.None);
-            Set(s => s with { Held = copy.Held is null ? s.Held : null, Message = $"Restored the copy from {SyncText.When(copy.Made, time)}." });
+            // The copy restored isn't held any more when it's this install's own; restoring another, or one held in another folder,
+            // leaves this install's held. Letting it go comes after the data is the copy's, so if it can't be, that's all it says.
+            var said = $"Restored the copy from {SyncText.When(copy.Made, time)}." + (keep ? " What was here is kept, held until you restore it or let it go." : "");
+            if (copy.Held is { } held)
+            {
+                try
+                {
+                    await ReleaseAsync(Store, held, CancellationToken.None);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    logger?.LogWarning(e, "A copy restored couldn't be let go: {Message}", e.Message);
+                    said += $" It's still held: it couldn't be let go ({Reason(e)}).";
+                }
+            }
+            await ShowOwnAsync(null, said, CancellationToken.None);
             return true;
         }, keepMessage: false, ct);
 
         // This install's own store gets the data as it now is, in the background.
         _ = CopyQuietlyAsync(SyncReason.AfterRestore);
+    }
+
+    /// <summary>
+    /// What's here, into the app's own store and held, before a restore puts <paramref name="restoring"/> in its place. The app's
+    /// data is held still meanwhile, so the week's reading of the store's content waits for the next copy.
+    /// </summary>
+    private async Task KeepWhatsHereAsync(SyncCopy restoring, Action<string, double> report, CancellationToken ct)
+    {
+        try
+        {
+            await KeepWithinAsync(SyncHeldFrom.Restore, $"the copy from {SyncText.When(restoring.Made, time)} was restored in its place", SyncReason.BeforeRestore, check: false, null,
+                (_, part) => report("Keeping what's here first", part), ct);
+        }
+        catch (Exception e) when (e is SyncException or IOException or UnauthorizedAccessException or SqliteException)
+        {
+            throw new SyncKeepException($"What's here couldn't be kept first ({Reason(e)}), so nothing was restored.", e);
+        }
+    }
+
+    /// <summary>
+    /// Whether nothing here is the person's yet (a fresh install): no rows in what each database counts as theirs, settings aside,
+    /// and no file in its folders. A restore then has nothing to keep first. A database that can't be read holds something.
+    /// </summary>
+    private bool HoldsNothing()
+    {
+        try
+        {
+            foreach (var item in options.Items)
+            {
+                switch (item)
+                {
+                    case DatabaseItem database when File.Exists(database.Path):
+                        var rows = database.Counted is { } counted
+                            ? SqliteFiles.Count(database.Path, counted.Where(c => !c.Settings)).Values
+                            : SqliteFiles.Tables(database.Path).Values.Select(v => (long?)v);
+                        if (rows.Any(r => r > 0)) return false;
+                        break;
+                    case FolderItem folder when FilesIn(folder.Path).Any():
+                        return false;
+                }
+            }
+            return true;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -222,7 +378,8 @@ public sealed class Syncer
             if (options.BeforeCopy is { } before) await before();
             await using var gathering = await GatherAsync(null, (doing, part) => report(doing, part * 0.3), ct);
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, $"{options.App} {SyncText.Local(time.GetUtcNow(), time):yyyy-MM-dd HHmm}.zip");
+            // Named for the time where the device is, written the same way whatever its calendar.
+            var path = Path.Combine(folder, $"{options.App} {SyncText.Local(time.GetUtcNow(), time).ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture)}.zip");
             var partial = path + ".partial";
             var total = Math.Max(1, gathering.Files.Sum(f => f.Size));
             long done = 0;
@@ -232,16 +389,34 @@ public sealed class Syncer
                 {
                     using var output = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
                     using var archive = new ZipArchive(output, ZipArchiveMode.Create);
+                    var written = new List<Gathered>();
                     foreach (var file in gathering.Files)
                     {
-                        var entry = archive.CreateEntry(file.Path, CompressionLevel.Fastest);
-                        // A zip keeps times from 1980 on.
-                        entry.LastWriteTime = file.Modified.Year < 1980 ? new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero) : file.Modified;
-                        using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(file.Path),
-                            n => report($"Writing the archive: {SyncText.Size(done += n)} of {SyncText.Size(total)}", 0.3 + 0.7 * done / total));
-                        using var content = entry.Open();
-                        input.CopyTo(content);
+                        // Each file is fingerprinted and searched again as it goes in, as it is then: one written to since it was
+                        // looked at (the problem log, say) goes in as it is now, and one gone since is left out.
+                        FileStream input;
+                        try
+                        {
+                            input = Open(file.Source);
+                        }
+                        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+                        {
+                            continue;
+                        }
+                        using (input)
+                        {
+                            var modified = file.Fresh ? file.Modified : new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source));
+                            var entry = archive.CreateEntry(file.Path, CompressionLevel.Fastest);
+                            // A zip keeps times from 1980 on.
+                            entry.LastWriteTime = modified.Year < 1980 ? new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero) : modified;
+                            using var content = entry.Open();
+                            var (size, sha256) = Scan(input, content, file.Path, gathering.Secrets,
+                                n => report($"Writing the archive: {SyncText.Size(done += n)} of {SyncText.Size(total)}", 0.3 + 0.7 * Math.Min(1, (double)done / total)), ct);
+                            written.Add(file with { Size = size, Modified = modified, Sha256 = sha256 });
+                        }
                     }
+                    gathering.Files.Clear();
+                    gathering.Files.AddRange(written);
                     var manifest = Manifest(gathering, SyncReason.Asked, null, time.GetUtcNow());
                     using var json = archive.CreateEntry(SyncPaths.ExportManifest, CompressionLevel.Fastest).Open();
                     json.Write(manifest.ToJson());
@@ -284,7 +459,7 @@ public sealed class Syncer
 
         if (!SqliteFiles.IsDatabase(start) || options.Items.OfType<DatabaseItem>().ToList() is not [var database]) return null;
         if (SqliteFiles.Problem(path) is not null) return null;
-        var file = Fingerprint(database.Name, path, new DateTimeOffset(File.GetLastWriteTimeUtc(path)), [], ct);
+        var file = Fingerprint(database.Name, path, new DateTimeOffset(File.GetLastWriteTimeUtc(path)), false, [], ct);
         var alone = new SyncManifest
         {
             App = options.App,
@@ -296,27 +471,48 @@ public sealed class Syncer
         return Described(new DatabaseFileCopy(path, alone));
     }, ct);
 
-    /// <summary>Lets go of the copy held from before an update: the next copy takes its place, as with any other.</summary>
+    /// <summary>Lets go of the newest copy held (the one <see cref="SyncStatus.Held"/> is), when there's one.</summary>
     public async Task ReleaseHeldAsync(CancellationToken ct = default)
     {
-        await Store.DeleteAsync(SyncPaths.Held, ct);
-        Set(s => s with { Held = null, Message = "The copy from before the update goes with the next copy." });
+        if (!Status.Known) await RefreshAsync(ct);
+        if (Status.Holding.FirstOrDefault() is { } newest) await ReleaseHeldAsync(newest, ct);
+    }
+
+    /// <summary>Lets go of a copy held in the app's own store: newer copies take its place from then on, as with any other.</summary>
+    public async Task ReleaseHeldAsync(SyncCopy copy, CancellationToken ct = default)
+    {
+        if (copy.Held is not { } held) return;
+        await gate.WaitAsync(ct);
+        try
+        {
+            await ReleaseAsync(Store, held, ct);
+            await ShowOwnAsync(null, "Let go: newer copies take its place, as with any other.", ct);
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     // ---- Taking a copy ----
 
     /// <summary>
     /// Everything the app keeps, as files ready to go in a copy: each database snapshotted into the work folder, each item's
-    /// files listed, and each one fingerprinted: with the last copy's fingerprint when its size and time are the same, or read
-    /// now and searched for the secrets. Nothing is written to a store yet, so a secret stops it all before anything is.
+    /// files listed, and each one fingerprinted: with the last copy's fingerprint when its size and time are the same and the
+    /// secrets are the ones last searched for (<see cref="SyncOptions.SecretsMark"/>), or read now and searched for the secrets.
+    /// Nothing is written to a store yet, so a secret stops it all before anything is.
     /// </summary>
     private async Task<Gathering> GatherAsync(SyncManifest? before, Action<string, double> report, CancellationToken ct)
     {
         var secrets = options.Secrets is null ? [] : (await options.Secrets(ct)).Select(s => s.Trim()).Where(s => s.Length >= 8).Select(Encoding.UTF8.GetBytes).ToList();
+        // A file unchanged since the last copy was searched for the secrets then: when they've changed since (a new key), it's read
+        // again, as every file is.
+        var searched = options.Secrets is null || SecretsMark.Matches(options.SecretsMark, secrets);
         var gathering = new Gathering(Directory.CreateDirectory(Path.Combine(options.WorkFolder, Guid.NewGuid().ToString("N"))).FullName, secrets);
         try
         {
-            var known = before?.Files.ToDictionary(f => f.Path, StringComparer.Ordinal) ?? [];
+            var known = new Dictionary<string, SyncFile>(StringComparer.Ordinal);
+            foreach (var file in searched ? before?.Files ?? [] : []) known.TryAdd(file.Path, file);
             var listed = new List<(string Path, string Source, DateTimeOffset? Modified, bool Fresh)>();
             foreach (var item in options.Items)
             {
@@ -325,19 +521,22 @@ public sealed class Syncer
                 {
                     case DatabaseItem database:
                         var tables = new Dictionary<string, long>();
+                        Dictionary<string, long>? counts = null;
                         if (File.Exists(database.Path))
                         {
                             report($"Copying {item.Name} as it is now", 0);
                             var snapshot = Path.Combine(gathering.Work, Guid.NewGuid().ToString("N") + ".db");
                             var changed = new DateTimeOffset(File.GetLastWriteTimeUtc(database.Path));
-                            tables = await Task.Run(() =>
+                            (tables, counts) = await Task.Run(() =>
                             {
                                 SqliteFiles.Snapshot(database.Path, snapshot);
-                                return SqliteFiles.Tables(snapshot);
+                                var counted = database.Counted is null ? null
+                                    : SqliteFiles.Count(snapshot, database.Counted).Where(c => c.Value is not null).ToDictionary(c => c.Key, c => c.Value!.Value, StringComparer.Ordinal);
+                                return (SqliteFiles.Tables(snapshot), counted);
                             }, ct);
                             listed.Add((item.Name, snapshot, changed, true));
                         }
-                        gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Database) { Tables = tables });
+                        gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Database) { Tables = tables, Counts = counts });
                         break;
                     case FolderItem folder:
                         gathering.Items.Add(new SyncManifestItem(item.Name, SyncItemKind.Folder));
@@ -359,13 +558,22 @@ public sealed class Syncer
             for (var i = 0; i < listed.Count; i++)
             {
                 var (path, source, changedAt, fresh) = listed[i];
-                var info = new FileInfo(source);
-                var modified = changedAt ?? new DateTimeOffset(info.LastWriteTimeUtc);
-                gathering.Files.Add(!fresh && known.TryGetValue(path, out var was) && was.Size == info.Length && was.Modified == modified
-                    ? new Gathered(path, source, was.Size, modified, was.Sha256)
-                    : await Task.Run(() => Fingerprint(path, source, modified, secrets, ct), ct));
+                try
+                {
+                    var info = new FileInfo(source);
+                    var modified = changedAt ?? new DateTimeOffset(info.LastWriteTimeUtc);
+                    gathering.Files.Add(!fresh && known.TryGetValue(path, out var was) && was.Size == info.Length && was.Modified == modified
+                        ? new Gathered(path, source, was.Size, modified, was.Sha256, fresh)
+                        : await Task.Run(() => Fingerprint(path, source, modified, fresh, secrets, ct), ct));
+                }
+                catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+                {
+                    // Gone since it was listed (the problem log turned over, a piece taken out of the Library): not in the copy.
+                }
                 report($"Looking at what changed: {i + 1} of {listed.Count} files", (i + 1.0) / listed.Count);
             }
+            // Every file has now been searched for these secrets: the next copy trusts what hasn't changed since.
+            if (!searched) SecretsMark.Keep(options.SecretsMark, secrets);
             return gathering;
         }
         catch
@@ -380,9 +588,23 @@ public sealed class Syncer
     /// again and written as it is now), then the manifest, then whatever no copy kept needs any more goes. The copy, and how many
     /// files and bytes were written.
     /// </summary>
-    private async Task<(StoreCopy Copy, int Files, long Bytes)> WriteCopyAsync(ISyncStore store, Gathering gathering, SyncReason reason, string? update, Action<string, double> report, CancellationToken ct)
+    private async Task<(StoreCopy Copy, int Files, long Bytes)> WriteCopyAsync(ISyncStore store, Gathering gathering, SyncReason reason, string? update, bool check, Action<string, double> report, CancellationToken ct)
     {
         var have = (await store.ListAsync(SyncPaths.Blobs, ct)).ToDictionary(o => o.Key, o => o.Size, StringComparer.Ordinal);
+        var copies = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).ToList();
+        var made = time.GetUtcNow();
+
+        // Once a week (the first copy seven days or more after the last full check), all the content the store holds is read against
+        // its fingerprints, taking the first half of the bar: one that no longer matches is written again from the app's own file.
+        var checkedAt = copies.Count == 0 ? null : (await ReadManifestAsync(store, copies.Max(StringComparer.Ordinal)!, ct))?.Checked;
+        var write = report;
+        if (check && (checkedAt is null || made - checkedAt >= Week))
+        {
+            await CheckContentAsync(store, have, (doing, part) => report(doing, part / 2), ct);
+            write = (doing, part) => report(doing, 0.5 + part / 2);
+            checkedAt = made;
+        }
+
         var (files, bytes, total) = (0, 0L, 0L);
         for (var round = 0; ; round++)
         {
@@ -396,51 +618,105 @@ public sealed class Syncer
             {
                 try
                 {
-                    var name = file.Path;
-                    await using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(name),
-                        n => report($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
-                    await store.WriteAsync(SyncPaths.Blob(file.Sha256), input, ct);
-                    have[SyncPaths.Blob(file.Sha256)] = file.Size;
-                    files++;
+                    try
+                    {
+                        var name = file.Path;
+                        await using var input = new CheckedStream(Open(file.Source), file.Size, file.Sha256, () => new SyncChangedException(name),
+                            n => write($"Copying {(total == 0 ? "" : $"{SyncText.Size(bytes += n)} of {SyncText.Size(total)}")}", total == 0 ? 1 : Math.Min(1, (double)bytes / total)));
+                        await store.WriteAsync(SyncPaths.Blob(file.Sha256), input, ct);
+                        have[SyncPaths.Blob(file.Sha256)] = file.Size;
+                        files++;
+                    }
+                    catch (SyncChangedException)
+                    {
+                        // Changed since it was fingerprinted (a log written to, say): fingerprinted again, to be written as it is now.
+                        var again = await Task.Run(() => Fingerprint(file.Path, file.Source, new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source)), file.Fresh, gathering.Secrets, ct), ct);
+                        gathering.Files[gathering.Files.FindIndex(f => f.Path == file.Path)] = again;
+                    }
                 }
-                catch (SyncChangedException)
+                catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
                 {
-                    // Changed since it was fingerprinted (a log written to, say): fingerprinted again, to be written as it is now.
-                    var again = await Task.Run(() => Fingerprint(file.Path, file.Source, new DateTimeOffset(File.GetLastWriteTimeUtc(file.Source)), gathering.Secrets, ct), ct);
-                    gathering.Files[gathering.Files.FindIndex(f => f.Path == file.Path)] = again;
+                    // Gone since it was looked at (the problem log turned over, a piece taken out of the Library): the copy has the rest.
+                    gathering.Files.RemoveAll(f => f.Path == file.Path);
                 }
             }
         }
 
-        // The manifest last, under a name later than every copy's before it, then what's no longer needed.
-        var copies = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).ToList();
-        var made = time.GetUtcNow();
-        if (copies.Count > 0 && SyncPaths.TimeOf(copies.Max(StringComparer.Ordinal)!) is { } newest && newest >= made) made = newest.AddMilliseconds(1);
-        var manifest = Manifest(gathering, reason, update, made);
-        var key = SyncPaths.Copy(made);
+        // The manifest last, under a name later than every copy's before it, so the newest always sorts last, then what's no longer
+        // needed. It's dated now all the same: one taken with the clock ahead names the next ones after it, but doesn't date them.
+        var named = made.AddTicks(-(made.UtcTicks % TimeSpan.TicksPerMillisecond));
+        if (copies.Count > 0 && SyncPaths.TimeOf(copies.Max(StringComparer.Ordinal)!) is { } newest && newest >= named) named = newest.AddMilliseconds(1);
+        var manifest = Manifest(gathering, reason, update, made) with { Checked = checkedAt };
+        var key = SyncPaths.Copy(named);
         using (var json = new MemoryStream(manifest.ToJson())) await store.WriteAsync(key, json, ct);
         report("Tidying up", 1);
-        var held = await ReadHeldAsync(store, ct);
-        await TidyAsync(store, key, manifest, held, copies, ct);
+        await TidyAsync(store, key, manifest, copies, ct);
         return (Described(new StoreCopy(store, key, manifest, null)), files, bytes);
     }
 
     /// <summary>
-    /// Deletes the copies before <paramref name="key"/> (but a held one), then each piece of content no copy left needs. When a kept
-    /// copy's manifest can't be read, no content goes: better kept than lost.
+    /// Reads every piece of content a store holds against its fingerprint (its name). One that doesn't match, or can't be read, is
+    /// logged and left out of what the store has, so a copy whose files have it writes it again from the app's own; a copy that
+    /// needs one the app no longer has can't be restored, and a restore of it stays all or nothing.
     /// </summary>
-    private async Task TidyAsync(ISyncStore store, string key, SyncManifest manifest, SyncHeld? held, List<string> before, CancellationToken ct)
+    private async Task CheckContentAsync(ISyncStore store, Dictionary<string, long> have, Action<string, double> report, CancellationToken ct)
     {
-        var needed = manifest.Files.Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
-        if (held is not null && held.Copy != key)
+        var total = Math.Max(1, have.Values.Sum());
+        long done = 0;
+        foreach (var (key, size) in have.ToList())
         {
-            if (await ReadManifestAsync(store, held.Copy, ct) is not { } kept) return;
-            needed.UnionWith(kept.Files.Select(f => SyncPaths.Blob(f.Sha256)));
+            try
+            {
+                await using var stored = await store.OpenReadAsync(key, ct) ?? throw new FileNotFoundException($"{key} isn't there");
+                await using var input = new CheckedStream(stored, size, key[SyncPaths.Blobs.Length..], () => new SyncChangedException(key),
+                    n => report($"Checking the copies: {SyncText.Size(done += n)} of {SyncText.Size(total)}", Math.Min(1, (double)done / total)));
+                await input.CopyToAsync(Stream.Null, 81920, ct);
+            }
+            catch (IOException e)
+            {
+                have.Remove(key);
+                logger?.LogWarning(e, "{Key} in {Store} no longer matches its fingerprint: it's written again from this device's file if it has it, and a copy that needs it otherwise can't be restored.", key, store.Name);
+            }
         }
-        foreach (var old in before.Where(k => k != key && k != held?.Copy)) await store.DeleteAsync(old, ct);
-        foreach (var blob in await store.ListAsync(SyncPaths.Blobs, ct))
+    }
+
+    /// <summary>
+    /// Deletes the copies a store keeps no longer, then each piece of content no copy left needs. A store keeps its three newest
+    /// copies; besides them, the newest at least a week older than <paramref name="key"/>'s, and the oldest younger than that, which
+    /// comes to be it (taken every day, the copies would otherwise all go before any was a week old); and every one held. When a
+    /// held copy can't be read, nothing goes: better kept than lost. The copy is made by then, so what can't be tidied away is
+    /// left for the next one, and logged.
+    /// </summary>
+    private async Task TidyAsync(ISyncStore store, string key, SyncManifest manifest, List<string> before, CancellationToken ct)
+    {
+        try
         {
-            if (!needed.Contains(blob.Key)) await store.DeleteAsync(blob.Key, ct);
+            var holds = await ReadHoldsAsync(store, ct);
+            var copies = new List<(string Key, SyncManifest Manifest)> { (key, manifest) };
+            foreach (var other in before.Where(k => k != key))
+            {
+                // One that can't be read isn't a copy, and goes (but a held one).
+                if (await ReadManifestAsync(store, other, ct) is { } read && read.App == options.App && Valid(read)) copies.Add((other, read));
+                else if (holds.Any(h => h.Copy == other)) return;
+            }
+            copies.Sort((a, b) => string.CompareOrdinal(b.Key, a.Key));
+
+            var kept = copies.Take(3).Select(c => c.Key).ToHashSet(StringComparer.Ordinal);
+            var weekBefore = manifest.Made - Week;
+            if (copies.FirstOrDefault(c => c.Manifest.Made <= weekBefore) is { Key: { } weekOld }) kept.Add(weekOld);
+            if (copies.LastOrDefault(c => c.Manifest.Made > weekBefore && !kept.Contains(c.Key)) is { Key: { } coming }) kept.Add(coming);
+            kept.UnionWith(holds.Select(h => h.Copy));
+
+            var needed = copies.Where(c => kept.Contains(c.Key)).SelectMany(c => c.Manifest.Files).Select(f => SyncPaths.Blob(f.Sha256)).ToHashSet(StringComparer.Ordinal);
+            foreach (var old in before.Where(k => !kept.Contains(k))) await store.DeleteAsync(old, ct);
+            foreach (var blob in await store.ListAsync(SyncPaths.Blobs, ct))
+            {
+                if (!needed.Contains(blob.Key)) await store.DeleteAsync(blob.Key, ct);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(e, "A copy in {Store} couldn't tidy away what no copy needs any more: {Message}", store.Name, e.Message);
         }
     }
 
@@ -455,51 +731,74 @@ public sealed class Syncer
         Files = [.. gathering.Files.Select(f => new SyncFile(f.Path, f.Size, f.Modified, f.Sha256))],
     };
 
-    /// <summary>Reads a file whole for its SHA-256, searching it for each secret as it goes (across the joins between reads too).</summary>
-    private static Gathered Fingerprint(string path, string source, DateTimeOffset modified, IReadOnlyList<byte[]> secrets, CancellationToken ct)
+    /// <summary>Reads a file whole for its SHA-256, searching it for each secret as it goes.</summary>
+    private static Gathered Fingerprint(string path, string source, DateTimeOffset modified, bool fresh, IReadOnlyList<byte[]> secrets, CancellationToken ct)
+    {
+        using var input = Open(source);
+        var (size, sha256) = Scan(input, null, path, secrets, null, ct);
+        return new Gathered(path, source, size, modified, sha256, fresh);
+    }
+
+    /// <summary>
+    /// Reads <paramref name="input"/> to its end for its size and SHA-256, searching it for each secret as it goes (across the joins
+    /// between reads too), and writing what's been searched on to <paramref name="output"/> when there's one. A secret found stops it.
+    /// </summary>
+    private static (long Size, string Sha256) Scan(Stream input, Stream? output, string path, IReadOnlyList<byte[]> secrets, Action<int>? read, CancellationToken ct)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var overlap = secrets.Count == 0 ? 0 : secrets.Max(s => s.Length) - 1;
         var buffer = new byte[81920 + overlap];
         var carried = 0;
         long size = 0;
-        using var input = Open(source);
-        int read;
-        while ((read = input.Read(buffer, carried, 81920)) > 0)
+        int count;
+        while ((count = input.Read(buffer, carried, 81920)) > 0)
         {
             ct.ThrowIfCancellationRequested();
-            hash.AppendData(buffer, carried, read);
-            size += read;
-            var seen = buffer.AsSpan(0, carried + read);
+            hash.AppendData(buffer, carried, count);
+            size += count;
+            var seen = buffer.AsSpan(0, carried + count);
             foreach (var secret in secrets)
             {
                 if (seen.IndexOf(secret) >= 0) throw new SyncSecretException(path);
             }
+            output?.Write(buffer, carried, count);
+            read?.Invoke(count);
             carried = Math.Min(overlap, seen.Length);
             seen[^carried..].CopyTo(buffer);
         }
-        return new Gathered(path, source, size, modified, Convert.ToHexStringLower(hash.GetHashAndReset()));
+        return (size, Convert.ToHexStringLower(hash.GetHashAndReset()));
     }
 
     // ---- After an update ----
 
     /// <summary>
     /// Checks the app's data holds all the copy from before an update did; when it doesn't, holds that copy (kept whatever copies
-    /// come after) and says why.
+    /// come after, beside any held already) and says why. False when it couldn't check, or couldn't hold the copy: that's said in
+    /// the status and the log, and no copy may take its place until the next start checks again.
     /// </summary>
-    private async Task CheckAfterUpdateAsync(StoreCopy before, CancellationToken ct)
+    private async Task<bool> CheckAfterUpdateAsync(StoreCopy before, CancellationToken ct)
     {
         var update = before.Manifest.Update ?? $"version {options.Version}";
         await gate.WaitAsync(ct);
+        string? why = null;
         try
         {
             Set(s => s with { Step = SyncStep.Checking, Progress = new SyncProgress($"Checking your data after the update to {update}", 0), Message = "", Failed = false });
-            if (await Task.Run(() => Missing(before.Manifest), ct) is not { } why) return;
+            if ((why = await Task.Run(() => Missing(before.Manifest), ct)) is null) return true;
 
-            var held = new SyncHeld(before.Key, update, why, time.GetUtcNow());
-            using (var json = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(held, SyncJson.Default.SyncHeld))) await before.Store.WriteAsync(SyncPaths.Held, json, ct);
+            await HoldAsync(before.Store, new SyncHeld(before.Key, update, why, time.GetUtcNow()), ct);
             logger?.LogWarning("After the update to {Update}, the data had less than the copy taken just before it: {Why}. That copy is kept until it's restored or let go.", update, why);
-            Set(s => s with { Held = held });
+            await ShowOwnAsync(null, null, ct);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            var said = why is null
+                ? $"Your data couldn't be checked after the update to {update}: {Reason(e)}. It's checked again as {options.App} next starts."
+                : $"After the update to {update}, the data had less than the copy taken just before it ({why}), but that copy couldn't be held: {Reason(e)}. It's tried again as {options.App} next starts.";
+            Set(s => s with { Message = said, Failed = true });
+            logger?.LogWarning(e, "After the update to {Update}, {What}: {Message}", update, why is null ? "the data couldn't be checked" : $"the copy from before ({why}) couldn't be held", e.Message);
+            return false;
         }
         finally
         {
@@ -509,8 +808,9 @@ public sealed class Syncer
     }
 
     /// <summary>
-    /// What the app's data lacks of a copy, or null when it holds all of it: each database opens cleanly and has every table with at
-    /// least as many rows, and every file in its folders is there. A file on its own (a log) can come and go, and isn't asked after.
+    /// What the app's data lacks of a copy, or null when it holds all of it: each database opens cleanly and has at least the rows
+    /// of what's counted as the person's own (<see cref="DatabaseItem.Counted"/>; without it, every table), and every file in its
+    /// folders is there. A file on its own (a log) can come and go, and isn't asked after.
     /// </summary>
     internal string? Missing(SyncManifest copy)
     {
@@ -523,11 +823,26 @@ public sealed class Syncer
                 case DatabaseItem database when copied.Tables is { Count: > 0 } tables:
                     if (!File.Exists(database.Path)) return $"{copied.Name} is gone";
                     if (SqliteFiles.Problem(database.Path) is { } problem) return $"{copied.Name} doesn't open cleanly: {problem}";
-                    var now = SqliteFiles.Tables(database.Path);
-                    foreach (var (table, rows) in tables)
+                    if (database.Counted is not { } counted)
                     {
-                        if (!now.TryGetValue(table, out var has)) return $"{copied.Name} has lost its {table} table";
-                        if (has < rows) return $"{copied.Name}'s {table} had {rows.ToString("N0", CultureInfo.InvariantCulture)} rows and has {has.ToString("N0", CultureInfo.InvariantCulture)}";
+                        var now = SqliteFiles.Tables(database.Path);
+                        foreach (var (table, rows) in tables)
+                        {
+                            if (!now.TryGetValue(table, out var has)) return $"{copied.Name} has lost its {table} table";
+                            if (has < rows) return Fewer(copied.Name, table, rows, has);
+                        }
+                        break;
+                    }
+                    // Only what's the person's own: by its count in the copy, or in a copy taken before counts were kept, by its
+                    // table's rows when it's counted whole (rows a condition picks can't be told from such a copy).
+                    var found = SqliteFiles.Count(database.Path, counted);
+                    foreach (var count in counted)
+                    {
+                        long? had = copied.Counts is { } kept ? (kept.TryGetValue(count.Name, out var rows) ? rows : null)
+                            : count.Where is null && tables.TryGetValue(count.Table, out var whole) ? whole : null;
+                        if (had is null) continue;
+                        if (found[count.Name] is not { } has) return $"{copied.Name} has lost its {count.Table} table";
+                        if (has < had) return Fewer(copied.Name, count.Name, had.Value, has);
                     }
                     break;
                 case FolderItem folder:
@@ -536,19 +851,31 @@ public sealed class Syncer
             }
         }
         return null;
+
+        static string Fewer(string database, string what, long had, long has) =>
+            $"{database}'s {what} had {had.ToString("N0", CultureInfo.InvariantCulture)} rows and has {has.ToString("N0", CultureInfo.InvariantCulture)}";
     }
 
     // ---- Restoring ----
 
-    /// <summary>Each item the copy has that the app keeps, paired; throws when the copy holds nothing of the app's, or a file it lists can't be.</summary>
+    /// <summary>
+    /// Each item the copy has that the app keeps and puts back, paired (one it doesn't put back, a log, is left as it is); throws
+    /// when the copy holds nothing of the app's to put back, or a file it lists can't be.
+    /// </summary>
     private List<(SyncItem Live, SyncManifestItem Copied)> PlanRestore(SyncManifest copy)
     {
         if (!Valid(copy)) throw new SyncException("That copy's list of files isn't one this app can restore from, so nothing was restored.");
         var plan = new List<(SyncItem, SyncManifestItem)>();
         foreach (var copied in copy.Items)
         {
-            if (options.Items.FirstOrDefault(i => i.Name == copied.Name && i.Kind == copied.Kind) is { } live) plan.Add((live, copied));
-            else logger?.LogWarning("A copy's {Item} isn't kept by this app any more, so it isn't restored.", copied.Name);
+            if (options.Items.FirstOrDefault(i => i.Name == copied.Name && i.Kind == copied.Kind) is { } live)
+            {
+                if (live.Restored) plan.Add((live, copied));
+            }
+            else
+            {
+                logger?.LogWarning("A copy's {Item} isn't kept by this app any more, so it isn't restored.", copied.Name);
+            }
         }
         return plan.Count > 0 ? plan : throw new SyncException($"That copy holds nothing {options.App} keeps, so nothing was restored.");
     }
@@ -656,14 +983,42 @@ public sealed class Syncer
 
     private async Task<List<StoreCopy>> CopiesInAsync(ISyncStore store, CancellationToken ct)
     {
-        var held = await ReadHeldAsync(store, ct);
+        var holds = await ReadHoldsAsync(store, ct);
         var copies = new List<StoreCopy>();
         foreach (var key in (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).OrderByDescending(k => k, StringComparer.Ordinal))
         {
             // One that can't be read is a copy that stopped as its manifest was written, or not this app's.
-            if (await ReadManifestAsync(store, key, ct) is { } manifest && manifest.App == options.App && Valid(manifest)) copies.Add(Described(new StoreCopy(store, key, manifest, held?.Copy == key ? held : null)));
+            if (await ReadManifestAsync(store, key, ct) is { } manifest && manifest.App == options.App && Valid(manifest)) copies.Add(Described(new StoreCopy(store, key, manifest, holds.FirstOrDefault(h => h.Copy == key))));
         }
         return copies;
+    }
+
+    /// <summary>
+    /// The app's own copies, newest first, into the status: the newest, those held (<see cref="SyncStatus.Held"/> the newest one's),
+    /// how many there are, and what they take together: content they share (the library's files, mostly) is kept once, so it's
+    /// counted once. A sentence on what was just done goes in with them, so a screen never shows one without the other.
+    /// </summary>
+    private void Show(IReadOnlyList<StoreCopy> copies, string? message = null)
+    {
+        List<SyncCopy> holding = [.. copies.Where(c => c.Held is not null)];
+        var stored = copies.SelectMany(c => c.Manifest.Files).DistinctBy(f => f.Sha256).Sum(f => f.Size);
+        Set(s => s with { Known = true, Last = copies.FirstOrDefault(), Held = holding.FirstOrDefault()?.Held, Holding = holding, Copies = copies.Count, Stored = stored, Message = message ?? s.Message });
+    }
+
+    /// <summary>
+    /// The app's own copies as they now are, into the status with what was just done; when they can't be read again, at least the
+    /// one just taken.
+    /// </summary>
+    private async Task ShowOwnAsync(StoreCopy? taken, string? message, CancellationToken ct)
+    {
+        try
+        {
+            Show(await CopiesInAsync(Store, ct), message);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Set(s => s with { Known = true, Last = taken ?? s.Last, Message = message ?? s.Message });
+        }
     }
 
     private static async Task<SyncManifest?> ReadManifestAsync(ISyncStore store, string key, CancellationToken ct)
@@ -672,18 +1027,54 @@ public sealed class Syncer
         return json is null ? null : SyncManifest.FromJson(json);
     }
 
-    private static async Task<SyncHeld?> ReadHeldAsync(ISyncStore store, CancellationToken ct)
+    /// <summary>The copies a store holds (held.json): a list of them, or one alone, as a store an install before this one kept has it.</summary>
+    private static async Task<List<SyncHeld>> ReadHoldsAsync(ISyncStore store, CancellationToken ct)
     {
         await using var json = await store.OpenReadAsync(SyncPaths.Held, ct);
-        if (json is null) return null;
+        if (json is null) return [];
         try
         {
-            return await JsonSerializer.DeserializeAsync(json, SyncJson.Default.SyncHeld, ct);
+            using var document = await JsonDocument.ParseAsync(json, cancellationToken: ct);
+            List<SyncHeld?> holds = document.RootElement.ValueKind == JsonValueKind.Array
+                ? [.. document.RootElement.Deserialize(SyncJson.Default.ListSyncHeld) ?? []]
+                : [document.RootElement.Deserialize(SyncJson.Default.SyncHeld)];
+            return [.. holds.OfType<SyncHeld>().Where(h => h.Copy is not null && SyncPaths.IsCopy(h.Copy))];
         }
         catch (JsonException)
         {
-            return null;
+            return [];
         }
+    }
+
+    /// <summary>Writes the copies a store holds, or deletes held.json when it holds none.</summary>
+    private static async Task WriteHoldsAsync(ISyncStore store, List<SyncHeld> holds, CancellationToken ct)
+    {
+        if (holds.Count == 0)
+        {
+            await store.DeleteAsync(SyncPaths.Held, ct);
+            return;
+        }
+        using var json = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(holds, SyncJson.Default.ListSyncHeld));
+        await store.WriteAsync(SyncPaths.Held, json, ct);
+    }
+
+    /// <summary>
+    /// Holds a copy in a store, beside those held already. A copy held already stays held as it was; one whose copy has gone (taken
+    /// away by hand) is dropped.
+    /// </summary>
+    private static async Task HoldAsync(ISyncStore store, SyncHeld held, CancellationToken ct)
+    {
+        var holds = await ReadHoldsAsync(store, ct);
+        if (holds.Any(h => h.Copy == held.Copy)) return;
+        var listed = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+        await WriteHoldsAsync(store, [.. holds.Where(h => listed.Contains(h.Copy)), held], ct);
+    }
+
+    /// <summary>Lets go of a hold in a store: that very one, so a copy held in another store (another install's) lets go of nothing here.</summary>
+    private static async Task ReleaseAsync(ISyncStore store, SyncHeld held, CancellationToken ct)
+    {
+        var holds = await ReadHoldsAsync(store, ct);
+        if (holds.Remove(held)) await WriteHoldsAsync(store, holds, ct);
     }
 
     private T Described<T>(T copy)
@@ -704,11 +1095,13 @@ public sealed class Syncer
     /// Runs one piece of work at a time, on the thread pool, with the status saying what it's doing and how far it is; a failure
     /// becomes the status's sentence, is logged, and is thrown on.
     /// </summary>
-    private async Task<T> RunAsync<T>(SyncStep step, string doing, Func<Action<string, double>, Task<T>> work, bool keepMessage, CancellationToken ct)
+    private async Task<T> RunAsync<T>(SyncStep step, string doing, Func<Action<string, double>, Task<T>> work, bool keepMessage, CancellationToken ct, Func<bool>? unless = null)
     {
         await gate.WaitAsync(ct);
         try
         {
+            // Work that's no longer wanted once its turn comes (a copy another has made unneeded) leaves the status as it is.
+            if (unless?.Invoke() == true) return default!;
             Set(s => s with { Step = step, Progress = new SyncProgress(doing, 0), Message = keepMessage ? s.Message : "", Failed = keepMessage && s.Failed });
             Interlocked.Exchange(ref shownAt, 0);
             return await Task.Run(() => work(Report), ct);
@@ -753,14 +1146,17 @@ public sealed class Syncer
         }
     }
 
+    /// <summary>Why something failed, as part of a sentence.</summary>
+    private static string Reason(Exception e) => e switch
+    {
+        SyncSecretException secret => $"{secret.File} holds a secret, which copies never take",
+        SqliteException sqlite => $"the database couldn't be read ({sqlite.Message})",
+        _ => e.Message.TrimEnd('.'),
+    };
+
     private static string Trouble(SyncStep step, Exception e)
     {
-        var why = e switch
-        {
-            SyncSecretException secret => $"{secret.File} holds a secret, which copies never take",
-            SqliteException sqlite => $"the database couldn't be read ({sqlite.Message})",
-            _ => e.Message.TrimEnd('.'),
-        };
+        var why = Reason(e);
         return e is SyncException && why.EndsWith("restored", StringComparison.Ordinal) ? why + "." : step switch
         {
             SyncStep.Copying => $"No copy was made: {why}. The last one is as it was.",
@@ -786,13 +1182,15 @@ public sealed class Syncer
         ? Directory.EnumerateFiles(folder, "*", Everything).Where(f => !Excluded(f)).Order(StringComparer.Ordinal)
         : [];
 
-    /// <summary>A file never copied: one the app excludes by name, or one half made (being written, or a restore's).</summary>
+    /// <summary>A file never copied: one the app excludes by name, one half made (being written, or a restore's), or the secrets' mark.</summary>
     private bool Excluded(string file)
     {
         var name = Path.GetFileName(file);
         return options.Exclude.Contains(name, StringComparer.OrdinalIgnoreCase)
             || name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".partial", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(Restoring, StringComparison.Ordinal) || name.EndsWith(Replaced, StringComparison.Ordinal);
+            || name.EndsWith(Restoring, StringComparison.Ordinal) || name.EndsWith(Replaced, StringComparison.Ordinal)
+            // The mark of the secrets searched for is the install's own, wherever it's kept.
+            || (options.SecretsMark is { } mark && string.Equals(Path.GetFullPath(file), Path.GetFullPath(mark), StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Where a file of an item's copy goes under the item's folder.</summary>
@@ -831,8 +1229,11 @@ public sealed class Syncer
         }
     }
 
-    /// <summary>A file to go in a copy: where it sits in it, where it's read from now, and its size, time and fingerprint.</summary>
-    private sealed record Gathered(string Path, string Source, long Size, DateTimeOffset Modified, string Sha256);
+    /// <summary>
+    /// A file to go in a copy: where it sits in it, where it's read from now, and its size, time and fingerprint. A fresh one (a
+    /// database's snapshot, what the app wrote out) is the copy's own, made in the work folder, and keeps the time it was given.
+    /// </summary>
+    private sealed record Gathered(string Path, string Source, long Size, DateTimeOffset Modified, string Sha256, bool Fresh);
 
     /// <summary>A copy's files as gathered, and the work folder its snapshots are in, deleted with it.</summary>
     private sealed class Gathering(string work, IReadOnlyList<byte[]> secrets) : IAsyncDisposable
