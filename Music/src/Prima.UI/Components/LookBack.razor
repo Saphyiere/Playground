@@ -95,16 +95,16 @@
                         <svg class="look-line" viewBox="0 0 @Width @Height" role="img" aria-label="@($"{values.Count} {(stretch.To is null ? "runs" : "passes")}: {Said(stretch, stretch.First)} the first, {Said(stretch, stretch.Best)} at best, {Said(stretch, stretch.Last)} the last")">
                             @foreach (var (i, _) in steps)
                             {
-                                <line x1="@xs[i]" x2="@xs[i]" y1="12" y2="@(Height - 12)" class="look-step" />
+                                <line x1="@Place(xs[i])" x2="@Place(xs[i])" y1="12" y2="@Place(Height - 12)" class="look-step" />
                                 @if (tempos.TryGetValue(i, out var tempo))
                                 {
                                     @Label(tempo.X, Height - 2, tempo.Anchor, null, tempo.Words)
                                 }
                             }
-                            <path d="@string.Join(" ", xs.Select((x, i) => $"{(i == 0 ? "M" : "L")}{x:0.0} {ys[i]:0.0}"))" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                            <path d="@string.Join(" ", xs.Select((x, i) => $"{(i == 0 ? "M" : "L")}{Place(x)} {Place(ys[i])}"))" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
                             @foreach (var i in new[] { 0, best, values.Count - 1 }.Distinct())
                             {
-                                <circle cx="@xs[i]" cy="@ys[i]" r="@(i == best ? 5 : 4)" class="@(i == best ? "look-best" : "look-end")" />
+                                <circle cx="@Place(xs[i])" cy="@Place(ys[i])" r="@(i == best ? 5 : 4)" class="@(i == best ? "look-best" : "look-end")" />
                             }
                             @if (values.Count > 1)
                             {
@@ -220,7 +220,11 @@
     }
 
     private static MarkupString Label(double x, double y, string anchor, string? kind, string words) =>
-        new($"<text x=\"{x.ToString("0.0", CultureInfo.InvariantCulture)}\" y=\"{y.ToString("0.0", CultureInfo.InvariantCulture)}\" text-anchor=\"{anchor}\"{(kind is null ? "" : $" class=\"{kind}\"")}>{System.Net.WebUtility.HtmlEncode(words)}</text>");
+        new($"<text x=\"{Place(x)}\" y=\"{Place(y)}\" text-anchor=\"{anchor}\"{(kind is null ? "" : $" class=\"{kind}\"")}>{System.Net.WebUtility.HtmlEncode(words)}</text>");
+
+    // A place on a line's drawing as SVG reads it, whatever the tablet's own number format: "180.5", never "180,5", which SVG
+    // takes for two numbers.
+    private static string Place(double at) => at.ToString("0.0", CultureInfo.InvariantCulture);
 
     // The session in a few figures, after its minutes: its stretches, the passes round its loops and its runs through.
     private string Totals()
