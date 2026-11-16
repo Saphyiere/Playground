@@ -108,7 +108,8 @@ What the owner said is that much. Everything below is a pick *(pick)*, its thres
   every run kept on the piece: not played; notes not there yet (played, but not yet right In time with both hands); notes
   there, in time; and at tempo, within a tenth of the piece's own. A bar's notes are there once two of its last four times
   In time with both hands were right (one of its first two), at the slower of those tempos; a time is right with nine notes
-  in ten right, a run through a repeat counting the bar's notes twice. Under it, the fastest the piece has held together,
+  in ten right, a bar a run's repeat took twice counting its notes twice (by the music's own order of bars: a bar played once
+  isn't let off a wrong note because other bars repeat). Under it, the fastest the piece has held together,
   played through. This is the map the teacher's review asked for ("shaded by state: not started, notes found, slow, at
   tempo").
 - **Next**: up to three things to do, no two on the same bars, each with why, and **Practice it**, which carries the session

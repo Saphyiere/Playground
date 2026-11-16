@@ -75,6 +75,24 @@ public class PieceStandingTests
     }
 
     [Fact]
+    public void WithTheMusicsOrderKnownOnlyTheBarsARepeatTookTwiceCountTheirNotesTwice()
+    {
+        // Bars 1-4 repeated, then 5-8: 96 notes through. A wrong note in bar 2, played twice, is one of 16, right enough; in bar
+        // 6, played once, it's one of 8.
+        var piece = Piece with { Order = [1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8] };
+        var wrong2 = new BarTrouble(2, 1, 0, 0, 0);
+        PieceRun[] runs = [Run(1, 60, 94, 96, 0.9, trouble: [wrong2, new BarTrouble(6, 1, 0, 0, 0)])];
+
+        var standing = PieceStanding.Of(runs, piece);
+
+        Assert.Equal(BarState.InTime, standing.Bars[1].State);
+        Assert.Equal(BarState.Reading, standing.Bars[5].State);
+        // Stopped in bar 3 the first time round, bar 2 was played once; stopped there the second time, twice.
+        Assert.Equal(BarState.Reading, PieceStanding.Of([Run(1, 60, 19, 20, 0.9, trouble: wrong2) with { Stopped = true, Bar = 3 }], piece).Bars[1].State);
+        Assert.Equal(BarState.InTime, PieceStanding.Of([Run(1, 60, 51, 52, 0.9, trouble: wrong2) with { Stopped = true, Bar = 3 }], piece).Bars[1].State);
+    }
+
+    [Fact]
     public void ItHasHeldTogetherAtTheFastestTempoPlayedThroughWith85PercentRightInTime()
     {
         PieceRun[] runs = [Run(1, 60, 60, 64, 0.90), Run(2, 72, 58, 64, 0.86), Run(3, 80, 50, 64, 0.70), Run(4, 92, 62, 64, 0.95, from: 5)];

@@ -13,6 +13,13 @@ public sealed record PieceShape(int FirstBar, int LastBar, double? Tempo, bool T
     /// known, a bar counts as right only with no note wrong in it.
     /// </summary>
     public IReadOnlyList<int>? Notes { get; init; }
+
+    /// <summary>
+    /// The bars by number in the order a run from the first to the end plays them: a repeat's twice, the second time by its
+    /// second ending. It says which bars a run played twice. Where it isn't known, a run's bars count as played twice only when
+    /// its notes are twice theirs.
+    /// </summary>
+    public IReadOnlyList<int>? Order { get; init; }
 }
 
 /// <summary>How far along a bar is.</summary>
@@ -69,16 +76,41 @@ public sealed record PieceStanding(IReadOnlyList<BarStanding> Bars, double? Held
         return new(bars, held > 0 ? held : null, piece.Tempo, throughs.Count > 0);
     }
 
-    // Whether a run or pass played a bar right: nine in ten of its notes, each time through it counted (a run through a repeat
-    // plays its bars twice: its notes against its bars' written ones say how often).
+    // Whether a run or pass played a bar right: nine in ten of its notes, each time it played them counted (a run through a
+    // repeat plays its bars twice).
     private static bool Right(Played unit, int bar, PieceShape piece)
     {
         var wrong = unit.In(bar)?.NotRight ?? 0;
         if (wrong == 0) return true;
         if (piece.Notes is not { } notes) return false;
 
-        var written = Enumerable.Range(unit.Run.From, Math.Max(0, unit.Last - unit.Run.From + 1)).Sum(b => notes.ElementAtOrDefault(b - piece.FirstBar));
-        var times = written == 0 ? 1 : Math.Max(1, (int)Math.Round(unit.Notes / (double)written));
-        return wrong <= 0.1 * notes.ElementAtOrDefault(bar - piece.FirstBar) * times;
+        return wrong <= 0.1 * notes.ElementAtOrDefault(bar - piece.FirstBar) * Times(unit, bar, piece, notes);
+    }
+
+    // How many times a run or pass played a bar. A pass round a loop plays each of its bars once. A run plays the bars in the
+    // music's order from the one it started from, as far as its notes went, so only the bars a repeat took twice count twice.
+    // Where the music's order isn't known, a run's bars count twice only when its notes are twice theirs, as when a repeat takes
+    // all of them: which bars a repeat of some of them took can't be told, and a bar played once mustn't be let off a wrong note.
+    private static int Times(Played unit, int bar, PieceShape piece, IReadOnlyList<int> notes)
+    {
+        if (unit.Run.To is not null) return 1;
+
+        int Written(int b) => notes.ElementAtOrDefault(b - piece.FirstBar);
+        if (piece.Order is { } order)
+        {
+            var at = 0;
+            while (at < order.Count && order[at] != unit.Run.From) at++;
+            var (reached, times) = (0, 0);
+            for (; at < order.Count && reached < unit.Notes; at++)
+            {
+                reached += Written(order[at]);
+                if (order[at] == bar) times++;
+            }
+            return Math.Max(1, times);
+        }
+
+        var bars = Enumerable.Range(unit.Run.From, Math.Max(0, unit.Last - unit.Run.From + 1)).ToList();
+        var written = bars.Sum(Written);
+        return written > 0 && unit.Notes >= 2 * written && bars.Contains(bar) ? 2 : 1;
     }
 }

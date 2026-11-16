@@ -1442,11 +1442,12 @@ else
         else await StartPractice();
     }
 
-    // What the look back and the piece's front need of the piece: its bars, its own tempo, whether it's for two hands, and the
-    // notes written in each bar.
-    private PieceShape Shape => new(FirstBar, LastBar, originalTempo, twoHands) { Notes = barNotes ??= BarNotes() };
+    // What the look back and the piece's front need of the piece: its bars, its own tempo, whether it's for two hands, the
+    // notes written in each bar, and the order a run plays the bars in.
+    private PieceShape Shape => new(FirstBar, LastBar, originalTempo, twoHands) { Notes = barNotes ??= BarNotes(), Order = barOrder ??= BarOrder() };
 
     private List<int>? barNotes;
+    private List<int>? barOrder;
 
     // The notes written in each bar from the first to the last by number, a bar of rests having none.
     private List<int> BarNotes()
@@ -1454,6 +1455,9 @@ else
         var counts = expected.GroupBy(n => n.Bar).ToDictionary(g => g.Key, g => g.Count());
         return [.. Enumerable.Range(FirstBar, LastBar - FirstBar + 1).Select(bar => counts.GetValueOrDefault(bar))];
     }
+
+    // The bars by number as a run from the first to the end plays them, through the repeats: which bars a run played twice.
+    private List<int>? BarOrder() => score is null ? null : [.. score.PlayOrder().Select(i => score.Bars[i].Number)];
 
     // The way of practicing, or whether a loop waits after each pass, chosen on the piece's Options: kept in Settings, for every piece.
     private async Task UseWay(string way)
