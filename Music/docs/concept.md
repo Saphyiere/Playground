@@ -134,8 +134,8 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
   minute at your own pace.
 - The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
-  marks (… 60, 63, 66, 69, 72, 76 …) so a step is about the same share of the tempo, slow or fast, and a field to type any
-  tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
+  marks (… 60, 63, 66, 69, 72, 76 …, carried on to 20 and 240) so a step is about the same share of the tempo, slow or fast,
+  and a field to type any tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
   due between that key and Stop, while the hands were on their way to the screen, isn't counted as missed. A run stopped
   before any key leaves no summary and isn't kept. A run is played on the piano: with none plugged in, Start and Listen look
   off, and a tap says so under the bar.

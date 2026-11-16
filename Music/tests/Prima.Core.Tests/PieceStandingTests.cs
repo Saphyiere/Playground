@@ -132,7 +132,11 @@ public class PieceStandingTests
         Assert.Equal(69, TempoMarks.Down(72));
         Assert.Equal(72, TempoMarks.Up(70));
         Assert.Equal(52, TempoMarks.Near(51.75));
-        Assert.Equal(30, TempoMarks.Down(30));
-        Assert.Equal(208, TempoMarks.Up(208));
+        // On past Maelzel's 208 and under 30 to the tempos' ends, 20 and 240: a step up is faster and a step down slower, until
+        // there's no further to go.
+        Assert.Equal(224, TempoMarks.Up(220));
+        Assert.Equal(24, TempoMarks.Down(25));
+        Assert.Equal(240, TempoMarks.Up(240));
+        Assert.Equal(20, TempoMarks.Down(20));
     }
 }
