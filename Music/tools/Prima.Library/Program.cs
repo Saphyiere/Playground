@@ -26,7 +26,8 @@
 //   dotnet run --project Music/tools/Prima.Library -- local pdmx      one source again (or humdrum, dcml, asap, mutopia, hymns), or prepare
 //
 // What it downloads is kept in artifacts/library-cache, so a second run only fetches what's missing. --artifacts <folder> puts
-// that, the collection and its zips in another folder (the cache is over 2 GB).
+// that, the collection and its zips in another folder (the cache is over 2 GB). A source that yields nothing keeps the last run's
+// pieces, and the run ends with an error (exit code 1).
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
@@ -55,6 +56,26 @@ var pieces = new List<BundledPiece>();
 var clock = Stopwatch.StartNew();
 string? modules = null;
 
+// Each source fetched again, or as the last run left it. One that yields nothing when it's fetched (its site down, a repository
+// moved) keeps the last run's pieces rather than leaving them out, says so, and the run ends with an error.
+var empty = new List<string>();
+async Task Source(string name, string source, Func<Task<List<BundledPiece>>> fetch)
+{
+    var last = previous.Where(p => p.Source == source).ToList();
+    if (only is not null && only != name)
+    {
+        pieces.AddRange(last);
+        return;
+    }
+    var fetched = await fetch();
+    if (fetched.Count == 0)
+    {
+        Console.WriteLine($"{source}: nothing came, so the last run's {last.Count} pieces stay as they were.");
+        empty.Add(source);
+    }
+    pieces.AddRange(fetched.Count > 0 ? fetched : last);
+}
+
 if (local)
 {
     // Verovio's build that reads Humdrum (the app's version of Verovio), webmscore and abc2svg, from npm, installed once. abc2svg
@@ -73,9 +94,6 @@ if (local)
     var bundle = LibraryManifest.Read(await File.ReadAllTextAsync(Path.Combine(root, "Music", "library", "manifest.json"))).Pieces;
     var bundled = bundle.SelectMany(p => p.Prepared?.Select(x => x.Id).Prepend(p.Id) ?? [p.Id]).ToHashSet(StringComparer.Ordinal);
 
-    // Each source fetched again, or as the last run left it.
-    async Task Source(string name, string source, Func<Task<List<BundledPiece>>> fetch) =>
-        pieces.AddRange(only is null || only == name ? await fetch() : previous.Where(p => p.Source == source));
     await Source("humdrum", Humdrum.Name, () => Humdrum.Fetch(http, cache, output));
     await Source("dcml", Dcml.Name, () => Dcml.Fetch(http, cache, output, modules, root));
     await Source("asap", Asap.Name, () => Asap.Fetch(http, cache, output));
@@ -102,11 +120,8 @@ if (local)
 }
 else
 {
-    if (only is null or "pdmx") pieces.AddRange(await Pdmx.Fetch(http, cache, output));
-    else pieces.AddRange(previous.Where(p => p.Source == Pdmx.Name));
-
-    if (only is null or "mutopia") pieces.AddRange(await Mutopia.Fetch(http, output));
-    else pieces.AddRange(previous.Where(p => p.Source == Mutopia.Name));
+    await Source("pdmx", Pdmx.Name, () => Pdmx.Fetch(http, cache, output));
+    await Source("mutopia", Mutopia.Name, () => Mutopia.Fetch(http, output));
 }
 
 var chosen = pieces.Select(p => p.File).ToList();
@@ -125,6 +140,7 @@ var kinds = string.Join(", ", manifest.Pieces.GroupBy(p => p.Format).Select(g =>
 if (!local)
 {
     Console.WriteLine($"{manifest.Pieces.Count} pieces in {output} ({kinds}), in {clock.Elapsed:m\\:ss}. Commit them, then build the app.");
+    Failed();
     return;
 }
 
@@ -194,6 +210,15 @@ Console.WriteLine();
 Console.Write(contents);
 Console.WriteLine($"{Count(manifest.Pieces)} pieces in {folder} ({kinds}), in {clock.Elapsed:h\\:mm\\:ss}. Copy the zips to the tablet and open them in the " +
     "Library with Import files, one at a time. They stay out of the repo.");
+Failed();
+
+// A run in which a source yielded nothing ends with an error, after its pieces from the last run were kept.
+void Failed()
+{
+    if (empty.Count == 0) return;
+    Console.WriteLine($"Nothing came from {string.Join(" or ", empty)}: the last run's pieces were kept for it. Look at what's above, then run it again.");
+    Environment.ExitCode = 1;
+}
 
 static string? FindRoot(string from)
 {

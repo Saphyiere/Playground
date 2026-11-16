@@ -141,7 +141,8 @@ second, about ten minutes. If it stops because Windows won't let it delete a fol
 open (Visual Studio's Git window, or a virus scan of the new files): close it, or delete the folder yourself, and run it again;
 it picks up where it stopped. `-- local mutopia` (or `humdrum`, `dcml`, `asap`, `pdmx`, `hymns`) runs one source again and
 prepares the rest as they were, `-- local prepare` only prepares again, and `--artifacts D:\Prima` puts the cache, the
-collection and the zips in another folder.
+collection and the zips in another folder. A source that yields nothing (its site down, say) keeps the last run's pieces, says
+so, and the run ends with an error (exit code 1): look at what it printed, and run it again.
 
 **Onto the tablet.** Copy the folder to the tablet's Download folder, with the tablet plugged in (or through a cloud drive):
 

@@ -661,7 +661,10 @@ another way to read the music.
   Mutopia's operas nest their parts deep). Without git, the repository's zip is unpacked the same way. PDMX's 1.9 GB archive
   is downloaded into the cache once (Zenodo's robots.txt allows its file links, with a 10-second crawl delay; it's two
   requests), and Mutopia's PDFs, MIDI and .rdf come from its site one file at a time, a quarter of a second apart (its
-  robots.txt allows everything), the .rdf kept, so a second run asks the site for nothing.
+  robots.txt allows everything), the .rdf kept, so a second run asks the site for nothing. A source that yields nothing when
+  it's fetched (its site down, a repository moved or no longer under its licence) keeps the last run's pieces rather than
+  leaving them out, says so, and the run ends with an error, exit code 1 (decided 15 November; before, it left the source out
+  and ended as if all was well).
 - **Humdrum** is engraved by Verovio's build that reads it (`verovio-module-hum.mjs` from the npm package of the app's
   version, 6.3.0); the app's own copy leaves Humdrum out. The MEI it makes is what the app reads. A chorale is set on the grand
   staff with Verovio's `satb2gs` filter (soprano and alto above, tenor and bass below).
