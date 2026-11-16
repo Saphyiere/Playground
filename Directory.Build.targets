@@ -29,8 +29,10 @@
     and the watch app pairs with the phone's. Only signing given on a build's command line (the Release workflow's) is used instead.
     Left to itself, .NET for Android signs with the same file, but makes a new key there when the file is missing, and nothing a
     new key signs installs over the apps on the devices. Given here as the key store, a missing file stops the build instead: on
-    Windows, where the apps are installed from. A cloud session can't reach the devices: its first build makes a debug key of its
-    own, as usual, and later builds sign with that.
+    Windows, where the apps are installed from. And should the file be there but hold another key (made afresh by some other build
+    while it was missing), the install guard stops any install from this PC that isn't signed with the devices' key, its
+    certificate's SHA-256 against PlaygroundSigningSha256. A cloud session can't reach the devices: its first build makes a debug
+    key of its own, as usual, and later builds sign with that.
   -->
   <PropertyGroup Condition="'$(AndroidApplication)' == 'true' and '$(PlaygroundSigningGiven)' != 'true' and ('$(OS)' == 'Windows_NT' or Exists('$(PlaygroundSigningKeyStore)'))">
     <AndroidKeyStore>true</AndroidKeyStore>

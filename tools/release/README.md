@@ -43,7 +43,10 @@ another key, or with a lower versionCode than the device's copy. No setting turn
   PC: Visual Studio's Deploy and Run, `dotnet build -t:Install` and `dotnet run`. It compares the build with the app on the
   connected device and stops the build, with nothing installed and a message saying why, when installing would uninstall the app:
   when the device's copy is signed with another key (the message names both), has a newer versionCode, or the build would install
-  a bundle or has `AndroidPreserveUserData` set to false. With no device connected, or the app not on it, it does nothing. It
+  a bundle or has `AndroidPreserveUserData` set to false. Before any of that, and whatever the device holds, it stops an install
+  that isn't signed with the devices' key (its certificate's SHA-256 against `PlaygroundSigningSha256`), naming both keys: a key
+  store made afresh while the file was missing would otherwise put a copy on a device that no release could update. Beyond that,
+  with no device connected, or the app not on it, it does nothing. It
   reads the device's copy with `adb shell dumpsys package`, which gives its key as a short hash of the certificate
   (`signatures:[12828f8f]` for the devices' key), and the build's key with `apksigner`. When those don't match, it pulls the app
   file from the device and reads its key with `apksigner` before deciding. If it stops a deploy, build with the key the device's

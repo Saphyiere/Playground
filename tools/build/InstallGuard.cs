@@ -1,6 +1,7 @@
-// The install guard (InstallGuard.targets), run before a build installs an app on a device. It stops the build, with a message
-// naming what differs, when installing would make .NET for Android uninstall the app, which erases its data, and does nothing when
-// no device is connected or the app isn't on it.
+// The install guard (InstallGuard.targets), run before a build installs an app on a device. On Windows it first stops an install
+// whose app file isn't signed with the devices' key, whatever the device holds. Then it stops the build, with a message naming what
+// differs, when installing would make .NET for Android uninstall the app, which erases its data, and does nothing more when no
+// device is connected or the app isn't on it.
 //
 // .NET for Android uninstalls an app on the way to installing it:
 //   - always, for an app bundle (.aab, a Release build's default): adb refuses `adb uninstall -k`, which would keep the data, so it
@@ -64,6 +65,15 @@ public class PlaygroundInstallGuard : Task
 
     public string PreserveUserData { get; set; }
 
+    /// <summary>
+    /// "true" to stop an install whose app file isn't signed with the devices' key, whatever the device holds: set on Windows when
+    /// the build signs with the devices' key store, not with signing given on its command line.
+    /// </summary>
+    public string CheckDevicesKey { get; set; }
+
+    /// <summary>The key store the build signed with, named when it isn't the devices' key.</summary>
+    public string KeyStore { get; set; }
+
     const int TimedOut = -1;
     const int NotStarted = int.MinValue;
 
@@ -73,6 +83,27 @@ public class PlaygroundInstallGuard : Task
     public override bool Execute()
     {
         app = string.IsNullOrEmpty(AppName) ? PackageName : AppName;
+
+        // The key first, whatever the device holds. When its file is missing, .NET for Android makes a new key store there, and every
+        // build after signs with the new key without a word: a first install on a device without the app would go through, and no
+        // release or other build could ever update that copy. So an install from this PC goes ahead only signed with the devices' key.
+        List<byte[]> built = null;
+        if (string.Equals(CheckDevicesKey, "true", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(DevicesKeySha256) &&
+            !string.IsNullOrEmpty(AppFile) && File.Exists(AppFile))
+        {
+            string keySigner;
+            built = Certificates(AppFile, out keySigner);
+            if (built.Count == 0)
+                return Stop("apksigner couldn't read which key signed " + AppFile + ", so the install guard can't tell whether it's the devices' " +
+                    "key. Nothing was installed. apksigner said: " + OneLine(keySigner));
+            string devicesKey = DevicesKeySha256.Replace(":", "").Replace(" ", "").ToLowerInvariant();
+            if (!built.Select(Sha256).Contains(devicesKey))
+                return Stop("This build of " + app + " isn't signed with the devices' key: it's signed with " + Describe(built) +
+                    (string.IsNullOrEmpty(KeyStore) ? "" : ", from " + KeyStore) + ", and the devices' key is SHA-256 " + devicesKey + ". " +
+                    "A copy signed with another key can't be updated by the releases or by any other build here, and won't install over a copy " +
+                    "signed with the devices' key. Nothing was installed. The key store was probably made afresh when its file was missing: " +
+                    "put the devices' key back from your backup (tools/release/README.md, One key for every build).");
+        }
 
         // adb's server first, without reading what it writes, so no command below starts it and then waits on it.
         string output;
@@ -132,8 +163,9 @@ public class PlaygroundInstallGuard : Task
         if (string.IsNullOrEmpty(AppFile) || !File.Exists(AppFile))
             return Stop("There's no app file to compare with " + app + " on " + device + " (" + AppFile + "), so the install guard can't " +
                 "tell whether installing would erase its data. Nothing was installed.");
-        string signer;
-        List<byte[]> built = Certificates(AppFile, out signer);
+        string signer = "";
+        if (built == null)
+            built = Certificates(AppFile, out signer);
         if (built.Count == 0)
             return Stop("apksigner couldn't read which key signed " + AppFile + ", so the install guard can't tell whether installing it " +
                 "would erase " + app + "'s data on " + device + ". Nothing was installed. apksigner said: " + OneLine(signer));

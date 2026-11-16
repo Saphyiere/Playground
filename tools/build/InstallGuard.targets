@@ -5,7 +5,10 @@
     (Visual Studio's Deploy and Run, dotnet build -t:Install, dotnet run), it compares the build with the copy already on the
     device. When installing would make .NET for Android uninstall the app, which erases its data, it stops the build with a plain
     message naming both: a copy signed with another key, a copy with a newer versionCode, an app bundle, or AndroidPreserveUserData
-    set to false. It does nothing when no device is connected or the app isn't on it. InstallGuard.cs has the details.
+    set to false. It does nothing more when no device is connected or the app isn't on it. On Windows, when the build signs with
+    the devices' key store (no signing given on its command line), it first stops any install whose app file isn't signed with
+    the devices' key, whatever the device holds: a key store made afresh would otherwise put a copy on a device that nothing else
+    can update. InstallGuard.cs has the details.
   -->
   <UsingTask TaskName="PlaygroundInstallGuard" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <Task>
@@ -26,6 +29,7 @@
       <_PlaygroundJavaExe>$(JavaToolExe)</_PlaygroundJavaExe>
       <_PlaygroundJavaExe Condition="'$(_PlaygroundJavaExe)' == '' and '$(OS)' == 'Windows_NT'">java.exe</_PlaygroundJavaExe>
       <_PlaygroundJavaExe Condition="'$(_PlaygroundJavaExe)' == ''">java</_PlaygroundJavaExe>
+      <_PlaygroundCheckDevicesKey Condition="'$(OS)' == 'Windows_NT' and '$(PlaygroundSigningGiven)' != 'true'">true</_PlaygroundCheckDevicesKey>
     </PropertyGroup>
     <PlaygroundInstallGuard
         Adb="$([System.IO.Path]::Combine('$(AdbToolPath)', '$(_PlaygroundAdbExe)'))"
@@ -39,6 +43,8 @@
         ApkSignerJar="$(ApkSignerJar)"
         WorkFolder="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))"
         DevicesKeySha256="$(PlaygroundSigningSha256)"
+        CheckDevicesKey="$(_PlaygroundCheckDevicesKey)"
+        KeyStore="$(AndroidSigningKeyStore)"
         PreserveUserData="$(AndroidPreserveUserData)" />
   </Target>
 
