@@ -32,7 +32,9 @@ held.json                         a copy kept from before an update that didn't 
 ```
 
 The manifest says what the copy holds: the app and its version, when and why it was taken (`Asked`, `Scheduled`, `BeforeUpdate`,
-`AfterUpdate`, `AfterRestore`), each item (a database with each table's rows), and each file with its size, time and SHA-256.
+`AfterUpdate`, `AfterRestore`), each item (a database with each table's rows), and each file with its size, time and SHA-256. A
+copy is named a millisecond after the newest before it when the clock is behind that one, so the newest still sorts last, but its
+manifest dates it now: a copy once taken with the clock ahead doesn't date the ones after it.
 
 **Only what changed is written.** A file whose size and time are the ones the last copy had keeps its fingerprint without being
 read again; a database is snapshotted each time and fingerprinted; and content the store holds already is never written again.
@@ -77,7 +79,8 @@ The updater ([Playground.Updates](../Playground.Updates/README.md)) takes a full
   holds all of it: each database opens cleanly and has every table with at least its rows, and every file in its folders is there. Only then is
   a fresh copy taken, in its place. If it doesn't hold all of it, that copy is **held** (`held.json`, `Status.Held` with why): kept
   whatever copies come after, until it's restored or let go (`ReleaseHeldAsync`). A fresh copy is taken all the same, beside it.
-- **Otherwise**, a copy is taken when there's none yet or the last is older than `RefreshAfter` (two days).
+- **Otherwise**, a copy is taken when there's none yet, the last is older than `RefreshAfter` (two days), or it's dated after now
+  (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
 
 It waits `StartDelay` (15 seconds) first, so the app's first screen isn't slowed.
 

@@ -160,7 +160,7 @@ public sealed class Syncer
                 await CheckAfterUpdateAsync(last, ct);
                 await CopyAsync(SyncReason.AfterUpdate, ct: ct);
             }
-            else if (Status.Last is null || time.GetUtcNow() - Status.Last.Made > options.RefreshAfter)
+            else if (Due())
             {
                 await CopyAsync(SyncReason.Scheduled, ct: ct);
             }
@@ -172,6 +172,16 @@ public sealed class Syncer
         {
             // Said in the status, and logged where it happened.
         }
+    }
+
+    /// <summary>
+    /// Whether a copy is due: there's none yet, the last is older than <see cref="SyncOptions.RefreshAfter"/>, or it's dated after now
+    /// (taken with the clock ahead, which would otherwise hold off every copy until the real date caught up with it).
+    /// </summary>
+    private bool Due()
+    {
+        var now = time.GetUtcNow();
+        return Status.Last is not { } last || last.Made > now || now - last.Made > options.RefreshAfter;
     }
 
     /// <summary>
@@ -447,12 +457,14 @@ public sealed class Syncer
             }
         }
 
-        // The manifest last, under a name later than every copy's before it, then what's no longer needed.
+        // The manifest last, under a name later than every copy's before it, so the newest always sorts last, then what's no longer
+        // needed. It's dated now all the same: one taken with the clock ahead names the next ones after it, but doesn't date them.
         var copies = (await store.ListAsync(SyncPaths.Copies, ct)).Select(o => o.Key).Where(SyncPaths.IsCopy).ToList();
         var made = time.GetUtcNow();
-        if (copies.Count > 0 && SyncPaths.TimeOf(copies.Max(StringComparer.Ordinal)!) is { } newest && newest >= made) made = newest.AddMilliseconds(1);
+        var named = made.AddTicks(-(made.UtcTicks % TimeSpan.TicksPerMillisecond));
+        if (copies.Count > 0 && SyncPaths.TimeOf(copies.Max(StringComparer.Ordinal)!) is { } newest && newest >= named) named = newest.AddMilliseconds(1);
         var manifest = Manifest(gathering, reason, update, made);
-        var key = SyncPaths.Copy(made);
+        var key = SyncPaths.Copy(named);
         using (var json = new MemoryStream(manifest.ToJson())) await store.WriteAsync(key, json, ct);
         report("Tidying up", 1);
         var held = await ReadHeldAsync(store, ct);
