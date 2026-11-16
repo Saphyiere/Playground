@@ -64,7 +64,8 @@ every step is done, a line sums up the day. The pieces played today are in it, e
 show as a line of their own before the plan is done.
 
 The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
-calibration or straight to Today. From the welcome the timing leads on: once its offset is kept, **Done** goes to Today.
+calibration or straight to Today. From the welcome the timing leads on: once its offset is kept, **Done** goes to Today. With
+the timing set already, as after Start over, the welcome skips that step: its one key goes straight to Today.
 
 ### Sight-read
 

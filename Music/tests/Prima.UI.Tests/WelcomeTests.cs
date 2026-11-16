@@ -51,6 +51,31 @@ public class WelcomeTests
         Assert.Equal("Again", timing.Find(".control-row-play .mu-primary").TextContent);
     }
 
+    // With the timing set already, as after Start over, the welcome skips that step: its main key, the only one, goes straight to
+    // Today, keeping what the welcome asked.
+    [Fact]
+    public async Task WithTheTimingAlreadySetTheWelcomesMainKeyGoesStraightToToday()
+    {
+        await using var host = new ComponentHost();
+        var settings = host.Context.Services.GetRequiredService<PrimaSettings>();
+        settings.CalibratedOn = new DateOnly(2026, 10, 26);
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("welcome");
+        var welcome = host.Context.Render<Welcome>();
+
+        var keys = welcome.FindAll(".control-row-play button");
+        var main = Assert.Single(keys);
+        Assert.Equal("Go to Today", main.TextContent);
+        Assert.Contains("mu-primary", main.ClassList);
+        await welcome.InvokeAsync(() => main.ClickAsync(new MouseEventArgs()));
+
+        Assert.Equal("http://localhost/", nav.Uri);
+        var saved = new PrimaSettings();
+        await host.Store.LoadAsync(saved);
+        Assert.True(saved.Welcomed);
+        Assert.Equal(20, saved.DailyMinutes);
+    }
+
     // Start, a key on every click of the 16 a little after it, then the clock past the last: what was played is measured.
     private static async Task Calibrate(ComponentHost host, IRenderedComponent<Timing> timing, TestPiano piano, SetClock clock)
     {

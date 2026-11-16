@@ -46,8 +46,16 @@
 </section>
 
 <div class="control-row control-row-play">
-    <button type="button" class="mu-btn mu-primary" @onclick="Begin">Plug in the piano and set the timing</button>
-    <button type="button" class="mu-btn" @onclick="Later">Later: go to Today</button>
+    @if (Settings.CalibratedOn is null)
+    {
+        <button type="button" class="mu-btn mu-primary" @onclick="Begin">Plug in the piano and set the timing</button>
+        <button type="button" class="mu-btn" @onclick="ToToday">Later: go to Today</button>
+    }
+    else
+    {
+        @* The timing is set already (as after Start over): that step is skipped. *@
+        <button type="button" class="mu-btn mu-primary" @onclick="ToToday">Go to Today</button>
+    }
 </div>
 
 @code {
@@ -59,7 +67,7 @@
 
     private Task Begin() => Finish("tools/timing?from=welcome");
 
-    private Task Later() => Finish("");
+    private Task ToToday() => Finish("");
 
     private async Task Finish(string next)
     {
