@@ -16,8 +16,9 @@
         if (typeof value === "string") return value;
         try { return JSON.stringify(value); } catch { return String(value); }
     };
-    // A call back into a page that has already gone (the music redrawn as it was left): nothing went wrong.
-    const harmless = said => /There is no tracked object with id|JSDisconnectedException/.test(said);
+    // A call back into a page that has already gone (the music redrawn as it was left), or the browser saying a size it watches
+    // changed again as it was told (the music laid out afresh): nothing went wrong.
+    const harmless = said => /There is no tracked object with id|JSDisconnectedException|ResizeObserver loop/.test(said);
     const keep = (kind, said) => {
         said = String(said ?? "").slice(0, 16000);
         if (!said || harmless(said)) return;
