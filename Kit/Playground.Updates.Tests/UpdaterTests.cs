@@ -310,6 +310,30 @@ public class UpdaterTests
         Assert.Equal(UpdateStep.Installing, updater.Status.Step);
     }
 
+    // When the copy before an update can't be made, nothing installs; asked again, without a copy, it does, and says no copy was kept.
+    [Fact]
+    public async Task InstallAsync_WhenACopyCantBeKept_InstallsOnlyWhenAskedAgainWithoutOne()
+    {
+        var (updater, github, device, _) = Make("1.0.5");
+        using var _ = device;
+        github.Release("prima-1.0.7", App);
+        device.CopiesFail = new IOException("No space left");
+        var ct = TestContext.Current.CancellationToken;
+        await updater.CheckAsync(ct: ct);
+        await updater.InstallAsync(ct);
+        Assert.Equal(UpdateStep.Failed, updater.Status.Step);
+        Assert.Equal("No space left", updater.Status.CopyProblem);
+        Assert.DoesNotContain("install", device.Calls);
+
+        await updater.InstallWithoutCopyAsync(ct);
+
+        Assert.Equal(["signature", "copies of /data/prima.db", "signature", "install"], device.Calls);
+        Assert.Single(github.Requests, r => r.Contains("/releases/download/", StringComparison.Ordinal));
+        Assert.Equal(UpdateStep.Installing, updater.Status.Step);
+        Assert.Equal("Confirm the update to Prima 1.0.7. No copy of your data was kept first.", updater.Status.Message);
+        Assert.Null(updater.Status.CopyProblem);
+    }
+
     [Theory]
     [InlineData("1.0.12", 12)]
     [InlineData("1.0", null)]

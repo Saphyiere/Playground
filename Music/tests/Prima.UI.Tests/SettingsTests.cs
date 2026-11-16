@@ -195,6 +195,34 @@ public class SettingsTests
         Assert.Null(await host.Store.GetTrackAsync<Prima.UI.Practice.DrillTrack>("drill:playback"));
     }
 
+    // The copy before an update couldn't be made: the update's screen says why and offers to install without one, saying there'll
+    // be nothing to go back to; only that installs it.
+    [Fact]
+    public async Task AnUpdateWhoseCopyCantBeMadeInstallsOnlyWhenAskedAgainWithoutACopy()
+    {
+        await using var host = new ComponentHost(safeguard: new NoCopy());
+        host.Context.Services.GetRequiredService<Playground.Updates.StandInUpdates>().Show("1.0", 13);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
+        var view = host.Context.Render<Settings>();
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Check").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Contains(view.FindAll("button"), b => b.TextContent == "Install"));
+        Assert.DoesNotContain(view.FindAll("button"), b => b.TextContent == "Install without a copy");
+
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Install").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Contains("A copy of your data couldn't be kept first (No space left), so nothing was installed.", view.Find("#updates").TextContent), TimeSpan.FromSeconds(30));
+        Assert.Contains("there will be nothing to go back to", view.Find("#updates").TextContent);
+        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Install without a copy").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Contains("Confirm the update to Prima 1.0.13. No copy of your data was kept first.", view.Find("#updates").TextContent), TimeSpan.FromSeconds(30));
+        Assert.DoesNotContain(view.FindAll("button"), b => b.TextContent == "Install without a copy");
+    }
+
+    private sealed class NoCopy : Playground.Updates.IUpdateSafeguard
+    {
+        public Task<string> KeepBeforeUpdateAsync(Playground.Updates.Release release, IProgress<double>? progress, CancellationToken ct) =>
+            throw new IOException("No space left");
+    }
+
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).
     private static Task Open(IRenderedComponent<Settings> view, string tab) => view.InvokeAsync(() => view.FindAll("[role=tab]").Single(t => t.TextContent == tab).Click());
 

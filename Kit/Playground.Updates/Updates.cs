@@ -41,6 +41,12 @@ public sealed record UpdateStatus(UpdateStep Step, string Installed, int? Instal
 {
     /// <summary>The installed copy was built on the PC (version 1.0, without a build number) rather than taken from a release.</summary>
     public bool FromPc => InstalledBuild is null;
+
+    /// <summary>
+    /// Why the copy of the app's data before this update couldn't be made, when it couldn't; null otherwise. Nothing was installed
+    /// then: the update goes ahead only when asked again, without a copy (<see cref="Updater.InstallWithoutCopyAsync"/>).
+    /// </summary>
+    public string? CopyProblem { get; init; }
 }
 
 public enum InstallResult

@@ -61,7 +61,7 @@ public sealed class Updater
         try
         {
             var installedVersion = installer.InstalledVersion;
-            Set(Status with { Step = UpdateStep.Checking, Installed = installedVersion, InstalledBuild = BuildOf(installedVersion), Message = "" });
+            Set(Status with { Step = UpdateStep.Checking, Installed = installedVersion, InstalledBuild = BuildOf(installedVersion), Message = "", CopyProblem = null });
             var newest = await GitHubReleases.NewestAsync(http, options, ct);
             var newer = newest is not null && (Status.InstalledBuild is not { } installed || newest.Build > installed);
             var message = newest is null ? "There's no release yet."
@@ -87,7 +87,15 @@ public sealed class Updater
     }
 
     /// <summary>Downloads the newest release, checks it, keeps copies of the app's data, and hands it to the device's installer.</summary>
-    public async Task InstallAsync(CancellationToken ct = default)
+    public Task InstallAsync(CancellationToken ct = default) => InstallAsync(withoutCopy: false, ct);
+
+    /// <summary>
+    /// The newest release without the copy of the app's data first: only when asked again, after that copy couldn't be made
+    /// (<see cref="UpdateStatus.CopyProblem"/>), knowing there'll be nothing to go back to.
+    /// </summary>
+    public Task InstallWithoutCopyAsync(CancellationToken ct = default) => InstallAsync(withoutCopy: true, ct);
+
+    private async Task InstallAsync(bool withoutCopy, CancellationToken ct)
     {
         if (Status.Latest is not { } release) return;
         if (!await busy.WaitAsync(0, ct)) return;
@@ -98,13 +106,13 @@ public sealed class Updater
             {
                 // Downloaded and checked a moment ago, before Android asked to let the app install apps or before its installer was
                 // cancelled: handed over again as it is, not downloaded again.
-                Set(Status with { Step = UpdateStep.Downloading, Progress = 1, Message = $"{release.Title} is downloaded already." });
+                Set(Status with { Step = UpdateStep.Downloading, Progress = 1, Message = $"{release.Title} is downloaded already.", CopyProblem = null });
             }
             else
             {
                 TryEmpty(installer.DownloadFolder);
                 Directory.CreateDirectory(installer.DownloadFolder);
-                Set(Status with { Step = UpdateStep.Downloading, Progress = 0, Message = $"Downloading {release.Title}…" });
+                Set(Status with { Step = UpdateStep.Downloading, Progress = 0, Message = $"Downloading {release.Title}…", CopyProblem = null });
                 await DownloadAsync(release, file, ct);
             }
 
@@ -113,8 +121,8 @@ public sealed class Updater
                 throw new UpdateException($"{release.Title} isn't signed with the same key as the app you have, so it can't install as an update. Nothing was installed.");
             }
 
-            var kept = "";
-            if (safeguard is not null || options.DataFiles.Count > 0)
+            var kept = withoutCopy ? " No copy of your data was kept first." : "";
+            if (!withoutCopy && (safeguard is not null || options.DataFiles.Count > 0))
             {
                 try
                 {
@@ -135,7 +143,10 @@ public sealed class Updater
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    throw new UpdateException($"A copy of your data couldn't be kept first ({e.Message}), so nothing was installed.");
+                    // Nothing installs without its copy unless asked again, knowing there'd be nothing to go back to: why is kept for
+                    // the screen, which then offers that.
+                    Set(Status with { Step = UpdateStep.Failed, Message = $"A copy of your data couldn't be kept first ({e.Message}), so nothing was installed.", CopyProblem = e.Message });
+                    return;
                 }
             }
 

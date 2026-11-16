@@ -338,6 +338,11 @@ else if (!finder.FoundAny)
                         </ul>
                     }
                     <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@UpdateBusy" @onclick="InstallUpdate">@(Updates.Status.Step == UpdateStep.Downloading ? $"Downloading… {(int)(Updates.Status.Progress * 100)}%" : "Install")</button>
+                    @if (Updates.Status.CopyProblem is not null && !UpdateBusy)
+                    {
+                        <p class="section-note">Prima keeps a copy of your data before each update, and this time it couldn't. Installed without one, there will be nothing to go back to if the update loses anything.</p>
+                        <button type="button" class="mu-btn" data-piano="off" @onclick="InstallUpdateWithoutCopy">Install without a copy</button>
+                    }
                 </div>
             </div>
         }
@@ -608,6 +613,13 @@ else if (!finder.FoundAny)
         // What's still to be written goes into the file first, so the copy kept in Downloads has all of it.
         await Store.FlushAsync();
         await Updates.InstallAsync();
+    }
+
+    // Asked a second time, after the copy before the update couldn't be made, knowing there'll be nothing to go back to.
+    private async Task InstallUpdateWithoutCopy()
+    {
+        await Store.FlushAsync();
+        await Updates.InstallWithoutCopyAsync();
     }
 
     /// <summary>A release's changes, from the list in its notes, without the app's name each starts with: five, and how many more.</summary>

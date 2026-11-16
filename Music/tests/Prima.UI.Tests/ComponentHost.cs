@@ -35,7 +35,8 @@ internal sealed class ComponentHost : IAsyncDisposable
     // nothing about the page. Ten seconds for every wait; one that passes waits no longer than it did.
     static ComponentHost() => BunitContext.DefaultWaitTimeout = TimeSpan.FromSeconds(10);
 
-    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null)
+    /// <param name="safeguard">What keeps the data before an update, in place of Prima's copies: a test's own, one that fails, say.</param>
+    public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null)
     {
         Context.Services.AddSingleton(Problems);
         Context.Services.AddSingleton<ILoggerFactory>(new KeptLogs(new ProblemLogProvider(Problems)));
@@ -49,6 +50,8 @@ internal sealed class ComponentHost : IAsyncDisposable
         Context.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk"), "Prima");
         if (bundle is not null) Context.Services.AddSingleton(bundle);
         Context.Services.AddPrima(database);
+        // Registered after Prima's own, so it's the one the updater is given.
+        if (safeguard is not null) Context.Services.AddSingleton(safeguard);
         Store = Context.Services.GetRequiredService<PrimaStore>();
         Jobs = Context.Services.GetRequiredService<ConversionJobs>();
         ConversionHost.Run = Jobs.RunAsync;
