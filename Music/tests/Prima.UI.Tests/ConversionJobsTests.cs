@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Playground.AI.Assist;
@@ -194,6 +195,46 @@ public class ConversionJobsTests
         Assert.Equal(job.Source.Revision, checkpoint.Source.Revision);
         Assert.Equal(paused.Chunks.Select(c => c.Chunk.Id), checkpoint.Chunks.Select(c => c.Chunk.Id));
         Assert.Empty(rig.Provider.Inputs);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResumeIncludesTheFailedRhythmCheckOnlyForItsBatch(bool legacyResponse)
+    {
+        await using var rig = await Rig.Create();
+        var job = await rig.Job(bars: 2, maxBars: 1);
+        var bar = Good(new(1, 1, true, ["b0"], null)).Value!.Bars[0] with { MeterCount = 2 };
+        var upper = bar.Staves[0];
+        var quarter = upper.Voices[0].Events[0] with { Value = NoteValue.Quarter };
+        var rest = quarter with { Kind = ReadKind.Rest, Pitches = [] };
+        var sixteenth = quarter with { Value = NoteValue.Sixteenth, Tuplet = 3 };
+        SystemReading reading = new([bar with { Staves = [upper with { Voices = [new(1, [rest, quarter, sixteenth, sixteenth])] }, bar.Staves[1]] }], []);
+        var issue = Assert.Single(ReadingChecks.Problems(reading, first: true));
+        var raw = JsonSerializer.Serialize(new Reply<SystemReading>(ReplyStatus.Answered, "", [], reading), AssistSchema.Json);
+        var rejected = new Answer<SystemReading>(AnswerKind.CheckFailed, null, "Rejected reading", legacyResponse ? [] : [issue], Usage.None)
+        {
+            Response = legacyResponse ? new("test-provider", "test-model", "test-model", "reply", InferenceFinish.Completed, null, raw) : null,
+        };
+        rig.Provider.Handler = (_, _) => Task.FromResult(rejected);
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+        var paused = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Paused, paused.State);
+        if (!legacyResponse) Assert.Contains(issue, paused.Problem);
+        Assert.Single(rig.Provider.Inputs);
+
+        var tripletChord = quarter with { Tuplet = 3, TupletStart = true };
+        SystemReading corrected = new([bar with { Staves = [upper with { Voices = [new(1, [rest, tripletChord, sixteenth, sixteenth])] }, bar.Staves[1]] }], []);
+        Assert.Empty(ReadingChecks.Problems(corrected, first: true));
+        rig.Provider.Handler = (input, _) => Task.FromResult(input.First ? Good(input) with { Value = corrected } : Good(input));
+        await rig.Jobs.ResumeAsync(job.Id);
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+        var ready = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Ready, ready.State);
+        Assert.Null(rig.Provider.Inputs[0].ValidationFeedback);
+        Assert.Equal(issue, rig.Provider.Inputs[1].ValidationFeedback);
+        Assert.Null(rig.Provider.Inputs[2].ValidationFeedback);
+        Assert.All(ready.Chunks, chunk => Assert.Null(chunk.Problem));
     }
 
     [Fact]

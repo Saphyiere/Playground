@@ -205,15 +205,40 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
                         ? job.BaseSnapshot!.Bars.FirstOrDefault(b => b.SourceBarId == chunk.Chunk.ContextBefore)?.Written
                         : index == 0 ? null : job.Chunks[index - 1].Reading?.Bars.LastOrDefault();
                     var current = job.BaseSnapshot?.Bars.Single(b => b.SourceBarId == bars[0].Id).Written;
+                    var task = new ReadChunk(image, job.Options.Reading);
+                    var input = new ChunkToRead(bars[0].Page, bars[0].System, bars[0].Order == 0, chunk.Chunk.BarIds, before, current, job.UserHint, chunk.Problem);
+                    // Older checkpoints kept the rejected reply but not the validation notes. Recheck it locally on resume.
+                    var lastRejection = job.Attempts.LastOrDefault(a => a.Chunk == chunk.Chunk.Id && a.Outcome == AnswerKind.CheckFailed);
+                    if (input.ValidationFeedback is null && lastRejection?.Response is { Text.Length: > 0 } rejected)
+                    {
+                        try
+                        {
+                            if (JsonSerializer.Deserialize<Reply<SystemReading>>(rejected.Text, AssistSchema.Json) is { Status: ReplyStatus.Answered, Answer: { } reading })
+                            {
+                                var checks = task.Check(input, reading);
+                                if (checks.Count > 0) input = input with { ValidationFeedback = string.Join(" ", checks) };
+                            }
+                        }
+                        catch (Exception e) when (e is JsonException or ArgumentException or IndexOutOfRangeException or ArithmeticException)
+                        {
+                            logger.LogDebug(e, "No recoverable validation feedback for conversion batch {ChunkId}", chunk.Chunk.Id);
+                        }
+                    }
                     var attempt = new ConversionAttempt(Guid.NewGuid().ToString("N"), chunk.Chunk.Id, DateTimeOffset.UtcNow,
                         ConversionAttemptState.Dispatched, Usage.None, job.Options.Reading.MaxOutputTokens!.Value);
                     job = await CommitAsync(job with { Attempts = [.. job.Attempts, attempt] });
-                    var answer = await provider.AskAsync(new ReadChunk(image, job.Options.Reading),
-                        new ChunkToRead(bars[0].Page, bars[0].System, bars[0].Order == 0, chunk.Chunk.BarIds, before, current, job.UserHint), ct);
+                    var answer = await provider.AskAsync(task, input, ct);
                     attempt = attempt with { State = ConversionAttemptState.Received, Usage = answer.Usage, Outcome = answer.Kind, Response = answer.Response };
                     var attempts = job.Attempts.Select(a => a.Id == attempt.Id ? attempt : a).ToArray();
                     if (!answer.Ok)
                     {
+                        var reason = answer.Summary;
+                        if (answer.Kind == AnswerKind.CheckFailed && answer.Notes.Count > 0)
+                        {
+                            chunk = chunk with { Problem = string.Join(" ", answer.Notes) };
+                            job = job with { Chunks = job.Chunks.Select((c, i) => i == index ? chunk : c).ToArray() };
+                            reason = $"{reason} {chunk.Problem}";
+                        }
                         job = await CommitAsync(job with { Attempts = attempts });
                         ct.ThrowIfCancellationRequested();
                         if (answer.Kind == AnswerKind.TooLong && chunk.Chunk.BarIds.Count > 1)
@@ -222,9 +247,9 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
                             job = await CommitAsync(job with { Chunks = [.. job.Chunks.Take(index), .. split, .. job.Chunks.Skip(index + 1)] });
                             continue;
                         }
-                        throw new InvalidOperationException(answer.Summary);
+                        throw new InvalidOperationException(reason);
                     }
-                    chunk = chunk with { Phase = ConversionPhase.Validate, Reading = answer.Value };
+                    chunk = chunk with { Phase = ConversionPhase.Validate, Reading = answer.Value, Problem = null };
                     job = await CommitAsync(job with { Attempts = attempts, Chunks = job.Chunks.Select((c, i) => i == index ? chunk : c).ToArray() });
                     ct.ThrowIfCancellationRequested();
                 }
