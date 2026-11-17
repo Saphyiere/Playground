@@ -153,7 +153,7 @@ export async function cut(element, n, systems) {
         left = Math.max(0, Math.min(left, width - 1) - pad);
         right = Math.min(width, Math.max(right, left) + pad + 1);
         const own = lines[i];
-        const bars = barlineCandidates((x, y) => {
+        const dividers = barlineCandidates((x, y) => {
             const pixel = (y * width + x) * 4;
             const r = data[pixel], g = data[pixel + 1], b = data[pixel + 2];
             // A colored playback cursor or annotation can cross both staves without being a printed barline.
@@ -168,7 +168,7 @@ export async function cut(element, n, systems) {
         const png = new Uint8Array(await blob.arrayBuffer());
         const url = imageUrl(view, blob);
         if (url === null) return [];
-        cuts.push({ png, url, bars, bounds });
+        cuts.push({ png, url, bounds, ...dividers });
     }
     return cuts;
 }
@@ -176,20 +176,33 @@ export async function cut(element, n, systems) {
 // Proposals only: a barline must cross each five-line staff at the same x. The blank gap between piano staves is not ink.
 // Group thick staff rows first, and merge nearby double-bar strokes using staff spacing, never a percentage of page width.
 function barlineCandidates(dark, rows, width, left, right) {
+    const unknown = { bars: [], staffStart: null, staffEnd: null };
     const runs = [];
     for (const y of rows) {
         if (runs.length && y === runs[runs.length - 1][1] + 1) runs[runs.length - 1][1] = y;
         else runs.push([y, y]);
     }
     const lines = runs.map(([a, b]) => Math.round((a + b) / 2));
-    if (!lines.length || lines.length % 5 !== 0) return [];
+    if (!lines.length || lines.length % 5 !== 0) return unknown;
     const staves = [];
     for (let i = 0; i < lines.length; i += 5) {
         const staff = lines.slice(i, i + 5);
         const gaps = staff.slice(1).map((y, n) => y - staff[n]);
         const gap = gaps.reduce((sum, n) => sum + n, 0) / 4;
-        if (gap < 2 || gaps.some(n => Math.abs(n - gap) > gap * 0.25)) return [];
-        staves.push({ top: staff[0], bottom: staff[4], gap });
+        if (gap < 2 || gaps.some(n => Math.abs(n - gap) > gap * 0.25)) return unknown;
+        // Three horizontal lines continuing for two staff spaces distinguish the staff from a brace, text or a stem
+        // in the margin. Measure both ends independently of the padding that makes the preview readable.
+        let first = null, last = null, length = 0;
+        for (let x = left; x < right; x++) {
+            let supported = 0;
+            for (const y of staff) if (dark(x, y)) supported++;
+            length = supported >= 3 ? length + 1 : 0;
+            if (length >= gap * 2) {
+                first ??= x - length + 1;
+                last = x;
+            }
+        }
+        staves.push({ top: staff[0], bottom: staff[4], gap, first, last });
     }
     const strokes = [];
     let start = null;
@@ -200,12 +213,12 @@ function barlineCandidates(dark, rows, width, left, right) {
         }
         if (through && start === null) start = x;
         if (!through && start !== null) {
-            strokes.push((start + x - 1) / 2);
+            strokes.push({ left: start, right: x - 1, middle: (start + x - 1) / 2 });
             start = null;
         }
     }
-    const connected = strokes.filter(x => {
-        x = Math.round(x);
+    const connected = strokes.filter(stroke => {
+        const x = Math.round(stroke.middle);
         for (let y = staves[0].top; y <= staves[staves.length - 1].bottom; y++) if (!dark(x, y) && !dark(x, y + 1)) return false;
         return true;
     });
@@ -213,12 +226,23 @@ function barlineCandidates(dark, rows, width, left, right) {
     const candidates = staves.length > 1 && connected.length >= 2 ? connected : strokes;
     const merge = Math.min(...staves.map(s => s.gap)) * 0.9;
     const groups = [];
-    for (const x of candidates) {
+    for (const stroke of candidates) {
         const group = groups[groups.length - 1];
-        if (group && x - group[group.length - 1] <= merge) group.push(x);
-        else groups.push([x]);
+        if (group && stroke.middle - group[group.length - 1].middle <= merge) group.push(stroke);
+        else groups.push([stroke]);
     }
-    return groups.map(group => group.reduce((sum, x) => sum + x, 0) / group.length / width);
+    const bars = groups.map(group => group.reduce((sum, stroke) => sum + stroke.middle, 0) / group.length / width);
+    const tolerance = Math.max(2, Math.min(...staves.map(s => s.gap)) * 0.2);
+    const edge = side => {
+        const ends = staves.map(s => s[side]);
+        if (ends.some(x => x === null) || Math.max(...ends) - Math.min(...ends) > tolerance) return null;
+        const x = ends.reduce((sum, n) => sum + n, 0) / ends.length;
+        // A repeat or double bar is one divider. Snap to that group's existing coordinate if a stroke reaches
+        // the staff end. An interior line after an opening pickup remains a separate divider.
+        const at = groups.findIndex(group => x >= group[0].left - tolerance && x <= group[group.length - 1].right + tolerance);
+        return at >= 0 ? bars[at] : (x + (side === "last" ? 1 : 0)) / width;
+    };
+    return { bars, staffStart: edge("first"), staffEnd: edge("last") };
 }
 
 // Lets go of pictures made for showing (thumbnail, cut, the sheet's engrave).

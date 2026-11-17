@@ -125,6 +125,78 @@ public class ConversionJobsTests
     }
 
     [Fact]
+    public async Task RepairKeepsCompletedBatchesUsageAndContextAndRendersChangedRangesOnlyAfterResume()
+    {
+        await using var rig = await Rig.Create();
+        var job = await rig.Job(4);
+        rig.Provider.Handler = (input, _) => Task.FromResult(input.First ? Good(input) :
+            new Answer<SystemReading>(AnswerKind.NeedMore, null, "Bar count mismatch", [], new Usage(5, 10, 0, 0, 0.17m, TimeSpan.Zero)));
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+        var paused = await rig.Saved(job.Id);
+        Assert.True(paused.CanRepairBoundaries);
+        Assert.Equal(ConversionPhase.Complete, paused.Chunks[0].Phase);
+        Assert.Equal(ConversionPhase.Read, paused.Chunks[1].Phase);
+        Assert.NotNull(paused.Chunks[1].Crop);
+
+        var original = paused.Source.Bars;
+        var source = paused.Source with { Revision = "source-r2", Bars = [original[0], original[1], original[3] with { Order = 2, DisplayNumber = "3" }] };
+        var changedReadBar = source with { Bars = [original[0] with { Id = "changed" }, .. source.Bars.Skip(1)] };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => rig.Jobs.RepairBoundariesAsync(job.Id, paused.Revision, changedReadBar));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => rig.Jobs.RepairBoundariesAsync(job.Id, paused.Revision - 1, source));
+        Assert.Equal(paused.Revision, (await rig.Saved(job.Id)).Revision);
+
+        var repaired = await rig.Jobs.RepairBoundariesAsync(job.Id, paused.Revision, source);
+        Assert.Equal(ConversionState.Paused, repaired.State);
+        Assert.Equal(paused.Options, repaired.Options);
+        Assert.Equal(0.18m, repaired.KnownCost);
+        Assert.Equal(paused.Attempts.Select(a => (a.Id, a.Chunk, a.Usage)), repaired.Attempts.Select(a => (a.Id, a.Chunk, a.Usage)));
+        var kept = repaired.Chunks[0];
+        Assert.Equal((paused.Chunks[0].Chunk.Id, paused.Chunks[0].Crop, paused.Chunks[0].Engraving), (kept.Chunk.Id, kept.Crop, kept.Engraving));
+        Assert.Equal(ConversionPhase.Complete, kept.Phase);
+        Assert.NotNull(kept.Reading);
+        Assert.All(repaired.Chunks, c => Assert.Equal(source.Revision, c.Chunk.SourceRevision));
+        var pending = repaired.Chunks[1];
+        Assert.Equal("b3", Assert.Single(pending.Chunk.BarIds));
+        Assert.Equal("b1", pending.Chunk.ContextBefore);
+        Assert.NotEqual(paused.Chunks[1].Chunk.Id, pending.Chunk.Id);
+        Assert.Null(pending.Crop);
+        Assert.Equal(2, rig.Provider.Inputs.Count);
+        Assert.Equal(2, rig.Renderer.Crops);
+        Assert.Equal(source.Revision, (await rig.Store.GetConversionSourceAsync(job.Piece, source.Sha256))!.Revision);
+
+        rig.Provider.Handler = (input, _) => Task.FromResult(Good(input));
+        await rig.Jobs.ResumeAsync(job.Id);
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+        var ready = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Ready, ready.State);
+        Assert.Equal(0.19m, ready.KnownCost);
+        Assert.Equal(3, rig.Renderer.Crops);
+        Assert.Equal(2, rig.Renderer.Engravings);
+        Assert.Equal("b3", Assert.Single(rig.Provider.Inputs[2].OwnedSourceBars));
+        Assert.NotNull(rig.Provider.Inputs[2].PreviousBar);
+        Assert.Equal(source.Bars.Select(b => b.Id), ready.Chunks.SelectMany(c => c.Chunk.BarIds));
+    }
+
+    [Fact]
+    public async Task FailedSourceRevisionWriteLeavesOriginalPausedCheckpointIntact()
+    {
+        await using var rig = await Rig.Create();
+        var job = await rig.Job();
+        rig.Renderer.Unavailable = "Unavailable";
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+        var paused = await rig.Saved(job.Id);
+        var reserved = job.Source with { Revision = "already-saved" };
+        await rig.Store.SaveConversionSourceAsync(job.Piece, reserved);
+        var conflict = reserved with { Bars = [reserved.Bars[1] with { Order = 0, DisplayNumber = "1" }] };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => rig.Jobs.RepairBoundariesAsync(job.Id, paused.Revision, conflict));
+        var checkpoint = await rig.Saved(job.Id);
+        Assert.Equal(paused.Revision, checkpoint.Revision);
+        Assert.Equal(job.Source.Revision, checkpoint.Source.Revision);
+        Assert.Equal(paused.Chunks.Select(c => c.Chunk.Id), checkpoint.Chunks.Select(c => c.Chunk.Id));
+        Assert.Empty(rig.Provider.Inputs);
+    }
+
+    [Fact]
     public async Task CreationQueuesBeforeRendererPreflightAndAnUnavailableHostPausesWithoutDispatch()
     {
         await using var rig = await Rig.Create();

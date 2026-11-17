@@ -325,6 +325,54 @@ public class ReadNotesTests
         Assert.Equal(1, host.Claude.Calls);
     }
 
+    [Fact]
+    public async Task PausedLegacyMarginCanBeRemovedWithoutResendingUntilResume()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece(pdf: true);
+        var cut = new PdfPages.SystemCut([1], "blob:staff", [0.16, 0.26, 0.35, 0.44], new(0.135, 0.2, 0.312, 0.3));
+        host.Browser.CutResult = [cut];
+        host.Claude.Kind = AnswerKind.NeedMore;
+        var view = host.Context.Render<ReadNotes>(p => p.Add(c => c.Piece, piece).Add(c => c.Pdf, [1])
+            .Add(c => c.Layout, [new List<PageSystem> { new(10, 200, 4) }]));
+        await ConfirmBoundaries(view);
+        view.WaitForElement("[data-action=convert-start]:not([disabled])").Click();
+        view.WaitForElement("[data-job-state=Paused]");
+        await host.ConversionHost.Execution!;
+        var before = (await host.Jobs.LatestAsync(piece.Id))!;
+        Assert.Equal(4, Assert.Single(host.Claude.Requests).OwnedSourceBars.Count);
+        Assert.NotNull(Assert.Single(before.Chunks).Crop);
+        host.Browser.CutResult = [cut with { StaffStart = 0.16, StaffEnd = 0.44 }];
+
+        view.WaitForElement("[data-action=repair-source]:not([disabled])").Click();
+        view.WaitForElement("[data-action=cancel-source]").Click();
+        Assert.Equal(before.Revision, (await host.Jobs.LatestAsync(piece.Id))!.Revision);
+        view.WaitForElement("[data-action=repair-source]:not([disabled])").Click();
+        Assert.Equal(4, view.WaitForElements("[data-boundary]", 4).Count);
+        view.WaitForElement("[data-action=confirm-source]:not([disabled])").Click();
+        view.WaitForElement("[data-job-state=Paused]");
+        var corrected = (await host.Jobs.LatestAsync(piece.Id))!;
+        Assert.Equal(before.Id, corrected.Id);
+        Assert.Equal(3, corrected.Source.Bars.Count);
+        Assert.Equal(before.Source.Bars.Skip(1).Select(b => b.Id), corrected.Source.Bars.Select(b => b.Id));
+        Assert.Equal(new[] { "1", "2", "3" }, corrected.Source.Bars.Select(b => b.DisplayNumber));
+        Assert.Equal(0.16, corrected.Source.Bars[0].Bounds.X, 8);
+        Assert.Null(Assert.Single(corrected.Chunks).Crop);
+        Assert.Equal(corrected.Source.Revision, (await host.Store.GetConversionSourceAsync(piece.Id, corrected.Source.Sha256))!.Revision);
+        Assert.Single(host.ConversionHost.Started);
+
+        view.Dispose();
+        var reopened = host.Context.Render<ReadNotes>(p => p.Add(c => c.Piece, piece).Add(c => c.Pdf, [1])
+            .Add(c => c.Layout, [new List<PageSystem> { new(10, 200, 4) }]));
+        reopened.WaitForElement("[data-job-state=Paused]");
+        Assert.Equal(1, host.Claude.Calls);
+        host.Claude.SuccessfulReading = true;
+        reopened.WaitForElement("[data-action=resume-conversion]:not([disabled])").Click();
+        reopened.WaitForElement("[data-action=keep-reading]");
+        Assert.Equal(corrected.Source.Bars.Select(b => b.Id), host.Claude.Requests[1].OwnedSourceBars);
+        Assert.Equal(2, host.Claude.Calls);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

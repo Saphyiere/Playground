@@ -53,6 +53,53 @@ public class SourceBarsTests
     }
 
     [Fact]
+    public async Task PrintedExtentsKeepTheOpeningPickupAndExcludeTheBraceAndTrailingPaper()
+    {
+        await using var host = new ComponentHost();
+        ConversionSource? confirmed = null;
+        var cut = new PdfPages.SystemCut([1], "blob:staff", [0.13, 0.18, 0.4, 0.7, 0.76], new(0.12, 0.2, 0.66, 0.3)) { StaffStart = 0.16, StaffEnd = 0.7 };
+        var view = host.Context.Render<SourceBars>(p => p.Add(c => c.SourceHash, new string('a', 64))
+            .Add(c => c.Cuts, new Dictionary<(int, int), PdfPages.SystemCut> { [(2, 1)] = cut }).Add(c => c.OnConfirmed, value => confirmed = value.Source));
+        await view.Find("[data-action=confirm-source]").ClickAsync(new MouseEventArgs());
+        Assert.NotNull(confirmed);
+        Assert.Equal(3, confirmed.Bars.Count);
+        Assert.Equal(0.16, confirmed.Bars[0].Bounds.X, 8);
+        Assert.Equal(0.02, confirmed.Bars[0].Bounds.Width, 8);
+        Assert.Equal(0.7, confirmed.Bars[^1].Bounds.X + confirmed.Bars[^1].Bounds.Width, 8);
+    }
+
+    [Fact]
+    public async Task RepairProtectsReadGeometryAndKeepsManualInteriorDividers()
+    {
+        await using var host = new ComponentHost();
+        ConversionSource? confirmed = null;
+        var original = new ConversionSource(new string('a', 64), "old", [
+            new("read", 2, 1, 0, "Pickup", new(0.16, 0.20, 0.30, 0.2)),
+            new("margin", 2, 2, 1, "2", new(0.135, 0.5, 0.025, 0.2)),
+            new("manual", 2, 2, 2, "3a", new(0.16, 0.5, 0.19, 0.2)),
+            new("tail", 2, 2, 3, "4", new(0.35, 0.5, 0.11, 0.2)),
+            new("right-paper", 2, 2, 4, "5", new(0.46, 0.5, 0.03, 0.2))], true);
+        var cuts = new Dictionary<(int, int), PdfPages.SystemCut>
+        {
+            [(2, 1)] = new([1], "blob:read", [0.16, 0.46], new(0.13, 0.201, 0.36, 0.199)) { StaffStart = 0.16, StaffEnd = 0.46 },
+            [(2, 2)] = new([2], "blob:pending", [0.16, 0.30, 0.46], new(0.13, 0.5, 0.37, 0.2)) { StaffStart = 0.16, StaffEnd = 0.46 },
+        };
+        var view = host.Context.Render<SourceBars>(p => p.Add(c => c.SourceHash, original.Sha256).Add(c => c.Source, original).Add(c => c.Cuts, cuts)
+            .Add(c => c.ReadBarIds, new HashSet<string> { "read" }).Add(c => c.OnConfirmed, value => confirmed = value.Source));
+        view.Find("[data-system='1'] [data-boundary='0']").Click();
+        Assert.NotNull(view.Find("[data-action=boundary-add][disabled]"));
+        Assert.NotNull(view.Find("input[type=range][disabled]"));
+        await view.Find("[data-action=confirm-source]").ClickAsync(new MouseEventArgs());
+        Assert.NotNull(confirmed);
+        Assert.Empty(confirmed.Problems());
+        Assert.Equal(original.Bars[0], confirmed.Bars[0]);
+        Assert.Equal(new[] { "read", "manual", "tail" }, confirmed.Bars.Select(b => b.Id));
+        Assert.Equal(new[] { "Pickup", "3a", "3" }, confirmed.Bars.Select(b => b.DisplayNumber));
+        Assert.Equal(original.Bars[2].Bounds, confirmed.Bars[1].Bounds);
+        Assert.Equal(0, host.Claude.Calls);
+    }
+
+    [Fact]
     public async Task AddingAndRemovingDividersControlsWhetherTheExistingReadingCanBeMapped()
     {
         await using var host = new ComponentHost();

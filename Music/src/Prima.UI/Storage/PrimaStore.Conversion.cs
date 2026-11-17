@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Dapper;
+using Microsoft.Data.Sqlite;
 using Playground.AI.Assist;
 using Prima.Core.Transcription;
 
@@ -94,11 +95,19 @@ public sealed partial class PrimaStore
     });
 
     /// <summary>Revision fencing prevents late worker results from overwriting cancellation or a newer edit.</summary>
-    public Task<bool> SaveConversionJobAsync(ConversionJob job, int expectedRevision) => RunAsync(async c =>
+    public Task<bool> SaveConversionJobAsync(ConversionJob job, int expectedRevision, bool saveSource = false) => RunAsync(async c =>
     {
         if (job.Version != 1 || job.Revision != expectedRevision + 1 || job.State == ConversionState.Cancelled) throw new ArgumentException("Invalid conversion commit.", nameof(job));
-        return await c.ExecuteAsync("UPDATE ConversionJob SET Revision = @Revision, State = @state, Updated = @updated, Data = @data WHERE Id = @Id AND Revision = @expectedRevision AND State <> @cancelled",
-            new { job.Id, job.Revision, state = (int)job.State, updated = Iso(job.Updated), data = JsonSerializer.Serialize(job, AssistSchema.Json), expectedRevision, cancelled = (int)ConversionState.Cancelled }) == 1;
+        await using var transaction = saveSource ? (SqliteTransaction)await c.BeginTransactionAsync() : null;
+        var changed = await c.ExecuteAsync("UPDATE ConversionJob SET Revision = @Revision, State = @state, Updated = @updated, Data = @data WHERE Id = @Id AND Revision = @expectedRevision AND State <> @cancelled",
+            new { job.Id, job.Revision, state = (int)job.State, updated = Iso(job.Updated), data = JsonSerializer.Serialize(job, AssistSchema.Json), expectedRevision, cancelled = (int)ConversionState.Cancelled }, transaction);
+        if (changed == 0) return false;
+        if (transaction is not null)
+        {
+            await WriteSourceAsync(c, job.Piece, job.Source, transaction);
+            await transaction.CommitAsync();
+        }
+        return true;
     });
 
     public Task<ConversionJob?> CancelConversionJobAsync(string id) => StopConversionJobAsync(id, ConversionState.Cancelled, null);
@@ -153,22 +162,21 @@ public sealed partial class PrimaStore
     }
 
     /// <summary>Retains each confirmed segmentation so an old result cannot silently attach to newly moved bar boundaries.</summary>
-    public Task SaveConversionSourceAsync(string piece, ConversionSource source)
+    public Task SaveConversionSourceAsync(string piece, ConversionSource source) => RunAsync(c => WriteSourceAsync(c, piece, source));
+
+    private static async Task WriteSourceAsync(SqliteConnection c, string piece, ConversionSource source, SqliteTransaction? transaction = null)
     {
         var problems = source.Problems();
         if (problems.Count > 0) throw new ArgumentException(string.Join(" ", problems), nameof(source));
         var data = JsonSerializer.Serialize(source, AssistSchema.Json);
-        return RunAsync(async c =>
+        var existing = await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM ConversionSource WHERE Piece = @piece AND Revision = @Revision", new { piece, source.Revision }, transaction);
+        if (existing is not null)
         {
-            var existing = await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM ConversionSource WHERE Piece = @piece AND Revision = @Revision", new { piece, source.Revision });
-            if (existing is not null)
-            {
-                if (existing != data) throw new InvalidOperationException("A saved source revision is immutable; changed boundaries need a new revision.");
-                return;
-            }
-            await c.ExecuteAsync("INSERT INTO ConversionSource (Piece, Revision, SourceHash, Saved, Data) VALUES (@piece, @Revision, @Sha256, @saved, @data)",
-                new { piece, source.Revision, source.Sha256, saved = Iso(DateTimeOffset.UtcNow), data });
-        });
+            if (existing != data) throw new InvalidOperationException("A saved source revision is immutable; changed boundaries need a new revision.");
+            return;
+        }
+        await c.ExecuteAsync("INSERT INTO ConversionSource (Piece, Revision, SourceHash, Saved, Data) VALUES (@piece, @Revision, @Sha256, @saved, @data)",
+            new { piece, source.Revision, source.Sha256, saved = Iso(DateTimeOffset.UtcNow), data }, transaction);
     }
 
     /// <summary>The latest confirmed map for these exact PDF bytes, or null before the owner confirms their bar boundaries.</summary>

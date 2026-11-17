@@ -3,6 +3,10 @@
 <section class="pdfread-source" aria-label="Confirm PDF bar boundaries">
     <h2 class="section-title">Check the PDF's bars</h2>
     <p class="pdfread-words">Each box must contain one complete bar across both staves. Check every system, then confirm them together. Select a divider to move it, add a missing divider, or remove an extra one. Nothing is sent for conversion here.</p>
+    @if (ReadBarIds is not null)
+    {
+        <p class="pdfread-words">@(removedMargins > 0 ? $"The revised map excludes {removedMargins} margin {(removedMargins == 1 ? "box" : "boxes")} outside the printed staves. " : "")Confirm to save the unfinished batches’ boundaries. The conversion will stay paused.</p>
+    }
     @foreach (var system in systems)
     {
         <article class="pdfread-source-system" data-page="@system.Key.Page" data-system="@system.Key.Index">
@@ -27,14 +31,15 @@
             {
                 var minimum = boundary == 0 ? 0 : system.Edges[boundary - 1] + Gap;
                 var maximum = boundary == system.Edges.Count - 1 ? 1 : system.Edges[boundary + 1] - Gap;
+                var locked = system.ReadBars > 0 && boundary <= system.ReadBars;
                 <div class="control-row pdfread-boundary-controls">
                     <span class="control-label">Boundary @(boundary + 1)</span>
-                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-left" aria-label="Move boundary left" @onclick="() => Move(system.Edges[boundary] - 0.002)">←</button>
-                    <input type="range" data-piano="off" class="control-range" min="@minimum.ToString(CultureInfo.InvariantCulture)" max="@maximum.ToString(CultureInfo.InvariantCulture)" step="0.001"
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-left" disabled="@locked" aria-label="Move boundary left" @onclick="() => Move(system.Edges[boundary] - 0.002)">←</button>
+                    <input type="range" data-piano="off" class="control-range" disabled="@locked" min="@minimum.ToString(CultureInfo.InvariantCulture)" max="@maximum.ToString(CultureInfo.InvariantCulture)" step="0.001"
                            value="@system.Edges[boundary].ToString(CultureInfo.InvariantCulture)" aria-label="Boundary position" @oninput="e => Move(double.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
-                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-right" aria-label="Move boundary right" @onclick="() => Move(system.Edges[boundary] + 0.002)">→</button>
-                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-add" disabled="@(boundary == system.Edges.Count - 1 || maximum - system.Edges[boundary] < Gap * 2)" @onclick="Add">Add divider after</button>
-                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-remove" disabled="@(boundary == 0 || boundary == system.Edges.Count - 1)" @onclick="Remove">Remove divider</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-right" disabled="@locked" aria-label="Move boundary right" @onclick="() => Move(system.Edges[boundary] + 0.002)">→</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-add" disabled="@(boundary < system.ReadBars || boundary == system.Edges.Count - 1 || maximum - system.Edges[boundary] < Gap * 2)" @onclick="Add">Add divider after</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="boundary-remove" disabled="@(locked || boundary == 0 || boundary == system.Edges.Count - 1)" @onclick="Remove">Remove divider</button>
                 </div>
             }
         </article>
@@ -56,6 +61,8 @@
     [Parameter, EditorRequired] public string SourceHash { get; set; } = "";
     [Parameter, EditorRequired] public IReadOnlyDictionary<(int Page, int Index), PdfPages.SystemCut> Cuts { get; set; } = new Dictionary<(int, int), PdfPages.SystemCut>();
     [Parameter] public ConversionSource? Source { get; set; }
+    /// <summary>When repairing a paused job, protect the geometry of every bar with a saved reading.</summary>
+    [Parameter] public IReadOnlySet<string>? ReadBarIds { get; set; }
     [Parameter] public IReadOnlyDictionary<(int Page, int Index), int>? ReadingCounts { get; set; }
     [Parameter] public EventCallback<(ConversionSource Source, bool MapReading)> OnConfirmed { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
@@ -64,10 +71,11 @@
     private readonly List<EditableSystem> systems = [];
     private EditableSystem? picked;
     private int boundary;
+    private int removedMargins;
     private bool mapReading;
     private bool saving;
 
-    private sealed record EditableSystem((int Page, int Index) Key, PdfPages.SystemCut Cut, List<double> Edges);
+    private sealed record EditableSystem((int Page, int Index) Key, PdfPages.SystemCut Cut, List<double> Edges, int ReadBars);
 
     private bool CountsMatch => ReadingCounts is not null && systems.Count == ReadingCounts.Count &&
         systems.All(s => ReadingCounts.GetValueOrDefault(s.Key) == s.Edges.Count - 1);
@@ -77,28 +85,50 @@
         foreach (var (key, cut) in Cuts.OrderBy(c => c.Key.Page).ThenBy(c => c.Key.Index))
         {
             var saved = Source?.Bars.Where(b => b.Page == key.Page && b.System == key.Index).OrderBy(b => b.Order).ToList();
+            var readBars = saved?.TakeWhile(b => ReadBarIds?.Contains(b.Id) == true).Count() ?? 0;
+            var left = cut.Bounds.X;
+            var right = cut.Bounds.X + cut.Bounds.Width;
             List<double> edges;
             if (saved is { Count: > 0 })
-                edges = [.. saved.Select(b => (b.Bounds.X - cut.Bounds.X) / cut.Bounds.Width), (saved[^1].Bounds.X + saved[^1].Bounds.Width - cut.Bounds.X) / cut.Bounds.Width];
+            {
+                edges = [.. saved.Select(b => b.Bounds.X), saved[^1].Bounds.X + saved[^1].Bounds.Width];
+                // An outer box ending exactly at the printed staff edge contains only the margin.
+                // The padded crop can shift slightly when rendered again. Match the printed edge within one pixel.
+                const double pixel = 1d / 2576;
+                if (ReadBarIds is not null && readBars == 0 && edges.Count > 2 && cut.StaffStart is { } start &&
+                    Math.Abs(edges[1] - start) <= pixel && edges[0] < start - pixel)
+                {
+                    edges.RemoveAt(0);
+                    removedMargins++;
+                }
+                if (ReadBarIds is not null && readBars < saved.Count && edges.Count > 2 && cut.StaffEnd is { } end &&
+                    Math.Abs(edges[^2] - end) <= pixel && edges[^1] > end + pixel)
+                {
+                    edges.RemoveAt(edges.Count - 1);
+                    removedMargins++;
+                }
+            }
             else
             {
-                edges = [.. cut.Bars.Select(x => (x - cut.Bounds.X) / cut.Bounds.Width).Where(x => x >= 0 && x <= 1).Distinct().Order()];
-                // A detected opening/closing stroke can replace the crop's padding edge. All remaining proposals stay visible.
-                var margin = Math.Min(0.03, 0.02 / cut.Bounds.Width);
-                if (edges.Count == 0 || edges[0] > margin + 1e-9) edges.Insert(0, 0);
-                if (edges[^1] < 1 - margin - 1e-9) edges.Add(1);
-                if (edges.Count == 1) edges = [0, 1];
+                var strokes = cut.Bars.Where(x => x >= left && x <= right).Distinct().Order().ToList();
+                // For a cropped image whose horizontal staff extent is unreadable, retain the previous edge estimate.
+                var margin = Math.Min(0.03 * cut.Bounds.Width, 0.02) + 1e-9;
+                var start = cut.StaffStart ?? (strokes.Count > 0 && strokes[0] - left <= margin ? strokes[0] : left);
+                var end = cut.StaffEnd ?? (strokes.Count > 0 && right - strokes[^1] <= margin ? strokes[^1] : right);
+                if (end <= start) (start, end) = (left, right);
+                edges = [start, .. strokes.Where(x => x > start + 1e-9 && x < end - 1e-9), end];
             }
-            systems.Add(new EditableSystem(key, cut, edges.Select(x => Math.Clamp(x, 0, 1)).ToList()));
+            systems.Add(new EditableSystem(key, cut, edges.Select(x => Math.Clamp((x - left) / cut.Bounds.Width, 0, 1)).ToList(), readBars));
         }
-        if (systems.Count > 0) picked = systems[0];
+        picked = systems.FirstOrDefault(s => s.ReadBars < s.Edges.Count - 1);
+        if (picked is not null) boundary = picked.ReadBars > 0 ? picked.ReadBars + 1 : 0;
     }
 
     private void Pick(EditableSystem system, int edge) => (picked, boundary) = (system, edge);
 
     private void Move(double position)
     {
-        if (picked is null || !double.IsFinite(position)) return;
+        if (picked is null || !double.IsFinite(position) || picked.ReadBars > 0 && boundary <= picked.ReadBars) return;
         var minimum = boundary == 0 ? 0 : picked.Edges[boundary - 1] + Gap;
         var maximum = boundary == picked.Edges.Count - 1 ? 1 : picked.Edges[boundary + 1] - Gap;
         if (minimum > maximum) return;
@@ -108,7 +138,7 @@
 
     private void Add()
     {
-        if (picked is null || boundary >= picked.Edges.Count - 1) return;
+        if (picked is null || boundary < picked.ReadBars || boundary >= picked.Edges.Count - 1) return;
         var middle = (picked.Edges[boundary] + picked.Edges[boundary + 1]) / 2;
         picked.Edges.Insert(++boundary, middle);
         mapReading = false;
@@ -116,7 +146,7 @@
 
     private void Remove()
     {
-        if (picked is null || boundary == 0 || boundary == picked.Edges.Count - 1) return;
+        if (picked is null || boundary <= picked.ReadBars || boundary == picked.Edges.Count - 1) return;
         picked.Edges.RemoveAt(boundary--);
         mapReading = false;
     }
@@ -131,14 +161,21 @@
             foreach (var system in systems)
             {
                 var crop = system.Cut.Bounds;
+                var original = Source?.Bars.Where(b => b.Page == system.Key.Page && b.System == system.Key.Index).OrderBy(b => b.Order).ToArray() ?? [];
                 for (var i = 0; i < system.Edges.Count - 1; i++)
                 {
+                    if (i < system.ReadBars)
+                    {
+                        bars.Add(original[i]);
+                        continue;
+                    }
                     var bounds = new SourceRectangle(crop.X + system.Edges[i] * crop.Width, crop.Y, (system.Edges[i + 1] - system.Edges[i]) * crop.Width, crop.Height);
-                    var saved = Source?.Bars.FirstOrDefault(b => b.Page == system.Key.Page && b.System == system.Key.Index &&
-                        Math.Abs(b.Bounds.X - bounds.X) < 1e-9 && Math.Abs(b.Bounds.Y - bounds.Y) < 1e-9 &&
+                    var saved = original.FirstOrDefault(b => Math.Abs(b.Bounds.X - bounds.X) < 1e-9 && Math.Abs(b.Bounds.Y - bounds.Y) < 1e-9 &&
                         Math.Abs(b.Bounds.Width - bounds.Width) < 1e-9 && Math.Abs(b.Bounds.Height - bounds.Height) < 1e-9);
                     bounds = saved?.Bounds ?? bounds;
-                    bars.Add(new SourceBar(saved?.Id ?? Guid.NewGuid().ToString("N"), system.Key.Page, system.Key.Index, bars.Count, saved?.DisplayNumber ?? (bars.Count + 1).ToString(CultureInfo.InvariantCulture), bounds));
+                    var number = saved is not null && saved.DisplayNumber != (saved.Order + 1).ToString(CultureInfo.InvariantCulture)
+                        ? saved.DisplayNumber : (bars.Count + 1).ToString(CultureInfo.InvariantCulture);
+                    bars.Add(new SourceBar(saved?.Id ?? Guid.NewGuid().ToString("N"), system.Key.Page, system.Key.Index, bars.Count, number, bounds));
                 }
             }
             var source = new ConversionSource(SourceHash, Guid.NewGuid().ToString("N"), bars, true);

@@ -42,7 +42,8 @@
         <p class="piece-bar-title">@Piece.Title</p>
         <button type="button" data-piano="off" class="mu-btn piece-key" data-action="back-to-sheet" @onclick="Close">Back to sheet music</button>
     </section>
-    <SourceBars SourceHash="@sourceHash" Cuts="cuts" Source="source" ReadingCounts="ReadingCounts" OnConfirmed="ConfirmSource" OnCancel="() => editingSource = false" />
+    <SourceBars SourceHash="@sourceHash" Cuts="cuts" Source="@(editingJob?.Source ?? source)" ReadBarIds="readBarIds"
+                ReadingCounts="ReadingCounts" OnConfirmed="ConfirmSource" OnCancel="() => editingSource = false" />
 }
 else if (job is { State: not ConversionState.Ready })
 {
@@ -61,6 +62,12 @@ else if (job is { State: not ConversionState.Ready })
         }
         @if (job.State is ConversionState.Paused or ConversionState.Interrupted)
         {
+            @if (job.CanRepairBoundaries)
+            {
+                var pending = job.Chunks.First(c => c.Phase == ConversionPhase.Read);
+                var first = job.Source.Bars.First(b => b.Id == pending.Chunk.BarIds[0]);
+                <p class="pdfread-words">The next batch starts on page @first.Page, system @first.System. If its image and bar count disagree, check the boundaries before resuming.</p>
+            }
             @if (job.HasUncertainRequest)
             {
                 <p class="pdfread-words">The interrupted request may have been processed and billed by the provider. Resuming sends the unfinished batch again; completed batches are kept.</p>
@@ -73,6 +80,10 @@ else if (job is { State: not ConversionState.Ready })
                 </button>
             }
             <div class="pdfread-actions">
+                @if (job.CanRepairBoundaries)
+                {
+                    <button type="button" data-piano="off" class="mu-btn" data-action="repair-source" disabled="@(starting || !prepared)" @onclick="EditSource">Check bar boundaries</button>
+                }
                 <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="resume-conversion" disabled="@(starting || job.HasUncertainRequest && !acknowledgeResend || job.NeedsRequestAllowance && !allowAdditionalRequest)" @onclick="Resume">Resume conversion</button>
             </div>
         }
@@ -156,7 +167,7 @@ else if (stage == Stage.Estimate)
             <input id="conversion-model" type="text" data-piano="off" class="text-field" value="@model" @onchange="e => model = e.Value?.ToString()?.Trim() ?? string.Empty" />
             <p class="pdfread-words">@(HasConfirmedSource ? $"{source!.Bars.Count} PDF bars confirmed. You can adjust their boundaries before converting." : "Check the proposed bar boundaries before converting, so every bar keeps its place in the PDF.")</p>
             <div class="pdfread-actions">
-                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(!prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">Check bar boundaries</button>
+                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(starting || !prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">Check bar boundaries</button>
             </div>
             @if (noKey)
             {
@@ -427,6 +438,8 @@ else
     private ConversionSource? source;
     private string? mappedSourceRevision;
     private bool editingSource;
+    private ConversionJob? editingJob;
+    private IReadOnlySet<string>? readBarIds;
     private ConversionJob? job;
     private ReadingDraft? savedDraft;
     private bool readingCostKnown = true;
@@ -671,7 +684,7 @@ else
                 layout[n - 1] = [.. PdfLayout.FindSystems(profile)];
             }
         }
-        if (stage == Stage.Estimate) to = pages;
+        if (stage == Stage.Estimate && job is null) to = pages;
         var preview = await owner.Thumbnail(from, 472);
         if (disposed) return;
         thumbnail = preview;
@@ -834,6 +847,10 @@ else
 
     private async Task EditSource()
     {
+        if (starting || !prepared || job is { CanRepairBoundaries: false }) return;
+        starting = true;
+        editingJob = job;
+        readBarIds = job?.Chunks.Where(c => c.Phase == ConversionPhase.Complete).SelectMany(c => c.Chunk.BarIds).ToHashSet(StringComparer.Ordinal);
         error = null;
         try
         {
@@ -846,12 +863,22 @@ else
             Logger.LogError(e, "Couldn't prepare PDF bar boundaries for {PieceId}", Piece.Id);
             error = "Prima couldn't prepare the PDF bar boundaries. Close and reopen the piece to try again.";
         }
+        finally { starting = false; }
     }
 
     private async Task ConfirmSource((ConversionSource Source, bool MapReading) confirmed)
     {
         try
         {
+            if (editingJob is { } paused)
+            {
+                var corrected = await Jobs.RepairBoundariesAsync(paused.Id, paused.Revision, confirmed.Source);
+                await AttachJob(corrected);
+                (editingSource, editingJob, readBarIds, error) = (false, null, null, null);
+                (acknowledgeResend, allowAdditionalRequest) = (false, false);
+                await OnSourceConfirmed.InvokeAsync(corrected.Source);
+                return;
+            }
             await Store.SaveConversionSourceAsync(Piece.Id, confirmed.Source);
             var revision = confirmed.MapReading ? confirmed.Source.Revision : null;
             if (result is not null)
@@ -868,7 +895,7 @@ else
         catch (Exception e)
         {
             Logger.LogError(e, "Couldn't save PDF bar boundaries for {PieceId}", Piece.Id);
-            error = "Prima couldn't save the bar boundaries. They are still on this screen; try Confirm again.";
+            error = editingJob is not null && e is InvalidOperationException ? e.Message : "Prima couldn't save the bar boundaries. They are still on this screen. Try Confirm again.";
         }
     }
 

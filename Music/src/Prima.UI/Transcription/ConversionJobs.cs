@@ -92,6 +92,35 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
         return await CommitAsync(job with { State = ConversionState.Queued, Problem = null });
     }
 
+    /// <summary>Replan the unread suffix of a paused job after the owner confirms a new map. Never dispatch from this edit.</summary>
+    public async Task<ConversionJob> RepairBoundariesAsync(string id, int expectedRevision, ConversionSource source)
+    {
+        await recovered;
+        var job = await store.GetConversionJobAsync(id) ?? throw new InvalidOperationException("The conversion was not found.");
+        if (!job.CanRepairBoundaries || job.Revision != expectedRevision || active.ContainsKey(id))
+            throw new InvalidOperationException("This conversion changed while its bars were open. Reopen the bar boundaries.");
+        var problems = source.Problems();
+        if (problems.Count > 0) throw new ArgumentException(string.Join(" ", problems), nameof(source));
+        var systems = job.Source.Bars.Select(b => (b.Page, b.System)).Distinct();
+        if (!source.Sha256.Equals(job.Source.Sha256, StringComparison.OrdinalIgnoreCase) || !systems.SequenceEqual(source.Bars.Select(b => (b.Page, b.System)).Distinct()))
+            throw new InvalidOperationException("The corrected boundaries must cover the same PDF and printed systems.");
+        if (job.Source.Bars.SequenceEqual(source.Bars)) return job;
+        if (source.Revision == job.Source.Revision) throw new InvalidOperationException("Changed boundaries need a new source revision.");
+
+        var saved = job.Chunks.TakeWhile(c => c.Phase == ConversionPhase.Complete).ToArray();
+        var firstUnread = saved.Sum(c => c.Chunk.BarIds.Count);
+        if (!source.Bars.Take(firstUnread).SequenceEqual(job.Source.Bars.Take(firstUnread)) ||
+            job.Chunks.Skip(saved.Length).Any(c => c.Phase != ConversionPhase.Read || c.Reading is not null))
+            throw new InvalidOperationException("The boundaries of bars already read must stay in place.");
+        var oldBars = job.Source.Bars.ToDictionary(b => b.Id);
+        if (source.Bars.Any(b => oldBars.TryGetValue(b.Id, out var old) && (b.Page != old.Page || b.System != old.System || b.Bounds != old.Bounds)))
+            throw new InvalidOperationException("A moved bar needs a new source identity.");
+
+        var kept = saved.Select(c => c with { Chunk = c.Chunk with { SourceRevision = source.Revision } });
+        var pending = ConversionChunks.Plan(source, job.Options.Chunks, firstUnread: firstUnread).Select(c => new ConversionChunkProgress(c, ConversionPhase.Read));
+        return await CommitAsync(job with { Source = source, Chunks = [.. kept, .. pending], State = ConversionState.Paused, Problem = null }, saveSource: true);
+    }
+
     public async Task CancelAsync(string id)
     {
         await recovered;
@@ -267,10 +296,10 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
         }
     }
 
-    private async Task<ConversionJob> CommitAsync(ConversionJob job)
+    private async Task<ConversionJob> CommitAsync(ConversionJob job, bool saveSource = false)
     {
         var updated = job with { Revision = job.Revision + 1, Updated = DateTimeOffset.UtcNow };
-        if (!await store.SaveConversionJobAsync(updated, job.Revision)) throw new ChangedCheckpointException();
+        if (!await store.SaveConversionJobAsync(updated, job.Revision, saveSource)) throw new ChangedCheckpointException();
         Publish(updated);
         return updated;
     }
@@ -288,6 +317,6 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
         }
     }
 
-    private sealed class ChangedCheckpointException : Exception;
+    private sealed class ChangedCheckpointException() : InvalidOperationException("The conversion changed. Reopen it to see its saved progress.");
     private sealed record ActiveRun(CancellationTokenSource Cancellation, TaskCompletionSource Finished);
 }

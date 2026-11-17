@@ -46,6 +46,8 @@ public sealed record ConversionJob(int Version, string Id, string Piece, string 
         (Attempts.Count >= Options.MaxRequests || UsedOrReservedOutputTokens + Options.Chunks.TargetOutputTokens > Options.OutputTokenBudget);
     public bool HasUncertainRequest => Attempts.Any(a => a.State == ConversionAttemptState.Uncertain);
     public bool Active => State is ConversionState.Queued or ConversionState.Running;
+    public bool CanRepairBoundaries => !IsRecheck && State is (ConversionState.Paused or ConversionState.Interrupted) &&
+        Chunks.FirstOrDefault(c => c.Phase != ConversionPhase.Complete)?.Phase == ConversionPhase.Read;
 }
 
 public sealed record ChunkToRead(int Page, int System, bool First, IReadOnlyList<string> OwnedSourceBars, ReadBar? PreviousBar,

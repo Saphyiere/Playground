@@ -44,15 +44,16 @@ public sealed record ChunkLimits(int MaxBars = 4, int TargetOutputTokens = 12_00
 public static class ConversionChunks
 {
     /// <summary>Plans in written order; never crosses a printed system or spends the whole output allowance on owned bars.</summary>
-    public static IReadOnlyList<ConversionChunk> Plan(ConversionSource source, ChunkLimits limits, IReadOnlyDictionary<string, int>? estimatedTokens = null)
+    public static IReadOnlyList<ConversionChunk> Plan(ConversionSource source, ChunkLimits limits, IReadOnlyDictionary<string, int>? estimatedTokens = null, int firstUnread = 0)
     {
         var problems = source.Problems();
         if (problems.Count > 0) throw new ArgumentException(string.Join(" ", problems), nameof(source));
         if (limits.MaxBars < 1 || limits.DefaultTokensPerBar < 1 || limits.ContextTokens < 0 || limits.TargetOutputTokens <= limits.ContextTokens)
             throw new ArgumentOutOfRangeException(nameof(limits));
+        if (firstUnread < 0 || firstUnread > source.Bars.Count) throw new ArgumentOutOfRangeException(nameof(firstUnread));
 
         var chunks = new List<ConversionChunk>();
-        for (var at = 0; at < source.Bars.Count;)
+        for (var at = firstUnread; at < source.Bars.Count;)
         {
             var start = at;
             var tokens = limits.ContextTokens;
