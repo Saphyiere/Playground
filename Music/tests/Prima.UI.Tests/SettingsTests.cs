@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Playground.Sync;
+using Playground.Updates;
 using Prima.UI.Components;
 using Prima.UI.Looks;
 using Prima.UI.Pages;
@@ -204,20 +205,25 @@ public class SettingsTests
     public async Task AnUpdateWhoseCopyCantBeMadeInstallsOnlyWhenAskedAgainWithoutACopy()
     {
         await using var host = new ComponentHost(safeguard: new NoCopy());
-        host.Context.Services.GetRequiredService<Playground.Updates.StandInUpdates>().Show("1.0", 13);
+        host.Context.Services.GetRequiredService<StandInUpdates>().Show("1.0", 13);
+        var updater = host.Context.Services.GetRequiredService<Updater>();
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Check").ClickAsync(new MouseEventArgs()));
-        view.WaitForAssertion(() => Assert.Contains(view.FindAll("button"), b => b.TextContent == "Install"));
-        Assert.DoesNotContain(view.FindAll("button"), b => b.TextContent == "Install without a copy");
+        await view.InvokeAsync(() => view.Find("#updates .control-row > button").ClickAsync(new MouseEventArgs()));
+        var install = view.WaitForElement("#updates .update-release .mu-primary:not([disabled])");
+        const string withoutCopy = "#updates .update-release button:not(.mu-primary)";
+        Assert.Empty(view.FindAll(withoutCopy));
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Install").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => install.ClickAsync(new MouseEventArgs()));
 
-        view.WaitForAssertion(() => Assert.Contains("A copy of your data couldn't be kept first (No space left), so nothing was installed.", view.Find("#updates").TextContent), TimeSpan.FromSeconds(30));
-        Assert.Contains("there will be nothing to go back to", view.Find("#updates").TextContent);
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Install without a copy").ClickAsync(new MouseEventArgs()));
-        view.WaitForAssertion(() => Assert.Contains("Confirm the update to Prima 1.0.13. No copy of your data was kept first.", view.Find("#updates").TextContent), TimeSpan.FromSeconds(30));
-        Assert.DoesNotContain(view.FindAll("button"), b => b.TextContent == "Install without a copy");
+        var retry = view.WaitForElement(withoutCopy, TimeSpan.FromSeconds(30));
+        Assert.Equal(UpdateStep.Failed, updater.Status.Step);
+        Assert.Equal("No space left", updater.Status.CopyProblem);
+        await view.InvokeAsync(() => retry.ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal(UpdateStep.Installing, updater.Status.Step), TimeSpan.FromSeconds(30));
+        Assert.Equal(13, updater.Status.Latest!.Build);
+        Assert.Null(updater.Status.CopyProblem);
+        Assert.Empty(view.FindAll(withoutCopy));
     }
 
     private sealed class NoCopy : Playground.Updates.IUpdateSafeguard

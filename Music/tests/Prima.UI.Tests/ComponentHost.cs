@@ -55,8 +55,8 @@ internal sealed class ComponentHost : IAsyncDisposable
         Context.Services.AddSingleton<IClaude>(Claude);
         Context.Services.AddSingleton<IConversionRenderer>(Renderer);
         Context.Services.AddSingleton<IConversionHost>(ConversionHost);
-        // Settings asks after updates: GitHub and the tablet stood in for, with no release yet.
-        Context.Services.AddStandInUpdates(new UpdateOptions("prima", "prima.apk"), "Prima");
+        // Checking for no release clears the stand-in's download folder. Give each host its own.
+        Context.Services.AddStandInUpdates(new UpdateOptions(Path.GetFileNameWithoutExtension(database), "prima.apk"), "Prima");
         if (bundle is not null) Context.Services.AddSingleton(bundle);
         Context.Services.AddPrima(database);
         // Registered after Prima's own, so it's the one the updater is given.
@@ -80,6 +80,7 @@ internal sealed class ComponentHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        var downloadFolder = Context.Services.GetRequiredService<StandInUpdates>().DownloadFolder;
         await Context.DisposeAsync();
         if (ConversionHost.Execution is { IsCompleted: false } execution)
         {
@@ -92,6 +93,11 @@ internal sealed class ComponentHost : IAsyncDisposable
         SqliteConnection.ClearPool(connection);
         File.Delete(database);
         Problems.Clear();
+        if (Directory.Exists(downloadFolder))
+        {
+            foreach (var file in Directory.EnumerateFiles(downloadFolder)) File.Delete(file);
+            Directory.Delete(downloadFolder);
+        }
     }
 }
 
