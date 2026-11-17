@@ -161,6 +161,38 @@ public class LibraryTests
     }
 
     [Fact]
+    public void LinesThatFitNoStaffArePassedOver()
+    {
+        // Measured with the bundled pdf.js renderer at 900 px wide on a page of six grand staves: its staff rows, each 0.81 of the
+        // width, and between its systems four other lines over half of it (dashed octave lines above three systems, and a row
+        // of ties). Only row positions and shares are kept; no score image or musical content is retained.
+        var rows = new double[1165];
+        int[] staffRows =
+        [
+            96, 97, 102, 103, 108, 109, 114, 115, 120, 121, 168, 174, 180, 181, 186, 187, 192, 193,
+            271, 272, 277, 278, 283, 284, 289, 290, 296, 343, 344, 349, 350, 355, 356, 361, 362, 367, 368,
+            446, 447, 453, 459, 465, 466, 471, 472, 518, 519, 524, 525, 530, 531, 536, 537, 542, 543,
+            622, 623, 628, 629, 634, 635, 640, 641, 646, 647, 693, 694, 699, 700, 705, 706, 711, 712, 717, 718,
+            797, 798, 803, 804, 809, 810, 815, 816, 821, 822, 868, 869, 874, 875, 880, 881, 886, 887, 892, 893,
+            972, 973, 978, 979, 984, 985, 990, 991, 996, 997, 1043, 1044, 1049, 1050, 1056, 1062, 1068, 1069,
+        ];
+        foreach (var row in staffRows) rows[row] = 0.814444;
+        (int Row, double Share)[] otherRows =
+        [
+            (431, 0.510000), (432, 0.534444), (594, 0.760000), (595, 0.592222), (769, 0.753333), (770, 0.705556), (944, 0.744444), (945, 0.730000),
+        ];
+        foreach (var (row, share) in otherRows) rows[row] = share;
+
+        var systems = PdfLayout.FindSystems(rows);
+
+        Assert.Equal(
+        [
+            new PageSystem(72.5, 232, 4), new PageSystem(232, 407, 4), new PageSystem(407, 582.5, 4),
+            new PageSystem(582.5, 757.5, 4), new PageSystem(757.5, 932.5, 4), new PageSystem(932.5, 1092.5, 4),
+        ], systems);
+    }
+
+    [Fact]
     public void AHalfPageTurnShowsOnlyWholeSystems()
     {
         // This page's systems every 200 px from 100; the next page's start higher, at 60 (no title), every 180.

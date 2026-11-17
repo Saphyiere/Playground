@@ -403,6 +403,16 @@ command line (`mscore -o out.musicxml in.mscz` [unverified]).
   failed. The gap inside a grand staff (about 8 staff spaces) is close to the gap between systems (about 10.8). Pairing
   staves two by two gave the correct 6 systems (measured). This is the classic first stage of OMR
   (**Moderate**, [Dalitz et al. 2008](https://doi.org/10.1109/TPAMI.2007.70749)).
+- **What else is more than half dark.** A row of sixteenth-note beams lying along a staff line, the ties under a system and
+  a dashed octave line can each ink more than half a row. Beams beside a staff line thicken it, the five lines stop looking
+  evenly spaced, the staff is missed, and every staff after it pairs with the wrong neighbour. Any other stray row left a
+  system with no barlines proposed. Measured in November 2026 with Prima's own page reading on the collection's 104 Mutopia
+  PDFs (221 pages, 1,064 systems) and two bought Musicnotes prints (21 pages of music, 119 systems): 6 Mutopia pages and 1
+  Musicnotes page paired staves wrongly, and 31 Mutopia systems and 10 Musicnotes systems got no barlines. So a row counts
+  as a staff line only when **one unbroken stroke** crosses more than half the page (gaps of a pixel or two, a scan's
+  pinholes, don't break it), and a line that fits no five-line staff is passed over. With that, every one of those systems
+  is found, with barlines. A scan whose lines are too broken to hold one stroke still goes by its dark pixels: where no
+  staff shows by strokes, the old rule stands.
 - **Tempo scrolling.** The arithmetic, with the beat as the time signature's counting unit:
   - seconds per bar = beats per bar × 60 ÷ BPM
   - seconds per system = bars in the system × seconds per bar

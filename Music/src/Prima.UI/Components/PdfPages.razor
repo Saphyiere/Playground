@@ -55,7 +55,7 @@
         public double? StaffEnd { get; init; }
     }
 
-    /// <summary>A page's rows, each one's share of dark pixels, drawn 900 px wide: for finding its systems.</summary>
+    /// <summary>A page's rows, for each the share of the page's width that could be staff line, drawn 900 px wide: for finding its systems.</summary>
     public async Task<double[]> Profile(int page) => module is null ? [] : await module.InvokeAsync<double[]>("profile", element, page);
 
     /// <summary>Page <paramref name="page"/> drawn <paramref name="width"/> px wide: a URL to show it by, to <see cref="Release"/> when done.</summary>

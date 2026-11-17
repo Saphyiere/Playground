@@ -10,6 +10,76 @@ const documents = new Map();
 // Thin staff lines in image-only PDFs can render as light gray at 900 px. Keep them in the profile and the system cuts.
 const inkThreshold = 3 * 240;
 
+// Each row's ink: how many of its pixels are dark, and how long its longest unbroken stroke is. A staff line is one stroke
+// across the page. A row of beams lying along it, or the ties under a system, can add up to as much ink without being one, and
+// must not pass for a line. Gaps of up to `gap` px, a scan's pinholes, don't break a stroke.
+function rowInk(dark, width, height, gap) {
+    const total = new Int32Array(height), stroke = new Int32Array(height);
+    for (let y = 0; y < height; y++) {
+        let start = 0, last = -gap - 2;
+        for (let x = 0; x < width; x++) {
+            if (!dark(x, y)) continue;
+            total[y]++;
+            if (x - last - 1 > gap) start = x;
+            last = x;
+            if (x - start + 1 > stroke[y]) stroke[y] = x - start + 1;
+        }
+    }
+    return { total, stroke };
+}
+
+// The staves among rows that count as lines (row numbers, in order): five lines in a row, evenly spaced, each line the middle of
+// its run of rows. A line that fits no staff (a pedal bracket, an ending's bracket, a solid octave line) is passed over, and
+// counted as spare.
+function fiveLineStaves(rows) {
+    const runs = [];
+    for (const y of rows) {
+        if (runs.length && y === runs[runs.length - 1][1] + 1) runs[runs.length - 1][1] = y;
+        else runs.push([y, y]);
+    }
+    const lines = runs.map(([a, b]) => Math.round((a + b) / 2));
+    const staves = [];
+    for (let i = 0; i + 4 < lines.length;) {
+        const staff = lines.slice(i, i + 5);
+        const gaps = staff.slice(1).map((y, n) => y - staff[n]);
+        const gap = gaps.reduce((sum, n) => sum + n, 0) / 4;
+        if (gap < 2 || gaps.some(n => Math.abs(n - gap) > gap * 0.25)) i++;
+        else {
+            staves.push({ lines: staff, top: staff[0], bottom: staff[4], gap });
+            i += 5;
+        }
+    }
+    return { staves, spare: lines.length - staves.length * 5 };
+}
+
+// What PdfLayout.FindSystems reads: for each row, the share of the page's width that could be staff line. Within two staff spaces
+// of a staff that unbroken strokes show, only a row's longest stroke counts: more ink than that there is beams, ties and stems.
+// Everywhere else it is the row's share of dark pixels, so a scan whose lines are too broken to follow is still found.
+function lineShares(total, stroke, width) {
+    const crossed = [];
+    for (let y = 0; y < stroke.length; y++) if (stroke[y] > width / 2) crossed.push(y);
+    const { staves } = fiveLineStaves(crossed);
+    const shares = [];
+    let at = 0;
+    for (let y = 0; y < total.length; y++) {
+        while (at < staves.length && y > staves[at].bottom + 2 * staves[at].gap) at++;
+        const near = at < staves.length && y >= staves[at].top - 2 * staves[at].gap;
+        shares.push((near ? stroke[y] : total[y]) / width);
+    }
+    return shares;
+}
+
+// A system's staff-line rows, between `from` and `to`: the rows one stroke crosses more than half of. Where the rows that are
+// merely more than half dark show more staves than those do, a scan's lines are too broken to follow, and they stand in.
+function staffRows(total, stroke, from, to, width) {
+    const crossed = [], inked = [];
+    for (let y = from; y < to; y++) {
+        if (stroke[y] > width / 2) crossed.push(y);
+        if (total[y] > width / 2) inked.push(y);
+    }
+    return !crossed.length || fiveLineStaves(inked).staves.length > fiveLineStaves(crossed).staves.length ? inked : crossed;
+}
+
 // Opens the document; the number of pages and each page's height for its width, as width ÷ height.
 export async function open(element, bytes, ownerId) {
     if (!element?.isConnected) return null;
@@ -40,7 +110,8 @@ export async function open(element, bytes, ownerId) {
     }
 }
 
-// A page's rows, for finding its systems: each row's share of dark pixels, drawn small (900 px wide) to be quick.
+// A page's rows, for finding its systems: for each, the share of the page's width that could be staff line (lineShares), drawn
+// small (900 px wide) to be quick.
 export async function profile(element, n) {
     const view = views.get(element);
     if (!view?.doc) return [];
@@ -55,17 +126,13 @@ export async function profile(element, n) {
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context, viewport }).promise;
     if (view.closed) return [];
-    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const rows = [];
-    for (let y = 0; y < canvas.height; y++) {
-        let dark = 0;
-        for (let x = 0; x < canvas.width; x++) {
-            const i = (y * canvas.width + x) * 4;
-            if (data[i] + data[i + 1] + data[i + 2] < inkThreshold) dark++;
-        }
-        rows.push(dark / canvas.width);
-    }
-    return rows;
+    const width = canvas.width;
+    const data = context.getImageData(0, 0, width, canvas.height).data;
+    const { total, stroke } = rowInk((x, y) => {
+        const i = (y * width + x) * 4;
+        return data[i] + data[i + 1] + data[i + 2] < inkThreshold;
+    }, width, canvas.height, Math.round(width / 600));
+    return lineShares(total, stroke, width);
 }
 
 // A page drawn small, for showing which of its systems will be read: a URL to show it by.
@@ -95,17 +162,10 @@ export async function cut(element, n, systems, includeImageBytes = true) {
         const i = (y * width + x) * 4;
         return data[i] + data[i + 1] + data[i + 2] < inkThreshold;
     };
-    const ink = new Int32Array(height);
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) if (dark(x, y)) ink[y]++;
-    }
     const scale = width / 900;
-    // Each system's staff lines: the rows more than half dark within it.
-    const lines = systems.map(s => {
-        const rows = [];
-        for (let y = Math.max(0, Math.floor(s.top * scale)); y < Math.min(height, Math.ceil(s.bottom * scale)); y++) if (ink[y] > width / 2) rows.push(y);
-        return rows;
-    });
+    const { total: ink, stroke } = rowInk(dark, width, height, Math.round(width / 600));
+    // Each system's staff lines.
+    const lines = systems.map(s => staffRows(ink, stroke, Math.max(0, Math.floor(s.top * scale)), Math.min(height, Math.ceil(s.bottom * scale)), width));
     // Between two systems, the middle of the longest run of white rows (or the least inky row, when they touch).
     const between = (from, to) => {
         let best = null, run = null;
@@ -177,32 +237,23 @@ export async function cut(element, n, systems, includeImageBytes = true) {
 // Group thick staff rows first, and merge nearby double-bar strokes using staff spacing, never a percentage of page width.
 function barlineCandidates(dark, rows, width, left, right) {
     const unknown = { bars: [], staffStart: null, staffEnd: null };
-    const runs = [];
-    for (const y of rows) {
-        if (runs.length && y === runs[runs.length - 1][1] + 1) runs[runs.length - 1][1] = y;
-        else runs.push([y, y]);
-    }
-    const lines = runs.map(([a, b]) => Math.round((a + b) / 2));
-    if (!lines.length || lines.length % 5 !== 0) return unknown;
-    const staves = [];
-    for (let i = 0; i < lines.length; i += 5) {
-        const staff = lines.slice(i, i + 5);
-        const gaps = staff.slice(1).map((y, n) => y - staff[n]);
-        const gap = gaps.reduce((sum, n) => sum + n, 0) / 4;
-        if (gap < 2 || gaps.some(n => Math.abs(n - gap) > gap * 0.25)) return unknown;
+    // A line or two that fit no staff are passed over. With more than that the rows aren't understood, and nothing is proposed.
+    const { staves, spare } = fiveLineStaves(rows);
+    if (!staves.length || spare > 2) return unknown;
+    for (const staff of staves) {
         // Three horizontal lines continuing for two staff spaces distinguish the staff from a brace, text or a stem
         // in the margin. Measure both ends independently of the padding that makes the preview readable.
-        let first = null, last = null, length = 0;
+        let length = 0;
+        staff.first = staff.last = null;
         for (let x = left; x < right; x++) {
             let supported = 0;
-            for (const y of staff) if (dark(x, y)) supported++;
+            for (const y of staff.lines) if (dark(x, y)) supported++;
             length = supported >= 3 ? length + 1 : 0;
-            if (length >= gap * 2) {
-                first ??= x - length + 1;
-                last = x;
+            if (length >= staff.gap * 2) {
+                staff.first ??= x - length + 1;
+                staff.last = x;
             }
         }
-        staves.push({ top: staff[0], bottom: staff[4], gap, first, last });
     }
     const strokes = [];
     let start = null;

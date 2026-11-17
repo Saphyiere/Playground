@@ -4,28 +4,31 @@ namespace Prima.Core.Library;
 public sealed record PageSystem(double Top, double Bottom, int Bars);
 
 /// <summary>
-/// Finding a PDF page's systems without reading its notes (library.md §5): a row of pixels is a staff line when more than half of
-/// it is dark; five evenly spaced lines are a staff; and staves are paired two by two into grand staves, since the gap inside a
-/// grand staff is too close to the gap between systems to tell them apart.
+/// Finding a PDF page's systems without reading its notes (library.md §5): a row of pixels is a staff line when more than half
+/// the page's width in it could be one; five evenly spaced lines are a staff; and staves are paired two by two into grand staves,
+/// since the gap inside a grand staff is too close to the gap between systems to tell them apart. What could be staff line is
+/// measured where the page is drawn (PdfPages): one unbroken stroke, so that beams lying along a staff aren't taken for a line,
+/// or the row's dark pixels where a scan's lines are too broken to follow.
 /// </summary>
 public static class PdfLayout
 {
-    /// <param name="darkShare">For each row of the page as drawn, the share of its pixels that are dark (0 to 1).</param>
+    /// <param name="lineShare">For each row of the page as drawn, the share of the page's width that could be staff line (0 to 1).</param>
     /// <param name="barsPerSystem">The bars guessed for each system until the owner sets them.</param>
-    public static IReadOnlyList<PageSystem> FindSystems(IReadOnlyList<double> darkShare, int barsPerSystem = 4)
+    public static IReadOnlyList<PageSystem> FindSystems(IReadOnlyList<double> lineShare, int barsPerSystem = 4)
     {
-        // Runs of dark rows are lines; each line is its run's middle.
+        // Runs of rows over half are lines; each line is its run's middle.
         var lines = new List<double>();
-        for (var i = 0; i < darkShare.Count; i++)
+        for (var i = 0; i < lineShare.Count; i++)
         {
-            if (darkShare[i] <= 0.5) continue;
+            if (lineShare[i] <= 0.5) continue;
 
             var start = i;
-            while (i + 1 < darkShare.Count && darkShare[i + 1] > 0.5) i++;
+            while (i + 1 < lineShare.Count && lineShare[i + 1] > 0.5) i++;
             lines.Add((start + i) / 2.0);
         }
 
-        // Staves: five lines in a row whose gaps are all about the same.
+        // Staves: five lines in a row whose gaps are all about the same. A line that fits none (an octave line, a pedal bracket,
+        // a row of ties) is passed over.
         var staves = new List<(double Top, double Bottom, double Space)>();
         for (var i = 0; i + 4 < lines.Count;)
         {
@@ -53,7 +56,7 @@ public static class PdfLayout
         {
             var margin = 4 * pairs[i].Space;
             var top = i == 0 ? Math.Max(0, pairs[i].Top - margin) : (pairs[i - 1].Bottom + pairs[i].Top) / 2;
-            var bottom = i == pairs.Count - 1 ? Math.Min(darkShare.Count, pairs[i].Bottom + margin) : (pairs[i].Bottom + pairs[i + 1].Top) / 2;
+            var bottom = i == pairs.Count - 1 ? Math.Min(lineShare.Count, pairs[i].Bottom + margin) : (pairs[i].Bottom + pairs[i + 1].Top) / 2;
             systems.Add(new PageSystem(top, bottom, barsPerSystem));
         }
         return systems;

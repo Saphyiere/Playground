@@ -408,7 +408,9 @@ a PDF plays out; this is what came of it.
   top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
   the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
   × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can
-  also play (**Hear it on the piano**).
+  also play (**Hear it on the piano**). A staff line is one unbroken stroke across more than half the page, so a row of beams
+  lying along a staff, the ties under a system or a dashed octave line isn't taken for one, however much ink it adds up to.
+  Where a scan's lines are too broken to follow, the rows that are more than half ink count instead.
 - **Converting a PDF's notes** starts from the orange **Convert to notation** button on the PDF's main toolbar. The PDF opens
   normally even when it has a saved conversion; the button reopens its progress or review. The toolbar then shows **Back to
   sheet music**, while **Convert to notation** moves into the form below, requiring a separate tap before a paid request.
