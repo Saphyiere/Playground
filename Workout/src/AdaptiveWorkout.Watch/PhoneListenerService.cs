@@ -32,7 +32,7 @@ public sealed class PhoneListenerService : WearableListenerService
         var notifications = (NotificationManager)GetSystemService(NotificationService)!;
         notifications.CreateNotificationChannel(new NotificationChannel(StartChannel, GetString(Resource.String.start_channel), NotificationImportance.High));
         notifications.Notify(StartNotificationId, new Notification.Builder(this, StartChannel)
-            .SetSmallIcon(Resource.Drawable.appicon_foreground)
+            .SetSmallIcon(Resource.Drawable.notification_mark)
             .SetContentTitle(GetString(Resource.String.start_channel))
             .SetContentText(GetString(Resource.String.start_notification))
             .SetContentIntent(open)

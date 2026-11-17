@@ -35,7 +35,7 @@ public sealed class ConversionDiagnosticService : Service
             var notifications = (NotificationManager)GetSystemService(NotificationService)!;
             if (OperatingSystem.IsAndroidVersionAtLeast(26)) notifications.CreateNotificationChannel(new NotificationChannel("prima.diagnostics", "Conversion diagnostics", NotificationImportance.Low));
             var builder = new AndroidX.Core.App.NotificationCompat.Builder(this, "prima.diagnostics");
-            builder.SetSmallIcon(Android.Resource.Drawable.IcMenuInfoDetails);
+            builder.SetSmallIcon(Resource.Drawable.notification_mark);
             builder.SetContentTitle("Prima conversion diagnostics");
             builder.SetContentText(command);
             builder.SetOngoing(true);

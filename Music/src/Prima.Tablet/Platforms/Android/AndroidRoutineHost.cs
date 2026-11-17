@@ -125,7 +125,7 @@ public sealed class RoutineServiceHost : Service
         open.SetData(Android.Net.Uri.Parse("prima://routine/" + id));
         open.PutExtra(OpenExtra, id);
         var builder = new NotificationCompat.Builder(this, ongoing ? ProgressChannel : ResultChannel);
-        builder.SetSmallIcon(Android.Resource.Drawable.IcMenuSave);
+        builder.SetSmallIcon(Resource.Drawable.notification_mark);
         builder.SetContentTitle(title);
         builder.SetContentText(message);
         builder.SetContentIntent(PendingIntent.GetActivity(this, 0, open, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable));

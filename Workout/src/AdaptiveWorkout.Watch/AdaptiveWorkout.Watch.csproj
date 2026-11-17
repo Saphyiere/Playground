@@ -24,5 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AdaptiveWorkout.Core\AdaptiveWorkout.Core.csproj" />
+    <AndroidResource Include="..\AdaptiveWorkout.Phone\Platforms\Android\Resources\drawable\notification_mark.xml" Link="Resources\drawable\notification_mark.xml" />
   </ItemGroup>
 </Project>

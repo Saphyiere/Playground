@@ -82,7 +82,7 @@ public sealed class HeartRateService : Service, ISensorEventListener
         notifications.CreateNotificationChannel(new NotificationChannel(Channel, GetString(Resource.String.workout_channel), NotificationImportance.Low));
         var open = PendingIntent.GetActivity(this, 0, new Intent(this, typeof(MainActivity)).AddFlags(ActivityFlags.SingleTop), PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
         var builder = new NotificationCompat.Builder(this, Channel);
-        builder.SetSmallIcon(Resource.Drawable.appicon_foreground);
+        builder.SetSmallIcon(Resource.Drawable.notification_mark);
         builder.SetContentTitle(GetString(Resource.String.app_name));
         builder.SetContentText(GetString(Resource.String.workout_notification));
         builder.SetCategory(NotificationCompat.CategoryWorkout);
@@ -93,7 +93,7 @@ public sealed class HeartRateService : Service, ISensorEventListener
         // An ongoing activity keeps the heart rate screen up for the whole workout: without one, Wear OS goes back to the watch face
         // a while after the screen dims. If I go to the watch face myself, its icon there taps straight back in.
         var ongoing = new OngoingActivity.Builder(ApplicationContext!, NotificationId, builder);
-        ongoing.SetStaticIcon(Resource.Drawable.appicon_foreground);
+        ongoing.SetStaticIcon(Resource.Drawable.notification_mark);
         ongoing.SetTouchIntent(open);
         ongoing.Build()!.Apply(ApplicationContext!);
         var notification = builder.Build()!;
@@ -196,7 +196,7 @@ public sealed class HeartRateService : Service, ISensorEventListener
         notifications.CreateNotificationChannel(channel);
         var open = PendingIntent.GetActivity(this, 1, new Intent(this, typeof(MainActivity)).AddFlags(ActivityFlags.NewTask), PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
         notifications.Notify(RestOverNotificationId, new Notification.Builder(this, RestOverChannel)
-            .SetSmallIcon(Resource.Drawable.appicon_foreground)
+            .SetSmallIcon(Resource.Drawable.notification_mark)
             .SetContentTitle(GetString(Resource.String.rest_over))
             .SetContentText(Status is { Resting: true, Next: { } next } ? next : Status?.Title)
             .SetContentIntent(open)

@@ -185,7 +185,7 @@ public sealed class ConversionService : Service
         if (piece is not null) open.PutExtra(PieceExtra, piece);
         var content = PendingIntent.GetActivity(this, 0, open, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
         var builder = new NotificationCompat.Builder(this, ongoing ? ProgressChannel : ResultChannel);
-        builder.SetSmallIcon(Android.Resource.Drawable.IcMenuSave);
+        builder.SetSmallIcon(Resource.Drawable.notification_mark);
         builder.SetContentTitle(title);
         builder.SetContentText(message);
         var style = new NotificationCompat.BigTextStyle();
