@@ -83,7 +83,7 @@ export async function thumbnail(element, n, width) {
 // 900 wide, halfway between staves); each cut moves to the widest band of white between two systems, so the notes high above or
 // low below a staff stay with their own system, and a page's first and last move out to white paper. With each, a URL to show it
 // by, its exact normalized page rectangle, and proposed barlines in page coordinates. PDF rotation is included in the viewport.
-export async function cut(element, n, systems) {
+export async function cut(element, n, systems, includeImageBytes = true) {
     const view = views.get(element);
     if (!view?.doc || systems.length === 0) return [];
     const canvas = await drawn(view, n, 2576);
@@ -165,7 +165,7 @@ export async function cut(element, n, systems) {
         out.getContext("2d").drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height);
         const blob = await new Promise(resolve => out.toBlob(resolve, "image/png"));
         const bounds = { x: left / width, y: top / height, width: (right - left) / width, height: (bottom - top) / height };
-        const png = new Uint8Array(await blob.arrayBuffer());
+        const png = includeImageBytes ? new Uint8Array(await blob.arrayBuffer()) : null;
         const url = imageUrl(view, blob);
         if (url === null) return [];
         cuts.push({ png, url, bounds, ...dividers });

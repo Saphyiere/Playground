@@ -5104,6 +5104,7 @@ html[data-full] .piece .summary {
 
 /* A key that can't be pressed yet (Keep until every system is read; Listen without the piano) looks it. */
 .pdfread-bar .mu-btn:disabled,
+.pdfread-progress .mu-btn:disabled,
 .pdfread-review .mu-btn:disabled,
 .pdfread-plan .mu-btn:disabled {
     opacity: 0.45;

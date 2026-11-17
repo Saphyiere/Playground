@@ -82,7 +82,7 @@ else if (job is { State: not ConversionState.Ready })
             <div class="pdfread-actions">
                 @if (job.CanRepairBoundaries)
                 {
-                    <button type="button" data-piano="off" class="mu-btn" data-action="repair-source" disabled="@(starting || !prepared)" @onclick="EditSource">Check bar boundaries</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="repair-source" disabled="@(starting || !prepared)" @onclick="EditSource">@BoundaryButton</button>
                 }
                 <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="resume-conversion" disabled="@(starting || job.HasUncertainRequest && !acknowledgeResend || job.NeedsRequestAllowance && !allowAdditionalRequest)" @onclick="Resume">Resume conversion</button>
             </div>
@@ -167,7 +167,7 @@ else if (stage == Stage.Estimate)
             <input id="conversion-model" type="text" data-piano="off" class="text-field" value="@model" @onchange="e => model = e.Value?.ToString()?.Trim() ?? string.Empty" />
             <p class="pdfread-words">@(HasConfirmedSource ? $"{source!.Bars.Count} PDF bars confirmed. You can adjust their boundaries before converting." : "Check the proposed bar boundaries before converting, so every bar keeps its place in the PDF.")</p>
             <div class="pdfread-actions">
-                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(starting || !prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">Check bar boundaries</button>
+                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(starting || !prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">@BoundaryButton</button>
             </div>
             @if (noKey)
             {
@@ -438,6 +438,7 @@ else
     private ConversionSource? source;
     private string? mappedSourceRevision;
     private bool editingSource;
+    private int? preparingPage;
     private ConversionJob? editingJob;
     private IReadOnlySet<string>? readBarIds;
     private ConversionJob? job;
@@ -477,6 +478,7 @@ else
     private int? listeningFrom;
 
     private bool CanListen => Keyboard.CanSend && Settings.SendToPiano;
+    private string BoundaryButton => preparingPage is { } page ? $"Preparing page {page} of {to}…" : prepared ? "Check bar boundaries" : "Opening PDF…";
 
     private string? ReviewId => (job?.IsRecheck == false ? job.Id : savedDraft?.ConversionJobId) ?? mappedSourceRevision ?? source?.Revision;
 
@@ -723,7 +725,12 @@ else
         cuts.Clear();
         foreach (var page in Enumerable.Range(from, to - from + 1))
         {
-            var made = await owner.Cut(page, Regions(page));
+            if (preparingPage is not null)
+            {
+                preparingPage = page;
+                StateHasChanged();
+            }
+            var made = await owner.Cut(page, Regions(page), includeImageBytes: false);
             if (disposed) return;
             for (var i = 0; i < made.Length; i++) cuts[(page, i + 1)] = made[i];
         }
@@ -849,6 +856,7 @@ else
     {
         if (starting || !prepared || job is { CanRepairBoundaries: false }) return;
         starting = true;
+        preparingPage = from;
         editingJob = job;
         readBarIds = job?.Chunks.Where(c => c.Phase == ConversionPhase.Complete).SelectMany(c => c.Chunk.BarIds).ToHashSet(StringComparer.Ordinal);
         error = null;
@@ -863,7 +871,7 @@ else
             Logger.LogError(e, "Couldn't prepare PDF bar boundaries for {PieceId}", Piece.Id);
             error = "Prima couldn't prepare the PDF bar boundaries. Close and reopen the piece to try again.";
         }
-        finally { starting = false; }
+        finally { (starting, preparingPage) = (false, null); }
     }
 
     private async Task ConfirmSource((ConversionSource Source, bool MapReading) confirmed)

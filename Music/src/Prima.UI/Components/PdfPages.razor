@@ -47,8 +47,8 @@
 
     private sealed record OpenResult(int Pages, double[] Ratios);
 
-    /// <summary>A raster crop, its exact normalized page rectangle, and proposed barlines in normalized page coordinates.</summary>
-    public sealed record SystemCut(byte[] Png, string Url, double[] Bars, Prima.Core.Transcription.SourceRectangle Bounds)
+    /// <summary>A system preview, its page-relative rectangle and barlines, and PNG bytes when requested.</summary>
+    public sealed record SystemCut(byte[]? Png, string Url, double[] Bars, Prima.Core.Transcription.SourceRectangle Bounds)
     {
         /// <summary>Horizontal extent agreed on by the five-line staves, in page coordinates, when measurable.</summary>
         public double? StaffStart { get; init; }
@@ -65,8 +65,8 @@
     /// The systems of page <paramref name="page"/> cut out as pictures for Claude, each cropped to its music, drawn up to 2,576 px
     /// wide: with URLs to show them by (to <see cref="Release"/>), and where their barlines are.
     /// </summary>
-    public async Task<SystemCut[]> Cut(int page, IReadOnlyList<Prima.Core.Library.PageSystem> systems) =>
-        module is null ? [] : await module.InvokeAsync<SystemCut[]>("cut", element, page, systems.Select(s => new { top = s.Top, bottom = s.Bottom }).ToArray());
+    public async Task<SystemCut[]> Cut(int page, IReadOnlyList<Prima.Core.Library.PageSystem> systems, bool includeImageBytes = true) =>
+        module is null ? [] : await module.InvokeAsync<SystemCut[]>("cut", element, page, systems.Select(s => new { top = s.Top, bottom = s.Bottom }).ToArray(), includeImageBytes);
 
     /// <summary>Lets go of the pictures behind URLs made for showing.</summary>
     public async Task Release(IEnumerable<string> urls)
