@@ -19,7 +19,10 @@ namespace Prima.UI.Tests;
 
 internal sealed class ComponentHost : IAsyncDisposable
 {
-    private readonly string database = Path.Combine(Path.GetTempPath(), $"prima-ui-{Guid.NewGuid():N}.db");
+    // The data file in a folder of the test's own, so the files kept beside it (imported PDFs in "library", what converting made)
+    // are the test's own too: in the temporary folder itself, a test restoring a copy replaced another's PDFs as it ran.
+    private readonly string folder;
+    private readonly string database;
     public BunitContext Context { get; } = new();
     public BrowserCalls Browser { get; } = new();
     public SystemBars Bars { get; } = new();
@@ -43,6 +46,9 @@ internal sealed class ComponentHost : IAsyncDisposable
     /// <param name="clock">The clock, in place of a stopwatch: one a test sets, say.</param>
     public ComponentHost(ILibraryBundle? bundle = null, IJSRuntime? js = null, IUpdateSafeguard? safeguard = null, Playground.Sync.ISyncStore? copies = null, IKeyboard? keyboard = null, IClock? clock = null)
     {
+        folder = Path.Combine(Path.GetTempPath(), $"prima-ui-{Guid.NewGuid():N}");
+        database = Path.Combine(folder, $"{Path.GetFileName(folder)}.db");
+        Directory.CreateDirectory(folder);
         // Where the copies go: a store of the test's own, or, without one, a temporary folder in the copies' work folder.
         if (copies is not null) Context.Services.AddSingleton(copies);
         if (keyboard is not null) Context.Services.AddSingleton(keyboard);
@@ -92,6 +98,13 @@ internal sealed class ComponentHost : IAsyncDisposable
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, ForeignKeys = true }.ToString());
         SqliteConnection.ClearPool(connection);
         File.Delete(database);
+        try
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
         Problems.Clear();
         if (Directory.Exists(downloadFolder))
         {
