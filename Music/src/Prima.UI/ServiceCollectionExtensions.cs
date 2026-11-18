@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Practice.SessionRegistry>();
         services.AddScoped<AppNavigation>();
         services.AddScoped<Library.LibraryPrep>();
+        services.AddScoped<Library.LibraryPlace>();
         return services;
     }
 }

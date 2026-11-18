@@ -1,0 +1,21 @@
+@implements IDisposable
+@inject NavigationManager Nav
+@inject Prima.UI.Library.LibraryPlace Place
+
+@* The rail's Library key, lit anywhere in the Library. From a piece or another screen it goes back to the list as it was left (its
+   search, its filter and where it was scrolled to); from one of the Library's lists, to the Library's home. *@
+<a class="mu-nav-item" href="@Href" aria-current="@(InLibrary ? "page" : null)"><span class="mu-nav-code">B1</span><span>Library</span></a>
+
+@code {
+    protected override void OnInitialized() => Nav.LocationChanged += Moved;
+
+    private void Moved(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    private string Path => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0];
+
+    private bool InLibrary => Path == "library" || Path.StartsWith("library/", StringComparison.Ordinal);
+
+    private string Href => Path == "library" ? "library" : Place.Last;
+
+    public void Dispose() => Nav.LocationChanged -= Moved;
+}

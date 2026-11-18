@@ -182,6 +182,9 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public double[] PageRatios { get; set; } = [0.75];
     /// <summary>What sheets gave Verovio to engrave: the music, and the options with it.</summary>
     public List<(string Mei, JsonElement Options)> Renders { get; } = [];
+    /// <summary>How many times a Library list, drawn, was scrolled to where it was left, and how many times one was left.</summary>
+    public int ListsPlaced { get; private set; }
+    public int ListsLeft { get; private set; }
 
     public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, default, args);
 
@@ -204,6 +207,8 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
         }
         if (identifier == "outline") Outlines.Add(((ElementReference)args![0]!, (string?)args[1]));
         if (identifier == "render") lock (Renders) Renders.Add(((string)args![1]!, JsonSerializer.SerializeToElement(args[2])));
+        if (identifier == "show" && args is null or []) ListsPlaced++;
+        if (identifier == "leave") ListsLeft++;
         if (identifier == "show" && args?.Length == 7) ShownPdfs.Add((ElementReference)args[0]!);
         if (identifier == "show" && args is [string section])
         {

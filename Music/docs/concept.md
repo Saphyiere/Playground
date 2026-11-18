@@ -222,6 +222,10 @@ a PDF plays out; this is what came of it.
   aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
   about where its collection sits, or what its MIDI reads at. A title is shown whole in the lists, on as many lines as it takes
   (a sonata's movements differ only at their ends, and an upload's file name can run long), and in a piece's own bar upright.
+  The Library remembers where it was left: a list's search and filter are in its address (`library?by=composer&of=…&only=pdf&q=
+  sonata`), taking its place as they change, so coming back to it from a piece, by the way back or the rail's Library key, finds
+  them as they were and the list scrolled to where it was; a list not seen before starts at its top. From a piece or another
+  screen the rail's Library key goes back to the list last shown, and from one of the Library's lists to its home.
 - **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from its first note (a pickup's
   included; rests it starts with, and a drum part's bars before the piano comes in, aren't played through), at the tempo it
   starts at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is

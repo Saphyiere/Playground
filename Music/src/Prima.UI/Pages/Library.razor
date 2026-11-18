@@ -1,10 +1,13 @@
 @page "/library"
-@implements IDisposable
+@implements IAsyncDisposable
 @inject PrimaStore Store
 @inject IFiles Files
 @inject Prima.UI.Library.LibraryPrep Prep
 @inject Prima.UI.Library.Openings Openings
+@inject Prima.UI.Library.LibraryPlace Place
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
+@inject IJSRuntime JS
 @using Prima.Core.Library
 @using Prima.Core.Practice
 
@@ -46,7 +49,7 @@ else if (note is not null)
     {
         @foreach (var (key, label) in Formats)
         {
-            <button type="button" class="mu-toggle" aria-pressed="@(format == key ? "true" : "false")" @onclick="() => format = key"><span class="mu-led"></span>@label</button>
+            <button type="button" class="mu-toggle" aria-pressed="@(format == key ? "true" : "false")" @onclick="() => Choose(key)"><span class="mu-led"></span>@label</button>
         }
     }
     <input class="text-field @(By is null ? "library-search" : "text-field-short")" type="search" placeholder="@(By is null ? "Title or composer" : "Find here")" aria-label="Find a piece" value="@search" @oninput="Typed" />
@@ -301,6 +304,14 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
     [SupplyParameterFromQuery(Name = "of")]
     public string? Of { get; set; }
 
+    /// <summary>What's searched for, as typed: kept in the address, so the list comes back with it.</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    /// <summary>The pieces the list is cut to: "notation" (to play along) or "pdf"; all of them when none.</summary>
+    [SupplyParameterFromQuery(Name = "only")]
+    public string? Only { get; set; }
+
     private List<PieceRecord> pieces = [];
     // Each piece's period and kind, by its id: worked out once each time the pieces are read.
     private Dictionary<string, string> periodOf = [];
@@ -318,6 +329,10 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
     // back while it's done.
     private (bool All, HashSet<string> Removed) ownOut = (false, []);
     private Task? puttingBack;
+    // The pieces are read, and the list drawn from them is to be scrolled to where it was left (Library.razor.js keeps where).
+    private bool loaded;
+    private bool placing;
+    private IJSObjectReference? places;
 
     private string? Heading => By switch
     {
@@ -345,13 +360,43 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
         reading = await Store.GetTrackAsync<ReadingState>("reading");
         await Load();
         played = (await Store.GetPieceRunsAsync()).GroupBy(r => r.Piece).Select(g => (g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToDictionary(p => p.Key, p => p.Done!);
+        loaded = true;
         Prep.Changed += Changed;
         Openings.Changed += Heard;
         _ = Prep.EnsureAsync();
     }
 
-    // Another list of the Library is a new start: its own format and search.
-    protected override void OnParametersSet() => (format, search, note) = ("all", null, null);
+    // Each list is its address: its format and search are in it, so coming back to a list (the way back, or the rail's Library
+    // key, which goes to the address kept here) finds them as they were left, and then the place it was scrolled to.
+    protected override void OnParametersSet()
+    {
+        (format, search, note) = (Only is "notation" or "pdf" ? Only : "all", string.IsNullOrWhiteSpace(Query) ? null : Query, null);
+        // Only a list's own address: a piece's, as the list is left for it, isn't one.
+        var here = Nav.ToBaseRelativePath(Nav.Uri).Split('#')[0];
+        if (here.Split('?')[0] == "library") Place.Last = here;
+        placing = true;
+    }
+
+    // Once the list is drawn from the pieces read, it's scrolled to where it was left: the top, for a list not seen before.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!placing || !loaded) return;
+
+        placing = false;
+        try
+        {
+            places ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Pages/Library.razor.js");
+            await places.InvokeVoidAsync("show");
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        {
+        }
+    }
+
+    // The address with one of its values changed, in this one's place: the way back doesn't step through each search or filter.
+    private void Keep(string name, string? value) => Navigation.Replace(Nav.GetUriWithQueryParameter(name, value));
+
+    private void Choose(string key) => Keep("only", key == "all" ? null : key);
 
     private async Task Load()
     {
@@ -401,7 +446,8 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
 
     protected override bool ShouldRender() => !holding;
 
-    // The list follows the search once typing pauses for a quarter of a second, not at every key.
+    // The list follows the search once typing pauses for a quarter of a second, not at every key: it goes in the address, which
+    // the list then shows.
     private async Task Typed(ChangeEventArgs e)
     {
         holding = true;
@@ -415,7 +461,9 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
         {
             return;
         }
-        (holding, search) = (false, e.Value?.ToString());
+        holding = false;
+        var typed = e.Value?.ToString();
+        Keep("q", string.IsNullOrWhiteSpace(typed) ? null : typed);
     }
 
     // The pieces of the list open, in the format chosen, found by the search (accents aside: "Dvorak" finds Dvořák); the home's
@@ -541,12 +589,23 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
         await Load();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Prep.Changed -= Changed;
         Openings.Changed -= Heard;
         // Leaving the Library (opening a piece, say) stops an opening playing.
         Openings.Stop();
         typing?.Cancel();
+        try
+        {
+            if (places is not null)
+            {
+                await places.InvokeVoidAsync("leave");
+                await places.DisposeAsync();
+            }
+        }
+        catch (Exception e) when (e is JSDisconnectedException or JSException)
+        {
+        }
     }
 }
