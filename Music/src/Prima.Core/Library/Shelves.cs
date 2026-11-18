@@ -89,6 +89,20 @@ public static class Shelves
     }
 
     /// <summary>
+    /// A composer as an index lists them, surname first: "Beethoven, Ludwig van". A name of one word ("Traditional"), one
+    /// written surname first already, or one that doesn't end with its surname ("Johann Strauss II", "Bach and others") is
+    /// left as it is.
+    /// </summary>
+    public static string Listed(string? composer)
+    {
+        if (string.IsNullOrWhiteSpace(composer)) return "";
+
+        var name = composer.Trim();
+        var surname = Surname(name);
+        return !name.Contains(',') && surname.Length > 0 && name.EndsWith(" " + surname, StringComparison.Ordinal) ? $"{surname}, {name[..^(surname.Length + 1)].Trim()}" : name;
+    }
+
+    /// <summary>
     /// Whether a search finds what's typed in a piece's words: each word typed by itself, in any order, and every one of them
     /// ("beethoven sonata 14"), big or small letters and accents aside, so "Dvorak" finds Dvořák. A number typed is a whole
     /// number there ("14" finds No. 14 and Op. 14, not Op. 140), or a movement's: a movement is asked for by its number or as an

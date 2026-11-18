@@ -15,7 +15,11 @@ public sealed record WorkPart(string Id, string Name);
 /// “Pathetique”"), the number ("Op. 13"), its kind, its parts in order, and the other versions of it the Library holds
 /// (another edition's PDFs, people's arrangements), each by its own title.
 /// </summary>
-public sealed record Work(string Key, string Title, string? Catalogue, string Kind, IReadOnlyList<WorkPart> Parts, IReadOnlyList<WorkPart> Others);
+public sealed record ListedWork(string Key, string Title, string? Catalogue, string Kind, IReadOnlyList<WorkPart> Parts, IReadOnlyList<WorkPart> Others)
+{
+    /// <summary>Its number among its kind, where its name gives one: 14 for "Sonata No. 14". A set has none.</summary>
+    public int? Number { get; init; }
+}
 
 /// <summary>
 /// A composer's pieces as works, read from their titles and the work each source names. The Library keeps a piece a movement,
@@ -39,7 +43,7 @@ public static partial class Works
     public static readonly IReadOnlySet<string> Editions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DCML", "Humdrum", "ASAP" };
 
     /// <summary>One composer's pieces as works, in the catalogue's order: by kind as <see cref="Shelves.Kinds"/> has them, then by name, numbers as numbers.</summary>
-    public static IReadOnlyList<Work> Of(IEnumerable<ListedPiece> pieces)
+    public static IReadOnlyList<ListedWork> Of(IEnumerable<ListedPiece> pieces)
     {
         var read = pieces.Select(Read).ToList();
         // What's before a colon, a dash or a comma is a work's name only where another title has it too: "April: Snowdrop" is a piece.
@@ -61,15 +65,24 @@ public static partial class Works
             if (!group.Set && BareCatalogue().IsMatch(piece.Work?.Trim() ?? "")) group.Givens.Add(piece.Work!.Trim() + (r.Sure?.Sub is { } sub ? $" No. {sub}" : ""));
         }
 
-        var works = groups.Values.ToList();
+        // A set the Library has one piece of is that piece, under its own name: "Allemande", not "English Suites".
+        var works = groups.Values.Select(g => g is { Set: true, Parts: [var only] } ? Alone(only) : g).ToList();
         foreach (var work in works) work.Settle();
         Join(works);
         Gather(works);
         return [.. works.Where(w => w.Into is null)
             .OrderBy(w => Shelves.Kinds.ToList().IndexOf(w.Kind)).ThenBy(w => Natural(w.Shown), StringComparer.Ordinal).ThenBy(w => w.Key, StringComparer.Ordinal)
-            .Select(w => new Work(w.Key, w.Shown, w.Catalogue, w.Kind,
+            .Select(w => new ListedWork(w.Key, w.Shown, w.Catalogue, w.Kind,
                 [.. w.Parts.OrderBy(p => p, w.Order).Select(p => new WorkPart(p.Piece.Id, w.Named(p)))],
-                [.. w.Others.OrderBy(p => p.Piece.IsPdf).ThenBy(p => Natural(p.Piece.Title), StringComparer.Ordinal).ThenBy(p => p.Piece.Id, StringComparer.Ordinal).Select(p => new WorkPart(p.Piece.Id, p.Piece.Title))]))];
+                [.. w.Others.OrderBy(p => p.Piece.IsPdf).ThenBy(p => Natural(p.Piece.Title), StringComparer.Ordinal).ThenBy(p => p.Piece.Id, StringComparer.Ordinal).Select(p => new WorkPart(p.Piece.Id, p.Piece.Title))])
+            { Number = w.Set ? null : w.Number })];
+    }
+
+    private static Group Alone(Part only)
+    {
+        var alone = new Group("p:" + only.Piece.Id, only.Piece.Title, false);
+        alone.Parts.Add(only with { Name = only.Piece.Title });
+        return alone;
     }
 
     // ——— Catalogue numbers ———
@@ -406,8 +419,11 @@ public static partial class Works
     // Wohltemperierte Clavier I". A set named without a number ("Mazurkas") is nobody's version.
     private static bool ByCatalogue(Group work, Group lesser, string lesserWords)
     {
-        // An opus by itself is a version of the work whose pieces are numbered in it: "Kinderszenen Op. 15", a mazurka of Op. 33.
-        if (lesser.Marked is { } mark) return work.Marks.Contains(mark) || work.Marks.Any(m => m.StartsWith(mark + "/", StringComparison.Ordinal));
+        // An opus by itself is a version of the work whose pieces are numbered in it ("Kinderszenen Op. 15", a mazurka of Op. 33),
+        // and a numbered piece of an opus a version of the work in parts that is the whole opus: a prelude of the 24, Op. 28.
+        if (lesser.Marked is { } mark)
+            return work.Marks.Contains(mark) || work.Marks.Any(m => m.StartsWith(mark + "/", StringComparison.Ordinal))
+                || work.Parts.Count > 1 && work.Marked is { } whole && mark.StartsWith(whole + "/", StringComparison.Ordinal);
         if (lesser.Set || lesser.Parts.Count < 2) return false;
 
         var marks = lesser.Parts.Select(p => p.Mark).OfType<string>().Distinct().ToList();

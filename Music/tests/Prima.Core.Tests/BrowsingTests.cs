@@ -38,6 +38,16 @@ public class BrowsingTests
     [InlineData("Traditional", "Traditional")]
     public void ComposersAreListedBySurname(string composer, string surname) => Assert.Equal(surname, Shelves.Surname(composer));
 
+    [Theory]
+    [InlineData("Ludwig van Beethoven", "Beethoven, Ludwig van")]
+    [InlineData("Ralph Vaughan Williams", "Vaughan Williams, Ralph")]
+    [InlineData("Johann Strauss II", "Johann Strauss II")]
+    [InlineData("Bach, Johann Sebastian", "Bach, Johann Sebastian")]
+    [InlineData("Bach and others", "Bach and others")]
+    [InlineData("Traditional", "Traditional")]
+    [InlineData("", "")]
+    public void AnIndexNamesAComposerSurnameFirst(string composer, string listed) => Assert.Equal(listed, Shelves.Listed(composer));
+
     // The owner, 17 November: "beethoven sonata 14" and "moonlight first movement" found nothing, the search taking only the
     // whole phrase. Each word counts by itself, in any order; a number is a whole number or a movement's, and so is an ordinal.
     // The pieces' words as the Library searches them: title, composer, work.

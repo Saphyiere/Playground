@@ -63,7 +63,7 @@ public class OwnPiecesTests
 
         await view.InvokeAsync(() => view.Find(".library-put-back button").ClickAsync(new MouseEventArgs()));
 
-        view.WaitForAssertion(() => Assert.Contains("Everything 2", view.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())));
+        view.WaitForAssertion(() => Assert.Equal("2 pieces", view.Find(".page-kicker").TextContent));
         Assert.Empty(view.FindAll(".library-put-back"));
         Assert.Equal(["own-minuet", "own-musette"], await Ids(host));
 

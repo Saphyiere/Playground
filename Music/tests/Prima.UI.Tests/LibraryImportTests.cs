@@ -84,7 +84,7 @@ public class LibraryImportTests
         Assert.True(File.Exists(Path.Combine(host.Store.FilesPath, "rebuilt-kept.pdf")));
         Assert.Single(await host.Store.GetPieceRunsAsync("rebuilt-wrong"));
         var view = host.Context.Render<Pages.Library>();
-        view.WaitForAssertion(() => Assert.Contains("Everything 3", view.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())));
+        view.WaitForAssertion(() => Assert.Equal("3 pieces · 1 uploaded", view.Find(".page-kicker").TextContent));
         File.Delete(Path.Combine(host.Store.FilesPath, "rebuilt-kept.pdf"));
     }
 

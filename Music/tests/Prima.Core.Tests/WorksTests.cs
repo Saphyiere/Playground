@@ -68,6 +68,7 @@ public class WorksTests
         ]));
 
         Assert.Equal("Sonata No. 14 “quasi una fantasia” “Moonlight”", work.Title);
+        Assert.Equal(14, work.Number);
         Assert.Equal("Op. 27 No. 2", work.Catalogue);
         Assert.Equal(["I. Adagio sostenuto", "II. Allegretto", "III. Presto agitato"], work.Parts.Select(p => p.Name));
         Assert.Equal(5, work.Others.Count);
@@ -263,6 +264,7 @@ public class WorksTests
         var works = Works.Of(
         [
             Edition("asap-schubert-impromptu-op-90-d-899-4", "Impromptu in A♭ major, D. 899 No. 4", "Impromptus", "ASAP"),
+            Edition("asap-schubert-impromptu-op-90-d-899-1", "Impromptu in C minor, D. 899 No. 1", "Impromptus", "ASAP"),
             Pdf("mutopia-SchubertF-D899-4-Impromptu", "Impromptu in As-dur, No. 4", "D.899 (Op. 90)"),
             Pdf("mutopia-SchubertF-D935-2-Impromptu", "Impromptu in As-dur, No. 2", "D.935 (Op. 142)"),
         ]);
@@ -270,6 +272,15 @@ public class WorksTests
         Assert.Equal(["Impromptu in As-dur, No. 2", "Impromptus"], works.Select(w => w.Title));
         Assert.Equal("D.935 (Op. 142)", works[0].Catalogue);
         Assert.Equal(["mutopia-SchubertF-D899-4-Impromptu"], works[1].Others.Select(p => p.Id));
+    }
+
+    [Fact]
+    public void ASetWithOnePieceHereIsThatPieceUnderItsOwnName()
+    {
+        var work = Assert.Single(Works.Of([Edition("allemande", "Allemande", "English Suites"), .. Pathetique]).Where(w => w.Kind == "Dances"));
+
+        Assert.Equal("Allemande", work.Title);
+        Assert.Equal("Allemande", Assert.Single(work.Parts).Name);
     }
 
     [Fact]

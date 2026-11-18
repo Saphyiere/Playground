@@ -5,6 +5,7 @@
 @inject Prima.UI.Library.LibraryPrep Prep
 @inject Prima.UI.Library.Openings Openings
 @inject Prima.UI.Library.LibraryPlace Place
+@inject Prima.UI.Library.RepertoireBook Book
 @inject NavigationManager Nav
 @inject AppNavigation Navigation
 @inject IJSRuntime JS
@@ -13,652 +14,512 @@
 
 <PageTitle>@(Heading is null ? "Library" : $"{Heading} · Library") · Prima</PageTitle>
 
-@if (Heading is null)
-{
-    <PageHead Title="Library" Kicker="Real pieces"><button type="button" class="mu-btn" @onclick="Import">Import files</button></PageHead>
-}
-else if (By == "mine")
-{
-    @* The pieces uploaded are where more are imported from, too. *@
-    <PageHead Title="@Heading" Kicker="@Kicker">
-        <div class="page-head-keys"><button type="button" class="mu-btn mu-primary" @onclick="Import">Import files</button><a class="mu-btn" href="library">Library</a></div>
-    </PageHead>
-}
-else
-{
-    <PageHead Title="@Heading" Kicker="@Kicker"><a class="mu-btn" href="library">Library</a></PageHead>
-}
-
-@if (Prep.Running)
-{
-    <section class="mu-screen library-prep" aria-live="polite">
-        <div class="mu-screen-head"><span>@(Prep.Adding is { } adding ? $"Adding {adding}" : "Preparing the collection")</span><span>@Prep.Progress.Done of @Prep.Progress.Total</span></div>
-        <div class="mu-meter" role="img" aria-label="@($"{Prep.Progress.Done} of {Prep.Progress.Total} pieces ready")">
-            @for (var i = 0; i < 20; i++)
-            {
-                <span class="@(i < 20 * Prep.Progress.Done / Math.Max(1, Prep.Progress.Total) ? "on" : "")"></span>
-            }
+@* The Library is a catalogue: its lists stay down the left (the pieces uploaded, the ones near your level, then every composer,
+   kind or level), and what's chosen there is beside them: a composer's works by kind, a work's movements in order with the
+   other versions of it, or a list of pieces. Each column scrolls by itself. *@
+<div class="lib">
+    <header class="page-head">
+        <div>
+            <p class="page-kicker">@Counted()</p>
+            <h1 class="page-title">Library</h1>
         </div>
-        <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are below already.</p>
-    </section>
-}
-@if (Openings.Playing is { } hearing && pieces.FirstOrDefault(p => p.Id == hearing) is { } heard)
-{
-    <p class="control-note" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
-}
-else if (note is not null)
-{
-    <p class="control-note" role="status">@note</p>
-}
+        <div class="head-tools">
+            <input class="text-field head-search" type="search" placeholder="Find a piece or a composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
+            <button type="button" class="mu-btn" @onclick="Import">Import files</button>
+        </div>
+    </header>
 
-<div class="control-row library-filters">
-    @if (By is not null and not "composers" and not "pdf")
+    @if (Prep.Running)
     {
-        @foreach (var (key, label) in Formats)
-        {
-            <button type="button" class="mu-toggle" aria-pressed="@(format == key ? "true" : "false")" @onclick="() => Choose(key)"><span class="mu-led"></span>@label</button>
-        }
+        <section class="mu-screen library-prep" aria-live="polite">
+            <div class="mu-screen-head"><span>@(Prep.Adding is { } adding ? $"Adding {adding}" : "Preparing the collection")</span><span>@Prep.Progress.Done of @Prep.Progress.Total</span></div>
+            <div class="mu-meter" role="img" aria-label="@($"{Prep.Progress.Done} of {Prep.Progress.Total} pieces ready")">
+                @for (var i = 0; i < 20; i++)
+                {
+                    <span class="@(i < 20 * Prep.Progress.Done / Math.Max(1, Prep.Progress.Total) ? "on" : "")"></span>
+                }
+            </div>
+            <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are in the lists already.</p>
+        </section>
     }
-    <input class="text-field @(By is null ? "library-search" : "text-field-short")" type="search" placeholder="@(By is null ? "Title or composer" : "Find here")" aria-label="Find a piece" value="@search" @oninput="Typed" />
-</div>
-
-@{
-    // A piece's row: the button that plays its opening, then its title, a line about it, its level and what it is.
-    RenderFragment<(PieceRecord Piece, string Meta)> row = item =>
+    @if (Openings.Playing is { } hearing && byId.GetValueOrDefault(hearing) is { } heard)
     {
-        var playing = Openings.Playing == item.Piece.Id;
-        return @<li class="piece-item">
-            @if (Hearable(item.Piece))
+        <p class="control-note" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
+    }
+    else if (note is not null)
+    {
+        <p class="control-note" role="status">@note</p>
+    }
+
+    @{
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var view = View;
+        var of = ShownOf;
+        var listed = ListMode;
+
+        // A piece's row: the key that plays its opening, its number where it has one, its name over a line about it, its level
+        // and its star.
+        RenderFragment<(PieceRecord Piece, string No, string Name, string? About)> row = item =>
+        {
+            var piece = item.Piece;
+            var playing = Openings.Playing == piece.Id;
+            var starred = Book.Current.Has(piece.Id);
+            return @<li class="mov piece-item">
+                @if (Hearable(piece))
+                {
+                    <button type="button" class="mu-btn piece-hear" aria-pressed="@(playing ? "true" : "false")" aria-label="@(playing ? $"Stop {piece.Title}" : $"Hear the opening of {piece.Title}")" @onclick="() => Hear(piece)">@(playing ? "■" : "▶")</button>
+                }
+                else
+                {
+                    <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
+                }
+                <span class="mov-no">@item.No</span>
+                <a class="mov-name" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
+                    <span class="piece-title">@item.Name</span>
+                    @if (!string.IsNullOrEmpty(item.About))
+                    {
+                        <small>@item.About</small>
+                    }
+                </a>
+                <span class="piece-level">@LevelShown(piece)</span>
+                <button type="button" class="lb-star" aria-pressed="@(starred ? "true" : "false")" aria-label="@(starred ? $"{piece.Title} is in your repertoire: choose its collections" : $"Add {piece.Title} to your repertoire")" @onclick="e => Star(piece, e)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                </button>
+            </li>;
+        };
+
+        // A work's own pieces in order, then the other versions of it the Library has, each by its own title.
+        RenderFragment<ListedWork> movements = work =>
+            @<text>
+                <ol class="mov-list">
+                    @foreach (var part in work.Parts)
+                    {
+                        @if (byId.GetValueOrDefault(part.Id) is { } piece)
+                        {
+                            var (no, name) = Numbered(work, part);
+                            @row((piece, no, name, About(piece)))
+                        }
+                    }
+                </ol>
+                @if (work.Others.Count > 0)
+                {
+                    <p class="col-title others-title">@(work.Others.Count == 1 ? "Another version of it" : $"Other versions of it · {work.Others.Count}")</p>
+                    <ol class="mov-list">
+                        @foreach (var other in work.Others)
+                        {
+                            @if (byId.GetValueOrDefault(other.Id) is { } piece)
+                            {
+                                @row((piece, "", piece.Title, AboutVersion(piece)))
+                            }
+                        }
+                    </ol>
+                }
+            </text>;
+    }
+
+    <div class="lib-cols">
+        <nav class="lib-col lib-list" aria-label="The Library's lists" data-keep="list" data-at="@listed">
+            @if (pieces.Any(p => p.Imported))
             {
-                <button type="button" class="mu-btn piece-hear" aria-pressed="@(playing ? "true" : "false")" aria-label="@(playing ? $"Stop {item.Piece.Title}" : $"Hear the opening of {item.Piece.Title}")" @onclick="() => Hear(item.Piece)">@(playing ? "■" : "▶")</button>
+                <a class="col-item shelf-own" href="@Address("mine", null)" aria-current="@(view == "mine" ? "true" : null)"><span>Uploaded pieces</span><span class="n">@pieces.Count(p => p.Imported)</span></a>
+            }
+            @if (composers.Count > 0 || pieces.Count > 0)
+            {
+                <p class="col-title">Catalogue · @pieces.Count(p => !p.Imported).ToString("N0")</p>
+                @if (Near().Count() is > 0 and var near)
+                {
+                    <a class="col-item" href="@Address("near", null)" aria-current="@(view == "near" ? "true" : null)"><span>Near your level</span><span class="n">@near</span></a>
+                }
+                <p class="col-by">
+                    @foreach (var (key, label) in Lists)
+                    {
+                        <a href="@Nav.GetUriWithQueryParameter("list", key)" aria-current="@(listed == key ? "true" : null)" @onclick="@(() => Keep("list", key))" @onclick:preventDefault>@label</a>
+                    }
+                </p>
+                @if (listed == "composers")
+                {
+                    <input class="text-field col-find" type="search" placeholder="Find a composer" aria-label="Find a composer" value="@find" @oninput="Finding" />
+                    @foreach (var composer in composers.Where(c => string.IsNullOrWhiteSpace(find) || Shelves.Finds(c.Name, find)))
+                    {
+                        <a class="col-item" href="@Address("composer", composer.Name)" aria-current="@(view == "composer" && of == composer.Name ? "true" : null)"><span>@composer.Listed</span><span class="n">@composer.Count</span></a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(find) && !composers.Any(c => Shelves.Finds(c.Name, find)))
+                    {
+                        <p class="section-note">No composer for “@find”.</p>
+                    }
+                }
+                else if (listed == "kinds")
+                {
+                    @foreach (var kind in Shelves.Kinds)
+                    {
+                        @if (pieces.Count(p => kindOf[p.Id] == kind) is > 0 and var count)
+                        {
+                            <a class="col-item" href="@Address("kind", kind)" aria-current="@(view == "kind" && of == kind ? "true" : null)"><span>@kind</span><span class="n">@count</span></a>
+                        }
+                    }
+                }
+                else
+                {
+                    <p class="section-note">Where most of a piece reads.</p>
+                    @foreach (var level in pieces.GroupBy(LevelOf).OrderBy(g => g.Key))
+                    {
+                        <a class="col-item" href="@Address("level", level.Key.ToString())" aria-current="@(view == "level" && of == level.Key.ToString() ? "true" : null)"><span>@(level.Key == 0 ? "Not graded" : $"Level {level.Key}")</span><span class="n">@level.Count()</span></a>
+                    }
+                }
+            }
+            @* Prima's own pieces taken out (Settings' Remove library, or one by one) stay out until they're put back here, and the
+               collection's pieces removed by hand stay out when it's imported again, until they're let back in. *@
+            @if (pieces.Count > 0 && puttingBack is null && OwnOut() is { } said)
+            {
+                <div class="library-put-back">
+                    <p class="section-note">@said</p>
+                    <button type="button" class="mu-btn" @onclick="PutBack">@(ownOut is { All: false, Removed.Count: 1 } ? "Put it back" : "Put them back")</button>
+                </div>
+            }
+            @if (collectionOut.Count > 0)
+            {
+                <div class="library-put-back">
+                    <p class="section-note">@(collectionOut.Count == 1 ? "1 of your collection's pieces is out of the Library: you removed it, and importing its collection again leaves it out." : $"{collectionOut.Count} of your collection's pieces are out of the Library: you removed them, and importing their collection again leaves them out.")</p>
+                    <button type="button" class="mu-btn" @onclick="LetBackIn">@(collectionOut.Count == 1 ? "Let it back in" : "Let them back in")</button>
+                </div>
+            }
+            <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
+        </nav>
+
+        <div class="lib-main">
+            @if (pieces.Count == 0)
+            {
+                @if (!Prep.Running && puttingBack is null)
+                {
+                    @if (ownOut.All)
+                    {
+                        <p class="page-note">Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself. Import MusicXML, MEI, ABC, MIDI or PDF files, or put Prima's own back.</p>
+                        <div class="control-row library-put-back">
+                            <button type="button" class="mu-btn mu-primary" @onclick="PutBack">Put Prima's pieces back</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
+                    }
+                }
+            }
+            else if (view == "found")
+            {
+                // Every piece whose words have what's typed, under its composer, and the composers whose names do.
+                var all = Found().ToList();
+                var names = composers.Where(c => Shelves.Finds(c.Name, search!)).ToList();
+                <div class="lib-main-head">
+                    <div>
+                        <h2 class="col-head">Found for “@search”</h2>
+                        <p class="col-sub">@(all.Count == 0 ? "Nothing" : all.Count == 1 ? "1 piece" : $"{all.Count:N0} pieces")@(all.Count > Most ? $", the first {Most} here: another word narrows them" : ""). Each word is looked for by itself; a number finds a work's number or a movement's.</p>
+                    </div>
+                </div>
+                <div class="lib-col" data-keep="pieces">
+                    @if (names.Count > 0)
+                    {
+                        <p class="col-title">@(names.Count == 1 ? "Composer" : "Composers")</p>
+                        @foreach (var composer in names.Take(8))
+                        {
+                            <a class="col-item" href="@Address("composer", composer.Name)"><span>@composer.Listed</span><span class="n">@composer.Count</span></a>
+                        }
+                    }
+                    @foreach (var group in all.Take(Most).GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? NotGiven : p.Composer))
+                    {
+                        <p class="col-title found-title">@group.Key</p>
+                        <ol class="mov-list">
+                            @foreach (var piece in group)
+                            {
+                                @row((piece, "", piece.Title, AboutFound(piece)))
+                            }
+                        </ol>
+                    }
+                    @if (all.Count == 0 && names.Count == 0)
+                    {
+                        <p class="page-note">Nothing here for “@search”.</p>
+                    }
+                </div>
+            }
+            else if (view == "composer" && of is not null)
+            {
+                var works = worksOf.GetValueOrDefault(of);
+                var count = pieces.Count(p => p.Composer == of);
+                <div class="lib-main-head">
+                    <div>
+                        <h2 class="col-head">@of</h2>
+                        <p class="col-sub">@(count == 1 ? "1 piece" : $"{count:N0} pieces")@(works is { Count: > 1 } ? $" · {works.Count} works" : "")</p>
+                    </div>
+                    @if (works is not null && Tabs(works) is { Count: > 1 } tabs)
+                    {
+                        <div class="settings-tabs" role="tablist" aria-label="Kinds">
+                            @foreach (var each in tabs)
+                            {
+                                <button type="button" role="tab" class="settings-tab" aria-selected="@(each == TabOf(works) ? "true" : "false")" @onclick="() => Turn(each.Name)">@each.Name<span class="tab-n">@each.Held</span></button>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (works is null)
+                {
+                    <p class="section-note" role="status">Reading its works…</p>
+                }
+                else
+                {
+                    var tab = TabOf(works);
+                    var shown = works.Where(w => tab is not null && tab.Kinds.Contains(w.Kind)).ToList();
+                    @if (shown.All(w => w.Parts.Count == 1 && w.Others.Count == 0))
+                    {
+                        // Pieces that each stand by themselves need no second column.
+                        <div class="lib-col" data-keep="pieces" data-at="@($"{of} {tab?.Name}")">
+                            <ol class="mov-list">
+                                @foreach (var work in shown)
+                                {
+                                    @if (byId.GetValueOrDefault(work.Parts[0].Id) is { } piece)
+                                    {
+                                        @row((piece, work.Number?.ToString() ?? "", work.Title, AboutAlone(work, piece)))
+                                    }
+                                }
+                            </ol>
+                        </div>
+                    }
+                    else
+                    {
+                        var chosen = ChosenOf(shown);
+                        // Across: the works, and the one chosen beside them.
+                        <div class="lib-pair only-wide">
+                            <div class="lib-col works" data-keep="works" data-at="@($"{of} {tab?.Name}")">
+                                @foreach (var work in shown)
+                                {
+                                    <a class="col-item col-work" href="@Nav.GetUriWithQueryParameter("work", work.Key)" aria-current="@(work == chosen ? "true" : null)" @onclick="@(() => Keep("work", work.Key))" @onclick:preventDefault>
+                                        <span class="work-no">@work.Number</span>
+                                        <span>@work.Title<small>@WorkLine(work)</small></span>
+                                        <span class="n">@Levels(work)</span>
+                                    </a>
+                                }
+                            </div>
+                            <div class="lib-col" data-keep="work" data-at="@($"{of} {chosen?.Key}")">
+                                @if (chosen is not null)
+                                {
+                                    <h3 class="col-head small">@chosen.Title</h3>
+                                    <p class="col-sub">@WorkLine(chosen, levels: true)</p>
+                                    @movements(chosen)
+                                }
+                            </div>
+                        </div>
+                        // Upright: each work opens where it is.
+                        <div class="work-list only-upright" data-keep="works-upright" data-at="@($"{of} {tab?.Name}")">
+                            @foreach (var work in shown)
+                            {
+                                var open = work == chosen && Chosen != Closed;
+                                <section class="work" data-open="@(open ? "true" : null)">
+                                    <a class="work-head" href="@Nav.GetUriWithQueryParameter("work", open ? Closed : work.Key)" aria-expanded="@(open ? "true" : "false")" @onclick="@(() => Keep("work", open ? Closed : work.Key))" @onclick:preventDefault>
+                                        <span class="work-no">@work.Number</span>
+                                        <div class="work-name"><h3>@work.Title</h3><p>@WorkLine(work)</p></div>
+                                        <span class="work-levels">@Levels(work)</span>
+                                        <span class="work-chev"></span>
+                                    </a>
+                                    @if (open)
+                                    {
+                                        @movements(work)
+                                    }
+                                </section>
+                            }
+                        </div>
+                    }
+                }
+            }
+            else if (view == "kind" && of is not null)
+            {
+                // A kind is an index of every composer's works of it: a work goes to its composer, opened at it.
+                var index = worksRead ? composers.Select(c => (Composer: c, Works: worksOf[c.Name].Where(w => w.Kind == of).ToList())).Where(c => c.Works.Count > 0).ToList() : null;
+                <div class="lib-main-head">
+                    <div>
+                        <h2 class="col-head">@of</h2>
+                        <p class="col-sub">@(index is null ? "" : $"{Counted(index.Sum(c => c.Works.Count), "work")} by {Counted(index.Count, "composer")} · ")@Counted(pieces.Count(p => kindOf[p.Id] == of), "piece")</p>
+                    </div>
+                </div>
+                @if (index is null)
+                {
+                    <p class="section-note" role="status">Reading the works…</p>
+                }
+                else
+                {
+                    <div class="lib-col" data-keep="pieces">
+                        @foreach (var (composer, works) in index)
+                        {
+                            <p class="col-title found-title">@composer.Listed</p>
+                            @foreach (var work in works)
+                            {
+                                <a class="col-item col-work" href="@($"library?by=composer&of={Uri.EscapeDataString(composer.Name)}&kind={Uri.EscapeDataString(of)}&work={Uri.EscapeDataString(work.Key)}")">
+                                    <span class="work-no">@work.Number</span>
+                                    <span>@work.Title<small>@WorkLine(work)</small></span>
+                                    <span class="n">@Levels(work)</span>
+                                </a>
+                            }
+                        }
+                    </div>
+                }
+            }
+            else if (view == "mine")
+            {
+                var mine = Uploaded().ToList();
+                <div class="lib-main-head">
+                    <div class="band-head">
+                        <div>
+                            <h2 class="col-head">Uploaded pieces</h2>
+                            <p class="col-sub">@(mine.Count == 1 ? "1 piece" : $"{mine.Count} pieces") · @(Sorted switch { "az" => "by title", "artist" => "by artist", _ => "the latest first" })</p>
+                        </div>
+                        <div class="band-tools">
+                            @foreach (var (key, label) in Sorts)
+                            {
+                                <button type="button" class="mu-toggle lb-small" aria-pressed="@(Sorted == key ? "true" : "false")" @onclick="@(() => Keep("sort", key == "latest" ? null : key))"><span class="mu-led"></span>@label</button>
+                            }
+                            <button type="button" class="mu-btn mu-primary lb-small" @onclick="Import">Import files</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="lib-col" data-keep="pieces">
+                    <ul class="up-list">
+                        @foreach (var piece in mine)
+                        {
+                            var playing = Openings.Playing == piece.Id;
+                            var starred = Book.Current.Has(piece.Id);
+                            <li class="up-row piece-item">
+                                @if (Hearable(piece))
+                                {
+                                    <button type="button" class="mu-btn piece-hear" aria-pressed="@(playing ? "true" : "false")" aria-label="@(playing ? $"Stop {piece.Title}" : $"Hear the opening of {piece.Title}")" @onclick="() => Hear(piece)">@(playing ? "■" : "▶")</button>
+                                }
+                                else
+                                {
+                                    <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
+                                }
+                                <a class="up-main" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
+                                    <span class="up-title piece-title">@piece.Title</span>
+                                    @if (!string.IsNullOrWhiteSpace(piece.Composer))
+                                    {
+                                        <span class="up-artist">@piece.Composer</span>
+                                    }
+                                </a>
+                                <span class="up-last">
+                                    @if (played.GetValueOrDefault(piece.Id) is { } done)
+                                    {
+                                        <b>@Capital(PieceWords.When(done.Last.Day, today))</b>@($" · {PieceWords.Short(done.Last)}")
+                                    }
+                                    else
+                                    {
+                                        @($"Added {Capital(PieceWords.When(DateOnly.FromDateTime(piece.Added.LocalDateTime), today)).ToLowerInvariant()}, not played yet")
+                                    }
+                                </span>
+                                <span class="up-parts">
+                                    @if (piece.IsPdf) { <span class="piece-tag">Pages</span> }
+                                    @if (piece.PlaysAlong) { <span class="piece-tag">Notes</span> }
+                                    <span class="piece-level">@LevelShown(piece)</span>
+                                </span>
+                                <button type="button" class="lb-star" aria-pressed="@(starred ? "true" : "false")" aria-label="@(starred ? $"{piece.Title} is in your repertoire: choose its collections" : $"Add {piece.Title} to your repertoire")" @onclick="e => Star(piece, e)">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                    @if (mine.Count == 0)
+                    {
+                        <p class="page-note">Nothing uploaded yet. Import files brings in MusicXML, MEI, ABC, MIDI and PDF files, and zips of them.</p>
+                    }
+                </div>
             }
             else
             {
-                <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
-            }
-            <a class="piece-row" href="@($"library/{Uri.EscapeDataString(item.Piece.Id)}")">
-                <span class="piece-title">@item.Piece.Title</span>
-                <span class="piece-meta">@item.Meta</span>
-                <span class="piece-level">@(item.Piece.Level is { } l ? (item.Piece.IsPdf && !item.Piece.HasNotes ? $"~{l}" : $"{l}") : "–")</span>
-                @if (item.Piece.IsPdf || item.Piece.Imported)
-                {
-                    <span class="piece-tags">@if (item.Piece.IsPdf) { <span class="piece-tag">PDF</span> } @if (item.Piece.HasNotes) { <span class="piece-tag">Notes read</span> } @if (item.Piece.Imported) { <span class="piece-tag">Uploaded</span> }</span>
-                }
-            </a>
-        </li>;
-    };
-
-    // A way into the Library: its name and how many pieces are there.
-    RenderFragment<(string Label, int Count, string Href)> chip = item => @<a class="mu-btn shelf-chip" href="@item.Href">@item.Label <span class="shelf-count">@item.Count</span></a>;
-    var today = DateOnly.FromDateTime(DateTime.Now);
-}
-
-@if (By == "composers")
-{
-    // Every composer, listed by surname under its first letter; Find here leaves the ones whose names have what's typed.
-    var found = Composers().Where(c => string.IsNullOrWhiteSpace(search) || Shelves.Finds(c.Name, search)).ToList();
-    @foreach (var letter in found.GroupBy(c => Initial(c.Name)).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
-    {
-        <section class="settings-section" aria-labelledby="@($"letter-{letter.Key}")">
-            <h2 id="@($"letter-{letter.Key}")" class="section-title">@letter.Key</h2>
-            <div class="shelf">
-                @foreach (var (name, count) in letter)
-                {
-                    @chip((name, count, $"library?by=composer&of={Uri.EscapeDataString(name)}"))
-                }
-            </div>
-        </section>
-    }
-    @if (found.Count == 0 && !string.IsNullOrWhiteSpace(search))
-    {
-        <p class="page-note">Nothing here for “@search”.</p>
-    }
-}
-else if (By is null && string.IsNullOrWhiteSpace(search))
-{
-    // The pieces played in the last month, the latest first, each with when and how its last run went.
-    var working = pieces.Where(p => played.TryGetValue(p.Id, out var done) && done.Last.Day >= today.AddDays(-30)).OrderByDescending(p => played[p.Id].Last.At).Take(8).ToList();
-    @if (working.Count > 0)
-    {
-        <section class="settings-section" aria-labelledby="working-on">
-            <h2 id="working-on" class="section-title">Working on</h2>
-            <ul class="piece-list">
-                @foreach (var piece in working)
-                {
-                    var last = played[piece.Id].Last;
-                    // A piece without a composer (an import's) starts with when, not with a dot.
-                    @row((piece, string.Join(" · ", new[] { piece.Composer, $"{PieceWords.When(last.Day, today)}, {PieceWords.Short(last)}" }.Where(s => !string.IsNullOrEmpty(s)))))
-                }
-            </ul>
-        </section>
-    }
-
-    var near = Near().ToList();
-    @if (near.Count > 0)
-    {
-        <section class="settings-section" aria-labelledby="near-you">
-            <h2 id="near-you" class="section-title">Near your level</h2>
-            <p class="section-note">@NearNote() A few each day, the ones not opened yet first.</p>
-            <ul class="piece-list">
-                @foreach (var piece in Picks(near, working, today))
-                {
-                    @row((piece, Meta(piece)))
-                }
-            </ul>
-            <p class="shelf-more"><a href="library?by=near">All @near.Count near your level</a></p>
-        </section>
-    }
-
-    var composers = Composers().ToList();
-    @if (composers.Count > 0)
-    {
-        <section class="settings-section" aria-labelledby="by-composer">
-            <h2 id="by-composer" class="section-title">Composers</h2>
-            <div class="shelf">
-                @foreach (var (name, count) in composers.OrderByDescending(c => c.Count).ThenBy(c => Shelves.Surname(c.Name)).Take(12))
-                {
-                    @chip((name, count, $"library?by=composer&of={Uri.EscapeDataString(name)}"))
-                }
-                <a class="mu-btn shelf-chip shelf-all" href="library?by=composers">All @composers.Count composers</a>
-            </div>
-        </section>
-    }
-    // The other ways in hold every piece, whether or not it names a composer: a Library of imported MIDI files and PDFs, which
-    // name none, opens on them too.
-    @if (pieces.Count > 0)
-    {
-        <section class="settings-section" aria-labelledby="by-period">
-            <h2 id="by-period" class="section-title">Periods</h2>
-            <div class="shelf">
-                @foreach (var period in Shelves.Periods)
-                {
-                    var count = pieces.Count(p => periodOf[p.Id] == period);
-                    @if (count > 0)
+                // A list of pieces (the ones near your level, a level's, a period's, everything, the PDFs), under their composers
+                // by surname, the pieces without one last.
+                var shown = Shown().ToList();
+                var groups = shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? NotGiven : p.Composer).OrderBy(g => g.Key == NotGiven).ThenBy(g => Initial(g.Key), StringComparer.Ordinal)
+                    .ThenBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
+                var by = ComposersIn(groups);
+                <div class="lib-main-head">
+                    <div class="band-head">
+                        <div>
+                            <h2 class="col-head">@Heading</h2>
+                            <p class="col-sub">@(shown.Count == 1 ? "1 piece" : $"{shown.Count:N0} pieces")@(by > 1 ? $" by {by} composers" : "").@(view == "near" ? $" {NearNote()}" : "")</p>
+                        </div>
+                        @if (view != "pdf")
+                        {
+                            <div class="band-tools">
+                                @foreach (var (key, label) in Formats)
+                                {
+                                    <button type="button" class="mu-toggle lb-small" aria-pressed="@(format == key ? "true" : "false")" @onclick="() => Choose(key)"><span class="mu-led"></span>@label</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="lib-col" data-keep="pieces">
+                    @if (groups.Count > 2)
                     {
-                        @chip((period, count, $"library?by=period&of={Uri.EscapeDataString(period)}"))
+                        // Straight to a composer, in a long list.
+                        <nav class="shelf shelf-jump" aria-label="@(by > MostKeys ? "Composers by surname" : "Composers")">
+                            @foreach (var (label, count, at) in Keys(groups))
+                            {
+                                <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{at}")">@label <span class="shelf-count">@count</span></a>
+                            }
+                        </nav>
                     }
-                }
-            </div>
-        </section>
-        <section class="settings-section" aria-labelledby="by-kind">
-            <h2 id="by-kind" class="section-title">Kinds</h2>
-            <div class="shelf">
-                @foreach (var kind in Shelves.Kinds)
-                {
-                    var count = pieces.Count(p => kindOf[p.Id] == kind);
-                    @if (count > 0)
+                    @foreach (var (group, i) in groups.Select((g, i) => (g, i)))
                     {
-                        @chip((kind, count, $"library?by=kind&of={Uri.EscapeDataString(kind)}"))
+                        <p id="@($"group-{i}")" class="col-title found-title">@group.Key</p>
+                        <ol class="mov-list">
+                            @foreach (var piece in group.OrderBy(p => p.Work ?? "").ThenBy(p => Works.Natural(p.Title), StringComparer.Ordinal))
+                            {
+                                @row((piece, "", piece.Title, AboutListed(piece)))
+                            }
+                        </ol>
                     }
-                }
-            </div>
-        </section>
-        <section class="settings-section" aria-labelledby="by-level">
-            <h2 id="by-level" class="section-title">Levels</h2>
-            <p class="section-note">Where most of a piece reads.</p>
-            <div class="shelf">
-                @foreach (var level in pieces.GroupBy(LevelOf).OrderBy(g => g.Key))
-                {
-                    @chip((level.Key == 0 ? "Not graded" : $"Level {level.Key}", level.Count(), $"library?by=level&of={level.Key}"))
-                }
-            </div>
-        </section>
-        <section class="settings-section" aria-labelledby="by-list">
-            <h2 id="by-list" class="section-title">Lists</h2>
-            <div class="shelf">
-                @chip(("Everything", pieces.Count, "library?by=all"))
-                @if (pieces.Count(p => p.IsPdf) is > 0 and var pdfs)
-                {
-                    @chip(("PDFs", pdfs, "library?by=pdf"))
-                }
-                @if (pieces.Count(p => p.Imported) is > 0 and var uploaded)
-                {
-                    @chip(("Uploaded pieces", uploaded, "library?by=mine"))
-                }
-            </div>
-        </section>
-    }
-}
-else
-{
-    var shown = Shown().ToList();
-    // A composer's pieces by kind (their works are too many and too unevenly named to group by); any other list's by composer,
-    // each with its works together, by surname under its letter (an accented one with its plain letter), the pieces without one
-    // last.
-    var groups = By == "composer"
-        ? shown.GroupBy(p => kindOf[p.Id]).OrderBy(g => Shelves.Kinds.ToList().IndexOf(g.Key)).ToList()
-        : shown.GroupBy(p => string.IsNullOrWhiteSpace(p.Composer) ? NotGiven : p.Composer).OrderBy(g => g.Key == NotGiven).ThenBy(g => Initial(g.Key), StringComparer.Ordinal)
-            .ThenBy(g => Shelves.Surname(g.Key), StringComparer.OrdinalIgnoreCase).ThenBy(g => g.Key).ToList();
-    var composers = By == "composer" ? 1 : ComposersIn(groups);
-    @if (By == "near")
-    {
-        <p class="section-note">@NearNote() The PDFs are under PDFs, by level.</p>
-    }
-    @if (shown.Count > 0)
-    {
-        <p class="section-note">@(shown.Count == 1 ? "1 piece" : $"{shown.Count} pieces")@(By == "composer" ? (groups.Count > 1 ? $" of {groups.Count} kinds" : "") : composers > 1 ? $" by {composers} composers" : "").</p>
-    }
-    @if (groups.Count > 2)
-    {
-        // Straight to a group, in a long list.
-        <nav class="shelf shelf-jump" aria-label="@(By == "composer" ? "Kinds" : composers > MostKeys ? "Composers by surname" : "Composers")">
-            @foreach (var (label, count, at) in Keys(groups))
-            {
-                <a class="mu-btn shelf-chip" href="@($"{Here()}#group-{at}")">@label <span class="shelf-count">@count</span></a>
+                    @if (shown.Count == 0)
+                    {
+                        <p class="page-note">Nothing here.</p>
+                    }
+                </div>
             }
-        </nav>
-    }
-    @foreach (var (group, i) in groups.Select((g, i) => (g, i)))
+        </div>
+    </div>
+
+    @* The piece just taken out, from its own Remove: what went, and Undo, at the foot of the screen until the Library is left. *@
+    @if (Place.Removed is { } removed)
     {
-        <section class="settings-section" aria-labelledby="@($"group-{i}")">
-            <h2 id="@($"group-{i}")" class="section-title">@group.Key</h2>
-            <ul class="piece-list">
-                @foreach (var piece in group.OrderBy(p => p.Work ?? "").ThenBy(p => Numbered.Replace(p.Title, n => n.Value.PadLeft(4, '0')), StringComparer.OrdinalIgnoreCase))
-                {
-                    @row((piece, By == "composer" ? MetaWithoutComposer(piece) : Meta(piece)))
-                }
-            </ul>
-        </section>
-    }
-    @if (pieces.Count > 0 && shown.Count == 0)
-    {
-        <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : ""). </p>
-    }
-}
-@* Prima's own pieces taken out (Settings' Remove library, or one by one) stay out until they're put back here: on an empty Library
-   that's the way on, and on the home of one with other pieces a line at the end. *@
-@if (pieces.Count == 0 && !Prep.Running && puttingBack is null)
-{
-    @if (ownOut.All)
-    {
-        <p class="page-note">Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself. Import MusicXML, MEI, ABC, MIDI or PDF files, or put Prima's own back.</p>
-        <div class="control-row library-put-back">
-            <button type="button" class="mu-btn mu-primary" @onclick="PutBack">Put Prima's pieces back</button>
+        <div class="control-row library-removed" role="status">
+            <p class="control-note">Removed “@removed.Piece.Title” from the Library.</p>
+            <button type="button" class="mu-btn" @onclick="Undo">Undo</button>
         </div>
     }
-    else
+
+    @* A star's second tap: which of the repertoire's collections the piece is in, where it was tapped. *@
+    @if (starring is { } kept)
     {
-        <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
-    }
-}
-else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null && OwnOut() is { } said)
-{
-    <div class="control-row library-put-back">
-        <p class="section-note">@said</p>
-        <button type="button" class="mu-btn" @onclick="PutBack">@(ownOut is { All: false, Removed.Count: 1 } ? "Put it back" : "Put them back")</button>
-    </div>
-}
-@* The collection's pieces removed by hand stay out when it's imported again, until they're let back in here. *@
-@if (By is null && string.IsNullOrWhiteSpace(search) && collectionOut.Count > 0)
-{
-    <div class="control-row library-put-back">
-        <p class="section-note">@(collectionOut.Count == 1 ? "1 of your collection's pieces is out of the Library: you removed it, and importing its collection again leaves it out." : $"{collectionOut.Count} of your collection's pieces are out of the Library: you removed them, and importing their collection again leaves them out.")</p>
-        <button type="button" class="mu-btn" @onclick="LetBackIn">@(collectionOut.Count == 1 ? "Let it back in" : "Let them back in")</button>
-    </div>
-}
-
-<p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
-
-@* The piece just taken out, from its own Remove: what went, and Undo, held at the foot of the screen wherever the list was left
-   scrolled to, until the Library is left. *@
-@if (Place.Removed is { } removed)
-{
-    <div class="control-row library-removed" role="status">
-        <p class="control-note">Removed “@removed.Piece.Title” from the Library.</p>
-        <button type="button" class="mu-btn" @onclick="Undo">Undo</button>
-    </div>
-}
-
-@code {
-    // Titles sort with their numbers as numbers: "No. 2" before "No. 11".
-    private static readonly System.Text.RegularExpressions.Regex Numbered = new(@"\d+");
-
-    private static readonly (string Key, string Label)[] Formats = [("all", "All"), ("notation", "To play along"), ("pdf", "PDFs")];
-
-    private const string NotGiven = "Composer not given";
-
-    // Past this many composers, a list's keys go by letter: Chorales and hymns had 136 keys, a few screens of them above its
-    // first piece.
-    private const int MostKeys = 12;
-
-    /// <summary>What the Library shows: composer, period, kind or level (with <see cref="Of"/>), near, all, pdf, mine or composers; the home when none.</summary>
-    [SupplyParameterFromQuery(Name = "by")]
-    public string? By { get; set; }
-
-    /// <summary>Which composer, period, kind or level.</summary>
-    [SupplyParameterFromQuery(Name = "of")]
-    public string? Of { get; set; }
-
-    /// <summary>What's searched for, as typed: kept in the address, so the list comes back with it.</summary>
-    [SupplyParameterFromQuery(Name = "q")]
-    public string? Query { get; set; }
-
-    /// <summary>The pieces the list is cut to: "notation" (to play along) or "pdf"; all of them when none.</summary>
-    [SupplyParameterFromQuery(Name = "only")]
-    public string? Only { get; set; }
-
-    private List<PieceRecord> pieces = [];
-    // Each piece's period and kind, by its id: worked out once each time the pieces are read.
-    private Dictionary<string, string> periodOf = [];
-    private Dictionary<string, string> kindOf = [];
-    // What's been done on each piece that has been played, by its id.
-    private Dictionary<string, PieceHistory> played = [];
-    private ReadingState? reading;
-    private string format = "all";
-    private string? search;
-    private string? note;
-    private DateTime lastLoad;
-    private CancellationTokenSource? typing;
-    private bool holding;
-    // Prima's own pieces kept out of the Library (all of them, after Remove library; or those removed by hand), and putting them
-    // back while it's done.
-    private (bool All, HashSet<string> Removed) ownOut = (false, []);
-    private Task? puttingBack;
-    // The collection's pieces removed by hand, which its zip imported again leaves out.
-    private HashSet<string> collectionOut = [];
-    // The pieces are read, and the list drawn from them is to be scrolled to where it was left (Library.razor.js keeps where).
-    private bool loaded;
-    private bool placing;
-    private IJSObjectReference? places;
-
-    private string? Heading => By switch
-    {
-        "composer" or "period" or "kind" => Of,
-        "level" => Of == "0" ? "Not graded" : $"Level {Of}",
-        "near" => "Near your level",
-        "pdf" => "PDFs",
-        "mine" => "Uploaded pieces",
-        "all" => "Everything",
-        "composers" => "Composers",
-        _ => null,
-    };
-
-    private string Kicker => By switch
-    {
-        "composer" => "Composer",
-        "period" => "Period",
-        "kind" => "Kind",
-        "level" => "Where most of it reads",
-        _ => "Library",
-    };
-
-    protected override async Task OnInitializedAsync()
-    {
-        reading = await Store.GetTrackAsync<ReadingState>("reading");
-        await Load();
-        played = (await Store.GetPieceRunsAsync()).GroupBy(r => r.Piece).Select(g => (g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToDictionary(p => p.Key, p => p.Done!);
-        loaded = true;
-        Prep.Changed += Changed;
-        Openings.Changed += Heard;
-        _ = Prep.EnsureAsync();
-    }
-
-    // Each list is its address: its format and search are in it, so coming back to a list (the way back, or the rail's Library
-    // key, which goes to the address kept here) finds them as they were left, and then the place it was scrolled to.
-    protected override void OnParametersSet()
-    {
-        (format, search, note) = (Only is "notation" or "pdf" ? Only : "all", string.IsNullOrWhiteSpace(Query) ? null : Query, null);
-        // Only a list's own address: a piece's, as the list is left for it, isn't one. The list's name is a piece's way back.
-        var here = Nav.ToBaseRelativePath(Nav.Uri).Split('#')[0];
-        if (here.Split('?')[0] == "library")
-        {
-            Place.Last = here;
-            Navigation.Name(Heading ?? "Library");
-        }
-        placing = true;
-    }
-
-    // Once the list is drawn from the pieces read, it's scrolled to where it was left: the top, for a list not seen before.
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!placing || !loaded) return;
-
-        placing = false;
-        try
-        {
-            places ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Pages/Library.razor.js");
-            await places.InvokeVoidAsync("show");
-        }
-        catch (Exception e) when (e is JSDisconnectedException or JSException)
-        {
-        }
-    }
-
-    // The address with one of its values changed, in this one's place: the way back doesn't step through each search or filter.
-    private void Keep(string name, string? value) => Navigation.Replace(Nav.GetUriWithQueryParameter(name, value));
-
-    private void Choose(string key) => Keep("only", key == "all" ? null : key);
-
-    private async Task Load()
-    {
-        pieces = await Store.GetPiecesAsync();
-        periodOf = pieces.ToDictionary(p => p.Id, p => Shelves.Period(p.Composer));
-        kindOf = pieces.ToDictionary(p => p.Id, p => Shelves.Kind(p.Title, p.Work));
-        ownOut = await Store.GetOwnPiecesOutAsync();
-        collectionOut = await Store.GetCollectionPiecesOutAsync();
-    }
-
-    // The piece just taken out put back as it was, where it was in the list.
-    private async Task Undo()
-    {
-        if (Place.Removed is not { } removed) return;
-
-        Place.Removed = null;
-        await Store.PutPieceBackAsync(removed);
-        await Load();
-        note = $"“{removed.Piece.Title}” is back in the Library.";
-    }
-
-    // The collection's pieces removed by hand let back in: they come back the next time their collection is imported.
-    private async Task LetBackIn()
-    {
-        var count = collectionOut.Count;
-        await Store.LetCollectionPiecesBackAsync();
-        await Load();
-        note = count == 1 ? "It comes back the next time its collection is imported." : "They come back the next time their collection is imported.";
-    }
-
-    // What the home's last line says of Prima's own pieces kept out, when any are.
-    private string? OwnOut() => ownOut switch
-    {
-        { All: true } => "Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself.",
-        { Removed.Count: 1 } => "1 of Prima's own pieces is out of the Library: you removed it, and Prima won't put it back by itself.",
-        { Removed.Count: > 1 and var count } => $"{count} of Prima's own pieces are out of the Library: you removed them, and Prima won't put them back by itself.",
-        _ => null,
-    };
-
-    // Prima's own pieces back in the Library, every one: stored again as on the first open, the meter showing how far it's got.
-    private async Task PutBack()
-    {
-        note = null;
-        var putting = puttingBack = Prep.PutBackAsync();
-        try
-        {
-            await putting;
-        }
-        finally
-        {
-            puttingBack = null;
-            await Load();
-        }
-    }
-
-    // While pieces are stored, the list fills in (and the meter moves) a second at a time at most: with a thousand pieces listed,
-    // drawing it again for each one stored kept the screen busy.
-    private void Changed() => _ = InvokeAsync(async () =>
-    {
-        if (DateTime.Now - lastLoad < TimeSpan.FromSeconds(1) && Prep.Running) return;
-
-        lastLoad = DateTime.Now;
-        await Load();
-        StateHasChanged();
-    });
-
-    private void Heard() => _ = InvokeAsync(StateHasChanged);
-
-    protected override bool ShouldRender() => !holding;
-
-    // The list follows the search once typing pauses for a quarter of a second, not at every key: it goes in the address, which
-    // the list then shows.
-    private async Task Typed(ChangeEventArgs e)
-    {
-        holding = true;
-        typing?.Cancel();
-        var mine = typing = new CancellationTokenSource();
-        try
-        {
-            await Task.Delay(250, mine.Token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-        holding = false;
-        var typed = e.Value?.ToString();
-        Keep("q", string.IsNullOrWhiteSpace(typed) ? null : typed);
-    }
-
-    // The pieces of the list open, in the format chosen, found by the search (accents aside: "Dvorak" finds Dvořák); the home's
-    // search looks through everything.
-    private IEnumerable<PieceRecord> Shown()
-    {
-        var (from, to) = By == "near" ? NearLevels() : default;
-        return pieces.Where(p => By switch
-        {
-            "composer" => p.Composer == Of,
-            "period" => periodOf[p.Id] == Of,
-            "kind" => kindOf[p.Id] == Of,
-            "level" => LevelOf(p).ToString() == Of,
-            "near" => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to,
-            "pdf" => p.IsPdf,
-            "mine" => p.Imported,
-            _ => true,
-        }).Where(p => format switch
-        {
-            "notation" => p.PlaysAlong,
-            "pdf" => p.IsPdf,
-            _ => true,
-        }).Where(p => string.IsNullOrWhiteSpace(search) || Shelves.Finds($"{p.Title} {p.Composer} {p.Work}", search));
-    }
-
-    // Where most of a piece reads, as its level shelf has it; 0 when it isn't graded.
-    private static int LevelOf(PieceRecord p) => p.TypicalLevel ?? p.Level ?? 0;
-
-    // Every composer with how many pieces, by surname.
-    private IEnumerable<(string Name, int Count)> Composers() => pieces.Where(p => !string.IsNullOrWhiteSpace(p.Composer)).GroupBy(p => p.Composer)
-        .Select(g => (g.Key, g.Count())).OrderBy(c => Shelves.Surname(c.Key), StringComparer.OrdinalIgnoreCase).ThenBy(c => c.Key);
-
-    // A composer's surname's first letter, without its accent: Dvořák under D.
-    private static string Initial(string composer) => Shelves.Surname(composer) is { Length: > 0 } surname
-        ? surname[..1].Normalize(System.Text.NormalizationForm.FormD)[..1].ToUpperInvariant() : "#";
-
-    // The pieces to play along with near your level (Near my level's choice, as before).
-    private IEnumerable<PieceRecord> Near()
-    {
-        var (from, to) = NearLevels();
-        return pieces.Where(p => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to);
-    }
-
-    // A few of them for today: the ones not opened yet first, then a day's own order, so the shelf changes each day.
-    private static IEnumerable<PieceRecord> Picks(List<PieceRecord> near, List<PieceRecord> working, DateOnly today) =>
-        near.Where(p => !working.Contains(p)).OrderBy(p => p.Opened is not null).ThenBy(p => Shuffled(p.Id, today.DayNumber)).Take(6);
-
-    // A number from a piece and a day that's the same each time the Library opens that day (string hashes change from run to run).
-    private static uint Shuffled(string id, int day)
-    {
-        var hash = 2166136261u ^ (uint)day;
-        foreach (var c in id) hash = (hash ^ c) * 16777619u;
-        return hash;
-    }
-
-    private string NearNote()
-    {
-        var (from, to) = NearLevels();
-        var level = (reading ?? ReadingState.Start).Level;
-        var yours = reading is null ? "level 1, where sight-reading starts" : $"your sight-reading level, {level}";
-        return from > level + 2 ? $"Nothing to play along with reads mostly at levels {level} to {level + 2}, up to two above {yours}, so these are the easiest, at level {from}."
-            : $"Pieces to play along with that read mostly at levels {from} to {to}: a piece to learn sits up to two above {yours}.";
-    }
-
-    // Near my level's levels, for the pieces to play along with (a PDF's level is only about where its collection sits): where most
-    // of a piece reads, from your sight-reading level to two above it, since a piece to learn sits above what you read at sight;
-    // with none there, the easiest level above them that has some.
-    private (int From, int To) NearLevels()
-    {
-        var level = (reading ?? ReadingState.Start).Level;
-        var easiest = pieces.Where(p => p.PlaysAlong).Select(p => p.TypicalLevel ?? p.Level ?? 0).Where(l => l >= level).DefaultIfEmpty(level).Min();
-        return easiest > level + 2 ? (easiest, easiest) : (level, level + 2);
-    }
-
-    // This list's own address, for a link to a group in it.
-    private string Here() => Nav.Uri.Split('#')[0];
-
-    // The keys above a long list's groups, each with how many pieces it leads to and the group it goes to: one for each kind or
-    // composer, or with more composers than that, one for each letter their surnames start with, going to the first of them.
-    // The pieces without a composer keep a key of their own, and aren't counted as a composer.
-    private IEnumerable<(string Label, int Count, int At)> Keys(List<IGrouping<string, PieceRecord>> groups) =>
-        By == "composer" || ComposersIn(groups) <= MostKeys
-            ? groups.Select((g, i) => (g.Key, g.Count(), i))
-            : groups.Select((g, i) => (Group: g, At: i)).GroupBy(x => x.Group.Key == NotGiven ? NotGiven : Initial(x.Group.Key))
-                .Select(letter => (letter.Key, letter.Sum(x => x.Group.Count()), letter.First().At));
-
-    // How many composers a list's groups are by: the group of pieces without one isn't a composer.
-    private static int ComposersIn(List<IGrouping<string, PieceRecord>> groups) => groups.Count(g => g.Key != NotGiven);
-
-    private static string Meta(PieceRecord p) => string.Join(" · ", new[] { p.Composer, p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
-
-    // On a composer's own list the composer goes without saying.
-    private static string MetaWithoutComposer(PieceRecord p) => string.Join(" · ", new[] { p.Work, p.TypicalLevel < p.Level ? $"most at {p.TypicalLevel}" : null }.Where(s => !string.IsNullOrEmpty(s)));
-
-    // A piece can be heard when it has notes, or a PDF the MIDI it came with.
-    private static bool Hearable(PieceRecord p) => !p.IsPdf || p.HasNotes || p.Midi is not null;
-
-    private async Task Hear(PieceRecord piece)
-    {
-        note = await Openings.ToggleAsync(piece);
-    }
-
-    // One piece imported opens; several (or a zip of them) stay here, with a line saying what came in.
-    private async Task Import()
-    {
-        note = null;
-        var picked = await Files.PickManyAsync();
-        if (picked.Count == 0)
-        {
-            note = "No file chosen.";
-            return;
-        }
-
-        note = picked.Count == 1 ? $"Reading {picked[0].Name}…" : $"Reading {picked.Count} files…";
-        StateHasChanged();
-        var (id, said) = await Prep.ImportAsync(picked);
-        if (id is not null)
-        {
-            Nav.NavigateTo($"library/{Uri.EscapeDataString(id)}");
-            return;
-        }
-        note = said;
-        await Load();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        Prep.Changed -= Changed;
-        Openings.Changed -= Heard;
-        // Leaving the Library (opening a piece, say) stops an opening playing, and a piece taken out can't be put back any more.
-        Openings.Stop();
-        Place.Removed = null;
-        typing?.Cancel();
-        try
-        {
-            if (places is not null)
+        var holding = Book.Current.Holding(kept.Piece.Id).Select(c => c.Id).ToHashSet();
+        <div class="lb-away" @onclick="CloseStar"></div>
+        <div class="lb-menu add-to" role="menu" aria-label="@($"Where {kept.Piece.Title} is kept")" style="@($"--at-x: {kept.X.ToString("0", CultureInfo.InvariantCulture)}px; --at-y: {kept.Y.ToString("0", CultureInfo.InvariantCulture)}px")">
+            <p class="menu-title">Keep “@kept.Piece.Title” in</p>
+            <button type="button" role="menuitemcheckbox" aria-checked="true" @onclick="Unstar"><span class="mu-led"></span>Repertoire</button>
+            @foreach (var collection in Book.Current.Collections)
             {
-                await places.InvokeVoidAsync("leave");
-                await places.DisposeAsync();
+                var there = holding.Contains(collection.Id);
+                <button type="button" role="menuitemcheckbox" aria-checked="@(there ? "true" : "false")" @onclick="() => Book.PutAsync(collection.Id, kept.Piece.Id, !there)"><span class="mu-led"></span>@collection.Name</button>
             }
-        }
-        catch (Exception e) when (e is JSDisconnectedException or JSException)
-        {
-        }
+            <hr />
+            @if (naming)
+            {
+                <div class="lb-menu-new">
+                    <input class="text-field" type="text" placeholder="Its name" aria-label="The new collection's name" maxlength="60" value="@newName" @oninput="e => newName = e.Value?.ToString()" @onkeydown="NameKey" />
+                    <button type="button" class="mu-btn mu-primary lb-small" @onclick="AddCollection">Add</button>
+                </div>
+                @if (nameNote is not null)
+                {
+                    <p class="menu-note" role="status">@nameNote</p>
+                }
+            }
+            else
+            {
+                <button type="button" role="menuitem" @onclick="() => naming = true">New collection…</button>
+            }
+        </div>
     }
-}
+</div>

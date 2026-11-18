@@ -13,9 +13,9 @@ namespace Prima.UI.Tests;
 public class LibraryBrowseTests
 {
     // A piece in notation: four bars of crotchets, with its composer, title and work.
-    private static async Task<PieceRecord> Add(ComponentHost host, string id, string composer, string title, string? work, int level = 7, string origin = "collection")
+    private static async Task<PieceRecord> Add(ComponentHost host, string id, string composer, string title, string? work, int level = 7, string origin = "collection", string? source = null)
     {
-        var piece = new PieceRecord(id, origin, title, composer, work, "mei", null, null, level, level, null, 4, null, null, null, null, null, null, null, null, null,
+        var piece = new PieceRecord(id, origin, title, composer, work, "mei", null, null, level, level, null, 4, source, null, null, null, null, null, null, null, null,
             DateTimeOffset.Now, null);
         var bars = Enumerable.Range(1, 4).Select(b => new Bar(b, [new Voice(1, [.. Enumerable.Range(0, 4).Select(q =>
             new Notes($"n{b}-{q}", q * Ticks.Quarter, Ticks.Quarter, [new Tone($"t{b}-{q}", new Spelled(Step.C, 0, 4))]))])])).ToArray();
@@ -31,38 +31,172 @@ public class LibraryBrowseTests
         await Add(host, "maple", "Scott Joplin", "Maple Leaf Rag", "Rags, marches and waltzes", 9);
     }
 
+    // A row of the Library's list as it reads: its name, then how many it holds.
+    private static List<string> Rows(IRenderedComponent<Pages.Library> view, string selector = ".lib-list .col-item") =>
+        [.. view.FindAll(selector).Select(a => $"{a.QuerySelector("span")!.TextContent} {a.QuerySelector(".n")!.TextContent}")];
+
+    // The owner, 17 November: the Library centres on the catalogue, "but we always want to keep that left side list so that
+    // it's easy to go back and forth".
     [Fact]
-    public async Task TheLibraryOpensOnWaysInWithHowManyPiecesEachHolds()
+    public async Task TheLibrarysListHasEveryComposerSurnameFirstThenTheKindsAndLevelsWithHowManyPiecesEachHolds()
     {
         await using var host = new ComponentHost();
         await AddFew(host);
 
         var view = host.Context.Render<Pages.Library>();
 
-        view.WaitForAssertion(() => Assert.Contains("Composers", view.FindAll(".section-title").Select(h => h.TextContent)));
-        var chips = view.FindAll(".shelf-chip").Select(a => a.TextContent.Trim()).ToList();
-        Assert.Contains("Johann Sebastian Bach 2", chips);
-        Assert.Contains("Baroque 2", chips);
-        Assert.Contains("Ragtime 1", chips);
-        Assert.Contains("Preludes and fugues 1", chips);
-        Assert.Contains("Dances 2", chips);
-        Assert.Contains("Études 1", chips);
-        Assert.Contains("Everything 4", chips);
-        Assert.Equal("library?by=composer&of=Johann%20Sebastian%20Bach", view.FindAll(".shelf-chip").First(a => a.TextContent.StartsWith("Johann", StringComparison.Ordinal)).GetAttribute("href"));
+        view.WaitForAssertion(() => Assert.Equal(["Near your level 2", "Bach, Johann Sebastian 2", "Chopin, Frédéric 1", "Joplin, Scott 1"], Rows(view)));
+        Assert.Equal("4 pieces", view.Find(".page-kicker").TextContent);
+        Assert.Equal("library?by=composer&of=Johann%20Sebastian%20Bach", view.Find(".lib-list .col-item[href*='by=composer']").GetAttribute("href"));
+        // With nothing uploaded, the pieces near your level are beside it, and the list says so.
+        Assert.Equal("Near your level", view.Find(".col-head").TextContent);
+        Assert.Equal("Near your level", view.Find(".lib-list .col-item[aria-current]").QuerySelector("span")!.TextContent);
+
+        await view.InvokeAsync(() => view.FindAll(".col-by a").Single(a => a.TextContent == "Kinds").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal(["Near your level 2", "Études 1", "Preludes and fugues 1", "Dances 2"], Rows(view)));
+
+        await view.InvokeAsync(() => view.FindAll(".col-by a").Single(a => a.TextContent == "Levels").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal(["Near your level 2", "Level 7 2", "Level 9 1", "Level 12 1"], Rows(view)));
     }
 
+    // The owner, 17 November: "Just build A", with B's tabs: "the tab for the Beethoven part ... is way better looking". A
+    // composer's kinds are tabs; a kind whose pieces each stand alone is a list of them.
     [Fact]
-    public async Task AComposersPiecesAreListedByKind()
+    public async Task AComposersKindsAreTabsAndPiecesThatStandAloneAreListedUnderTheirOwnNames()
     {
         await using var host = new ComponentHost();
         await AddFew(host);
-        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composer&of=Johann%20Sebastian%20Bach");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("library?by=composer&of=Johann%20Sebastian%20Bach");
 
         var view = host.Context.Render<Pages.Library>();
 
-        view.WaitForAssertion(() => Assert.Equal(2, view.FindAll(".piece-item").Count));
-        Assert.Equal(["Preludes and fugues", "Dances"], view.FindAll("section .section-title").Select(h => h.TextContent));
+        view.WaitForAssertion(() => Assert.Equal(["Preludes and fugues1", "Dances1"], view.FindAll(".settings-tab").Select(t => t.TextContent)));
+        Assert.Equal("Johann Sebastian Bach", view.Find(".col-head").TextContent);
+        Assert.Equal("2 pieces · 2 works", view.Find(".lib-main-head .col-sub").TextContent);
+        Assert.Equal("Bach, Johann Sebastian", view.Find(".lib-list .col-item[aria-current]").QuerySelector("span")!.TextContent);
+        // The catalogue number is apart from the name, with the set its source has it in.
+        Assert.Equal(["Prelude No. 1 in C major"], view.FindAll(".piece-title").Select(t => t.TextContent));
+        Assert.Equal("BWV 846 · The Well-Tempered Clavier, Book I · 4 bars", view.Find(".mov-name small").TextContent);
         Assert.All(view.FindAll(".piece-hear"), b => Assert.Equal("▶", b.TextContent));
+
+        await view.InvokeAsync(() => view.FindAll(".settings-tab").Single(t => t.TextContent == "Dances1").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal(["Allemande"], view.FindAll(".piece-title").Select(t => t.TextContent)));
+        Assert.EndsWith("library?by=composer&of=Johann%20Sebastian%20Bach&kind=Dances", nav.Uri);
+        // The tab took the address's place: the way back doesn't step through each tab.
+        Assert.True(((Bunit.TestDoubles.BunitNavigationManager)nav).History.First().Options.ReplaceHistoryEntry);
+    }
+
+    // The owner, 17 November: a sonata's movements were rows among a hundred, and the same sonata stood in three places. A
+    // work is one row; chosen, its movements are beside it in order, and the other versions of it under them.
+    [Fact]
+    public async Task AWorkIsOneRowAndChosenItHasItsMovementsInOrderWithTheOtherVersionsOfItUnderThem()
+    {
+        await using var host = new ComponentHost();
+        await Add(host, "dcml-beethoven-piano-sonatas-08-2", "Ludwig van Beethoven", "Sonata No. 8 'Pathetique', Op. 13: II. Adagio cantabile", "Piano sonatas", 11, source: "DCML");
+        await Add(host, "dcml-beethoven-piano-sonatas-08-1", "Ludwig van Beethoven", "Sonata No. 8 'Pathetique', Op. 13: I. Grave: Allegro di molto e con brio", "Piano sonatas", 12, source: "DCML");
+        await Add(host, "dcml-beethoven-piano-sonatas-14-1", "Ludwig van Beethoven", "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: I. Adagio sostenuto", "Piano sonatas", 11, source: "DCML");
+        await Add(host, "pdmx-moonlight", "Ludwig van Beethoven", "Moonlight Sonata 1st movement", null, 11, source: "PDMX");
+        await Add(host, "pdmx-elise", "Ludwig van Beethoven", "Für Elise", null, 6, source: "PDMX");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("library?by=composer&of=Ludwig%20van%20Beethoven");
+
+        var view = host.Context.Render<Pages.Library>();
+
+        // Two sonatas, each a row with its number, its catalogue number and how much there is of it; the first is chosen.
+        view.WaitForAssertion(() => Assert.Equal(2, view.FindAll(".lib-pair .col-work").Count));
+        Assert.Equal(["Sonatas4", "Character pieces1"], view.FindAll(".settings-tab").Select(t => t.TextContent));
+        Assert.Equal(["8", "14"], view.FindAll(".lib-pair .col-work .work-no").Select(n => n.TextContent));
+        Assert.Equal(["Op. 13 · 2 movements", "Op. 27 No. 2 · 1 other version"], view.FindAll(".lib-pair .col-work small").Select(s => s.TextContent));
+        Assert.Equal(["11–12", "11"], view.FindAll(".lib-pair .col-work .n").Select(n => n.TextContent));
+        Assert.Equal("Sonata No. 8 “Pathetique”", view.Find(".lib-pair .col-head").TextContent);
+        Assert.Equal(["I", "II"], view.FindAll(".lib-pair .mov-no").Select(n => n.TextContent));
+        Assert.Equal(["Grave: Allegro di molto e con brio", "Adagio cantabile"], view.FindAll(".lib-pair .piece-title").Select(t => t.TextContent));
+
+        // The Moonlight, its number from its id: its movement, then the arrangement of it by its own title.
+        await view.InvokeAsync(() => view.FindAll(".lib-pair .col-work")[1].ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("Sonata No. 14 “quasi una fantasia” “Moonlight”", view.Find(".lib-pair .col-head").TextContent));
+        Assert.Equal(["Adagio sostenuto", "Moonlight Sonata 1st movement"], view.FindAll(".lib-pair .piece-title").Select(t => t.TextContent));
+        Assert.Equal("Another version of it", view.Find(".lib-pair .others-title").TextContent);
+        Assert.Equal("library/dcml-beethoven-piano-sonatas-14-1", view.Find(".lib-pair .mov-name").GetAttribute("href"));
+        Assert.Contains("work=w%3Asonata%20no.%2014", nav.Uri, StringComparison.Ordinal);
+        // Upright the same work is open where it is, the other closed.
+        Assert.Equal(["false", "true"], view.FindAll(".work-list .work-head").Select(h => h.GetAttribute("aria-expanded")));
+        Assert.Equal(["Adagio sostenuto", "Moonlight Sonata 1st movement"], view.FindAll(".work-list .piece-title").Select(t => t.TextContent));
+    }
+
+    // A kind is an index of every composer's works of it, each going to its composer opened at that work; and what's typed
+    // above finds a piece by its work's name as the catalogue has it ("sonata 14" for a movement titled without its number).
+    [Fact]
+    public async Task AKindIsAnIndexOfItsWorksAndTheSearchFindsAPieceByItsWorksName()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        await Add(host, "dcml-beethoven-piano-sonatas-14-1", "Ludwig van Beethoven", "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: I. Adagio sostenuto", "Piano sonatas", 11);
+        await Add(host, "dcml-beethoven-piano-sonatas-14-2", "Ludwig van Beethoven", "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: II. Allegretto", "Piano sonatas", 12);
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("library?by=kind&of=Sonatas");
+
+        var kind = host.Context.Render<Pages.Library>();
+
+        kind.WaitForAssertion(() => Assert.Single(kind.FindAll(".lib-main .col-work")));
+        Assert.Equal("1 work by 1 composer · 2 pieces", kind.Find(".lib-main-head .col-sub").TextContent);
+        Assert.StartsWith("library?by=composer&of=Ludwig%20van%20Beethoven&kind=Sonatas&work=w%3Asonata%20no.%2014", kind.Find(".lib-main .col-work").GetAttribute("href"), StringComparison.Ordinal);
+        Assert.Equal("Sonatas", kind.Find(".lib-list .col-item[aria-current]").QuerySelector("span")!.TextContent);
+
+        nav.NavigateTo("library?q=sonata%2014%20allegretto");
+        var found = host.Context.Render<Pages.Library>();
+
+        found.WaitForAssertion(() => Assert.Equal(["Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: II. Allegretto"], found.FindAll(".piece-title").Select(t => t.TextContent)));
+        Assert.Equal("Found for “sonata 14 allegretto”", found.Find(".col-head").TextContent);
+        Assert.Equal("Sonata No. 14 “quasi una fantasia” “Moonlight”, Op. 27 No. 2 · 4 bars", found.Find(".mov-name small").TextContent);
+    }
+
+    // The owner, 17 November: "when you star it, that adds to your repertoire", and the repertoire has collections under names
+    // of their own. A star's first tap keeps the piece; a tap on one kept opens where it's kept.
+    [Fact]
+    public async Task AStarKeepsAPieceInTheRepertoireAndASecondTapPutsItInACollectionOrTakesItOut()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        var book = host.Context.Services.GetRequiredService<RepertoireBook>();
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composer&of=Scott%20Joplin");
+        var view = host.Context.Render<Pages.Library>();
+        view.WaitForAssertion(() => Assert.Equal("false", view.Find(".lb-star").GetAttribute("aria-pressed")));
+
+        await view.InvokeAsync(() => view.Find(".lb-star").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("true", view.Find(".lb-star").GetAttribute("aria-pressed")));
+        Assert.Equal("“Maple Leaf Rag” is in your repertoire.", view.Find(".control-note").TextContent);
+        Assert.True(book.Current.Has("maple"));
+        Assert.Empty(view.FindAll(".lb-menu"));
+
+        // The second tap: its collections, and a new one made with the piece in it.
+        await view.InvokeAsync(() => view.Find(".lb-star").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Equal(["Repertoire", "New collection…"], view.FindAll(".lb-menu > button").Select(b => b.TextContent));
+        await view.InvokeAsync(() => view.FindAll(".lb-menu > button").Last().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find(".lb-menu-new input").InputAsync(new ChangeEventArgs { Value = "Learning pieces 5" }));
+        await view.InvokeAsync(() => view.Find(".lb-menu-new button").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal(["Repertoire", "Learning pieces 5", "New collection…"], view.FindAll(".lb-menu > button").Select(b => b.TextContent)));
+        Assert.Equal(["true", "true"], view.FindAll(".lb-menu > button[role=menuitemcheckbox]").Select(b => b.GetAttribute("aria-checked")));
+        Assert.Equal(["maple"], book.Current.Collections.Single().Pieces);
+        // It's kept in Prima's data: another screen reads the same.
+        var read = new RepertoireBook(host.Store);
+        await read.LoadAsync();
+        Assert.Equal("Learning pieces 5", read.Current.Collections.Single().Name);
+
+        // Out of the repertoire is out of its collections too.
+        await view.InvokeAsync(() => view.FindAll(".lb-menu > button").First().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("false", view.Find(".lb-star").GetAttribute("aria-pressed")));
+        Assert.Empty(view.FindAll(".lb-menu"));
+        Assert.False(book.Current.Has("maple"));
+        Assert.Empty(book.Current.Collections.Single().Pieces);
     }
 
     [Fact]
@@ -164,18 +298,21 @@ public class LibraryBrowseTests
         await AddFew(host);
         await Add(host, "humoresque", "Antonín Dvořák", "Humoresque, Op. 101 No. 7", "Humoresques");
         var view = host.Context.Render<Pages.Library>();
-        view.WaitForAssertion(() => Assert.Contains("Composers", view.FindAll(".section-title").Select(h => h.TextContent)));
+        view.WaitForAssertion(() => Assert.Equal(4, view.FindAll(".lib-list .col-item[href*='by=composer']").Count));
 
         await view.InvokeAsync(() => view.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "Dvorak" }));
 
         view.WaitForAssertion(() => Assert.Equal(["Humoresque, Op. 101 No. 7"], view.FindAll(".piece-title").Select(t => t.TextContent)), TimeSpan.FromSeconds(3));
+        // The composer too, as a way to all of theirs.
+        Assert.Equal(["Dvořák, Antonín 1"], Rows(view, ".lib-main .col-item"));
 
+        // And the list's own Find a composer.
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composers");
         var composers = host.Context.Render<Pages.Library>();
-        composers.WaitForAssertion(() => Assert.Equal(4, composers.FindAll(".shelf-chip").Count));
-        await composers.InvokeAsync(() => composers.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "dvorak" }));
+        composers.WaitForAssertion(() => Assert.Equal(4, composers.FindAll(".lib-list .col-item[href*='by=composer']").Count));
+        await composers.InvokeAsync(() => composers.Find(".col-find").InputAsync(new ChangeEventArgs { Value = "dvorak" }));
 
-        composers.WaitForAssertion(() => Assert.Equal(["Antonín Dvořák 1"], composers.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())), TimeSpan.FromSeconds(3));
+        composers.WaitForAssertion(() => Assert.Equal(["Dvořák, Antonín 1"], Rows(composers, ".lib-list .col-item[href*='by=composer']")), TimeSpan.FromSeconds(3));
     }
 
     // The owner, 17 November: "The biggest part about yours is the import file, which is just gone ... I have to go back for
@@ -189,20 +326,25 @@ public class LibraryBrowseTests
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("library");
         var home = host.Context.Render<Pages.Library>();
-        home.WaitForAssertion(() => Assert.Contains("Uploaded pieces 1", home.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())));
-        Assert.DoesNotContain("Yours", home.Markup, StringComparison.Ordinal);
+        // They head the Library's list, and with some uploaded they're what the Library opens on.
+        home.WaitForAssertion(() => Assert.Equal("Uploaded pieces 1", Rows(home).First()));
+        Assert.Equal("5 pieces · 1 uploaded", home.Find(".page-kicker").TextContent);
+        Assert.Equal("Uploaded pieces", home.Find(".col-head").TextContent);
+        Assert.DoesNotContain("Yours", home.Markup, StringComparison.OrdinalIgnoreCase);
 
         nav.NavigateTo("library?by=mine");
         var uploaded = host.Context.Render<Pages.Library>();
 
         uploaded.WaitForAssertion(() => Assert.Single(uploaded.FindAll(".piece-item")));
-        Assert.Equal("Uploaded pieces", uploaded.Find("h1").TextContent);
-        Assert.Equal(["Import files", "Library"], uploaded.FindAll(".page-head .mu-btn").Select(b => b.TextContent));
-        Assert.Equal("Uploaded", uploaded.Find(".piece-tag").TextContent);
-        Assert.DoesNotContain("Yours", uploaded.Markup, StringComparison.Ordinal);
+        Assert.Equal("Uploaded pieces", uploaded.Find(".col-head").TextContent);
+        Assert.Equal("1 piece · the latest first", uploaded.Find(".lib-main-head .col-sub").TextContent);
+        Assert.Equal(["Import files"], uploaded.FindAll(".band-tools .mu-btn").Select(b => b.TextContent));
+        Assert.Equal(["Latest", "A–Z", "By artist"], uploaded.FindAll(".band-tools .mu-toggle").Select(b => b.TextContent));
+        Assert.Equal("Notes", uploaded.Find(".piece-tag").TextContent);
+        Assert.DoesNotContain("Yours", uploaded.Markup, StringComparison.OrdinalIgnoreCase);
 
-        // It imports from here as from the Library's home (the test's tablet has no files to pick).
-        await uploaded.InvokeAsync(() => uploaded.FindAll(".page-head .mu-btn").First().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        // It imports from here as from the Library's head (the test's tablet has no files to pick).
+        await uploaded.InvokeAsync(() => uploaded.Find(".band-tools .mu-btn").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
 
         uploaded.WaitForAssertion(() => Assert.Equal("No file chosen.", uploaded.Find(".control-note").TextContent));
     }

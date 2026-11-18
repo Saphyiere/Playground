@@ -39,7 +39,7 @@ public class LibraryPlaceTests
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("library");
         var view = host.Context.Render<Pages.Library>();
-        view.WaitForAssertion(() => Assert.Contains("Composers", view.FindAll(".section-title").Select(h => h.TextContent)));
+        view.WaitForAssertion(() => Assert.NotEmpty(view.FindAll(".lib-list .col-item")));
 
         await view.InvokeAsync(() => view.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "chopin 3" }));
 
@@ -62,13 +62,13 @@ public class LibraryPlaceTests
         await AddFew(host);
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("library");
-        nav.NavigateTo("library?by=composer&of=Johann%20Sebastian%20Bach");
+        nav.NavigateTo("library?by=level&of=7");
         var view = host.Context.Render<Pages.Library>();
-        view.WaitForAssertion(() => Assert.Equal(3, view.FindAll(".piece-item").Count));
+        view.WaitForAssertion(() => Assert.Equal(5, view.FindAll(".piece-item").Count));
 
         await view.InvokeAsync(() => view.FindAll(".mu-toggle").Single(b => b.TextContent == "PDFs").ClickAsync(new MouseEventArgs()));
 
-        view.WaitForAssertion(() => Assert.EndsWith("library?by=composer&of=Johann%20Sebastian%20Bach&only=pdf", nav.Uri));
+        view.WaitForAssertion(() => Assert.EndsWith("library?by=level&of=7&only=pdf", nav.Uri));
         view.WaitForAssertion(() => Assert.Equal(["Invention No. 1 in C major, BWV 772"], view.FindAll(".piece-title").Select(t => t.TextContent)));
         // It took the list's place: the way back goes to the screen before the list, not to the list unfiltered.
         Assert.True(((Bunit.TestDoubles.BunitNavigationManager)nav).History.First().Options.ReplaceHistoryEntry);

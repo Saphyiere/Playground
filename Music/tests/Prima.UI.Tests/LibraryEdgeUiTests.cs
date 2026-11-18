@@ -52,7 +52,7 @@ public class LibraryEdgeUiTests
     // Library.razor:44-53 draws "Find here" on every list, but :86-101 (All composers) never reads what's typed in it.
     // concept.md: a list opened from a way in "can be … searched".
     [Fact]
-    public async Task FindHereOnAllComposersLeavesTheComposersThatMatch()
+    public async Task FindAComposerLeavesTheComposersThatMatch()
     {
         await using var host = new ComponentHost();
         await Add(host, "wtc1", "Johann Sebastian Bach", "Prelude No. 1 in C major, BWV 846");
@@ -60,24 +60,25 @@ public class LibraryEdgeUiTests
         await Add(host, "maple", "Scott Joplin", "Maple Leaf Rag");
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composers");
         var view = host.Context.Render<Pages.Library>();
-        view.WaitForAssertion(() => Assert.Equal(3, view.FindAll(".shelf-chip").Count));
+        view.WaitForAssertion(() => Assert.Equal(3, view.FindAll(".lib-list .col-item[href*='by=composer']").Count));
 
-        await view.InvokeAsync(() => view.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "Chopin" }));
+        await view.InvokeAsync(() => view.Find(".col-find").InputAsync(new ChangeEventArgs { Value = "Chopin" }));
 
-        view.WaitForAssertion(() => Assert.Equal(["Frédéric Chopin 1"], view.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())), TimeSpan.FromSeconds(3));
+        view.WaitForAssertion(() => Assert.Equal(["Chopin, Frédéric"], view.FindAll(".lib-list .col-item[href*='by=composer'] span:first-child").Select(a => a.TextContent)), TimeSpan.FromSeconds(3));
     }
 
     // Library.razor:136-199: the home's Periods, Kinds, Levels and Lists (Everything among them) are all inside the block that
     // shows when some piece has a composer. A Library of imported MIDI files or PDFs, which have none, opens on no ways in.
     [Fact]
-    public async Task ALibraryWhosePiecesHaveNoComposerStillOpensOnEverything()
+    public async Task ALibraryWhosePiecesHaveNoComposerStillOpensOnThem()
     {
         await using var host = new ComponentHost();
         await Add(host, "mine", "", "A piece of my own");
 
         var view = host.Context.Render<Pages.Library>();
 
-        view.WaitForAssertion(() => Assert.Contains("Everything 1", view.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())), TimeSpan.FromSeconds(3));
+        view.WaitForAssertion(() => Assert.Equal(["A piece of my own"], view.FindAll(".piece-title").Select(t => t.TextContent)), TimeSpan.FromSeconds(3));
+        Assert.Equal("1 piece", view.Find(".page-kicker").TextContent);
     }
 
     // Library.razor:217 and :437-441 count the group of pieces with no composer as a composer: twelve composers and one piece
@@ -96,7 +97,7 @@ public class LibraryEdgeUiTests
         var view = host.Context.Render<Pages.Library>();
 
         view.WaitForAssertion(() => Assert.Equal(13, view.FindAll(".piece-item").Count));
-        Assert.Contains("13 pieces by 12 composers.", view.FindAll(".section-note").Select(n => n.TextContent.Trim()));
+        Assert.Equal("13 pieces by 12 composers.", view.Find(".lib-main-head .col-sub").TextContent.Trim());
         Assert.Equal(13, view.FindAll(".shelf-jump .shelf-chip").Count);
     }
 

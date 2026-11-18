@@ -62,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AppNavigation>();
         services.AddScoped<Library.LibraryPrep>();
         services.AddScoped<Library.LibraryPlace>();
+        services.AddScoped<Library.RepertoireBook>();
         return services;
     }
 }
