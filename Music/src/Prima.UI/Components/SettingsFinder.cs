@@ -19,6 +19,7 @@ public sealed class SettingsFinder
         new("look", "Look & music"),
         new("claude", "Claude"),
         new("app", "App & data"),
+        new("tools", "Tools"),
     ];
 
     private readonly List<Setting> settings = [];

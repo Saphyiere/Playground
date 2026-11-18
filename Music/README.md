@@ -19,7 +19,7 @@ time available, optionally select bars and describe the difficulty, then generat
 hands, tempos and music before using it. The accepted routine becomes Today’s default until changed; existing pinned exercises
 remain available separately.
 
-**Routines**, under Library in the rail, keeps every routine accepted and every request that isn't one yet, until it's
+**Routines**, under Practice in the rail, keeps every routine accepted and every request that isn't one yet, until it's
 dismissed: the one Today follows, requests being asked, ready to look over or not finished, and each routine kept, with
 **Follow** to make it Today's again. Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses
 nothing.
@@ -318,9 +318,9 @@ and the rest of Prima keeps working; Android's own log has the errors too (`adb 
 
 The P-225B's **USB TO HOST** port (a square USB-B socket on the back) goes to the tablet's USB-C port, with a USB-B to USB-C
 cable or a USB-B cable and an adapter. The tablet then has no free port, so it practices on battery unless a USB-C hub with power
-delivery sits in between. Prima finds the piano by itself, and its name lights up at the foot of the rail.
+delivery sits in between. Prima finds the piano by itself, and the lamp on You's round key at the foot of the rail lights up.
 
-Then try, in **Tools**:
+Then try, in **Settings → Tools**:
 
 - **Keyboard check**: play a few keys and the pedals, and the lowest and highest keys (A0 and C8). Leave it a minute for the
   MIDI path's jitter, from the piano's Active Sensing. **Play middle C** checks the piano plays notes Prima sends it, on channel

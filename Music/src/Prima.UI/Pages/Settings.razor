@@ -17,7 +17,7 @@
 
 <PageTitle>Settings · Prima</PageTitle>
 
-@* Settings in five tabs, the one open kept in the address (settings?tab=keyboard) so the way back comes back to it, and a link can
+@* Settings in six tabs, the one open kept in the address (settings?tab=keyboard) so the way back comes back to it, and a link can
    open a tab, and bring a section into view (settings?tab=app&section=problems). The search beside the heading finds a setting in
    any tab by its name, its choices or what it says, and shows each where it is, under its tab's name; cleared, the tabs come back.
    Each setting is a Setting in a SettingsSection, which hold the words it's found by (SettingsFinder). *@
@@ -439,6 +439,39 @@ else if (!finder.FoundAny)
         </div>
         <p class="section-note" role="status">@(problemNote ?? $"Kept in {ProblemFile()} too, which a PC reaches over USB, even when Prima won't open.")</p>
     </Setting>
+</SettingsSection>
+
+@* Tools: the glossary, the metronome, the keyboard check and the timing, each a screen of its own (their addresses are as they
+   were: a link or the welcome that opened one still does). *@
+<SettingsSection Tab="tools" Id="tools" Title="Tools">
+    <div class="tool-grid">
+        <Setting Name="Glossary" Words="Where the notes live, every symbol and word on a sheet of music, what it is, how it's played, how it sounds">
+            <a class="tool-card" href="glossary">
+                <span class="tool-card-name">Glossary</span>
+                <span class="tool-card-text">Where the notes live, and every symbol and word on a sheet of music: what it is, how it's played, how it sounds.</span>
+            </a>
+        </Setting>
+        <Setting Name="Metronome" Words="Count-in, click, fade to the count-in only, silence">
+            <a class="tool-card" href="tools/metronome">
+                <span class="tool-card-name">Metronome</span>
+                <span class="tool-card-text">A count-in, and a click that can fade to the count-in only or to silence.</span>
+            </a>
+        </Setting>
+        <Setting Name="Keyboard check" Words="@($"Each key you press, velocity, pedals, the whole keyboard, the MIDI path's jitter, {Keyboard.Name}")">
+            <a class="tool-card" href="tools/keyboard">
+                <span class="tool-card-name">Keyboard check</span>
+                <span class="tool-card-text">Each key you press, its velocity and the pedals; the whole keyboard; the MIDI path's jitter.</span>
+                <span class="tool-card-meta">@(Keyboard.Name is null ? "No keyboard plugged in" : Keyboard.Name)</span>
+            </a>
+        </Setting>
+        <Setting Name="Timing" Words="Calibrate, the delay taken off every note, 16 beats">
+            <a class="tool-card" href="tools/timing">
+                <span class="tool-card-name">Timing</span>
+                <span class="tool-card-text">Play any key with the click for 16 beats, and the delay is taken off every note from then on.</span>
+                <span class="tool-card-meta">@(Options.CalibratedOn is { } day ? $"{Options.TimingOffsetMs:+0;−0;0} ms, {day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
+            </a>
+        </Setting>
+    </div>
 </SettingsSection>
 
 </CascadingValue>

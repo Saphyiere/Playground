@@ -44,8 +44,11 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 ## Sections
 
-The rail down the left edge, in both looks: Today, Drills, Sight-read and Exercises; Library, Routines, Tools and You; Settings
-at the foot. In Vinyl they're Side A and Side B. In portrait the rail runs along the bottom.
+The rail down the left edge, in both looks: under Practice, Today, Drills, Sight-read, Exercises and Routines; under Collection,
+the Library; and at the foot Settings, then You as a round key in the look's colour with the first letter of your name (a figure
+without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't. In Vinyl Practice and
+Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its end. The tools are a tab of
+Settings (Tools, below), whose key is lit on them.
 
 Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
 **This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
@@ -560,6 +563,9 @@ Claude's words are respelled, never the goal you typed or a piece's title.
 
 ### Tools
 
+A tab of Settings (Settings › Tools), a card for each, which Settings' search finds by name; each opens a screen of its own, at
+the address it always had, and the old Tools screen's address opens the tab.
+
 - **Glossary**: everything on a sheet of music. First and largest, **where the notes live**: the grand staff from the bass
   staff's bottom line to just over the treble staff, each note named under it, middle C in both, and the same notes on a strip
   of keys below; a note or a key tapped is lit in both, said in words (its line or space, a ledger line, the clef it's named
@@ -580,7 +586,7 @@ Claude's words are respelled, never the goal you typed or a piece's title.
 
 ### You
 
-Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
+Opened by the round key at the rail's foot. Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
 early gains is normal. First, **Pieces**: the Library's pieces you've played, the latest first (twelve at most), each with its
 runs, the days it was played on, when it was last played, how the last run was played and went, and the best of the times it
 was played through In time. The profile it's headed with (name, which clefs you drill, daily goal, the practice cue) is set in
@@ -588,7 +594,7 @@ Settings.
 
 ### Settings
 
-Five tabs, in Studio a strip of the amber screen with the open one lit, in Vinyl a row of names with the open one on a mustard
+Six tabs, in Studio a strip of the amber screen with the open one lit, in Vinyl a row of names with the open one on a mustard
 line:
 
 - **Practice**: the profile (name, minutes a day, the cue, which clefs the note review drills) and practice (one or two bars of
@@ -601,6 +607,7 @@ line:
   and whether a song's lyrics are printed under its notes, on unless turned off; a song's Options have the same switch).
 - **Claude**.
 - **App & data**: updates, your data, and the problems Prima kept.
+- **Tools**: the glossary, the metronome, the keyboard check and the timing ([Tools](#tools), above), a card each.
 
 A daily goal much above last week's average gets a note to go up gradually; Prima never raises it by itself.
 

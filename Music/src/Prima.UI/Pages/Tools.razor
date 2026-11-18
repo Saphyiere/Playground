@@ -1,28 +1,9 @@
 @page "/tools"
-@inject IKeyboard Keyboard
-@inject PrimaSettings Settings
+@inject AppNavigation Navigation
 
+@* The tools are a tab of Settings now: whatever opened Tools (a link kept, the way back to it) opens that tab, in its place. *@
 <PageTitle>Tools · Prima</PageTitle>
 
-<PageHead Title="Tools" Kicker="Glossary, metronome, keyboard, timing"><KeyboardLamp /></PageHead>
-
-<div class="tool-grid">
-    <a class="tool-card" href="glossary">
-        <span class="tool-card-name">Glossary</span>
-        <span class="tool-card-text">Where the notes live, and every symbol and word on a sheet of music: what it is, how it's played, how it sounds.</span>
-    </a>
-    <a class="tool-card" href="tools/metronome">
-        <span class="tool-card-name">Metronome</span>
-        <span class="tool-card-text">A count-in, and a click that can fade to the count-in only or to silence.</span>
-    </a>
-    <a class="tool-card" href="tools/keyboard">
-        <span class="tool-card-name">Keyboard check</span>
-        <span class="tool-card-text">Each key you press, its velocity and the pedals; the whole keyboard; the MIDI path's jitter.</span>
-        <span class="tool-card-meta">@(Keyboard.Name is null ? "No keyboard plugged in" : Keyboard.Name)</span>
-    </a>
-    <a class="tool-card" href="tools/timing">
-        <span class="tool-card-name">Timing</span>
-        <span class="tool-card-text">Play any key with the click for 16 beats, and the delay is taken off every note from then on.</span>
-        <span class="tool-card-meta">@(Settings.CalibratedOn is { } day ? $"{Settings.TimingOffsetMs:+0;−0;0} ms, {day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
-    </a>
-</div>
+@code {
+    protected override void OnInitialized() => Navigation.Replace("settings?tab=tools");
+}

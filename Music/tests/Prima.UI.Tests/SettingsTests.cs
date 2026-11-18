@@ -24,7 +24,7 @@ public class SettingsTests
         nav.NavigateTo("settings");
         var view = host.Context.Render<Settings>();
 
-        Assert.Equal(["Practice", "Keyboard & sound", "Look & music", "Claude", "App & data"], view.FindAll("[role=tab]").Select(t => t.TextContent));
+        Assert.Equal(["Practice", "Keyboard & sound", "Look & music", "Claude", "App & data", "Tools"], view.FindAll("[role=tab]").Select(t => t.TextContent));
         Assert.Equal("Practice", Selected(view));
         Assert.Equal(["Profile", "Practice"], Shown(view));
 
@@ -133,6 +133,18 @@ public class SettingsTests
         {
             await Search(view, "");
             await Open(view, tab.Name);
+            // The Tools tab holds the tools, a card each: each is found by its name.
+            if (tab.Id == "tools")
+            {
+                var tools = view.FindAll("#tools .tool-card-name").Select(n => n.TextContent).ToList();
+                Assert.NotEmpty(tools);
+                foreach (var tool in tools)
+                {
+                    await Search(view, tool);
+                    Assert.Contains(tool, view.FindAll("section.settings-section:not([hidden]) .tool-card-name").Select(n => n.TextContent));
+                }
+                continue;
+            }
             var rows = view.FindAll("section.settings-section:not([hidden]) .control-row").Select(r => (Label: Label(r), Choices: Choices(r)))
                 .Where(r => r.Label.Length > 0 || r.Choices.Length > 0).ToList();
             Assert.NotEmpty(rows);

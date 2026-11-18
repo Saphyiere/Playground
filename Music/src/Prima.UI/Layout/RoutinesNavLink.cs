@@ -31,6 +31,23 @@ public sealed class RoutinesNavLink : NavLink
 }
 
 /// <summary>
+/// The rail's Settings key, lit on Settings and on the tools it holds in its Tools tab: the glossary, the metronome, the
+/// keyboard check and the timing (tools/…).
+/// </summary>
+public sealed class SettingsNavLink : NavLink
+{
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    protected override bool ShouldMatch(string uriAbsolute)
+    {
+        if (base.ShouldMatch(uriAbsolute)) return true;
+
+        var path = Nav.ToBaseRelativePath(uriAbsolute).Split('?', '#')[0];
+        return path is "tools" or "glossary" || path.StartsWith("tools/", StringComparison.Ordinal);
+    }
+}
+
+/// <summary>
 /// A rail key for a kind of practice (Drills, Exercises), lit on its screens but for one opened from a routine, which lights the
 /// Routines key instead: one key is lit at a time.
 /// </summary>

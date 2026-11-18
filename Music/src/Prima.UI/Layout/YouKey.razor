@@ -1,0 +1,41 @@
+@implements IDisposable
+@inject IKeyboard Keyboard
+@inject PrimaSettings Settings
+@inject NavigationManager Nav
+
+@* You, at the rail's foot beside Settings: a round key in the look's colour with the first letter of your name (a figure without
+   one), and the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't. A tap opens You. *@
+<NavLink class="rail-you" href="you" data-keyboard="@(Keyboard.Name is null ? "off" : "live")" aria-label="@Label" title="@Label">
+    @if (Initial is { } initial)
+    {
+        <span class="rail-you-initial" aria-hidden="true">@initial</span>
+    }
+    else
+    {
+        <svg class="rail-you-figure" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="6.5" r="3.6" fill="currentColor" /><path d="M3.2 18c.6-3.9 3.3-6 6.8-6s6.2 2.1 6.8 6Z" fill="currentColor" /></svg>
+    }
+    <span class="rail-you-lamp" aria-hidden="true"></span>
+</NavLink>
+
+@code {
+    private string? Initial => Settings.Name?.Trim() is { Length: > 0 } name ? name[..1].ToUpperInvariant() : null;
+
+    private string Label => Keyboard.Name is { } piano ? $"You. {piano} is plugged in." : "You. No keyboard is plugged in.";
+
+    // The lamp follows the keyboard; the letter, a name changed in Settings, shown from the next screen on.
+    protected override void OnInitialized()
+    {
+        Keyboard.Changed += Changed;
+        Nav.LocationChanged += Moved;
+    }
+
+    private void Changed() => _ = InvokeAsync(StateHasChanged);
+
+    private void Moved(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Keyboard.Changed -= Changed;
+        Nav.LocationChanged -= Moved;
+    }
+}
