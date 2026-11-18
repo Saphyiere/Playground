@@ -50,36 +50,68 @@ public sealed record ConversionJob(int Version, string Id, string Piece, string 
         Chunks.FirstOrDefault(c => c.Phase != ConversionPhase.Complete)?.Phase == ConversionPhase.Read;
 }
 
-public sealed record ChunkToRead(int Page, int System, bool First, IReadOnlyList<string> OwnedSourceBars, ReadBar? PreviousBar,
-    ReadBar? CurrentBar = null, string? UserHint = null, string? ValidationFeedback = null);
+/// <summary>
+/// What goes with a chunk's picture. StartsSystem is true when its first bar begins a printed system, which prints its clefs and
+/// key signature again: there the key is read from the print alone, never carried on from PreviousBar.
+/// </summary>
+public sealed record ChunkToRead(int Page, int System, bool First, bool StartsSystem, IReadOnlyList<string> OwnedSourceBars, ReadBar? PreviousBar,
+    ReadBar? CurrentBar = null, string? UserHint = null, string? ValidationFeedback = null)
+{
+    /// <summary>The request for a chunk of the source: where its first bar is printed, and whether it begins the piece or a system.</summary>
+    public static ChunkToRead For(ConversionSource source, ConversionChunk chunk, ReadBar? previousBar, ReadBar? currentBar = null,
+        string? userHint = null, string? validationFeedback = null)
+    {
+        var first = source.Bars.Single(b => b.Id == chunk.BarIds[0]);
+        return new(first.Page, first.System, first.Order == 0, source.StartsSystem(first), chunk.BarIds, previousBar, currentBar, userHint, validationFeedback);
+    }
+}
 
 /// <summary>A bounded reading. Context is read-only and never owns any of this response's bars.</summary>
 public sealed class ReadChunk(byte[] png, InferenceSettings settings) : AssistTask<ChunkToRead, SystemReading>(settings)
 {
     public override string Name => "prima.read-chunk";
-    public override int Version => 3;
+    public override int Version => 4;
     public override int MaxTokens => 12_000;
     public override string Instructions => new ReadSystem([]).Instructions + """
 
         This image is a bounded range of complete source bars, not necessarily a whole printed system.
         Return exactly one bar for each OwnedSourceBars entry, in that order, with local indexes 1 through the owned count.
-        PreviousBar is read-only context from immediately before the image: use its ending clefs, key and meter where the
-        image does not print a replacement. Do not emit PreviousBar. First is true only at the start of the selected source.
+        First is true only at the start of the selected source. StartsSystem is true when the image's first bar begins a
+        printed system, so the image starts with that system's clefs and key signature.
+        PreviousBar is read-only context from immediately before the image. Do not emit PreviousBar. Carry on its meter, and
+        its clefs where the image does not print new ones. When StartsSystem is false, the image goes on in PreviousBar's
+        system: carry on its key as well, unless a new key signature is printed after a barline in the image. When
+        StartsSystem is true, take the key only from the key signature printed after the image's first clefs, never from
+        PreviousBar: where none is printed there, the key is none (0), whatever PreviousBar had.
         Inspect low ledger-line chords note by note; preserve the written letter and octave rather than guessing a chord.
         Trace the endpoints of each tuplet bracket. Set Tuplet on every enclosed event, including chords, rests and
         notes with different written lengths. Set TupletStart on the first enclosed event. A triplet bracket over a
         quarter-note chord and two sixteenths gives all three events Tuplet=3. Together they last one quarter note.
-        ValidationFeedback describes what failed in the prior reading of this batch. Recheck those voices against the
-        image, including brackets, beams and rests, and count their durations before returning the full batch.
+        ValidationFeedback describes what failed in the prior reading of this batch. Recheck what it names against the
+        image: for a voice, its brackets, beams and rests, counting their durations; for a key signature, whether a new one
+        is printed there or the sharps and flats belong to the notes they stand before. Then return the full batch.
         When CurrentBar is supplied, recheck that single owned bar against its source image. It is a prior reading, not
         ground truth. UserHint identifies the user's concern; verify it against the image and preserve correct notation.
         Return the complete replacement bar, and describe any remaining uncertainty in Doubts without guessing certainty.
         """;
     public override IReadOnlyList<Attachment> Attachments(ChunkToRead input) => [Attachment.Png(png, "Complete source bars to read")];
+
+    /// <summary>
+    /// The reading's problems, and a key signature that changes inside the system after an ordinary barline, where a chord's
+    /// sharps or flats are far likelier than a new key. A resent batch that reads the same change again is let through, for the
+    /// review to flag, so a real one is never refused for good.
+    /// </summary>
     public override IReadOnlyList<string> Check(ChunkToRead input, SystemReading answer)
     {
         var problems = ReadingChecks.Problems(answer, input.First).ToList();
         if (answer.Bars?.Count != input.OwnedSourceBars.Count) problems.Add("The returned bars do not cover the exact owned source range.");
+        else if (answer.Bars.All(b => b is not null))
+        {
+            problems.AddRange(ReadingChecks.KeyChanges(input.PreviousBar, input.StartsSystem, answer.Bars)
+                .Where(c => c.Place == KeyChangePlace.Barline)
+                .Select(ReadingChecks.KeyChangeProblem)
+                .Where(p => input.ValidationFeedback?.Contains(p, StringComparison.Ordinal) != true));
+        }
         return problems;
     }
 }

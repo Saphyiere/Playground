@@ -355,7 +355,7 @@ else
                                     @foreach (var issue in notation.Where(issue => issue.BarIndex == selectedBar))
                                     {
                                         <blockquote class="pdfread-quote" data-notation-issue="@issue.Kind" data-staff="@issue.Staff" data-voice="@issue.Voice" data-event="@issue.EventIndex">
-                                            <b>@(issue.Staff switch { 1 => "Upper staff", 2 => "Lower staff", _ => "Staff" }) · voice @issue.Voice · event @(issue.EventIndex + 1)</b>@issue.Message
+                                            <b>@IssueWhere(issue)</b>@issue.Message
                                         </blockquote>
                                     }
                                 </section>
@@ -1036,6 +1036,10 @@ else
     };
 
     private static string Money(decimal value) => "$" + value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    // Where a notation check is: a key change belongs to the whole bar, everything else to one event.
+    private static string IssueWhere(ReadingFidelityIssue issue) => issue.Kind == ReadingFidelityKind.KeyChange ? "Both staves · key signature"
+        : $"{(issue.Staff switch { 1 => "Upper staff", 2 => "Lower staff", _ => "Staff" })} · voice {issue.Voice} · event {issue.EventIndex + 1}";
 
     // The top of a range, without its dollar sign: $0.60–2.40.
     private static string Cents(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);

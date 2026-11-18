@@ -3,19 +3,27 @@ namespace Prima.Core.Transcription;
 public enum ReadingFidelityKind
 {
     DanglingTie, UnclosedSlur, UnmatchedSlurEnd, UnclosedHairpin, UnmatchedHairpinEnd,
-    UnclosedPedal, UnmatchedPedalUp, MarkDropped, MarkReanchored, BoundaryContinuation,
+    UnclosedPedal, UnmatchedPedalUp, MarkDropped, MarkReanchored, BoundaryContinuation, KeyChange,
 }
 
-/// <summary>SystemIndex and EventIndex are zero-based; BarIndex is the reading's one-based local bar number.</summary>
+/// <summary>
+/// SystemIndex and EventIndex are zero-based; BarIndex is the reading's one-based local bar number. A key change belongs to the
+/// whole bar: its staff and voice are 0.
+/// </summary>
 public sealed record ReadingFidelityIssue(int SystemIndex, int BarIndex, int Staff, int Voice, int EventIndex,
     ReadingFidelityKind Kind, string Message);
 
-/// <summary>Deterministic assembly/engraving concerns, separate from model doubts and human review flags.</summary>
+/// <summary>
+/// Deterministic assembly/engraving concerns, separate from model doubts and human review flags. Each reading is one printed
+/// system. Every change of key signature is listed too: a chord's sharps or flats read as a key signature change it, and carry
+/// the wrong key on to every later bar that has none of its own.
+/// </summary>
 public static class ReadingFidelity
 {
     public static IReadOnlyList<ReadingFidelityIssue> Find(IReadOnlyList<SystemReading?> readings)
     {
         var issues = new List<ReadingFidelityIssue>();
+        ReadBar? lastBar = null;
         var ties = new Dictionary<(int Staff, int Voice), (ReadingFidelityIssue Origin, IReadOnlyList<ReadPitch> Pitches, int Ottava)>();
         var slurs = new List<ReadingFidelityIssue>();
         var hairpins = new List<ReadingFidelityIssue>();
@@ -40,8 +48,12 @@ public static class ReadingFidelity
             {
                 Finish(gap: true);
                 unknownBefore = true;
+                lastBar = null; // A key can't be compared across music that hasn't been read.
                 continue;
             }
+            foreach (var change in ReadingChecks.KeyChanges(lastBar, startsSystem: true, reading.Bars))
+                issues.Add(new(systemIndex, change.Bar, 0, 0, 0, ReadingFidelityKind.KeyChange, KeyChangeMessage(change)));
+            if (reading.Bars.Count > 0) lastBar = reading.Bars[^1];
             foreach (var bar in reading.Bars)
             {
                 var marks = new List<(ReadEvent Event, ReadMark Mark, ReadingFidelityIssue Origin, int Tick)>();
@@ -124,5 +136,16 @@ public static class ReadingFidelity
         }
         Finish(gap: false);
         return issues.Distinct().OrderBy(i => i.SystemIndex).ThenBy(i => i.BarIndex).ThenBy(i => i.Staff).ThenBy(i => i.Voice).ThenBy(i => i.EventIndex).ToArray();
+    }
+
+    private static string KeyChangeMessage(KeyChange change)
+    {
+        var keys = $"from {ReadingChecks.Signature(change.From)} to {ReadingChecks.Signature(change.To)}";
+        return change.Place switch
+        {
+            KeyChangePlace.SystemStart => $"The key signature changes {keys} at the start of this system. Check the print after the clefs: a chord's sharps or flats there are only its accidentals.",
+            KeyChangePlace.DoubleBarline => $"The key signature changes {keys} after a double barline. Check that the print shows a new key signature there.",
+            _ => $"The key signature changes {keys} after an ordinary barline, inside the system, where a new one is rarely printed. Check the print: a chord's sharps or flats may have been read as a key signature.",
+        };
     }
 }

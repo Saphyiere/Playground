@@ -3,6 +3,22 @@ using Prima.Core.Music;
 
 namespace Prima.Core.Transcription;
 
+/// <summary>Where a key signature changes, which says how likely the print is to show a new one there.</summary>
+public enum KeyChangePlace
+{
+    /// <summary>At the start of a printed system, where every system prints its key signature after the clefs.</summary>
+    SystemStart,
+
+    /// <summary>Inside a system after a double, final or repeat barline, where a printed key change usually comes.</summary>
+    DoubleBarline,
+
+    /// <summary>Inside a system after an ordinary barline: most likely a chord's sharps or flats read as a key signature.</summary>
+    Barline,
+}
+
+/// <summary>A key signature that differs from the bar before: the bar's index in its reading, the keys in fifths, and where.</summary>
+public sealed record KeyChange(int Bar, int From, int To, KeyChangePlace Place);
+
 /// <summary>
 /// What a reading must get right before it's taken: each voice fills its bar, every pitch is on the piano, every tie lands, and
 /// the staves and voices are as a piano score has them. Each problem is a sentence, which Claude reads when it's asked again.
@@ -26,6 +42,43 @@ public static class ReadingChecks
 
     /// <summary>The notes a tuplet takes the time of: a triplet two, a duplet or a quadruplet (in compound time) three, five to seven four.</summary>
     public static int Normal(int tuplet) => tuplet switch { 2 or 4 => 3, 3 => 2, < 8 => 4, _ => 8 };
+
+    /// <summary>
+    /// Where the key signature changes in bars of one printed system: from the bar before them (none for null) and between them.
+    /// A change at the first bar is at the system's start when it starts one; any other is after its barline.
+    /// </summary>
+    public static IReadOnlyList<KeyChange> KeyChanges(ReadBar? before, bool startsSystem, IReadOnlyList<ReadBar> bars)
+    {
+        var changes = new List<KeyChange>();
+        for (var b = 0; b < bars.Count; b++)
+        {
+            var previous = b == 0 ? before : bars[b - 1];
+            var bar = bars[b];
+            if (previous is null || previous.Fifths == bar.Fifths) continue;
+            var place = b == 0 && startsSystem ? KeyChangePlace.SystemStart
+                : previous.End != BarEnd.Normal || bar.RepeatStart ? KeyChangePlace.DoubleBarline
+                : KeyChangePlace.Barline;
+            changes.Add(new(bar.Index, previous.Fifths, bar.Fifths, place));
+        }
+        return changes;
+    }
+
+    /// <summary>A key signature in words: "none", "1 sharp", "3 flats".</summary>
+    public static string Signature(int fifths) => fifths switch
+    {
+        0 => "none",
+        1 => "1 sharp",
+        -1 => "1 flat",
+        > 0 => $"{fifths} sharps",
+        _ => $"{-fifths} flats",
+    };
+
+    /// <summary>What Claude is told about a key change after an ordinary barline when its reading is sent back.</summary>
+    public static string KeyChangeProblem(KeyChange change) =>
+        $"Bar {change.Bar}: the key signature changes from {Signature(change.From)} to {Signature(change.To)} after an ordinary barline, inside the " +
+        "system. Inside a system a key signature changes only where a new one is printed after a barline, usually a double one; " +
+        "a sharp or flat right before a notehead is that note's accidental. Check the print: unless a new key signature is printed " +
+        "there, keep the key of the bar before, and give those sharps or flats on the notes they're printed before.";
 
     /// <summary>The sharp or flat an accidental puts on its note; none and a natural put none.</summary>
     public static int Alter(Accidental accidental) => accidental switch

@@ -206,7 +206,7 @@ public sealed class ConversionJobs(PrimaStore store, IInferenceProvider provider
                         : index == 0 ? null : job.Chunks[index - 1].Reading?.Bars.LastOrDefault();
                     var current = job.BaseSnapshot?.Bars.Single(b => b.SourceBarId == bars[0].Id).Written;
                     var task = new ReadChunk(image, job.Options.Reading);
-                    var input = new ChunkToRead(bars[0].Page, bars[0].System, bars[0].Order == 0, chunk.Chunk.BarIds, before, current, job.UserHint, chunk.Problem);
+                    var input = ChunkToRead.For(job.Source, chunk.Chunk, before, current, job.UserHint, chunk.Problem);
                     // Older checkpoints kept the rejected reply but not the validation notes. Recheck it locally on resume.
                     var lastRejection = job.Attempts.LastOrDefault(a => a.Chunk == chunk.Chunk.Id && a.Outcome == AnswerKind.CheckFailed);
                     if (input.ValidationFeedback is null && lastRejection?.Response is { Text.Length: > 0 } rejected)

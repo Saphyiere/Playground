@@ -427,6 +427,13 @@ a PDF plays out; this is what came of it.
   batches and their artifacts are saved as work progresses. An output-limit failure splits only the affected batch; observed
   output size can also reduce later batches. A single bar that still exceeds the limit pauses for attention. Completed
   batches are not sent again, and an exhausted allowance requires explicit permission for one additional request.
+  Each request carries the bar before it as context, and says whether its first bar starts a printed system. A key signature
+  is printed at the start of every system, right after the clefs and the same in both staves, so there the key is read from
+  the print alone: a system that prints none has none, whatever came before. Inside a system the key carries on from the bar
+  before until a new key signature follows a barline. A sharp or flat right before a notehead is that note's accidental, even
+  on the first chord after the clefs. A reading whose key changes inside a system after an ordinary barline, where a chord's
+  sharps are far likelier than a new key, is sent back with that problem like any failed check; read the same way again, it
+  is kept, and the review flags it.
   **Back to sheet music** closes the reader and restores the PDF with Options closed; it does not cancel conversion. The
   Android foreground service keeps work running when another screen is opened or the display sleeps, and a notification
   returns to the same piece when attention or review is needed. **Cancel** is the explicit stop action. If Android or a
@@ -440,8 +447,10 @@ a PDF plays out; this is what came of it.
   shown only for a confirmed association; a legacy reading needs explicit confirmation of its correspondence as well as
   matching per-system counts. Model doubts, personal flags and deterministic **Notation checks** remain separate. The last
   identify unresolved ties, slurs, hairpins or pedal marks and dropped or reanchored marks, with their bar, staff, voice and
-  event; they are recomputed from the stored notation after edits and reopening. An empty model-doubt list is not a verified
-  match to the print. **Listen from bar** plays the current reading on the piano.
+  event, and every change of key signature, as **Both staves · key signature**: at a system's start, after a double barline,
+  or after an ordinary barline inside a system, where a chord's sharps or flats were probably taken for one. A wrong key goes
+  on to every later bar of its system, so a flagged change is checked against the print first. They are recomputed from the
+  stored notation after edits and reopening. An empty model-doubt list is not a verified match to the print. **Listen from bar** plays the current reading on the piano.
   A bar can be marked correct, flagged with an observation, or edited directly. Accepted bars must be reopened before they
   can be changed. **Recheck this bar** requires a separate confirmation and sends only that bar with its context and the
   owner's observation. Its result is a proposal: it changes no notation until explicitly accepted, and a proposal for an

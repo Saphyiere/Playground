@@ -22,12 +22,18 @@ public class ConversionJobsTests
         public TaskCompletionSource<ChunkToRead> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Func<ChunkToRead, CancellationToken, Task<Answer<SystemReading>>> Handler { get; set; } = (input, _) => Task.FromResult(Good(input));
 
+        /// <summary>Holds each answer to the task's own checks, as the Claude provider does with no retry left.</summary>
+        public bool RunsChecks { get; set; }
+
         public async Task<Answer<TAnswer>> AskAsync<TInput, TAnswer>(AssistTask<TInput, TAnswer> task, TInput input, CancellationToken ct = default)
         {
             var chunk = Assert.IsType<ChunkToRead>(input);
             Inputs.Add(chunk);
             Entered.TrySetResult(chunk);
-            return (Answer<TAnswer>)(object)await Handler(chunk, ct);
+            var answer = await Handler(chunk, ct);
+            if (RunsChecks && answer is { Kind: AnswerKind.Answered, Value: { } reading } && task.Check(input, (TAnswer)(object)reading) is { Count: > 0 } problems)
+                answer = new(AnswerKind.CheckFailed, null, "Claude's answer didn't pass the task's checks.", problems, answer.Usage);
+            return (Answer<TAnswer>)(object)answer;
         }
     }
 
@@ -97,7 +103,7 @@ public class ConversionJobsTests
         {
             var source = Source(count);
             var review = NotationCorrections.Create(source);
-            var bars = Good(new(1, 1, true, source.Bars.Select(b => b.Id).ToArray(), null)).Value!.Bars;
+            var bars = Good(new(1, 1, true, true, source.Bars.Select(b => b.Id).ToArray(), null)).Value!.Bars;
             return NotationCorrections.Apply(review, new(source.Sha256, source.Revision, review.Current.Revision,
                 source.Bars.Select(b => b.Id).ToArray(), source.Bars.Select((b, i) => new BarReplacement(b.Id, bars[i], [])).ToArray(), CorrectionOrigin.Model));
         }
@@ -113,6 +119,20 @@ public class ConversionJobsTests
             if (!resolved.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Invalid test cleanup path.");
             if (Directory.Exists(resolved)) Directory.Delete(resolved, recursive: true);
         }
+    }
+
+    /// <summary>The source's bars, two to a printed system.</summary>
+    private static ConversionSource InSystemsOfTwo(ConversionSource source) => source with
+    {
+        Bars = [.. source.Bars.Select((b, i) => b with { System = i / 2 + 1, Bounds = new(i % 2 * 0.5, i / 2 * 0.25, 0.5, 0.2) })],
+    };
+
+    /// <summary>The answer with every bar in a key, and the last ending as given.</summary>
+    private static Answer<SystemReading> InKey(Answer<SystemReading> answer, int fifths, BarEnd lastEnd = BarEnd.Normal)
+    {
+        var bars = answer.Value!.Bars.Select(b => b with { Fifths = fifths }).ToArray();
+        bars[^1] = bars[^1] with { End = lastEnd };
+        return answer with { Value = answer.Value with { Bars = bars } };
     }
 
     private static Answer<SystemReading> Good(ChunkToRead input)
@@ -204,7 +224,7 @@ public class ConversionJobsTests
     {
         await using var rig = await Rig.Create();
         var job = await rig.Job(bars: 2, maxBars: 1);
-        var bar = Good(new(1, 1, true, ["b0"], null)).Value!.Bars[0] with { MeterCount = 2 };
+        var bar = Good(new(1, 1, true, true, ["b0"], null)).Value!.Bars[0] with { MeterCount = 2 };
         var upper = bar.Staves[0];
         var quarter = upper.Voices[0].Events[0] with { Value = NoteValue.Quarter };
         var rest = quarter with { Kind = ReadKind.Rest, Pitches = [] };
@@ -791,5 +811,76 @@ public class ConversionJobsTests
         Assert.Null(saved.Mei);
         Assert.All(saved.Chunks, c => Assert.Equal(ConversionPhase.Complete, c.Phase));
         Assert.Equal(2, rig.Provider.Inputs.Count);
+    }
+
+    [Fact]
+    public async Task EachRequestSaysWhetherItStartsAPrintedSystem()
+    {
+        await using var rig = await Rig.Create();
+        var job = await rig.Jobs.CreateAsync("piece", "Synthetic piece", rig.Pdf, InSystemsOfTwo(rig.Source(4)), rig.Options(maxBars: 1));
+
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal(ConversionState.Ready, (await rig.Saved(job.Id)).State);
+        Assert.Equal([true, false, true, false], rig.Provider.Inputs.Select(i => i.StartsSystem));
+        Assert.Equal([true, false, false, false], rig.Provider.Inputs.Select(i => i.First));
+        Assert.Equal([1, 1, 2, 2], rig.Provider.Inputs.Select(i => i.System));
+        // A system start still has the bar before it, for its meter and what runs on into it; only its key isn't carried on.
+        Assert.Null(rig.Provider.Inputs[0].PreviousBar);
+        Assert.All(rig.Provider.Inputs.Skip(1), i => Assert.NotNull(i.PreviousBar));
+    }
+
+    [Fact]
+    public async Task AKeyChangeAfterAnOrdinaryBarlineInsideASystemIsSentBackWithItsProblem()
+    {
+        await using var rig = await Rig.Create();
+        rig.Provider.RunsChecks = true;
+        var job = await rig.Job(bars: 4, maxBars: 2);
+        // The second batch, inside the system, takes a chord's sharps for a key signature of two sharps.
+        rig.Provider.Handler = (input, _) => Task.FromResult(input.First ? Good(input) : InKey(Good(input), 2));
+
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+
+        var paused = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Paused, paused.State);
+        Assert.False(rig.Provider.Inputs[1].StartsSystem);
+        Assert.Contains("Bar 1: the key signature changes from none to 2 sharps after an ordinary barline", paused.Problem);
+        Assert.Equal(ConversionPhase.Read, paused.Chunks[1].Phase);
+
+        rig.Provider.Handler = (input, _) => Task.FromResult(Good(input));
+        await rig.Jobs.ResumeAsync(job.Id);
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+
+        var ready = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Ready, ready.State);
+        Assert.Contains("from none to 2 sharps", rig.Provider.Inputs[2].ValidationFeedback);
+        Assert.All(ready.Chunks.SelectMany(c => c.Reading!.Bars), bar => Assert.Equal(0, bar.Fifths));
+    }
+
+    [Fact]
+    public async Task RealKeyChangesAtASystemStartAndAfterADoubleBarlineComplete_AndTheReviewFlagsThem()
+    {
+        await using var rig = await Rig.Create();
+        rig.Provider.RunsChecks = true;
+        var job = await rig.Jobs.CreateAsync("piece", "Synthetic piece", rig.Pdf, InSystemsOfTwo(rig.Source(6)), rig.Options(maxBars: 1));
+        // Two sharps from the second system's start; one flat after a double barline inside it; none again at the third's.
+        rig.Provider.Handler = (input, _) => Task.FromResult(input.OwnedSourceBars[0] switch
+        {
+            "b2" => InKey(Good(input), 2, BarEnd.Double),
+            "b3" => InKey(Good(input), -1),
+            _ => Good(input),
+        });
+
+        await rig.Jobs.RunAsync(job.Id, TestContext.Current.CancellationToken);
+
+        var ready = await rig.Saved(job.Id);
+        Assert.Equal(ConversionState.Ready, ready.State);
+        Assert.Equal(6, rig.Provider.Inputs.Count);
+        Assert.Equal([0, 0, 2, -1, 0, 0], ready.Chunks.SelectMany(c => c.Reading!.Bars).Select(b => b.Fifths));
+        var flagged = ReadingFidelity.Find(ReadingDraft.FromJob(ready).Readings).Where(i => i.Kind == ReadingFidelityKind.KeyChange).ToArray();
+        Assert.Equal([(1, 1), (1, 2), (2, 1)], flagged.Select(i => (i.SystemIndex, i.BarIndex)));
+        Assert.Contains("from none to 2 sharps at the start of this system", flagged[0].Message);
+        Assert.Contains("from 2 sharps to 1 flat after a double barline", flagged[1].Message);
+        Assert.Contains("from 1 flat to none at the start of this system", flagged[2].Message);
     }
 }

@@ -13,6 +13,14 @@ public sealed record SourceBar(string Id, int Page, int System, int Order, strin
 /// <summary>A reviewed segmentation of one immutable PDF. A changed segmentation is a new revision.</summary>
 public sealed record ConversionSource(string Sha256, string Revision, IReadOnlyList<SourceBar> Bars, bool Confirmed)
 {
+    /// <summary>True for the first bar of a printed system, where the print shows the clefs and key signature again.</summary>
+    public bool StartsSystem(SourceBar bar)
+    {
+        var at = Bars.ToList().FindIndex(b => b.Id == bar.Id);
+        if (at < 0) throw new ArgumentException("The bar isn't in this source.", nameof(bar));
+        return at == 0 || (Bars[at - 1].Page, Bars[at - 1].System) != (bar.Page, bar.System);
+    }
+
     public IReadOnlyList<string> Problems()
     {
         var problems = new List<string>();

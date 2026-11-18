@@ -25,6 +25,14 @@ Status: implementation, native acceptance, and GitHub delivery are complete. [Pr
 
 The initial baseline and rendering proof made no paid inference calls. The original Release was restored after read-only baseline extraction. The Debug integration build included a DUMP-protected diagnostic entry point used only with a separate `Sweden — conversion test` library piece; the original imported piece and draft are preserved. The currently installed Release omits that entry point.
 
+### Key signatures — 2026-11-17
+
+- The owner's 150-bar Musicnotes conversion of Hallelujah (Prima 1.0.19, `claude-opus-5-5`, $8.80) had perfect rhythm, but 167 of its 178 wrong notes came from one slip. At the first bar of a system, a G♯ chord's sharps, printed right after the clefs, were read as a two-sharp key signature. The chunk context then carried that key on through three systems that print none, since the instructions said to use the context bar's key "where the image does not print a replacement". The same chord did it again mid-system. With only the key set back to none, the same reading scores 98.9%.
+- Each request now says whether its first bar starts a printed system (`ChunkToRead.StartsSystem`, from the source bars' page and system). The instructions describe a key signature: after the clefs, the same in both staves, in its standard order and places, and counted on one staff. A sharp right before a notehead is that note's accidental. At a system start the key is read from the print alone, and a system that prints none has none; inside a system it carries on from the context bar until a new signature follows a barline.
+- `ReadChunk.Check` sends back a key change inside a system after an ordinary barline. Sent back once: a resent batch that reads the same change again is kept, so a real one is never refused for good. Changes at a system start, or after a double, final or repeat barline, pass.
+- The review lists every key change as a deterministic notation check (`ReadingFidelityKind.KeyChange`), saying whether it is at a system start, after a double barline, or after an ordinary one.
+- Tests use synthetic bars only, and no paid request was made. The tablet check is the owner's: recheck bars 68–70 and 105 of the saved review, or convert the piece again.
+
 ## 1. Decisions and scope
 
 - Keep execution and durable job state on the tablet. No application web backend is part of this plan; the selected inference provider still receives the requested music images.
@@ -159,7 +167,7 @@ Adaptive chunk policy:
 
 - Begin evaluation with 2-4 complete bars per chunk, and 1 bar for especially dense material. These are tuning starting points, not fixed production limits.
 - Consider source density, voices/chords/tuplets, crop legibility, provider limits, and observed output usage. Bar count alone cannot predict complexity or exact tokens.
-- Give every chunk an owned output range plus read-only context: applicable clefs/key/meter, continuation state, and adjacent source material when necessary. The response emits only the owned source bar IDs.
+- Give every chunk an owned output range plus read-only context: applicable clefs/meter, continuation state, whether the chunk starts a printed system, and adjacent source material when necessary. The key is context only inside a system: a system start prints its own key signature, or none. The response emits only the owned source bar IDs.
 - Do not run dependent chunks in parallel using stale musical context. Resolve the boundary state or an explicit source signature first. Start with conservative concurrency and a shared budget.
 - Keep a configurable safe output target below the provider's maximum. Reserve space for context and structured output. Calibrate estimates from completed chunks instead of assuming a 50-bar piece always fits a fixed number of requests.
 - On output-limit termination, save earlier completed work and split only the unfinished range. Never accept truncated JSON or silently raise limits/retry without a bound. A single bar that still cannot fit needs a specific failure/review path.
@@ -176,7 +184,7 @@ Make repair a coordinator policy with a small explicit allowance. Replace the sh
 
 Compare small, legible source and generated regions. Evaluate whether the visual verifier actually reduces errors; agreement from the same model is not independent proof. Consider a source-first verification variant and compare it on held-out fixtures before paying for it on every chunk. Do not label an empty doubts list “Matches the print.”
 
-Reassemble by source ownership, in written order. Every required source bar must appear exactly once. Missing chunks stay visibly missing; later bars must not be renumbered to hide a gap. Validate seams for meter/key/clef state, ties, slurs, hairpins, pedal, tuplets, and repeat/ending structure. Unresolved boundary marks must become review issues rather than being silently dropped.
+Reassemble by source ownership, in written order. Every required source bar must appear exactly once. Missing chunks stay visibly missing; later bars must not be renumbered to hide a gap. Validate seams for meter/key/clef state, ties, slurs, hairpins, pedal, tuplets, and repeat/ending structure. Unresolved boundary marks must become review issues rather than being silently dropped. So does every key change; one inside a system after an ordinary barline is first sent back to be read again.
 
 A context-changing correction invalidates only dependent later context until an explicit source reset or equivalent state is reached. It does not authorize rewriting accepted neighboring bars.
 

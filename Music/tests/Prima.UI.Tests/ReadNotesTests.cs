@@ -721,6 +721,7 @@ public class ReadNotesTests
         Assert.Equal("1", issue.GetAttribute("data-staff"));
         Assert.Equal("1", issue.GetAttribute("data-voice"));
         Assert.Equal("0", issue.GetAttribute("data-event"));
+        Assert.Equal("Upper staff · voice 1 · event 1", issue.QuerySelector("b")!.TextContent);
         Assert.Equal(saved, (await host.Store.GetReadingAsync(piece.Id))!.Result);
         view.Dispose();
 
@@ -729,6 +730,25 @@ public class ReadNotesTests
         reopened.WaitForElement("[data-system='2'] [data-bar='2'][data-notation-issues='1']");
         await reopened.InvokeAsync(() => reopened.Find("[data-system='2'] [data-action=select-review-bar][data-bar='2']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
         Assert.Single(reopened.FindAll("[data-notation-issue='DanglingTie']"));
+        Assert.Equal(0, host.Claude.Calls);
+    }
+
+    [Fact]
+    public async Task AKeyChangeIsANotationCheckOfTheWholeBar()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece(pdf: true);
+        await SaveReview(host, piece.Id, secondSystemFifths: 2);
+        var view = host.Context.Render<ReadNotes>(p => p.Add(c => c.Piece, piece).Add(c => c.Pdf, [1])
+            .Add(c => c.Layout, [new List<PageSystem> { new(10, 200, 4), new(250, 450, 4) }]));
+
+        view.WaitForElement("[data-notation-issue-count='1']");
+        Assert.NotNull(view.Find("[data-system='2'] [data-bar='1'][data-notation-issues='1']"));
+        await view.InvokeAsync(() => view.Find("[data-system='2'] [data-action=select-review-bar][data-bar='1']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        var issue = view.Find("[data-system='2'] [data-notation-bar='1'] [data-notation-issue='KeyChange']");
+        Assert.Equal("Both staves · key signature", issue.QuerySelector("b")!.TextContent);
+        Assert.Contains("The key signature changes from none to 2 sharps at the start of this system.", issue.TextContent);
         Assert.Equal(0, host.Claude.Calls);
     }
 
@@ -776,7 +796,7 @@ public class ReadNotesTests
         view.WaitForElement("[data-action=convert-start]:not([disabled])");
     }
 
-    private static async Task<string> SaveReview(ComponentHost host, string pieceId, bool pickup = false, bool finalTie = false)
+    private static async Task<string> SaveReview(ComponentHost host, string pieceId, bool pickup = false, bool finalTie = false, int secondSystemFifths = 0)
     {
         var systems = new List<SystemReading>();
         foreach (var count in new[] { 13, 2 })
@@ -788,7 +808,7 @@ public class ReadNotesTests
                 var staves = new[] { 1, 2 }.Select(staff => new ReadStaff(staff, staff == 1 ? ReadClef.Treble : ReadClef.Bass,
                     [new ReadVoice(1, [new ReadEvent(ReadKind.Note, [new ReadPitch(Step.C, Accidental.None, 5 - staff, finalTie && systems.Count == 1 && i == count && staff == 1, 0)],
                         value, 0, 0, false, false, Articulation.None, [], 0, ReadClef.None)])])).ToList();
-                bars.Add(new ReadBar(i, 0, 4, 4, false, BarEnd.Normal, 0, staves));
+                bars.Add(new ReadBar(i, systems.Count == 1 ? secondSystemFifths : 0, 4, 4, false, BarEnd.Normal, 0, staves));
             }
             systems.Add(new SystemReading(bars, []));
         }

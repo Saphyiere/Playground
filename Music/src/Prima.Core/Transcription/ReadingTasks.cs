@@ -8,7 +8,7 @@ public sealed class ReadSystem(byte[] png, InferenceSettings? settings = null) :
 {
     public override string Name => "prima.read-system";
 
-    public override int Version => 2;
+    public override int Version => 3;
 
     /// <summary>
     /// A dense system (chords on both staves, its pedal and fingering) and the thinking it takes run past the usual 32,000: twice
@@ -37,8 +37,16 @@ public sealed class ReadSystem(byte[] png, InferenceSettings? settings = null) :
         - Ties: tie true on a note tied to the same pitch in the voice's next note, also across the barline. A slur, a curve
           between different pitches, isn't a tie.
         - Clefs: each staff's clef in force at the start of the bar, and a clef event where it changes inside a bar.
-        - Key and time signatures: the ones in force for every bar. The key signature is printed at the start of every system;
-          the time signature only at the start of the piece or where it changes, and the input gives the one in force.
+        - Key signature: the one in force for every bar. It's printed at the start of every system, right after the clefs and the
+          same in both staves: sharps in the order F, C, G, D, A, E, B, or flats in the order B, E, A, D, G, C, F, each in its
+          standard place. Two sharps are F♯ on the treble staff's top line and C♯ in its third space, and on the bass staff's
+          fourth line and second space. Count one staff's sharps or flats: the other staff repeats them. A system that prints no
+          key signature has none (0), whatever came before it. A sharp, flat or natural right before a notehead is that note's
+          accidental, even on the first chord after the clefs: give it on the note's pitch, never as a key signature. Inside a
+          system the key changes only where a new key signature is printed after a barline, usually a double one, before the
+          bar's first note; one printed after the system's last barline only announces the next system's.
+        - Time signature: the one in force for every bar. It's printed only at the start of the piece or where it changes, and
+          the input gives the one in force.
         - Barlines: repeatStart, how the bar ends (repeatEnd, double, final or normal), and the ending bracket it's under.
         - 8va and 15ma lines: ottava on every note under the line, with the pitch as written on the staff.
         - Articulation: a staccato dot, an accent or a tenuto line printed on the note.
@@ -76,7 +84,7 @@ public sealed class CompareSystem(byte[] print, byte[] engraving, InferenceSetti
 {
     public override string Name => "prima.compare-system";
 
-    public override int Version => 2;
+    public override int Version => 3;
 
     /// <summary>As much as a reading: every bar of a dense system may come back corrected.</summary>
     public override int MaxTokens => 64_000;

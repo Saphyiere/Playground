@@ -149,7 +149,7 @@ public sealed record ReadStaff(
 public sealed record ReadBar(
     [property: Description("Where the bar is in the system, from 1 at the left.")]
     int Index,
-    [property: Description("The key signature in force, in fifths: sharps positive, flats negative, 0 for none.")]
+    [property: Description("The key signature in force, in fifths: sharps positive, flats negative, 0 for none. Only a printed key signature sets it, never a note's accidental.")]
     int Fifths,
     [property: Description("The time signature in force: its top number (4 for common time, 2 for cut time).")]
     int MeterCount,
