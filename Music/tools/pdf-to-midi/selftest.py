@@ -1,14 +1,15 @@
-"""Checks the parts that need no score: start times within a bar, the MIDI writer, and reading a MIDI back.
+"""Checks the parts that need no score: start times within a bar, the MIDI and MusicXML writers, and reading both back.
 
 usage: python -I selftest.py      (says "all passed", or stops at the first thing that isn't so)
 
 The reader itself can only be tried on a real Musicnotes PDF, and those are bought music that doesn't belong in a
 repository; its own checks (every bar adds up, both staves agree, read back from the file) are its test on each score.
 """
-import os, sys, tempfile
+import os, sys, tempfile, zipfile
+import xml.etree.ElementTree as ET
 from fractions import Fraction as F
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import score_reading as R, score_midi as M
+import score_reading as R, score_midi as M, score_musicxml as X, score_shapes as S
 
 
 def event(x, length, kind="chord", stem="up"):
@@ -77,7 +78,99 @@ def midi():
     os.remove(path)
 
 
+def chord(x, onset, length, notes, stem="up", written=None, **more):
+    """An event as the reader leaves it: its notes as (scale step, sharp or flat) pairs, C4 being step 28."""
+    tones = [dict(dia=d, alter=a, shift=0, tie_in=False, tie_out=False) for d, a in notes]
+    return dict(dict(kind="chord", x=x, onset=F(onset), dur=F(length), written=F(written if written is not None else length), stem=stem, tuplet=None,
+                     notes=tones, beam={}, y0=0, y1=0), **more)
+
+
+def rest(x, onset, length, y=108, kind="rest"):
+    return dict(kind=kind, x=x, onset=F(onset), dur=F(length), written=F(length) if kind == "rest" else None, stem=None, tuplet=None, y0=y - 6, y1=y + 6)
+
+
+def a_score():
+    """A pickup; a bar with two voices above (one with a printed sharp and a tie into the next bar) and below a triplet on a
+    beam, then a treble clef for a half note; a last bar with a repeat sign, two notes under an 8va line, a fermata and a
+    bar's rest below; mf, a hairpin, a tempo of 96 and rit."""
+    triplet = [chord(80 + 15 * k, F(k, 3), F(1, 3), [(d, 0)], written=F(1, 2), tuplet="beam", tuplet_group=("beam", 1), tuplet_place="below") for k, d in enumerate((14, 16, 18))]
+    for k, e in enumerate(triplet):
+        e["beam"] = {1: ("begin", "continue", "end")[k]}
+    held = chord(120, 1, 2, [(39, 0)])
+    held["notes"][0]["tie_out"] = True
+    sharp = chord(80, 0, 1, [(38, 1)], rolled=5)
+    sharp["notes"][0]["accidental"] = 1
+    triplet[0]["rolled"] = 5                    # one wavy line through both staves: one roll
+    tied = chord(210, 0, 1, [(39, 0)], rolled=6)        # a line of its own: rolled alone
+    tied["notes"][0]["tie_in"] = True
+    high = [chord(240, 1, 1, [(47, 0)]), chord(270, 2, 1, [(49, 0)], fermata=True, accent=True)]
+    for e in high:
+        e["notes"][0]["shift"] = 7
+    bars = [dict(index=0, number=0, page=1, line=1, x0=10, x1=60, time=(3, 4), length=F(1), repeat_start=False, repeat_end=False, final=False,
+                 staves={"U": [chord(40, 0, 1, [(35, 0)], stem="down")], "L": [rest(40, 0, 1, y=168)]}),
+            dict(index=1, number=1, page=1, line=1, x0=60, x1=200, time=(3, 4), length=F(3), repeat_start=False, repeat_end=False, final=False,
+                 staves={"U": [sharp, held, chord(82, 0, 3, [(33, 0)], stem="down", written=3)], "L": triplet + [chord(150, 1, 2, [(32, 0)])]}),
+            dict(index=2, number=2, page=1, line=1, x0=200, x1=330, time=(3, 4), length=F(3), repeat_start=False, repeat_end=True, final=False,
+                 staves={"U": [tied] + high, "L": [rest(260, 0, 3, y=168, kind="barrest")]})]
+    staves = {"U": dict(top=100, bottom=116.5), "L": dict(top=160, bottom=176.5)}
+    data = dict(staves=staves, clefs={"U": [(12, "G")], "L": [(12, "F"), (140, "G")]}, tempo_text=[dict(x=20, y=80, bpm=96, words="", lead=[])],
+                words_raw=[dict(x=300, y=90, text="rit.")], dynamics=[dict(x=38, end=38, y=140, text="mf")],
+                hairpins=[dict(x0=78, x1=160, louder=True, opens=True, closes=False, y=140)])
+    reading = dict(bars=bars, systems=[dict(first=0, count=3, data=data)], title="Self-test", copyright=None, credits=dict(composer="A. Composer", arranger=None))
+    flat = dict(bars=[dict(index=b["index"], number=b["number"]) for b in bars],
+                notes=[dict(bar=b["index"], staff=s, onset=str(e["onset"]), dur=str(e["dur"]), midi=S.midi_of(n["dia"], n["alter"]), tie_in=n["tie_in"], tie_out=n["tie_out"])
+                       for b in bars for s in "UL" for e in b["staves"][s] if e["kind"] == "chord" for n in e["notes"]])
+    return reading, flat
+
+
+def musicxml():
+    assert X.value(F(3, 2)) == ("quarter", 1) and X.value(F(7, 4)) == ("quarter", 2) and X.value(F(1, 8)) == ("32nd", 0) and X.value(F(3)) == ("half", 1)
+    reading, flat = a_score()
+    path = os.path.join(tempfile.mkdtemp(), "selftest.mxl")
+    X.write(reading, path)
+    assert X.check(path, flat) == [], X.check(path, flat)
+    root = ET.fromstring(zipfile.ZipFile(path).read("score.musicxml"))
+    bars = root.find("part").findall("measure")
+    assert [m.get("number") for m in bars] == ["0", "1", "2"] and bars[0].get("implicit") == "yes"
+    assert root.findtext("work/work-title") == "Self-test" and root.findtext("identification/creator") == "A. Composer"
+    first = bars[0].find("attributes")
+    assert first.findtext("divisions") == "480" and first.findtext("time/beats") == "3" and [c.findtext("sign") for c in first.findall("clef")] == ["G", "F"]
+    voices = {(n.findtext("staff"), n.findtext("voice")) for n in bars[1].iter("note")}
+    assert voices == {("1", "1"), ("1", "2"), ("2", "5")}, voices                       # two voices above, one below
+    change = [a for a in bars[1].findall("attributes") if a.find("clef") is not None]
+    assert len(change) == 1 and change[0].find("clef").get("number") == "2" and change[0].findtext("clef/sign") == "G"
+    sharp = [n for n in bars[1].iter("note") if n.findtext("accidental")]
+    assert [(n.findtext("pitch/step"), n.findtext("pitch/alter"), n.findtext("accidental")) for n in sharp] == [("F", "1", "sharp")]
+    beams = [n.findtext("beam") for n in bars[1].iter("note") if n.find("time-modification") is not None]
+    tuplets = [t.get("type") for t in bars[1].iter("tuplet")]
+    assert beams == ["begin", "continue", "end"] and tuplets == ["start", "stop"] and next(bars[1].iter("tuplet")).get("placement") == "below"
+    assert [t.get("type") for t in bars[1].iter("tied")] == ["start"] and [t.get("type") for t in bars[2].iter("tied")] == ["stop"]
+    shifts = [o.get("type") for o in bars[2].iter("octave-shift")]
+    assert shifts == ["down", "stop"], shifts                                                # 8va: printed an octave down from the pitch given
+    under = [(n.findtext("pitch/step"), n.findtext("pitch/octave")) for n in bars[2].iter("note") if n.find("pitch") is not None][1:]
+    assert under == [("A", "6"), ("C", "7")], under                                         # at the pitch they sound
+    rests = [n for n in bars[2].iter("note") if n.find("rest") is not None]
+    assert len(rests) == 1 and rests[0].find("rest").get("measure") == "yes" and rests[0].findtext("staff") == "2"   # the bar's rest below
+    assert bars[2].find("barline/repeat").get("direction") == "backward"
+    last = [n for n in bars[2].iter("note") if n.findtext("pitch/octave") == "7"][0]
+    assert last.find("notations/fermata") is not None and last.find("notations/articulations/accent") is not None
+    rolled = [(n.findtext("staff"), n.find("notations/arpeggiate").get("number")) for n in bars[1].iter("note") if n.find("notations/arpeggiate") is not None]
+    assert len(rolled) == 2 and rolled[0][1] == rolled[1][1] and {s for s, _ in rolled} == {"1", "2"}, rolled     # both hands, one roll
+    alone = [n.find("notations/arpeggiate").get("number") for n in bars[2].iter("note") if n.find("notations/arpeggiate") is not None]
+    assert len(alone) == 1 and alone[0] != rolled[0][1]
+    assert root.find(".//metronome/per-minute").text == "96" and root.find(".//dynamics/mf") is not None
+    assert [w.get("type") for w in root.iter("wedge")] == ["crescendo", "stop"] and root.find(".//words").text == "rit."
+    # a voice that comes up short in the file is caught
+    text = zipfile.ZipFile(path).read("score.musicxml").decode().replace("<duration>960</duration>", "<duration>480</duration>", 1)
+    plain = path.replace(".mxl", ".musicxml")
+    open(plain, "w", encoding="utf-8").write(text)
+    assert X.check(plain, flat), "a changed length wasn't noticed"
+    os.remove(path)
+    os.remove(plain)
+
+
 if __name__ == "__main__":
     starts()
     midi()
+    musicxml()
     print("all passed")

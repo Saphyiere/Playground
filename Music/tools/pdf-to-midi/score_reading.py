@@ -7,7 +7,7 @@ prove itself: every bar must add up to its time signature in both staves, the tw
 sounds, every notehead must hang on a stem (or be a whole note), and each head must have the ledger lines its place needs.
 Whatever fails is a doubt, listed for a person to look at; nothing is guessed silently.
 """
-import sys, os, re, collections
+import sys, os, re, collections, itertools
 from fractions import Fraction as F
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import score_shapes as S
@@ -22,6 +22,8 @@ CLEF_BASE = {"G": 30, "F": 18}      # the scale-step number (C4 = 28) of the sta
 LEVELS = {"ppp": 20, "pp": 33, "p": 49, "mp": 64, "mf": 80, "f": 96, "ff": 112, "fff": 124}
 HAIRPIN_STEP = 16                   # a hairpin with no mark at its far end moves the level by one step, mp to mf
 QUOTES = chr(0x201C) + chr(0x201D) + '"'
+TUPLETS = itertools.count(1)        # each triplet group's own number, so its first and last notes can be found again
+ROLLS = itertools.count(1)          # each rolled-chord line's own number: chords on both staves under one line roll as one
 
 
 def units(q):
@@ -189,10 +191,13 @@ def read_system(shapes, system, zone, where, doubt):
                 # two things in one column are two voices: the bracket is the voice's whose stems reach toward it
                 toward = "up" if below else "down"
                 cands = [e for e in cands if e["kind"] == "rest" or e["stem"] == toward]
+            group = ("bracket", next(TUPLETS))
             for e in cands:
                 if e["tuplet"]:
                     doubt(f"{where}: an event at x={e['x']:.1f} sits under two triplet marks")
                 e["tuplet"] = "bracket"
+                e["tuplet_group"] = group
+                e["tuplet_place"] = "above" if below else "below"      # the bracket's side of its notes, as printed
         elif left or right:
             doubt(f"{where}: a 3 at x={cx:.1f} has half a bracket")
         else:
@@ -200,16 +205,20 @@ def read_system(shapes, system, zone, where, doubt):
             if not near or min(near)[0] > 16:
                 doubt(f"{where}: a 3 at x={cx:.1f} has neither bracket nor beam")
                 continue
-            by_beam[min(near)[1]].append(cx)
+            bi = min(near)[1]
+            by_beam[bi].append("above" if cy < beam_y(beams[bi], cx) else "below")
 
     def on_beam(b):
         return [e for e in events if e["kind"] == "chord" and e["stem_x"] is not None and b["x0"] - 0.7 <= e["stem_x"] <= b["x1"] + 0.7 and e["y0"] - 1.6 <= beam_y(b, e["stem_x"]) <= e["y1"] + 1.6]
 
-    for bi in by_beam:                                  # a 3 on a beam: the stems that beam joins
+    for bi, places in by_beam.items():                  # a 3 on a beam: the stems that beam joins
+        group = ("beam", next(TUPLETS))
         for e in on_beam(beams[bi]):
             if e["tuplet"]:
                 doubt(f"{where}: an event at x={e['x']:.1f} sits under two triplet marks")
             e["tuplet"] = "beam"
+            e["tuplet_group"] = group
+            e["tuplet_place"] = places[0]
     for e in events:
         if e["tuplet"]:
             e["dur"] = e["written"] * F(2, 3)
@@ -218,6 +227,31 @@ def read_system(shapes, system, zone, where, doubt):
         members = on_beam(b)
         if len(members) >= 2 and abs((b["x1"] - b["x0"]) - (max(m["stem_x"] for m in members) - min(m["stem_x"] for m in members))) < 1.5:
             groups.append(members)
+
+    # ---- beams as printed, for writing the score out: each stem's beams counted from its tip, and where each begins and ends
+    for e in events:
+        if e["kind"] == "chord":
+            e["beam"] = {}
+    members_of = [sorted(on_beam(b), key=lambda e: e["stem_x"]) for b in beams]
+    at_stem = collections.defaultdict(list)
+    for bi, members in enumerate(members_of):
+        for e in members:
+            at_stem[id(e)].append(bi)
+    level = {}
+    for e in events:
+        if id(e) in at_stem:
+            tip = e["y0"] if e["stem"] == "up" else e["y1"]
+            for rank, bi in enumerate(sorted(at_stem[id(e)], key=lambda bi: abs(beam_y(beams[bi], e["stem_x"]) - tip))):
+                level[(id(e), bi)] = rank + 1
+    for bi, members in enumerate(members_of):
+        if not members:
+            continue
+        n = collections.Counter(level[(id(e), bi)] for e in members).most_common(1)[0][0]
+        if len(members) == 1:                           # a beam of its own on one stem: a hook toward its neighbour
+            members[0]["beam"][n] = "forward hook" if beams[bi]["x1"] > members[0]["stem_x"] + 1 else "backward hook"
+        else:
+            for k, e in enumerate(members):
+                e["beam"][n] = "begin" if k == 0 else "end" if k == len(members) - 1 else "continue"
 
     # ---- clefs, accidentals, time signatures, octave lines -----------------------------------------------------
     clefs = collections.defaultdict(list)
@@ -267,17 +301,19 @@ def read_system(shapes, system, zone, where, doubt):
             ottava.append(dict(x0=t["bbox"][0] - 6, x1=t["bbox"][2] + 4, staff=staff, shift=-7 if t["text"].endswith("b") else 7, short=True, between=False))
 
     # ---- marks: tempo, words, loud and soft, hairpins, accents, fermatas ---------------------------------------
-    tempos = []
+    tempos, tempo_text = [], []
     for g in glyphs:
         if g["code"] == S.TEMPO_QUARTER:
             t = [t for t in texts if "=" in t["text"] and abs(t["y"] - g["y"]) < 4 and 0 < t["x"] - g["x"] < 40]
             m = re.search(r"=\s*(\d+)", t[0]["text"]) if t else None
             if m:
-                lead = [w for w in texts if w["font"].startswith("Tinos,Italic") and abs(w["y"] - g["y"]) < 4 and 0 < g["x"] - w["bbox"][2] < 14]
+                lead = sorted((w for w in texts if w["font"].startswith("Tinos,Italic") and abs(w["y"] - g["y"]) < 4 and 0 < g["x"] - w["bbox"][2] < 14), key=lambda w: w["x"])
                 tempos.append((min([g["x"]] + [w["x"] for w in lead]), int(m.group(1))))     # words before the number start it: "piu lento,"
+                tempo_text.append(dict(x=tempos[-1][0], y=g["y"], bpm=int(m.group(1)), words=" ".join(w["text"] for w in lead), lead=[w["x"] for w in lead]))
             else:
                 doubt(f"{where}: a tempo's note at x={g['x']:.1f} with no number after it")
     words = [(t["x"], t["text"].lower()) for t in texts if t["font"].startswith("Tinos,Italic") and 9.5 < t["size"] < 10.8]
+    words_raw = [dict(x=t["x"], y=t["y"], text=t["text"]) for t in texts if t["font"].startswith("Tinos,Italic") and 9.5 < t["size"] < 10.8]
     for t in texts:
         if t["font"].startswith("Tinos") and t["size"] < 13 and re.search(r"^[123]\.$|D\.\s?[SC]\.|Coda|Fine|Segno", t["text"]):
             doubt(f"{where}: \"{t['text']}\": first and second endings and jumps (D.S., D.C., Coda, Fine) aren't known to this reader; its bars are read in printed order")
@@ -294,12 +330,18 @@ def read_system(shapes, system, zone, where, doubt):
         for b in slants[i + 1:]:
             if abs(a["x0"] - b["x0"]) < 0.6 and abs(a["x1"] - b["x1"]) < 0.6 and abs((a["y0"] + a["y1"]) - (b["y0"] + b["y1"])) < 12:
                 gap0, gap1 = abs(a["y0"] - b["y0"]), abs(a["y1"] - b["y1"])
-                hairpins.append(dict(x0=a["x0"], x1=a["x1"], louder=gap1 > gap0, opens=gap0 < 0.3, closes=gap1 < 0.3))
+                hairpins.append(dict(x0=a["x0"], x1=a["x1"], louder=gap1 > gap0, opens=gap0 < 0.3, closes=gap1 < 0.3, y=(a["y0"] + a["y1"] + b["y0"] + b["y1"]) / 4))
+    rolls = []                                          # a rolled chord's wavy line is a stack of short glyphs: one line per unbroken stack
+    for g in sorted((g for g in glyphs if g["code"] == S.ARPEGGIO), key=lambda g: (round(g["x"]), g["y"])):
+        if rolls and abs(rolls[-1]["x"] - g["x"]) < 1 and g["bbox"][1] - rolls[-1]["bottom"] < 2:
+            rolls[-1]["bottom"] = max(rolls[-1]["bottom"], g["bbox"][3])
+        else:
+            rolls.append(dict(x=g["x"], top=g["bbox"][1], bottom=g["bbox"][3]))
     return dict(events=events, clefs=clefs, accidentals=accidentals, ottava=ottava, curves=curves, glyphs=glyphs, staves=staves, pos_in=pos_in, staff_of=staff_of,
-                groups=groups, times=times, tempos=tempos, words=words, dynamics=dynamics, hairpins=hairpins,
-                grace=[g for g in glyphs if g["code"] == S.HEAD_FILLED and g["size"] < 14],
+                groups=groups, times=times, tempos=tempos, tempo_text=tempo_text, words=words, words_raw=words_raw, dynamics=dynamics, hairpins=hairpins,
+                grace=[g for g in glyphs if g["code"] == S.HEAD_FILLED and g["size"] < 14], slashes=[g for g in glyphs if g["code"] == S.GRACE_SLASH],
                 accents=[g for g in glyphs if g["code"] == S.ACCENT], fermatas=[g for g in glyphs if g["code"] == S.FERMATA],
-                rolled=[g for g in glyphs if g["code"] == S.ARPEGGIO])
+                tenutos=[g for g in glyphs if g["code"] == S.TENUTO], rolled=rolls)
 
 
 def sweep(events, length):
@@ -402,6 +444,8 @@ def read(path):
         except ValueError as e:
             doubt(f"page {n}: {e}; the page was left out")
             continue
+        if systems and "composer" not in info:      # the head of the first page of music names who wrote and arranged it
+            info.update(credits(shapes, systems[0]["top"], page.rect.width))
         printed = [t for t in shapes["texts"] if t["font"].startswith("Tinos,Italic") and t["size"] < 7.7 and t["text"].isdigit()]
         for si, (system, zone) in enumerate(zip(systems, S.zones(systems, page.rect.height))):
             where = f"page {n} line {si + 1}"
@@ -451,7 +495,10 @@ def read(path):
                                                    tie_in=False, tie_out=False, event=e))
                     for a in acc:
                         place = sysdata["pos_in"](staff, a["y"])
-                        if not any(0 < nt["x"] - a["x"] < 22 and nt["written_dia"] - CLEF_BASE[nt["clef"]] == place for e in evs if e["kind"] == "chord" for nt in e["notes"]):
+                        mine = [nt for e in evs if e["kind"] == "chord" for nt in e["notes"] if 0 < nt["x"] - a["x"] < 22 and nt["written_dia"] - CLEF_BASE[nt["clef"]] == place]
+                        if mine:                # the note it's printed before, for writing the score out as printed
+                            min(mine, key=lambda nt: nt["x"] - a["x"])["accidental"] = a["alter"]
+                        else:
                             later(bar, f"a sharp, flat or natural in the {'upper' if staff == 'U' else 'lower'} staff with no note after it on its line: a key signature, "
                                        "which this reader doesn't know, so notes it governs would come out wrong")
                     wrong, end = sweep(evs, bar["length"])
@@ -459,15 +506,16 @@ def read(path):
                         # three beamed eighths with no 3 over them, in a bar that overflows: a triplet the print forgot to mark
                         for group in sysdata["groups"]:
                             if len(group) == 3 and all(e in evs and not e["tuplet"] and e["written"] == F(1, 2) for e in group):
+                                mark = ("unmarked", next(TUPLETS))
                                 for e in group:
-                                    e["tuplet"] = "unmarked"; e["dur"] = e["written"] * F(2, 3)
+                                    e["tuplet"] = "unmarked"; e["dur"] = e["written"] * F(2, 3); e["tuplet_group"] = mark
                                 again, end2 = sweep(evs, bar["length"])
                                 if again is None:
                                     bar["mended"].append(f"three beamed eighths in the {'upper' if staff == 'U' else 'lower'} staff read as a triplet though the page prints no 3")
                                     wrong, end = None, end2
                                     break
                                 for e in group:
-                                    e["tuplet"] = None; e["dur"] = e["written"]
+                                    e["tuplet"] = None; e["dur"] = e["written"]; e.pop("tuplet_group", None)
                                 sweep(evs, bar["length"])
                     bar["staves"][staff] = sorted(evs, key=lambda e: (e.get("onset", F(0)), e["x"]))
                     bar["ends"][staff], bar["wrong"][staff] = end, wrong
@@ -482,7 +530,7 @@ def read(path):
         if n["bar"] < len(bars):
             later(bars[n["bar"]], "a tie leaves the line's end and reaches nothing on the next")
     if not bars:
-        return dict(bars=[], doubts=doubts + ["no bars of music found"], remarks=[], tempo=[], systems=[], title=None, copyright=None)
+        return dict(bars=[], doubts=doubts + ["no bars of music found"], remarks=[], tempo=[], systems=[], title=None, copyright=None, credits={})
     number_bars(bars, systems_read, doubt)
     for bar, text in late:
         doubt(f"bar {bar['number']}: {text}" if "number" in bar else text)
@@ -495,24 +543,48 @@ def read(path):
     tempo = tempo_marks(bars, systems_read, doubt)
     loudness(bars, systems_read, doubt)
     return dict(bars=bars, doubts=doubts, remarks=remarks_on(bars, systems_read), tempo=tempo, systems=systems_read, title=": ".join(t for t in (info["title"], info["piece"]) if t) or None,
-                copyright=" ".join(info["copyright"]) or None)
+                copyright=" ".join(info["copyright"]) or None, credits=dict(composer=info.get("composer"), arranger=info.get("arranger")))
+
+
+def credits(shapes, top, width):
+    """Who wrote and who arranged the piece, as the head of a Musicnotes page prints them: "Words and Music by" or "Music by"
+    and the names on the right, and on the left "Piano Arrangement by" with the arranger under it, or the arranger's name in
+    bold over "Piano Arrangement". None for what isn't printed (a page split out of a longer score has no head)."""
+    head = [t for t in shapes["texts"] if t["y"] < top - 6 and t["font"].startswith("Arimo") and 9.5 < t["size"] < 10.8]
+    right = " ".join(t["text"] for t in sorted((t for t in head if t["font"] == "Arimo" and t["x"] > width / 2), key=lambda t: t["y"]))
+    m = re.match(r"(?:(?:Words and )?Music|Words|Composed)\s+by:?\s+(.+)", right)
+    composer = m.group(1).strip(" ,") if m else None
+    arranger = None
+    left = sorted((t for t in head if t["x"] < width / 2), key=lambda t: t["y"])
+    for i, t in enumerate(left):
+        if t["font"].startswith("Arimo,Italic") and re.search(r"Arrange", t["text"]):
+            if re.search(r"\bby:?$", t["text"]) and i + 1 < len(left):
+                arranger = left[i + 1]["text"]
+            else:
+                above = [b for b in left[:i] if b["font"].startswith("Arimo,Bold") and t["y"] - b["y"] < 20]
+                arranger = above[-1]["text"] if above else None
+            break
+    return dict(composer=composer, arranger=arranger)
 
 
 def attach(sysdata, bars, system, later):
     """Accents, fermatas, rolled-chord lines and small notes go to the chord they sit by."""
     chords = [e for bar in bars for s in "UL" for e in bar["staves"][s] if e["kind"] == "chord"]
-    for kind, glyphs, offset in (("accent", sysdata["accents"], 2.8), ("fermata", sysdata["fermatas"], 3.2)):
+    for kind, glyphs, offset in (("accent", sysdata["accents"], 2.8), ("fermata", sysdata["fermatas"], 3.2), ("tenuto", sysdata["tenutos"], 0.5)):
         for g in glyphs:
             near = [e for e in chords if abs(e["x"] + offset - g["x"]) < 6.5]
             if not near:
-                later(next((b for b in bars if b["x0"] < g["x"] < b["x1"]), bars[0]), f"a{'n accent' if kind == 'accent' else ' fermata'} at x={g['x']:.1f} sits by no chord")
+                later(next((b for b in bars if b["x0"] < g["x"] < b["x1"]), bars[0]), f"{ {'accent': 'an accent', 'fermata': 'a fermata', 'tenuto': 'a tenuto line'}[kind]} at x={g['x']:.1f} sits by no chord")
                 continue
             best = min(near, key=lambda e: 0 if e["y0"] <= g["y"] <= e["y1"] else min(abs(g["y"] - e["y0"]), abs(g["y"] - e["y1"])))
             best[kind] = True
-    for g in sysdata["rolled"]:
-        near = [e for e in chords if 0 < e["x"] - g["x"] < 16]
+    for line in sysdata["rolled"]:          # the chords beside a wavy line whose notes it reaches: one hand's, or both hands' as one roll
+        number = next(ROLLS)
+        near = [e for e in chords if 0 < e["x"] - line["x"] < 16 and any(line["top"] - 3 <= h["y"] <= line["bottom"] + 3 for h in e["heads"])]
+        if not near:
+            later(next((b for b in bars if b["x0"] < line["x"] < b["x1"]), bars[0]), f"a rolled-chord line at x={line['x']:.1f} reaches no chord")
         for e in near:
-            e["rolled"] = True
+            e["rolled"] = number
     for g in sysdata["grace"]:
         staff = sysdata["staff_of"](g["y"])
         for bar in bars:
@@ -523,7 +595,8 @@ def attach(sysdata, bars, system, later):
                 if not after:
                     later(bar, "a small note with nothing after it")
                     continue
-                min(after, key=lambda e: e["x"]).setdefault("grace", []).append(dict(dia=dia, alter=0, x=g["x"], y=g["y"]))
+                slashed = any(abs(s["x"] - g["x"]) < 9 and abs(s["y"] - g["y"]) < 14 for s in sysdata["slashes"])
+                min(after, key=lambda e: e["x"]).setdefault("grace", []).append(dict(dia=dia, alter=0, x=g["x"], y=g["y"], slash=slashed))
 
 
 def tie(sysdata, bars, pending, later):
@@ -552,9 +625,11 @@ def tie(sysdata, bars, pending, later):
         if pair:
             a, b = pair
             a["tie_out"] = True; b["tie_in"] = True
+            a["tie_over"] = up                            # the way the print curves it, over the notes or under them
             b["alter"] = a["alter"]                       # a tied note keeps the sharp or flat it was struck with
         elif starts and not [b for b in ends if b["x"] > starts[0]["x"]] and c["x1"] > last_x + 4:
             starts[0]["tie_out"] = True
+            starts[0]["tie_over"] = up
             pending[(starts[0]["staff"], starts[0]["written_dia"])] = starts[0]
         elif ends and not [a for a in starts if a["x"] < ends[0]["x"]] and c["x0"] < first_x:
             b = next((b for b in ends if (b["staff"], b["written_dia"]) in pending), None)
