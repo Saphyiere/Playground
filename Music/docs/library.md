@@ -730,7 +730,8 @@ another way to read the music.
   for two notes in the right hand), 8 (48) or 9 (8), one 10, and 12 for the 18 in 6/4 or 8/4, which the grader rates as hard
   as any metre the ladder doesn't teach.
 - The titles come from each corpus's metadata, and Debussy's from a list by Lesure number, since the DCML's metadata for him is
-  mostly dedications and engravers' headings. Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
+  mostly dedications and engravers' headings. The Moonlight's metadata leaves out its number ("Sonata no. 'quasi una fantasia'
+  ('Moonlight')"), which its files' names keep ("14-1"); no other DCML title lost one. Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
   by its folders, since its scores' own titles are unreliable ("a", "title"). PDMX's are the uploaders' own, without the
   composer's name where it labels the title, with the first names and initials written with it, at the start or the end,
   after a dash or a colon, in brackets or after "by" ("Aleksandr Scriabin: Nocturne", "Nocturne (F.Chopin Op.55. No.2)", "LE

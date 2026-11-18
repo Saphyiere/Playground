@@ -129,7 +129,8 @@ internal static class Dcml
                 var title = repo switch
                 {
                     "bach_en_fr_suites" => $"{F("workTitle")}, {opus}: {F("movementTitle")}",
-                    "beethoven_piano_sonatas" => $"{F("workTitle").Replace("no.", "No.")}, {opus}: {movement}",
+                    // "Sonata no. 'quasi una fantasia' ('Moonlight')" has lost its number, which the file's name keeps ("14-1").
+                    "beethoven_piano_sonatas" => $"{Regex.Replace(F("workTitle"), @"\bno\.(?!\s*\d)", _ => $"no. {int.Parse(piece.Split('-')[0])}").Replace("no.", "No.")}, {opus}: {movement}",
                     // "Mazurka in b, Op. 30, no. 2" is "Mazurka in B minor, Op. 30 No. 2": a small letter is a minor key. "BI 71" is "B. 71".
                     "chopin_mazurkas" => Regex.Replace(Regex.Replace(Regex.Replace(F("subtitle_text"), @"\bin ([A-Ga-g])(b|#)?(?=[ ,]|$)", m =>
                         $"in {char.ToUpperInvariant(m.Groups[1].Value[0])}{m.Groups[2].Value.Replace("b", "♭").Replace("#", "♯")} {(char.IsLower(m.Groups[1].Value[0]) ? "minor" : "major")}"),
