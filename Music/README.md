@@ -66,6 +66,7 @@ src/
   Prima.Tablet/           The Android app: hosts the screens in a web view, and talks to the piano.
 tools/Prima.Library/      Builds the Library's bundle of public-domain music into artifacts/library (below).
 tools/Prima.Preview/      The screens in a browser against sample data, for checking them from the cloud.
+tools/pdf-to-midi/        Makes the MIDI for a bought Musicnotes PDF by reading the PDF's own shapes (Python, on the PC).
 tests/Prima.Core.Tests/   Tests for the Core. One reads a printed system with Claude, when PLAYGROUND_CLAUDE_KEY holds a key.
 tests/Prima.UI.Tests/     Component, persistence and conversion-lifecycle tests, with a stand-in inference provider.
 docs/                     How it works, the plan and the research.
@@ -201,6 +202,21 @@ from model doubts and user flags; a valid continuation across saved chunks is no
 See [the implementation plan](docs/pdf-conversion-redesign-plan.md), [the Sweden accuracy baseline](docs/sweden-accuracy-baseline.md),
 and [the Android rendering proof](tools/Prima.RenderingProof/README.md). Full source music and device evidence stay under
 ignored `artifacts/` rather than in the repository. The offline evaluator is `tools/Prima.Accuracy`.
+
+## A bought score's MIDI
+
+A PDF bought from Musicnotes comes with no MIDI, and Prima takes a PDF with a MIDI of the same name beside it. A Musicnotes
+PDF isn't a picture, though: each notehead is a glyph of their music font at an exact place. `tools/pdf-to-midi` reads those
+shapes on the PC, checks that every bar adds up and both staves agree, and writes the MIDI beside the PDF:
+
+```powershell
+python -I Music/tools/pdf-to-midi/pdf_to_midi.py "C:\Scores\Piece.pdf"
+```
+
+It costs nothing and takes seconds, and it only works for Musicnotes' own engraving: a scan or another publisher's PDF still
+goes through **Convert to notation**. [Its README](tools/pdf-to-midi/README.md) has what it reads, what it stops at, the
+choices it makes, and how to check a reading against the page. The scores and everything made from them stay out of this
+repository.
 
 ## Putting it on the tablet
 
@@ -380,4 +396,5 @@ Mutopia Project; CC BY-SA is share-alike, a tier of its own, since whatever is m
 local collection is credited the same way: its pieces from Sapp, the DCML and ASAP are CC BY-NC-SA 4.0, for
 this tablet only, its pieces from PDMX and Mutopia are on the same terms as the bundle's, and its hymns from the Open Hymnal are
 public domain. The Library tool fetches webmscore (GPL), abc2svg (LGPL and GPL) and Verovio from npm to convert them; none goes
-into the app beyond the Verovio it already has.
+into the app beyond the Verovio it already has. `tools/pdf-to-midi` uses PyMuPDF (AGPL), installed with pip on the PC: it is
+in neither the repository nor the app.
