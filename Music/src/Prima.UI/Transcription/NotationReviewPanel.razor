@@ -9,7 +9,8 @@
         @if (editing && picked.Written is not null)
         {
             <BarEditor @key="state.Current.Revision" Bar="picked.Written" Context="@(state.Current.Bars.All(b => b.Written is not null) ? state.Current.Bars.Select(b => b.Written!).ToArray() : [])"
-                       ContextIndex="@state.Current.Bars.ToList().FindIndex(b => b.SourceBarId == SelectedBarId)" OnSave="SaveBar" OnCancel="() => editing = false" />
+                       ContextIndex="@state.Current.Bars.ToList().FindIndex(b => b.SourceBarId == SelectedBarId)" FollowingInKey="@NotationCorrections.SameKeyAfter(state, SelectedBarId).Count"
+                       OnSave="SaveBar" OnCancel="() => editing = false" />
         }
         else
         {
@@ -21,7 +22,7 @@
                 else
                 {
                     <button type="button" data-piano="off" class="mu-btn" data-action="accept-bar" disabled="@(picked.Written is null)" @onclick="() => Change(s => NotationCorrections.Accept(s, s.Current.Revision, SelectedBarId))">Mark correct</button>
-                    <button type="button" data-piano="off" class="mu-btn" data-action="edit-bar" disabled="@(picked.Written is null)" @onclick="() => editing = true">Edit notes</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="edit-bar" disabled="@(picked.Written is null)" @onclick="() => editing = true">Edit bar</button>
                 }
                 <button type="button" data-piano="off" class="mu-btn" data-action="undo-review" disabled="@state.UndoStack.IsEmpty" @onclick="() => Change(s => NotationCorrections.UndoLastAction(s, s.Current.Revision))">Undo last change</button>
             </div>
@@ -133,8 +134,8 @@
         }
     }
 
-    private Task SaveBar(ReadBar written) => Change(s => NotationCorrections.Apply(s, new(Source.Sha256, Source.Revision, s.Current.Revision,
-        [SelectedBarId], [new(SelectedBarId, written, picked!.ModelDoubts)], CorrectionOrigin.Manual)));
+    // A changed key signature goes on to the bars after it in its system that were read in its old key.
+    private Task SaveBar(ReadBar written) => Change(s => NotationCorrections.Apply(s, NotationCorrections.ManualEdit(s, SelectedBarId, written)));
 
     private Task Flag() => Change(s => NotationCorrections.SetUserFlags(s, s.Current.Revision, SelectedBarId,
         [.. picked!.UserFlags, new(Guid.NewGuid().ToString("N"), "user", hint.Trim())]));

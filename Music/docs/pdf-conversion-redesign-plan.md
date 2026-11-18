@@ -31,6 +31,7 @@ The initial baseline and rendering proof made no paid inference calls. The origi
 - Each request now says whether its first bar starts a printed system (`ChunkToRead.StartsSystem`, from the source bars' page and system). The instructions describe a key signature: after the clefs, the same in both staves, in its standard order and places, and counted on one staff. A sharp right before a notehead is that note's accidental. At a system start the key is read from the print alone, and a system that prints none has none; inside a system it carries on from the context bar until a new signature follows a barline.
 - `ReadChunk.Check` sends back a key change inside a system after an ordinary barline. Sent back once: a resent batch that reads the same change again is kept, so a real one is never refused for good. Changes at a system start, or after a double, final or repeat barline, pass.
 - The review lists every key change as a deterministic notation check (`ReadingFidelityKind.KeyChange`), saying whether it is at a system start, after a double barline, or after an ordinary one.
+- **Edit bar** in the review sets a bar's key signature by hand. The key also goes to the bars after it in its printed system that were read in the same key (`NotationCorrections.SameKeyAfter`, `ManualEdit`), as one manual change that undoes together. So a key carried on by mistake is put right a system at a time, without a model request.
 - Tests use synthetic bars only, and no paid request was made. The tablet check is the owner's: recheck bars 68–70 and 105 of the saved review, or convert the piece again.
 
 ## 1. Decisions and scope
@@ -200,7 +201,7 @@ The review should provide:
 - Actions on every bar: Mark correct, Flag a problem, Recheck selected bar/range, Edit, and History/Undo.
 - Separate review states: unreviewed, model flagged, user flagged, accepted by user, and user corrected. Preserve machine-check results separately; do not invent a confidence percentage.
 - Issue targets as bar plus optional staff/voice/beat/note, with concrete categories such as pitch, rhythm, missing/extra note, clef/key, voicing, or source mapping, and free text.
-- A bounded manual editor for notes/rests in the selected bar: pitch/accidental/octave, duration, staff/voice, ties, and insertion/removal, with immediate validation and engraving. A full general-purpose score editor is outside the initial scope.
+- A bounded manual editor for notes/rests in the selected bar: pitch/accidental/octave, duration, staff/voice, ties, and insertion/removal, with immediate validation and engraving. A full general-purpose score editor is outside the initial scope. It also sets the bar's key signature, which goes on to the bars after it in its printed system that were read in the same key, as one manual change.
 
 A model recheck receives only the allowed target bars, their high-resolution source, current notation, the user's description, and read-only neighboring context. It returns a proposed patch. Show the before/after difference and allow acceptance per bar. Accepted bars remain protected; the user can deliberately reopen them for editing or recheck. Preserve revision history, and reject or reconcile a response arriving after newer user edits.
 

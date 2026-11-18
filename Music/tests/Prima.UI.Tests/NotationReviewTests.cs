@@ -98,6 +98,74 @@ public class NotationReviewTests
     }
 
     [Fact]
+    public async Task EditorSetsTheKeySignature_SayingWhichBarsTakeIt()
+    {
+        await using var host = new ComponentHost();
+        ReadBar? saved = null;
+        var view = host.Context.Render<BarEditor>(p => p.Add(c => c.Bar, Bar() with { Fifths = 2 }).Add(c => c.FollowingInKey, 3).Add(c => c.OnSave, b => saved = b));
+
+        Assert.Equal("2", view.Find("[data-key-signature]").GetAttribute("data-key-signature"));
+        Assert.Empty(view.FindAll("[data-key-run]"));
+        await view.InvokeAsync(() => view.Find("[data-action=key-flatter]").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=key-flatter]").ClickAsync(new MouseEventArgs()));
+
+        Assert.Equal("No sharps or flats", view.Find("[data-key-signature] .control-value").TextContent);
+        Assert.Equal("Saving also sets it for the next 3 bars of this system, read in the same key as this one.", view.Find("[data-key-run]").TextContent);
+        await view.InvokeAsync(() => view.Find("[data-action=key-flatter]").ClickAsync(new MouseEventArgs()));
+        Assert.Equal("1 flat", view.Find("[data-key-signature] .control-value").TextContent);
+        await view.InvokeAsync(() => view.Find("[data-action=save-bar]").ClickAsync(new MouseEventArgs()));
+
+        Assert.Equal(-1, saved!.Fifths);
+        Assert.Equal(Bar().Staves.Select(s => s.Clef), saved.Staves.Select(s => s.Clef));
+    }
+
+    [Fact]
+    public async Task EditorKeepsTheKeyWithinSevenSharpsOrFlats()
+    {
+        await using var host = new ComponentHost();
+        var sharps = host.Context.Render<BarEditor>(p => p.Add(c => c.Bar, Bar() with { Fifths = 7 }));
+        var flats = host.Context.Render<BarEditor>(p => p.Add(c => c.Bar, Bar() with { Fifths = -7 }));
+
+        Assert.True(sharps.Find("[data-action=key-sharper]").HasAttribute("disabled"));
+        Assert.False(sharps.Find("[data-action=key-flatter]").HasAttribute("disabled"));
+        Assert.True(flats.Find("[data-action=key-flatter]").HasAttribute("disabled"));
+        Assert.Equal("7 flats", flats.Find("[data-key-signature] .control-value").TextContent);
+    }
+
+    [Fact]
+    public async Task SavingAKeyPutsTheRestOfItsSystemInIt_AndUndoTakesItAllBack()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece(pdf: true);
+        // Three bars on the first system, read in two sharps, and one on the next, read in two sharps too.
+        var source = new ConversionSource(new string('a', 64), "r1",
+        [
+            new("bar1", 1, 1, 0, "1", new(0, 0, 0.3, 0.4)), new("bar2", 1, 1, 1, "2", new(0.3, 0, 0.3, 0.4)),
+            new("bar3", 1, 1, 2, "3", new(0.6, 0, 0.3, 0.4)), new("bar4", 1, 2, 3, "4", new(0, 0.5, 0.3, 0.4)),
+        ], true);
+        var view = host.Context.Render<NotationReviewPanel>(p => p.Add(c => c.PieceId, piece.Id).Add(c => c.Source, source)
+            .Add(c => c.Initial, [.. source.Bars.Select(b => new BarReplacement(b.Id, Bar() with { Fifths = 2 }, []))]).Add(c => c.SelectedBarId, "bar2"));
+        view.WaitForElement("[data-action=edit-bar]");
+        Assert.Equal("Edit bar", view.Find("[data-action=edit-bar]").TextContent);
+        await view.InvokeAsync(() => view.Find("[data-action=edit-bar]").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement("[data-key-signature]");
+        await view.InvokeAsync(() => view.Find("[data-action=key-flatter]").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=key-flatter]").ClickAsync(new MouseEventArgs()));
+        Assert.Equal("1", view.Find("[data-key-run]").GetAttribute("data-key-run"));
+
+        await view.InvokeAsync(() => view.Find("[data-action=save-bar]").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForElement("[data-action=undo-review]:not([disabled])");
+        var saved = (await host.Store.GetNotationReviewAsync(piece.Id, source.Revision))!;
+        Assert.Equal([2, 0, 0, 2], saved.Current.Bars.Select(b => b.Written!.Fifths));
+        Assert.Equal([false, true, true, false], saved.Current.Bars.Select(b => b.UserCorrected));
+        await view.InvokeAsync(() => view.Find("[data-action=undo-review]").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement("[data-action=undo-review][disabled]");
+        var undone = (await host.Store.GetNotationReviewAsync(piece.Id, source.Revision))!;
+        Assert.Equal([2, 2, 2, 2], undone.Current.Bars.Select(b => b.Written!.Fifths));
+    }
+
+    [Fact]
     public async Task AcceptedBarCannotOpenTheEditorUntilExplicitlyReopened()
     {
         await using var host = new ComponentHost();

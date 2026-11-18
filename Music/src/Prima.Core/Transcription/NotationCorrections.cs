@@ -103,6 +103,45 @@ public static class NotationCorrections
             patch.Origin == CorrectionOrigin.Manual ? NotationChangeKind.ManualCorrection : NotationChangeKind.ModelCorrection);
     }
 
+    /// <summary>
+    /// The bars a key signature set by hand on a bar goes on to: those after it in its printed system that were read in its key,
+    /// up to the first in another key, accepted or not read yet. A key holds through its system until a new one is printed, and
+    /// the next system prints its own, so a key misread at a chord's sharps is put right a system at a time.
+    /// </summary>
+    public static IReadOnlyList<string> SameKeyAfter(NotationReview state, string barId)
+    {
+        var bars = state.Current.Bars;
+        var at = bars.Select(b => b.SourceBarId).ToList().IndexOf(barId);
+        if (at < 0 || bars[at].Written is not { } written) return [];
+        // A snapshot's bars are its source's, in order: each bar's printed system is the source bar's at the same place.
+        var system = (state.Source.Bars[at].Page, state.Source.Bars[at].System);
+        var run = new List<string>();
+        for (var i = at + 1; i < bars.Length && (state.Source.Bars[i].Page, state.Source.Bars[i].System) == system; i++)
+        {
+            if (bars[i].Accepted || bars[i].Written?.Fifths != written.Fifths) break;
+            run.Add(bars[i].SourceBarId);
+        }
+        return run;
+    }
+
+    /// <summary>
+    /// The owner's edit of a bar, as a manual patch. When it changes the bar's key signature, the bars its old key went on to in
+    /// its system (<see cref="SameKeyAfter"/>) take the new key too, with nothing else of theirs changed, and undo as one.
+    /// </summary>
+    public static BarCorrectionPatch ManualEdit(NotationReview state, string barId, ReadBar written)
+    {
+        var bar = state.Current.Bars.FirstOrDefault(b => b.SourceBarId == barId)
+            ?? throw new CorrectionRejectedException(CorrectionRejection.InvalidTargets, "The target is not a bar in this source.");
+        var replacements = new List<BarReplacement> { new(barId, written, bar.ModelDoubts) };
+        if (bar.Written is { } before && before.Fifths != written.Fifths)
+        {
+            replacements.AddRange(SameKeyAfter(state, barId).Select(id => state.Current.Bars.First(b => b.SourceBarId == id))
+                .Select(next => new BarReplacement(next.SourceBarId, next.Written! with { Fifths = written.Fifths }, next.ModelDoubts)));
+        }
+        return new(state.Source.Sha256, state.Source.Revision, state.Current.Revision, [.. replacements.Select(r => r.SourceBarId)], replacements,
+            CorrectionOrigin.Manual);
+    }
+
     public static NotationReview Accept(NotationReview state, string baseRevision, string barId)
     {
         var at = RequireBar(state, baseRevision, barId);

@@ -452,7 +452,10 @@ a PDF plays out; this is what came of it.
   or after an ordinary barline inside a system, where a chord's sharps or flats were probably taken for one. A wrong key goes
   on to every later bar of its system, so a flagged change is checked against the print first. They are recomputed from the
   stored notation after edits and reopening. An empty model-doubt list is not a verified match to the print. **Listen from bar** plays the current reading on the piano.
-  A bar can be marked correct, flagged with an observation, or edited directly. Accepted bars must be reopened before they
+  A bar can be marked correct, flagged with an observation, or edited directly with **Edit bar**: its notes and rests, and its
+  key signature. A key set there also goes to the bars after it in its system that were read in the same key, up to one in
+  another key or one already accepted, and the editor says how many; the next system keeps its own, so a misread key is put
+  right a system at a time, and **Undo last change** takes the whole change back. Accepted bars must be reopened before they
   can be changed. **Recheck this bar** requires a separate confirmation and sends only that bar with its context and the
   owner's observation. Its result is a proposal: it changes no notation until explicitly accepted, and a proposal for an
   older review revision cannot overwrite newer edits. Review history and undo are saved; a new full conversion starts a fresh

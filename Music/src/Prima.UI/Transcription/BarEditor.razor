@@ -7,7 +7,17 @@
         {
             <Sheet Mei="@preview" Layout="line" Measures="@(Context.Count > 0 ? (ContextIndex + 1).ToString(CultureInfo.InvariantCulture) : null)" />
         }
-        <p class="section-note">Select a note or rest, then change its written pitch or duration. Changes stay here until you save.</p>
+        <p class="section-note">Set the bar's key signature, or select a note or rest and change its written pitch or duration. Changes stay here until you save.</p>
+        <div class="control-row" data-key-signature="@edited.Fifths">
+            <span class="control-label">Key signature</span>
+            <button type="button" data-piano="off" class="mu-btn" data-action="key-flatter" aria-label="Fewer sharps or more flats" disabled="@(edited.Fifths <= -7)" @onclick="() => SetKey(edited.Fifths - 1)">−</button>
+            <span class="control-value">@KeyText(edited.Fifths)</span>
+            <button type="button" data-piano="off" class="mu-btn" data-action="key-sharper" aria-label="More sharps or fewer flats" disabled="@(edited.Fifths >= 7)" @onclick="() => SetKey(edited.Fifths + 1)">+</button>
+        </div>
+        @if (edited.Fifths != Bar.Fifths)
+        {
+            <p class="control-note" data-key-run="@FollowingInKey">@KeyRunText()</p>
+        }
         @foreach (var staff in edited.Staves)
         {
             @foreach (var voice in staff.Voices)
@@ -77,6 +87,8 @@
     [Parameter, EditorRequired] public ReadBar Bar { get; set; } = default!;
     [Parameter] public IReadOnlyList<ReadBar> Context { get; set; } = [];
     [Parameter] public int ContextIndex { get; set; }
+    /// <summary>How many bars after this one, in its system and read in its key, take a key signature set here too.</summary>
+    [Parameter] public int FollowingInKey { get; set; }
     [Parameter] public EventCallback<ReadBar> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     private ReadBar edited = default!;
@@ -94,6 +106,22 @@
     }
 
     private void Select(int staff, int voice, int at) { selected = (staff, voice, at); error = null; }
+
+    private void SetKey(int fifths)
+    {
+        edited = edited with { Fifths = Math.Clamp(fifths, -7, 7) };
+        error = null;
+        Preview();
+    }
+
+    private static string KeyText(int fifths) => fifths == 0 ? "No sharps or flats" : ReadingChecks.Signature(fifths);
+
+    private string KeyRunText() => FollowingInKey switch
+    {
+        0 => "Saving sets it for this bar only.",
+        1 => "Saving also sets it for the next bar of this system, read in the same key as this one.",
+        _ => $"Saving also sets it for the next {FollowingInKey} bars of this system, read in the same key as this one.",
+    };
 
     private void UpdateEvent(Func<ReadEvent, ReadEvent> update)
     {

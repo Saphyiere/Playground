@@ -186,6 +186,76 @@ public class KeySignatureTests
         Assert.Empty(ReadingFidelity.Find([Reading(Bar(1, 2), Bar(2, 2)), Reading(Bar(1, 2))]));
     }
 
+    /// <summary>
+    /// A review of the source's bars as read: b0 in no key, then two sharps taken from a chord at b1 and carried on to the end of
+    /// its system (b2) and into the next (b3 to b5). b2 has a model doubt.
+    /// </summary>
+    private static NotationReview CarriedKey()
+    {
+        var source = Source();
+        var review = NotationCorrections.Create(source);
+        var read = source.Bars.Take(6).Select((b, i) => new BarReplacement(b.Id, Bar(1, i == 0 ? 0 : 2), i == 2 ? [new ModelBarDoubt(1, "The top note")] : [])).ToArray();
+        return NotationCorrections.Apply(review, new(source.Sha256, source.Revision, review.Current.Revision, [.. read.Select(r => r.SourceBarId)], read, CorrectionOrigin.Model));
+    }
+
+    [Fact]
+    public void Edit_AKeySetByHandGoesOnToTheRestOfItsSystemReadInTheSameKey()
+    {
+        var review = CarriedKey();
+
+        Assert.Equal(["b2"], NotationCorrections.SameKeyAfter(review, "b1"));
+        Assert.Equal(["b4", "b5"], NotationCorrections.SameKeyAfter(review, "b3"));
+        Assert.Empty(NotationCorrections.SameKeyAfter(review, "b2"));
+        Assert.Empty(NotationCorrections.SameKeyAfter(review, "b6"));
+
+        var patch = NotationCorrections.ManualEdit(review, "b3", review.Current.Bars[3].Written! with { Fifths = 0 });
+        var edited = NotationCorrections.Apply(review, patch);
+
+        Assert.Equal(CorrectionOrigin.Manual, patch.Origin);
+        Assert.Equal(["b3", "b4", "b5"], patch.TargetBarIds);
+        Assert.Equal([0, 2, 2, 0, 0, 0], edited.Current.Bars.Take(6).Select(b => b.Written!.Fifths));
+        Assert.All(edited.Current.Bars.Skip(3).Take(3), b => Assert.True(b.UserCorrected));
+        // Only the key changes on the bars it goes on to: their notes, and any doubts, stay.
+        Assert.Equal(JsonSerializer.Serialize(review.Current.Bars[4].Written!.Staves), JsonSerializer.Serialize(edited.Current.Bars[4].Written!.Staves));
+        Assert.Equal(review.Current.Bars[2], edited.Current.Bars[2]);
+        // And the whole change undoes at once.
+        Assert.Equal([0, 2, 2, 2, 2, 2], NotationCorrections.UndoLastAction(edited, edited.Current.Revision).Current.Bars.Take(6).Select(b => b.Written!.Fifths));
+    }
+
+    [Fact]
+    public void Edit_TheKeyStopsAtABarInAnotherKeyOrAcceptedOrUnread_AndKeepsItsDoubts()
+    {
+        var review = CarriedKey();
+        var accepted = NotationCorrections.Accept(review, review.Current.Revision, "b5");
+        var otherKey = NotationCorrections.Apply(review, NotationCorrections.ManualEdit(review, "b4", review.Current.Bars[4].Written! with { Fifths = -1 }));
+
+        Assert.Equal(["b4"], NotationCorrections.SameKeyAfter(accepted, "b3"));
+        Assert.Empty(NotationCorrections.SameKeyAfter(otherKey, "b3"));
+        Assert.Equal(["b5"], NotationCorrections.SameKeyAfter(otherKey, "b4"));
+
+        var fixedSystem = NotationCorrections.ManualEdit(review, "b1", review.Current.Bars[1].Written! with { Fifths = 0 });
+        Assert.Equal([new ModelBarDoubt(1, "The top note")], fixedSystem.Replacements.Single(r => r.SourceBarId == "b2").ModelDoubts);
+
+        // A source bar not yet read ends the run as well.
+        var unread = NotationCorrections.Create(Source());
+        var one = new BarReplacement("b0", Bar(1, 2), []);
+        unread = NotationCorrections.Apply(unread, new(unread.Source.Sha256, unread.Source.Revision, unread.Current.Revision, ["b0"], [one], CorrectionOrigin.Model));
+        Assert.Empty(NotationCorrections.SameKeyAfter(unread, "b0"));
+    }
+
+    [Fact]
+    public void Edit_NotesAloneChangeOnlyTheirBar()
+    {
+        var review = CarriedKey();
+        var written = review.Current.Bars[1].Written!;
+        var chord = written with { Staves = [written.Staves[0] with { Voices = [new(1, [written.Staves[0].Voices[0].Events[0] with { Pitches = [new(Step.A, Accidental.None, 4, false, 0)] }])] }, written.Staves[1]] };
+
+        var patch = NotationCorrections.ManualEdit(review, "b1", chord);
+
+        Assert.Equal(["b1"], patch.TargetBarIds);
+        Assert.Throws<CorrectionRejectedException>(() => NotationCorrections.ManualEdit(review, "elsewhere", chord));
+    }
+
     [Fact]
     public void Review_FlagsAKeyChangeAfterAnOrdinaryBarlineAsAChordsSharpsPerhaps()
     {
