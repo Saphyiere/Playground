@@ -349,6 +349,58 @@ public class LibraryBrowseTests
         uploaded.WaitForAssertion(() => Assert.Equal("No file chosen.", uploaded.Find(".control-note").TextContent));
     }
 
+    // The owner, 17 November: an upload's title was its file's name, with no way to say who it's by. Its details say both, and
+    // an upload without an artist asks for one where the artist goes.
+    [Fact]
+    public async Task AnUploadedPiecesDetailsGiveItItsTitleArtistAndArrangerAndTakeItOutWithUndo()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        await Add(host, "import-hallelujah", "", "Hallelujah - C Major", null, origin: "import", source: "Hallelujah - C Major - MN0258239.mid");
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=mine");
+        var view = host.Context.Render<Pages.Library>();
+        view.WaitForAssertion(() => Assert.Equal("Add the artist", view.Find(".up-artist.missing").TextContent));
+
+        await view.InvokeAsync(() => view.Find(".up-artist.missing").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        Assert.Equal("Piece details", view.Find(".lb-sheet h2").TextContent);
+        Assert.Equal("It came in as “Hallelujah - C Major - MN0258239”.", view.Find(".lb-sheet .lb-field .hint").TextContent);
+        var fields = view.FindAll(".lb-sheet .lb-field input");
+        Assert.Equal(["Hallelujah - C Major", "", ""], fields.Select(f => f.GetAttribute("value")));
+
+        // Without a title it isn't saved.
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .lb-field input")[0].InputAsync(new ChangeEventArgs { Value = "  " }));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .sheet-keys button").First().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Equal("It needs a title.", view.Find(".lb-sheet .control-note").TextContent);
+
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .lb-field input")[0].InputAsync(new ChangeEventArgs { Value = "Hallelujah" }));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .lb-field input")[1].InputAsync(new ChangeEventArgs { Value = " Leonard Cohen " }));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .lb-field input")[2].InputAsync(new ChangeEventArgs { Value = "Jennifer Eklund" }));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .sheet-keys button").First().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Empty(view.FindAll(".lb-sheet")));
+        Assert.Equal("Hallelujah", view.Find(".up-title").TextContent);
+        Assert.Equal("Leonard Cohen · arr. Jennifer Eklund", view.Find(".up-artist").TextContent);
+        Assert.Equal("“Hallelujah” is saved.", view.Find(".control-note").TextContent);
+        var kept = (await host.Store.GetPieceAsync("import-hallelujah"))!;
+        Assert.Equal(("Hallelujah", "Leonard Cohen", "arr. Jennifer Eklund"), (kept.Title, kept.Composer, kept.Work));
+        // And the artist is among the composers.
+        Assert.Contains("Cohen, Leonard 1", Rows(view));
+
+        // Its details again, as they were saved; and out of the Library from there, with Undo at the foot of the screen.
+        await view.InvokeAsync(() => view.Find(".lb-more").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Equal(["Hallelujah", "Leonard Cohen", "Jennifer Eklund"], view.FindAll(".lb-sheet .lb-field input").Select(f => f.GetAttribute("value")));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .sheet-keys button").Single(b => b.TextContent == "Remove from the Library…").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        await view.InvokeAsync(() => view.FindAll(".lb-sheet .sheet-keys button").Single(b => b.TextContent == "Remove it").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("Removed “Hallelujah” from the Library.", view.Find(".library-removed .control-note").TextContent));
+        Assert.Null(await host.Store.GetPieceAsync("import-hallelujah"));
+
+        await view.InvokeAsync(() => view.Find(".library-removed button").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("Leonard Cohen", (host.Store.GetPieceAsync("import-hallelujah").GetAwaiter().GetResult())?.Composer));
+    }
+
     private static async Task WaitFor(Func<bool> condition)
     {
         for (var waited = 0; !condition(); waited += 20)

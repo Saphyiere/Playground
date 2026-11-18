@@ -393,13 +393,17 @@
                                 {
                                     <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
                                 }
-                                <a class="up-main" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">
-                                    <span class="up-title piece-title">@piece.Title</span>
+                                <div class="up-main">
+                                    <a class="up-title piece-title" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">@piece.Title</a>
                                     @if (!string.IsNullOrWhiteSpace(piece.Composer))
                                     {
-                                        <span class="up-artist">@piece.Composer</span>
+                                        <span class="up-artist">@Line(piece.Composer, piece.Work)</span>
                                     }
-                                </a>
+                                    else
+                                    {
+                                        <button type="button" class="up-artist missing" @onclick="() => Detail(piece)">Add the artist</button>
+                                    }
+                                </div>
                                 <span class="up-last">
                                     @if (played.GetValueOrDefault(piece.Id) is { } done)
                                     {
@@ -418,6 +422,7 @@
                                 <button type="button" class="lb-star" aria-pressed="@(starred ? "true" : "false")" aria-label="@(starred ? $"{piece.Title} is in your repertoire: choose its collections" : $"Add {piece.Title} to your repertoire")" @onclick="e => Star(piece, e)">
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
                                 </button>
+                                <button type="button" class="lb-more" aria-label="@($"Details of {piece.Title}")" @onclick="() => Detail(piece)"></button>
                             </li>
                         }
                     </ul>
@@ -489,6 +494,65 @@
             <p class="control-note">Removed “@removed.Piece.Title” from the Library.</p>
             <button type="button" class="mu-btn" @onclick="Undo">Undo</button>
         </div>
+    }
+
+    @* An uploaded piece's details: what it's called and who it's by, as the owner has them (its file's name is only where they
+       start), and what it has: its pages, its notes. *@
+    @if (detailing is { } detailed)
+    {
+        <div class="lb-scrim" @onclick="CloseDetails"></div>
+        <aside class="lb-sheet" role="dialog" aria-label="Piece details">
+            <div>
+                <p class="page-kicker">Uploaded on @detailed.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture)</p>
+                <h2 class="page-title">Piece details</h2>
+            </div>
+            <label class="lb-field">
+                <span class="control-label">Title</span>
+                <input class="text-field" type="text" maxlength="200" value="@titleNow" @oninput="e => titleNow = e.Value?.ToString() ?? string.Empty" />
+                @if (detailed.Source is { Length: > 0 } file)
+                {
+                    <span class="hint">It came in as “@Path.GetFileNameWithoutExtension(file)”.</span>
+                }
+            </label>
+            <label class="lb-field">
+                <span class="control-label">Artist or composer</span>
+                <input class="text-field" type="text" maxlength="120" value="@artistNow" @oninput="e => artistNow = e.Value?.ToString() ?? string.Empty" />
+                <span class="hint">Shown under the title. By artist sorts the uploaded pieces by it, and the list of composers has it too.</span>
+            </label>
+            <label class="lb-field">
+                <span class="control-label">Arranged by</span>
+                <input class="text-field" type="text" maxlength="120" placeholder="Optional" value="@arrangerNow" @oninput="e => arrangerNow = e.Value?.ToString() ?? string.Empty" />
+            </label>
+            <div>
+                <p class="col-title">What it has</p>
+                <div class="part-row">
+                    <span><span class="mu-led @(detailed.IsPdf ? "on" : "")"></span><span>Pages<small>@(detailed.IsPdf ? "Its PDF: the print, a key away on its own screen" : "None: Prima engraves its notes")</small></span></span>
+                    <button type="button" class="text-key" @onclick="GivePages">@(detailed.IsPdf ? "Replace…" : "Add its pages…")</button>
+                </div>
+                <div class="part-row">
+                    <span><span class="mu-led @(detailed.PlaysAlong ? "on" : "")"></span><span>Notes<small>@(detailed.PlaysAlong ? Line(Bars(detailed), "to play along with") : "None yet: its pages show, and nothing plays along")</small></span></span>
+                    <button type="button" class="text-key" @onclick="GiveNotes">@(detailed.PlaysAlong ? "Replace…" : "Add its notes…")</button>
+                </div>
+                <p class="hint">Its notes come from a MIDI, MusicXML, MEI or ABC file of it; Convert PDF, on its own screen, reads them from its pages.</p>
+            </div>
+            @if (detailNote is not null)
+            {
+                <p class="control-note" role="status">@detailNote</p>
+            }
+            <div class="sheet-keys">
+                @if (removing)
+                {
+                    <button type="button" class="mu-btn mu-primary" @onclick="RemoveDetailed">Remove it</button>
+                    <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
+                }
+                else
+                {
+                    <button type="button" class="mu-btn mu-primary" @onclick="SaveDetails">Save</button>
+                    <button type="button" class="mu-btn" @onclick="CloseDetails">Cancel</button>
+                    <button type="button" class="text-key away" @onclick="() => removing = true">Remove from the Library…</button>
+                }
+            </div>
+        </aside>
     }
 
     @* A star's second tap: which of the repertoire's collections the piece is in, where it was tapped. *@

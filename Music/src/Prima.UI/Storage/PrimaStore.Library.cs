@@ -422,6 +422,20 @@ public sealed partial class PrimaStore
     /// <summary>Throws a reading away. A kept one's notation stays with its piece.</summary>
     public Task DeleteReadingAsync(string piece) => RunAsync(c => c.ExecuteAsync("DELETE FROM PieceReading WHERE Piece = @piece", new { piece }));
 
+    /// <summary>
+    /// An uploaded piece under the title, the artist or composer and the arranger it's given (the arranger kept as its work,
+    /// "arr. …"): what its file's name or header said is only where they start.
+    /// </summary>
+    public Task NamePieceAsync(string id, string title, string composer, string? work) => RunAsync(c => c.ExecuteAsync(
+        "UPDATE Piece SET Title = @title, Composer = @composer, Work = @work WHERE Id = @id", new { id, title, composer, work }));
+
+    /// <summary>
+    /// A piece's pages: the PDF kept beside the data file under <paramref name="file"/>. Its notes stay; how its pages were laid
+    /// out doesn't, being the pages' before.
+    /// </summary>
+    public Task SetPagesAsync(string id, string file) => RunAsync(c => c.ExecuteAsync(
+        "UPDATE Piece SET Format = 'pdf', File = @file, Layout = NULL WHERE Id = @id", new { id, file }));
+
     /// <summary>What you set for a piece: its tempo, its PDF layout, where you were. Null leaves a value as it is.</summary>
     public Task SetPieceAsync(string id, double? tempo = null, string? layout = null, string? position = null) => RunAsync(c => c.ExecuteAsync(
         "UPDATE Piece SET Tempo = COALESCE(@tempo, Tempo), Layout = COALESCE(@layout, Layout), Position = COALESCE(@position, Position), Opened = @opened WHERE Id = @id",

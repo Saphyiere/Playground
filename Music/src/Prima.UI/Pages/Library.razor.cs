@@ -99,6 +99,13 @@ public partial class Library
     private bool naming;
     private string? newName;
     private string? nameNote;
+    // The uploaded piece whose details are open, and what's typed there until it's saved.
+    private PieceRecord? detailing;
+    private string titleNow = "";
+    private string artistNow = "";
+    private string arrangerNow = "";
+    private string? detailNote;
+    private bool removing;
 
     // What's shown beside the list. With nothing asked for, what's yours comes first.
     private string View => search is not null ? "found"
@@ -143,7 +150,7 @@ public partial class Library
     // place each column was scrolled to.
     protected override async Task OnParametersSetAsync()
     {
-        (format, search, note, starring) = (Only is "notation" or "pdf" ? Only : "all", string.IsNullOrWhiteSpace(Query) ? null : Query, null, null);
+        (format, search, note, starring, detailing) = (Only is "notation" or "pdf" ? Only : "all", string.IsNullOrWhiteSpace(Query) ? null : Query, null, null, null);
         // Only the Library's own address: a piece's, as the Library is left for it, isn't one. What's shown is a piece's way back.
         var here = Nav.ToBaseRelativePath(Nav.Uri).Split('#')[0];
         if (here.Split('?')[0] == "library")
@@ -547,6 +554,68 @@ public partial class Library
     private async Task NameKey(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") await AddCollection();
+    }
+
+    // An uploaded piece's arranger is kept as its work, "arr. …".
+    private const string Arr = "arr. ";
+
+    private void Detail(PieceRecord piece) =>
+        (detailing, titleNow, artistNow, arrangerNow, detailNote, removing) = (piece, piece.Title, piece.Composer, piece.Work?.StartsWith(Arr, StringComparison.Ordinal) == true ? piece.Work[Arr.Length..] : "", null, false);
+
+    private void CloseDetails() => detailing = null;
+
+    // The piece under the title, artist and arranger typed: the lists show them from now on.
+    private async Task SaveDetails()
+    {
+        if (detailing is not { } piece) return;
+
+        var (title, arranger) = (titleNow.Trim(), arrangerNow.Trim());
+        if (title.Length == 0)
+        {
+            detailNote = "It needs a title.";
+            return;
+        }
+        // Its work is its arranger's, or what it was when that wasn't an arranger.
+        var work = arranger.Length > 0 ? Arr + arranger : piece.Work?.StartsWith(Arr, StringComparison.Ordinal) == true ? null : piece.Work;
+        await Store.NamePieceAsync(piece.Id, title, artistNow.Trim(), work);
+        detailing = null;
+        await Load();
+        await ReadWorks();
+        note = $"“{title}” is saved.";
+    }
+
+    // Its notes from a file of them, or its pages from a PDF: picked, and taken in place of any it had.
+    private Task GiveNotes() => Give((piece, name, data) => Prep.GiveNotesAsync(piece, name, data), "Its notes are in: it plays along.");
+
+    private Task GivePages() => Give((piece, name, data) => Prep.GivePagesAsync(piece, name, data), "Its pages are in: Print shows them on its own screen.");
+
+    private async Task Give(Func<PieceRecord, string, byte[], Task<string?>> give, string done)
+    {
+        if (detailing is not { } piece) return;
+
+        if (await Files.PickAsync() is not var (name, data))
+        {
+            detailNote = "No file chosen.";
+            return;
+        }
+        detailNote = $"Reading {name}…";
+        StateHasChanged();
+        var said = await give(piece, name, data);
+        await Load();
+        // The sheet stays open on the piece as it is now, with what it has.
+        if (detailing?.Id == piece.Id) detailing = byId.GetValueOrDefault(piece.Id);
+        detailNote = said ?? done;
+    }
+
+    // Out of the Library from its details: what went is at the foot of the screen, with Undo.
+    private async Task RemoveDetailed()
+    {
+        if (detailing is not { } piece) return;
+
+        detailing = null;
+        if (await Store.RemovePieceAsync(piece.Id) is { } removed) Place.Removed = removed;
+        await Load();
+        await ReadWorks();
     }
 
     // One piece imported opens; several (or a zip of them) stay here, with a line saying what came in.

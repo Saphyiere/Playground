@@ -125,8 +125,8 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
 
     /// <summary>
     /// Imports the files the owner picked, one or several: MusicXML (.musicxml, .xml, .mxl), MEI or ABC as notation, MIDI written
-    /// out as notation, PDFs as pages, and zips holding any of them. A PDF takes the MIDI file of the same name, when there's one,
-    /// to be heard on the piano and scrolled at its tempo (the MIDI comes in as notation as well). A collection from the Library
+    /// out as notation, PDFs as pages, and zips holding any of them. A PDF and the MIDI file of the same name are one piece: the
+    /// PDF its pages, the MIDI its notes, to play along with and to be heard (the MIDI isn't a second piece). A collection from the Library
     /// tool (a zip with its manifest) is stored in the background with its progress shown; one built again first brings its pieces
     /// already here up to date and takes out the collection's pieces it no longer has. The piece to open when one came in, and a
     /// line about what came in and what couldn't.
@@ -212,21 +212,26 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
             }
         }
 
-        // A PDF's MIDI is the MIDI file of the same name beside it: "Numb.pdf" and "Numb.mid".
+        // A PDF's MIDI is the MIDI file of the same name beside it: "Numb.pdf" and "Numb.mid". They're one piece, so the MIDI
+        // isn't taken by itself as well.
         var midiOf = files.Where(f => Path.GetExtension(f.Name).ToLowerInvariant() is ".mid" or ".midi")
             .GroupBy(f => Path.GetFileNameWithoutExtension(f.Name), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Data, StringComparer.OrdinalIgnoreCase);
+        var paged = files.Where(f => Path.GetExtension(f.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase) && IsPdf(f.Data))
+            .Select(f => Path.GetFileNameWithoutExtension(f.Name)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var imported = new List<string>();
         foreach (var (name, data) in files)
         {
             var extension = Path.GetExtension(name).ToLowerInvariant();
-            var title = Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
+            if (extension is ".mid" or ".midi" && paged.Contains(Path.GetFileNameWithoutExtension(name))) continue;
+
+            var title = TitleFrom(name);
             var id = $"import-{Guid.NewGuid():N}";
             // Where it came from is the file as it was named: a PDF is kept under a name of Prima's own, and About says the real one.
             var record = new PieceRecord(id, "import", title, "", null, "mei", name, null, null, null, null, null, name, null, null, null, null, null, null, null, null, DateTimeOffset.Now, null);
             switch (extension)
             {
                 case ".pdf":
-                    if (data.Length < 5 || data[0] != '%' || data[1] != 'P' || data[2] != 'D' || data[3] != 'F')
+                    if (!IsPdf(data))
                     {
                         notes.Add($"{name} isn't a PDF.");
                         continue;
@@ -235,7 +240,27 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                     Directory.CreateDirectory(store.FilesPath);
                     await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, id + ".pdf"), data);
                     if (midi is not null) await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, id + ".mid"), midi);
-                    await store.SavePieceAsync(record with { Format = "pdf", File = id + ".pdf", Midi = midi is null ? null : id + ".mid" }, null, []);
+                    var pages = record with { Format = "pdf", File = id + ".pdf", Midi = midi is null ? null : id + ".mid" };
+                    // Its MIDI is its notes: written out, graded and cut as a MIDI file by itself is. One that can't be read
+                    // leaves the piece its pages, and still plays it.
+                    if (midi is not null && await NotesOf(pages, ".mid", midi) is var (mei, graded, cuts))
+                    {
+                        await store.SavePieceAsync(graded, mei, cuts);
+                        imported.Add(id);
+                        continue;
+                    }
+                    if (midi is not null)
+                    {
+                        // A MIDI that still plays is kept to be heard; one that's no MIDI at all isn't kept.
+                        var plays = Plays(midi);
+                        notes.Add($"{Path.GetFileNameWithoutExtension(name)}'s MIDI couldn't be read as music: it came in with its pages{(plays ? ", and can be heard" : " only")}.");
+                        if (!plays)
+                        {
+                            File.Delete(Path.Combine(store.FilesPath, id + ".mid"));
+                            pages = pages with { Midi = null };
+                        }
+                    }
+                    await store.SavePieceAsync(pages, null, []);
                     imported.Add(id);
                     continue;
                 case ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc" or ".mid" or ".midi":
@@ -245,9 +270,9 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                         // A MIDI file has no notation of its own: the Core writes it out (MidiNotation says how), and it's read as MEI.
                         var written = extension is ".mid" or ".midi" ? await Task.Run(() => MidiNotation.Mei(data, title)) : null;
                         var bytes = written is null ? data : System.Text.Encoding.UTF8.GetBytes(written);
-                        var (mei, graded, excerpts) = await ReadMusic(bytes, written is null ? extension.TrimStart('.') : "mei", record);
-                        var (fileTitle, composer) = Header(mei);
-                        music = (mei, graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, excerpts);
+                        var (read, scored, excerpts) = await ReadMusic(bytes, written is null ? extension.TrimStart('.') : "mei", record);
+                        var (fileTitle, composer) = Header(read);
+                        music = (read, scored with { Title = fileTitle ?? title, Composer = composer ?? "" }, excerpts);
                     }
                     // Whatever a file trips on, in Verovio or in the Core, it's named and the rest still come in: a file from anywhere can
                     // hold what no list of errors foresees, as a drum part's notes without pitches once did, stopping the screen.
@@ -278,6 +303,83 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
     }
 
     private static string Pieces(int count) => count == 1 ? "1 piece" : $"{count} pieces";
+
+    private static bool Plays(byte[] midi)
+    {
+        try
+        {
+            return MidiFile.Read(midi).Notes.Count > 0;
+        }
+        catch (Exception e) when (e is FormatException or ArgumentException or IndexOutOfRangeException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPdf(byte[] data) => data.Length >= 5 && data[0] == '%' && data[1] == 'P' && data[2] == 'D' && data[3] == 'F';
+
+    /// <summary>
+    /// A piece's title to begin with, from its file's name: without its extension, underscores as spaces, and without what a
+    /// shop adds after the title ("Hallelujah - C Major - MN0258239" is Hallelujah). The owner can give it another.
+    /// </summary>
+    public static string TitleFrom(string file)
+    {
+        var title = Path.GetFileNameWithoutExtension(file).Replace('_', ' ');
+        title = System.Text.RegularExpressions.Regex.Replace(title, @"(\s+-\s+[A-G](?:b|#|♭|♯|\s?flat|\s?sharp)?\s+(?:major|minor))?\s+-\s+MN\d+$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        title = System.Text.RegularExpressions.Regex.Replace(title, @"\s{2,}", " ").Trim();
+        return title.Length > 0 ? title : Path.GetFileNameWithoutExtension(file);
+    }
+
+    // A file's notes for a piece: MIDI written out as notation, anything else read as it is; graded and cut. Null when the file
+    // can't be read as music.
+    private async Task<(string Mei, PieceRecord Graded, IReadOnlyList<BundledExcerpt> Excerpts)?> NotesOf(PieceRecord piece, string extension, byte[] data)
+    {
+        try
+        {
+            var written = extension is ".mid" or ".midi" ? await Task.Run(() => MidiNotation.Mei(data, piece.Title)) : null;
+            return await ReadMusic(written is null ? data : System.Text.Encoding.UTF8.GetBytes(written), written is null ? extension.TrimStart('.') : "mei", piece);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gives an uploaded piece its notes from a file of them (MIDI, MusicXML, MEI or ABC), in place of any it had: graded and cut
+    /// like an import, to play along with. A PDF keeps its pages, a key away; a MIDI file is kept to be heard too. What to say
+    /// when it can't be done; null when it's done.
+    /// </summary>
+    public async Task<string?> GiveNotesAsync(PieceRecord piece, string name, byte[] data)
+    {
+        var extension = Path.GetExtension(name).ToLowerInvariant();
+        if (extension is not (".mid" or ".midi" or ".mxl" or ".musicxml" or ".xml" or ".mei" or ".abc")) return $"{name}: its notes come from a MIDI, MusicXML, MEI or ABC file.";
+        if (await NotesOf(piece, extension, data) is not var (mei, graded, cuts)) return $"{name} couldn't be read as music.";
+
+        if (extension is ".mid" or ".midi")
+        {
+            Directory.CreateDirectory(store.FilesPath);
+            await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, piece.Id + ".mid"), data);
+            graded = graded with { Midi = piece.Id + ".mid" };
+        }
+        // A reading of its PDF kept before isn't where these notes are from.
+        await store.DeleteReadingAsync(piece.Id);
+        return await store.SavePieceAsync(graded, mei, cuts) ? null : "It's out of the Library.";
+    }
+
+    /// <summary>
+    /// Gives an uploaded piece its pages, a PDF, in place of any it had: its notes stay, and its print is a key away. What to say
+    /// when it can't be done; null when it's done.
+    /// </summary>
+    public async Task<string?> GivePagesAsync(PieceRecord piece, string name, byte[] data)
+    {
+        if (!IsPdf(data)) return $"{name} isn't a PDF.";
+
+        Directory.CreateDirectory(store.FilesPath);
+        await File.WriteAllBytesAsync(Path.Combine(store.FilesPath, piece.Id + ".pdf"), data);
+        await store.SetPagesAsync(piece.Id, piece.Id + ".pdf");
+        return null;
+    }
 
     private async Task AddCollection(Task before, ZipArchive zip, List<(BundledPiece Piece, PreparedPiece? Part)> adding, string name)
     {

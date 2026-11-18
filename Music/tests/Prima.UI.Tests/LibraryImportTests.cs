@@ -154,6 +154,86 @@ public class LibraryImportTests
         before.WaitForAssertion(() => Assert.Contains($"Imported {day}.", before.FindAll(".piece-about li").Select(l => l.TextContent)));
     }
 
+    // A MIDI file of two bars of crotchets in 4/4, C to C.
+    private static byte[] TwoBars()
+    {
+        List<byte> track = [0, 0xFF, 0x58, 4, 4, 2, 24, 8];
+        foreach (var key in new[] { 60, 62, 64, 65, 67, 69, 71, 72 }) track.AddRange([0, 0x90, (byte)key, 80, 0x83, 0x60, 0x80, (byte)key, 0]);
+        track.AddRange([0, 0xFF, 0x2F, 0]);
+        return [.. "MThd"u8, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xE0, .. "MTrk"u8, 0, 0, 0, (byte)track.Count, .. track];
+    }
+
+    // The owner's bought music comes as a PDF with its MIDI. Picked together they were two pieces of one name: the pages
+    // without notes to play along with, and the notes without the pages. They're one piece now, and its title is the music's,
+    // without what the shop adds to the file's name.
+    [Fact]
+    public async Task APdfPickedWithItsMidiIsOnePieceWithItsPagesAndItsNotes()
+    {
+        await using var host = new ComponentHost();
+        var prep = new LibraryPrep(host.Store, new NoBundle(), new PassingVerovio());
+
+        var (id, note) = await prep.ImportAsync([("Hallelujah - C Major - MN0258239.mid", TwoBars()), ("Hallelujah - C Major - MN0258239.pdf", "%PDF-1.4 a score"u8.ToArray())]);
+
+        var piece = Assert.Single(await host.Store.GetPiecesAsync());
+        Assert.Equal((piece.Id, null), (id, note));
+        Assert.Equal(("Hallelujah", "pdf", true, true, 2), (piece.Title, piece.Format, piece.HasNotes, piece.PlaysAlong, piece.Bars));
+        Assert.Equal((piece.Id + ".pdf", piece.Id + ".mid", "Hallelujah - C Major - MN0258239.pdf"), (piece.File, piece.Midi, piece.Source));
+        Assert.NotNull(piece.Level);
+        Assert.Contains("<measure", await host.Store.GetMeiAsync(piece.Id), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(host.Store.FilesPath, piece.Id + ".mid")));
+    }
+
+    [Fact]
+    public async Task AMidiByItselfIsAPieceAndAPdfWhoseMidiIsNoMidiKeepsItsPagesOnly()
+    {
+        await using var host = new ComponentHost();
+        var prep = new LibraryPrep(host.Store, new NoBundle(), new PassingVerovio());
+
+        var (_, note) = await prep.ImportAsync([("A_Bird_Story - Mud Dash.mid", TwoBars()), ("Broken.pdf", "%PDF-1.4 a score"u8.ToArray()), ("Broken.mid", [1, 2, 3])]);
+
+        Assert.Equal("2 pieces imported. Broken's MIDI couldn't be read as music: it came in with its pages only.", note);
+        var pieces = (await host.Store.GetPiecesAsync()).OrderBy(p => p.Title).ToList();
+        Assert.Equal([("A Bird Story - Mud Dash", "mei", true), ("Broken", "pdf", false)], pieces.Select(p => (p.Title, p.Format, p.PlaysAlong)));
+        Assert.Null(pieces[1].Midi);
+        Assert.False(File.Exists(Path.Combine(host.Store.FilesPath, pieces[1].Id + ".mid")));
+    }
+
+    [Theory]
+    [InlineData("Hallelujah - C Major - MN0258239.pdf", "Hallelujah")]
+    [InlineData("Clair de Lune - Db Major - MN0105623.pdf", "Clair de Lune")]
+    [InlineData("Numb  Linkin Park Piano Solo Arrangement.pdf", "Numb Linkin Park Piano Solo Arrangement")]
+    [InlineData("Interstellar 2 - Cornfield Chase.mid", "Interstellar 2 - Cornfield Chase")]
+    [InlineData("river_flows_in_you.musicxml", "river flows in you")]
+    public void APiecesTitleStartsFromItsFilesNameWithoutWhatAShopAdds(string file, string title) => Assert.Equal(title, LibraryPrep.TitleFrom(file));
+
+    // A piece already in the Library is given what it lacks: a PDF its notes from the MIDI it came with, a MIDI its pages.
+    [Fact]
+    public async Task AnUploadedPieceIsGivenItsNotesOrItsPagesAfterwards()
+    {
+        await using var host = new ComponentHost();
+        var prep = new LibraryPrep(host.Store, new NoBundle(), new PassingVerovio());
+        var (pdfId, _) = await prep.ImportAsync([("Numb.pdf", "%PDF-1.4 a score"u8.ToArray())]);
+        var (midiId, _) = await prep.ImportAsync([("Sweden.mid", TwoBars())]);
+        await host.Store.SetPieceAsync(midiId!, tempo: 96);
+
+        Assert.Equal("words.txt: its notes come from a MIDI, MusicXML, MEI or ABC file.", await prep.GiveNotesAsync((await host.Store.GetPieceAsync(pdfId!))!, "words.txt", [1]));
+        Assert.Equal("Numb.mid couldn't be read as music.", await prep.GiveNotesAsync((await host.Store.GetPieceAsync(pdfId!))!, "Numb.mid", [1, 2, 3]));
+        Assert.False((await host.Store.GetPieceAsync(pdfId!))!.PlaysAlong);
+
+        Assert.Null(await prep.GiveNotesAsync((await host.Store.GetPieceAsync(pdfId!))!, "Numb.mid", TwoBars()));
+
+        var pdf = (await host.Store.GetPieceAsync(pdfId!))!;
+        Assert.Equal(("Numb", "pdf", pdfId + ".pdf", pdfId + ".mid", true, 2), (pdf.Title, pdf.Format, pdf.File, pdf.Midi, pdf.PlaysAlong, pdf.Bars));
+
+        Assert.Equal("Sweden.txt isn't a PDF.", await prep.GivePagesAsync((await host.Store.GetPieceAsync(midiId!))!, "Sweden.txt", [1, 2, 3, 4, 5]));
+        Assert.Null(await prep.GivePagesAsync((await host.Store.GetPieceAsync(midiId!))!, "Sweden.pdf", "%PDF-1.4 its print"u8.ToArray()));
+
+        // Its notes, its excerpts' level and the tempo set for it stay; the print is beside them.
+        var midi = (await host.Store.GetPieceAsync(midiId!))!;
+        Assert.Equal(("Sweden", "pdf", midiId + ".pdf", true, 2, 96.0), (midi.Title, midi.Format, midi.File, midi.PlaysAlong, midi.Bars, midi.Tempo));
+        Assert.Equal("%PDF-1.4 its print"u8.ToArray(), await File.ReadAllBytesAsync(Path.Combine(host.Store.FilesPath, midiId + ".pdf"), Xunit.TestContext.Current.CancellationToken));
+    }
+
     // A PDF of the local collection as the Library tool lists it.
     private static BundledPiece Pdf(string id, string title) => new(id, title, "Robert Schumann", "Op. 68", "pdf", $"pieces/{id}.pdf", null, "", "Mutopia", "",
         "Public domain", "", "Typeset for the Mutopia Project; Public domain.", Tier.A, null, 7);
