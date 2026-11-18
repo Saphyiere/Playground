@@ -7,14 +7,17 @@ namespace Prima.Core.Library;
 /// written, so this works the writing out:
 /// <list type="bullet">
 /// <item>The hands come from its tracks (the higher of two is the right hand), or in a single track from middle C.</item>
-/// <item>The bars come from its time signatures, the key from its key signature, or from the notes when it has none.</item>
+/// <item>The bars come from its time signatures, the key from its key signature, or from the notes when it has none. A first
+/// bar in a shorter time signature of its own is a pickup, bar 0.</item>
 /// <item>Where the file lets its notes go a little early, as notation software does, each is written at the length it would
 /// have held in full.</item>
-/// <item>Each quarter-note beat is snapped to sixteenths, thirty-seconds or triplets, whichever fits its notes best.</item>
+/// <item>A small note played just before another a step away, over the notes before it, is a grace note.</item>
+/// <item>Each hand's quarter-note beats are snapped to sixteenths, thirty-seconds or triplets, whichever fits that hand's notes
+/// there best, so one hand's triplets stay triplets against the other's eighths.</item>
 /// <item>Notes a hand holds over others make a second voice; notes are tied across barlines, and off the beat across beats.</item>
 /// </list>
 /// A file exported from notation software comes out close to its score. One recorded from playing comes out ragged, and a pickup
-/// bar comes out as a whole bar with rests.
+/// written from the bar's start comes out as a whole bar with rests.
 /// </summary>
 public static class MidiNotation
 {
@@ -48,6 +51,17 @@ public static class MidiNotation
         {
             heard = [.. heard.Select(n => n with { On = Math.Max(0, n.On - late), Off = Math.Max(1, n.Off - late) })];
         }
+
+        // The hands: two or more tracks (or channels) split by how high each lies; a single one at middle C.
+        var parts = heard.GroupBy(n => (n.Track, n.Channel)).Select(g => (g.Key, Mean: g.Average(n => n.Midi))).OrderByDescending(p => p.Mean).ToList();
+        var right = parts.Where(p => p.Mean >= 60).Select(p => p.Key).ToHashSet();
+        if (right.Count == 0 || right.Count == parts.Count) right = parts.Count > 1 ? [parts[0].Key] : [];
+        int StaffOf(TickNote n) => (parts.Count > 1 ? right.Contains((n.Track, n.Channel)) : n.Midi >= 60) ? 1 : 2;
+
+        // The grace notes leave the time, to be written before the notes they lean on.
+        var leaning = Graces(heard, StaffOf);
+        var graces = leaning.Select(g => (Staff: StaffOf(heard[g.Key]), heard[g.Key].Midi, Main: g.Value)).ToList();
+        if (leaning.Count > 0) heard = [.. heard.Where((_, i) => !leaning.ContainsKey(i))];
 
         // Notation software lets each note go a little before its written end, all by about the same share: a file from
         // MuseScore holds a note for 95% of its length, and written as it sounds its half note is a dotted quarter tied to a
@@ -90,21 +104,28 @@ public static class MidiNotation
             })];
         }
 
-        // Each beat's grid: the one its starts and ends fit best, a finer grid paying a little per note, so a beat that fits
-        // sixteenths stays in sixteenths. 160 and 80 are triplet eighths and triplet sixteenths.
+        // Each hand's grid in each beat: of those its notes there start on exactly, if any (as in a file from notation software),
+        // or else of all, the one its starts and ends there fit best, a finer grid paying a little per note, so a beat that fits
+        // sixteenths stays in sixteenths. An end alone doesn't make a beat triplets: a note can be let go anywhere. A hand has
+        // its own grid, as each staff has its own tuplets: one for both would put one hand's triplets on thirty-seconds against
+        // the other's eighths. 160 and 80 are triplet eighths and triplet sixteenths.
         (int Grid, int Cost)[] candidates = [(120, 0), (160, 6), (60, 4), (80, 10)];
-        var grids = heard.SelectMany(n => new[] { n.On, n.Off }).GroupBy(t => t / Ticks.Quarter).ToDictionary(g => g.Key, g => candidates
-            .MinBy(c => g.Sum(t => Math.Min(t % Ticks.Quarter % c.Grid, c.Grid - t % Ticks.Quarter % c.Grid) + c.Cost)).Grid);
-        int GridAt(long tick) => grids.GetValueOrDefault(tick / Ticks.Quarter, 120);
-        long Snap(long tick) => tick / Ticks.Quarter * Ticks.Quarter + (long)Math.Round(tick % Ticks.Quarter / (double)GridAt(tick), MidpointRounding.AwayFromZero) * GridAt(tick);
-        var notes = heard.Select(n => (n.Track, n.Channel, n.Midi, On: Snap(n.On), Off: Snap(n.Off))).Select(n => n with { Off = Math.Max(n.Off, n.On + GridAt(n.On)) }).ToList();
+        static long Away(long tick, int grid) => Math.Min(tick % Ticks.Quarter % grid, grid - tick % Ticks.Quarter % grid);
+        var grids = heard.SelectMany(n => new[] { (Staff: StaffOf(n), Tick: n.On, Start: true), (Staff: StaffOf(n), Tick: n.Off, Start: false) })
+            .GroupBy(t => (t.Staff, t.Tick / Ticks.Quarter)).ToDictionary(g => g.Key, g =>
+            {
+                var exact = candidates.Where(c => g.Where(t => t.Start).All(t => Away(t.Tick, c.Grid) <= 2)).ToList();
+                return (exact.Count > 0 ? exact : [.. candidates]).MinBy(c => g.Sum(t => Away(t.Tick, c.Grid) + c.Cost)).Grid;
+            });
+        int GridAt(int staff, long tick) => grids.GetValueOrDefault((staff, tick / Ticks.Quarter), 120);
+        long Snap(int staff, long tick) => tick / Ticks.Quarter * Ticks.Quarter + (long)Math.Round(tick % Ticks.Quarter / (double)GridAt(staff, tick), MidpointRounding.AwayFromZero) * GridAt(staff, tick);
+        var notes = heard.Select(n => (Staff: StaffOf(n), n.Midi, n.On, n.Off)).Select(n => n with { On = Snap(n.Staff, n.On), Off = Snap(n.Staff, n.Off) })
+            .Select(n => n with { Off = Math.Max(n.Off, n.On + GridAt(n.Staff, n.On)) }).ToList();
 
-        // The hands: two or more tracks (or channels) split by how high each lies; a single one at middle C.
-        var parts = notes.GroupBy(n => (n.Track, n.Channel)).Select(g => (g.Key, Mean: g.Average(n => n.Midi))).OrderByDescending(p => p.Mean).ToList();
-        var right = parts.Where(p => p.Mean >= 60).Select(p => p.Key).ToHashSet();
-        if (right.Count == 0 || right.Count == parts.Count) right = parts.Count > 1 ? [parts[0].Key] : [];
-
-        // The bars, from the time signatures: one that falls inside a bar starts at the next.
+        // The bars, from the time signatures: one that falls inside a bar starts at the next. A first bar in a time signature of
+        // its own, shorter than the next one's and used by no other bar, is a pickup to it, as notation software writes one (a
+        // 1/4 bar before the 2/4): bar 0, so the bars are numbered as printed. A metre the music comes back to is its own, as
+        // in Mussorgsky's Promenade, which starts with a bar of 5/4 before one of 6/4.
         var meters = midi.Meters.Where(m => m.Count > 0 && m.Unit is 1 or 2 or 4 or 8 or 16 or 32).Select(m => (Tick: Scale(m.Tick), Meter: new Meter(m.Count, m.Unit))).ToList();
         var bars = new List<(long Start, Meter Meter)>();
         var lastEnd = notes.Max(n => n.Off);
@@ -112,6 +133,7 @@ public static class MidiNotation
         {
             bars.Add((start, meters.LastOrDefault(m => m.Tick <= start, (0, new Meter(4, 4))).Meter));
         }
+        var pickup = bars.Count > 1 && bars[0].Meter.BarTicks < bars[1].Meter.BarTicks && bars.Skip(1).All(b => b.Meter != bars[0].Meter);
 
         // The key: the file's signature, or the key whose profile the notes fit best (their correlation, by the profile's spread).
         var keys = midi.Keys.Select(k => (Tick: Scale(k.Tick), Key: new Key(Math.Clamp(k.Fifths, -7, 7), k.Minor))).ToList();
@@ -133,7 +155,7 @@ public static class MidiNotation
         var voicesOf = new Dictionary<int, List<Chord>[]>();
         foreach (var staff in new[] { 1, 2 })
         {
-            var own = notes.Where(n => (parts.Count > 1 ? right.Contains((n.Track, n.Channel)) : n.Midi >= 60) == (staff == 1)).OrderBy(n => n.On).ToList();
+            var own = notes.Where(n => n.Staff == staff).OrderBy(n => n.On).ToList();
             var onsets = own.Select(n => n.On).Distinct().Order().ToList();
             for (var i = 0; i < own.Count; i++)
             {
@@ -163,6 +185,17 @@ public static class MidiNotation
                 }
             }
             voicesOf[staff] = voices;
+        }
+
+        // Each grace note goes before the chord it leans on, in that chord's voice; several before one chord make a chord of them.
+        var gracesBefore = new Dictionary<(int Staff, int Layer, long On), List<int>>();
+        foreach (var group in graces.GroupBy(g => (g.Staff, On: Snap(g.Staff, g.Main.On))))
+        {
+            var (staff, on) = group.Key;
+            var voices = voicesOf[staff];
+            var layer = Array.FindIndex(voices, v => v.Any(c => c.On == on && c.Keys.Any(k => group.Any(g => g.Main.Key == k))));
+            if (layer < 0) layer = Array.FindIndex(voices, v => v.Any(c => c.On == on));
+            if (layer >= 0) gracesBefore[(staff, layer, on)] = [.. group.Select(g => g.Midi).Distinct().OrderDescending()];
         }
 
         // Bar by bar: each voice's chords clipped to the bar and rests between them (hidden in the second voice), each split into
@@ -227,6 +260,16 @@ public static class MidiNotation
 
                         var to = (int)Math.Min(meter.BarTicks, chord.Off - barStart);
                         var pieces = Split(from, to).ToList();
+
+                        // Its grace notes first, printed as small eighths: in its triplet when the triplet starts before it.
+                        if (chord.On >= barStart && gracesBefore.TryGetValue((staff, layer, chord.On), out var small))
+                        {
+                            var id = $"n{++count}";
+                            var tuplet = pieces[0].Tuplet is { } running && events.Count > 0 && ReferenceEquals(events[^1].Tuplet, running) ? running : null;
+                            var tones = small.Select((k, j) => new Tone(small.Count == 1 ? id : $"{id}-{j}", key.Spell(k)));
+                            events.Add(new Notes(id, from, Ticks.Eighth * (tuplet?.Normal ?? 1) / (tuplet?.Actual ?? 1), [.. tones]) { Grace = true, Tuplet = tuplet });
+                        }
+
                         for (var p = 0; p < pieces.Count; p++)
                         {
                             var id = $"n{++count}";
@@ -243,16 +286,78 @@ public static class MidiNotation
 
             // The file's tempo, as the piece's own: on the first bar, and only the first (a file's later tempos can be a whole
             // performance's give and take, which a click shouldn't follow).
-            built.Add(new Bar(b + 1, voices)
+            built.Add(new Bar(pickup ? b : b + 1, voices)
             {
+                Length = pickup && b == 0 ? meter.BarTicks : null,
                 NewKey = b > 0 && KeyAt(bars[b - 1].Start) != key ? key : null,
-                NewMeter = b > 0 && bars[b - 1].Meter != meter ? meter : null,
+                NewMeter = b > (pickup ? 1 : 0) && bars[b - 1].Meter != meter ? meter : null,
                 Tempos = b == 0 && midi.MarkedTempo is { } tempo and >= 20 and <= 300 ? [(0, tempo)] : [],
             });
         }
 
         // The first track's name is the file's own; the others name a hand or a voice ("one", "up").
         var named = midi.Names.Where(n => n.Track == 0).Select(n => n.Name).FirstOrDefault(n => n.Length > 1 && n.Any(char.IsLetter) && !Generic.Any(g => n.Contains(g, StringComparison.OrdinalIgnoreCase)));
-        return new Score(KeyAt(0), bars[0].Meter, built) { Title = named ?? fallbackTitle };
+        return new Score(KeyAt(0), bars[pickup ? 1 : 0].Meter, built) { Title = named ?? fallbackTitle };
+    }
+
+    // Whether a tick is on a sixteenth's or a triplet eighth's place in its beat, give or take two.
+    private static bool OnPlace(long tick) => tick % 120 is <= 2 or >= 118 || tick % 160 is <= 2 or >= 158;
+
+    /// <summary>
+    /// The grace notes among a file's notes, by index, each with the note it leans on: when it starts and its key. A grace note is
+    /// played just before that note, over what its hand struck before it, which sounds on to that note, as Musicnotes' and
+    /// LilyPond's files play a small note before the beat. So it's no longer than a thirty-second, starts off the beat's sixteenths
+    /// and triplets, and ends where a longer note of its hand starts on its place; everything its hand struck last before it sounds
+    /// to its end, nothing else starts with it but other grace notes, and nothing of its hand ends where it starts, as the note
+    /// before a written thirty-second would. And it leans on a note a step away, a semitone or a tone, as a figure's quick notes
+    /// played over a held one needn't (Chopin's Prelude in F sharp minor is full of them); grace notes struck together lean as one.
+    /// </summary>
+    private static Dictionary<int, (long On, int Key)> Graces(List<TickNote> heard, Func<TickNote, int> staffOf)
+    {
+        static int From(List<long> sorted, long tick)
+        {
+            var (low, high) = (0, sorted.Count);
+            while (low < high)
+            {
+                var middle = (low + high) / 2;
+                if (sorted[middle] < tick) low = middle + 1;
+                else high = middle;
+            }
+            return low;
+        }
+
+        var graces = new Dictionary<int, (long, int)>();
+        foreach (var hand in Enumerable.Range(0, heard.Count).GroupBy(i => staffOf(heard[i])))
+        {
+            var own = hand.OrderBy(i => heard[i].On).ToList();
+            var ons = own.Select(i => heard[i].On).ToList();
+            var offs = own.Select(i => heard[i].Off).Order().ToList();
+            var found = new List<(int Index, List<TickNote> Mains)>();
+            foreach (var i in own)
+            {
+                var grace = heard[i];
+                if (grace.Off - grace.On is > Ticks.Quarter / 8 or <= 2 || OnPlace(grace.On)) continue;
+
+                var mains = Enumerable.Range(From(ons, grace.Off - 2), own.Count).TakeWhile(k => k < own.Count && ons[k] <= grace.Off + 2).Select(k => heard[own[k]])
+                    .Where(m => m.Off - m.On > Ticks.Quarter / 8 && OnPlace(m.On)).ToList();
+                var alongside = Enumerable.Range(From(ons, grace.On - 2), own.Count).TakeWhile(k => k < own.Count && ons[k] <= grace.On + 2).Select(k => heard[own[k]]);
+                var before = From(ons, grace.On - 2) - 1;
+                var struck = Enumerable.Range(0, before + 1).Reverse().TakeWhile(k => ons[k] >= ons[before] - 2).Select(k => heard[own[k]]);
+                var endsAtStart = From(offs, grace.On - 2) is var e && e < offs.Count && offs[e] <= grace.On + 2;
+                if (mains.Count == 0 || before < 0 || endsAtStart || alongside.Any(n => Math.Abs(n.Off - grace.Off) > 2) || struck.Any(n => Math.Abs(n.Off - grace.Off) > 2)) continue;
+
+                found.Add((i, mains));
+            }
+
+            foreach (var together in found.GroupBy(f => (heard[f.Index].On, heard[f.Index].Off)))
+            {
+                var steps = together.SelectMany(f => f.Mains.Select(m => (Step: Math.Abs(m.Midi - heard[f.Index].Midi), Main: m))).Where(s => s.Step is 1 or 2).ToList();
+                if (steps.Count == 0) continue;
+
+                var main = steps.MinBy(s => s.Step).Main;
+                foreach (var f in together) graces[f.Index] = (main.On, main.Midi);
+            }
+        }
+        return graces;
     }
 }

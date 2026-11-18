@@ -35,7 +35,7 @@ public class MidiNotationTests
     private static (long Tick, byte[] Event)[] Notes(params (int Key, long On, long Off)[] notes) =>
         [.. notes.SelectMany(n => new[] { (n.On, new byte[] { 0x90, (byte)n.Key, 80 }), (n.Off, new byte[] { 0x80, (byte)n.Key, 0 }) }).OrderBy(e => e.Item1).ThenBy(e => e.Item2[0])];
 
-    private static (long Tick, byte[] Event) Meter(int count, int unitPower) => (0, [0xFF, 0x58, 4, (byte)count, (byte)unitPower, 24, 8]);
+    private static (long Tick, byte[] Event) Meter(int count, int unitPower, long tick = 0) => (tick, [0xFF, 0x58, 4, (byte)count, (byte)unitPower, 24, 8]);
 
     private static (long Tick, byte[] Event) KeySignature(int fifths, bool minor = false) => (0, [0xFF, 0x59, 2, (byte)(sbyte)fifths, (byte)(minor ? 1 : 0)]);
 
@@ -133,6 +133,134 @@ public class MidiNotationTests
         var bass = score.Bars[0].Voices.Single(v => v.Staff == 2).Events.OfType<Notes>().Single();
         Assert.Equal((0, 1920), (bass.Start, bass.Length));
         Assert.Null(bass.Tuplet);
+    }
+
+    [Fact]
+    public void ATripletThatStartsWithARestStaysATripletAgainstTheOtherHandsEighth()
+    {
+        // A bar of 2/4 as Hallelujah's left hand has it: a triplet, then a triplet eighth's rest and two triplet eighths, under the
+        // right hand's quarter and an eighth chord. Exact, as notation software writes it.
+        var file = File(480, [Meter(2, 2), .. Notes((72, 0, 480), (67, 480, 720), (64, 480, 720), (60, 480, 720))], [.. Notes((48, 0, 160), (52, 160, 320), (55, 320, 480), (55, 640, 800), (47, 800, 960))]);
+
+        var score = MidiNotation.Read(file, "Rest first");
+
+        var bass = score.Bars[0].Voices.Single(v => v.Staff == 2).Events;
+        Assert.Equal([(0, 160), (160, 160), (320, 160), (480, 160), (640, 160), (800, 160)], bass.Select(e => (e.Start, e.Length)));
+        Assert.IsType<Rest>(bass[3]);
+        Assert.All(bass, e => Assert.Equal(new Tuplet(3, 2), e.Tuplet));
+        Assert.Same(bass[3].Tuplet, bass[5].Tuplet);
+        var treble = score.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Notes>().ToList();
+        Assert.Equal([(0, 480), (480, 240)], treble.Select(n => (n.Start, n.Length)));
+        Assert.All(treble, n => Assert.Null(n.Tuplet));
+        Assert.Equal([(47, 800L, 160), (55, 640L, 160)], Sounding(score).Where(n => n.Midi < 60 && n.Tick >= 480));
+    }
+
+    [Fact]
+    public void TripletsStayTripletsAgainstTheOtherHandsSixteenths()
+    {
+        // As in Hallelujah's bar 38: the left hand's triplet eighths under the right hand's eighth chord and two sixteenths, then a
+        // beat of triplets under a quarter.
+        var file = File(480,
+            [Meter(2, 2), .. Notes((72, 0, 240), (69, 0, 240), (65, 0, 240), (72, 240, 360), (74, 360, 480), (72, 480, 960))],
+            [.. Notes((53, 0, 160), (57, 160, 320), (60, 320, 480), (65, 480, 640), (60, 640, 800), (53, 800, 960))]);
+
+        var score = MidiNotation.Read(file, "Three against four");
+
+        var bass = score.Bars[0].Voices.Single(v => v.Staff == 2).Events.OfType<Notes>().ToList();
+        Assert.Equal([0, 160, 320, 480, 640, 800], bass.Select(n => n.Start));
+        Assert.All(bass, n =>
+        {
+            Assert.Equal(160, n.Length);
+            Assert.Equal(new Tuplet(3, 2), n.Tuplet);
+        });
+        var treble = score.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Notes>().ToList();
+        Assert.Equal([(0, 240), (240, 120), (360, 120), (480, 480)], treble.Select(n => (n.Start, n.Length)));
+        Assert.All(treble, n => Assert.Null(n.Tuplet));
+    }
+
+    [Fact]
+    public void TripletsStayTripletsAgainstEighthsInTheSameHand()
+    {
+        // One hand in two voices, as in Debussy's second Arabesque: triplet eighths over chords in eighths, then a chord.
+        var file = File(480, [Meter(2, 2), .. Notes((79, 0, 160), (81, 160, 320), (83, 320, 480), (67, 0, 240), (64, 0, 240), (60, 0, 240), (69, 240, 480), (65, 240, 480), (62, 240, 480), (84, 480, 960), (72, 480, 960))]);
+
+        var score = MidiNotation.Read(file, "Two against three");
+
+        var voices = score.Bars[0].Voices.Where(v => v.Staff == 1).ToList();
+        var upper = voices[0].Events.OfType<Notes>().Where(n => n.Start < 480).ToList();
+        Assert.Equal([(0, 160), (160, 160), (320, 160)], upper.Select(n => (n.Start, n.Length)));
+        Assert.All(upper, n => Assert.Equal(new Tuplet(3, 2), n.Tuplet));
+        var lower = voices[1].Events.OfType<Notes>().ToList();
+        Assert.Equal([(0, 240), (240, 240)], lower.Select(n => (n.Start, n.Length)));
+        Assert.All(lower, n => Assert.Null(n.Tuplet));
+    }
+
+    [Fact]
+    public void PlayedTripletsStayTripletsAgainstTheOtherHandsEighths()
+    {
+        // Played rather than written: the right hand's eighths in chords and the left hand's triplets, each a few ticks off.
+        var file = File(480,
+            [Meter(2, 2), .. Notes((72, 3, 236), (67, 3, 236), (64, 3, 236), (74, 244, 478), (67, 244, 478), (65, 244, 478), (76, 486, 719), (72, 486, 719), (67, 486, 719), (77, 722, 955), (72, 722, 955), (69, 722, 955))],
+            [.. Notes((48, 5, 158), (52, 166, 318), (55, 322, 476), (48, 484, 640), (52, 643, 797), (55, 805, 958))]);
+
+        var score = MidiNotation.Read(file, "Played");
+
+        Assert.Equal([(48, 0L, 160), (48, 480L, 160), (52, 160L, 160), (52, 640L, 160), (55, 320L, 160), (55, 800L, 160)], Sounding(score).Where(n => n.Midi < 60));
+        Assert.All(Sounding(score).Where(n => n.Midi >= 60), n => Assert.Equal((0L, 240), (n.Tick % 240, n.Length)));
+    }
+
+    [Fact]
+    public void ASmallNotePlayedJustBeforeTheBeatIsAGraceNote()
+    {
+        // As a Musicnotes PDF's MIDI plays a grace note: an A4 a thirty-second before bar 2, over the chord held to the barline,
+        // leaning on the B4 that starts bar 2's triplets.
+        var file = File(480,
+            [Meter(2, 2), .. Notes((67, 0, 480), (64, 0, 480), (60, 0, 480), (64, 480, 960), (60, 480, 960), (55, 480, 960), (69, 900, 960), (71, 960, 1120), (67, 1120, 1280), (62, 1280, 1440), (71, 1440, 1920))],
+            [.. Notes((40, 0, 160), (48, 160, 320), (52, 320, 480), (48, 640, 800), (40, 800, 960), (43, 960, 1920))]);
+
+        var score = MidiNotation.Read(file, "Grace");
+
+        // The chord before it keeps its whole length, and the A4 is written before the B4, small.
+        Assert.Equal([(0, 480), (480, 480)], score.Bars[0].Voices.Where(v => v.Staff == 1).SelectMany(v => v.Events.OfType<Notes>()).Select(n => (n.Start, n.Length)));
+        var treble = score.Bars[1].Voices.Single(v => v.Staff == 1).Events.OfType<Notes>().ToList();
+        Assert.True(treble[0].Grace);
+        Assert.Equal(new Spelled(Step.A, 0, 4), treble[0].Tones.Single().Pitch);
+        Assert.Equal((0, 160), (treble[1].Start, treble[1].Length));
+        Assert.Equal(new Tuplet(3, 2), treble[1].Tuplet);
+        Assert.DoesNotContain(Sounding(score), n => n.Midi == 69);
+        // Written as notation and read back, it's a grace note still.
+        Assert.Contains(MeiReader.Read(MeiWriter.Write(score)).Bars[1].Voices.SelectMany(v => v.Events.OfType<Notes>()), n => n.Grace && n.Tones[0].Pitch.Midi == 69);
+    }
+
+    [Fact]
+    public void AQuickNoteOverAHeldOneIsAGraceNoteOnlyWhenItLeansOnTheNextByAStep()
+    {
+        // A thirty-second over a held note: a step above the note after it, it leans on it; a fifth above it, it's a figure's note,
+        // as Chopin's Prelude in F sharp minor has them, and is played as written.
+        var step = MidiNotation.Read(File(480, [Meter(2, 2), .. Notes((61, 0, 480), (80, 420, 480), (78, 480, 960))]), "Step");
+        var leap = MidiNotation.Read(File(480, [Meter(2, 2), .. Notes((61, 0, 480), (80, 420, 480), (73, 480, 960))]), "Leap");
+
+        Assert.Contains(step.Bars[0].Voices.SelectMany(v => v.Events.OfType<Notes>()), n => n.Grace && n.Tones[0].Pitch.Midi == 80);
+        Assert.DoesNotContain(Sounding(step), n => n.Midi == 80);
+        Assert.DoesNotContain(leap.Bars[0].Voices.SelectMany(v => v.Events.OfType<Notes>()), n => n.Grace);
+        Assert.Contains((80, 420L, 60), Sounding(leap));
+    }
+
+    [Fact]
+    public void AFirstBarInATimeSignatureOfItsOwnIsAPickup()
+    {
+        // As Musicnotes' MIDI writes a pickup: a bar of 1/4 before the 2/4, here a triplet's quarter and eighth.
+        var pickup = MidiNotation.Read(File(480, [Meter(1, 2), Meter(2, 2, 480), .. Notes((64, 0, 320), (67, 320, 480), (72, 480, 960), (71, 960, 1440))]), "Pickup");
+        // Mussorgsky's Promenade starts with a bar of 5/4 before one of 6/4, and comes back to 5/4: that's no pickup.
+        var promenade = MidiNotation.Read(File(480, [Meter(5, 2), Meter(6, 2, 2400), Meter(5, 2, 5280), .. Notes((67, 0, 2400), (65, 2400, 5280), (70, 5280, 7680))]), "Promenade");
+
+        Assert.Equal(new Meter(2, 4), pickup.Meter);
+        Assert.Equal([(0, 480), (1, (int?)null)], pickup.Bars.Select(b => (b.Number, b.Length)));
+        Assert.Null(pickup.Bars[1].NewMeter);
+        Assert.Equal([(64, -480L, 320), (67, -160L, 160), (71, 480L, 480), (72, 0L, 480)], Sounding(pickup));
+        Assert.Equal(new Meter(5, 4), promenade.Meter);
+        Assert.Equal([(1, (int?)null), (2, null), (3, null)], promenade.Bars.Select(b => (b.Number, b.Length)));
+        Assert.Equal(new Meter(6, 4), promenade.Bars[1].NewMeter);
     }
 
     [Fact]
