@@ -1,0 +1,353 @@
+@page "/repertoire"
+@implements IDisposable
+@inject PrimaStore Store
+@inject Prima.UI.Library.RepertoireBook Book
+@inject Prima.UI.Library.Openings Openings
+@inject NavigationManager Nav
+@inject AppNavigation Navigation
+@using Prima.Core.Library
+@using Prima.Core.Practice
+@using Prima.UI.Library
+
+<PageTitle>Repertoire · Prima</PageTitle>
+
+@* The pieces kept to come back to, starred in the Library: each a card with where it stands and what comes next, all of them or
+   one collection's, sorted by when they were last played or by how much of them is learned; and under them, what was played
+   lately without being kept. *@
+<PageHead Title="Repertoire" Kicker="The pieces you've starred">
+    <div class="page-head-keys"><button type="button" class="mu-btn" @onclick="@(() => Name(""))">New collection</button></div>
+</PageHead>
+
+@if (naming is not null)
+{
+    <div class="control-row rep-name">
+        <input class="text-field" type="text" placeholder="The collection's name" aria-label="The collection's name" maxlength="60" value="@typed" @oninput="e => typed = e.Value?.ToString()" @onkeydown="NameKey" />
+        <button type="button" class="mu-btn mu-primary" @onclick="SaveName">@(naming.Length == 0 ? "Add" : "Rename")</button>
+        <button type="button" class="mu-btn" @onclick="() => naming = null">Cancel</button>
+    </div>
+}
+@if (Openings.Playing is { } hearing && pieces.GetValueOrDefault(hearing) is { } heard)
+{
+    <p class="control-note" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
+}
+else if (note is not null)
+{
+    <p class="control-note" role="status">@note</p>
+}
+
+@if (loaded)
+{
+    var today = DateOnly.FromDateTime(DateTime.Now);
+    var shown = Shown();
+    @if (Book.Current.Pieces.Count == 0 && Book.Current.Collections.Count == 0)
+    {
+        <p class="page-note">Nothing here yet. A star on a piece in the Library keeps it here, with where it stands and what comes next. <a href="library">To the Library</a></p>
+    }
+    else
+    {
+        <div class="settings-tabs" role="tablist" aria-label="Collections">
+            <button type="button" role="tab" class="settings-tab" aria-selected="@(shown is null ? "true" : "false")" @onclick="() => Show(null)">Everything<span class="tab-dot">·</span><span class="tab-n">@Kept(null).Count()</span></button>
+            @foreach (var collection in Book.Current.Collections)
+            {
+                <button type="button" role="tab" class="settings-tab" aria-selected="@(shown?.Id == collection.Id ? "true" : "false")" @onclick="() => Show(collection.Id)">@collection.Name<span class="tab-dot">·</span><span class="tab-n">@Kept(collection).Count()</span></button>
+            }
+        </div>
+        <div class="rep-tools">
+            <span class="control-label">Sort</span>
+            @foreach (var (key, label) in Sorts)
+            {
+                <button type="button" class="mu-toggle lb-small" aria-pressed="@(Sorted == key ? "true" : "false")" @onclick="@(() => Keep("sort", key == "last" ? null : key))"><span class="mu-led"></span>@label</button>
+            }
+            @if (shown is not null)
+            {
+                <span class="rep-own">
+                    @if (dropping)
+                    {
+                        <button type="button" class="mu-btn mu-primary lb-small" @onclick="Drop">Remove the collection</button>
+                        <button type="button" class="mu-btn lb-small" @onclick="() => dropping = false">Keep it</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="text-key" @onclick="() => Name(shown.Id)">Rename…</button>
+                        <button type="button" class="text-key away" @onclick="() => dropping = true">Remove this collection…</button>
+                    }
+                </span>
+            }
+        </div>
+        @if (dropping && shown is not null)
+        {
+            <p class="section-note" role="status">“@shown.Name” goes; its pieces stay in your repertoire.</p>
+        }
+
+        var cards = Kept(shown).Select(k => cardOf.GetValueOrDefault(k.Piece)).OfType<PieceCard>().ToList();
+        @if (cards.Count < Kept(shown).Count())
+        {
+            <p class="section-note" role="status">Reading where they stand…</p>
+        }
+        @if (cards.Count > 0)
+        {
+            <div class="rep-grid">
+                @foreach (var card in InOrder(cards))
+                {
+                    var piece = card.Piece;
+                    var (title, kicker) = Named(piece);
+                    var there = (int)Math.Round(Segments * card.There);
+                    var reading = Math.Min(Segments - there, Math.Max(card.Reading > 0 ? 1 : 0, (int)Math.Round(Segments * card.Reading)));
+                    <article class="rep-card">
+                        <div class="rep-top">
+                            <div>
+                                <p class="rep-kicker">@kicker@if (card.Learned) { <span class="rep-done">@(kicker.Length > 0 ? " · " : "")Learned</span> }</p>
+                                <h3 class="rep-title"><a href="@($"library/{Uri.EscapeDataString(piece.Id)}")">@title</a></h3>
+                            </div>
+                            <button type="button" class="lb-star" aria-pressed="true" aria-label="@($"{piece.Title} is in your repertoire: choose its collections")" @onclick="e => starring = (piece, e.ClientX, e.ClientY)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                            </button>
+                        </div>
+                        <div class="rep-meter" role="img" aria-label="@Stands(card)">
+                            @for (var i = 0; i < Segments; i++)
+                            {
+                                <span class="@(i < there ? "s2" : i < there + reading ? "s1" : "")"></span>
+                            }
+                        </div>
+                        <p class="rep-line">
+                            @if (card.Done is { } done)
+                            {
+                                <b>@Capital(PieceWords.When(done.Last.Day, today))</b>@($" · {PieceWords.Short(done.Last)}")
+                            }
+                            else
+                            {
+                                @($"Not played yet · kept {PieceWords.When(DateOnly.FromDateTime(card.Since.LocalDateTime), today)}")
+                            }
+                        </p>
+                        <div class="rep-foot">
+                            <p class="rep-line"><b>@card.Ahead.Kind</b>@($" · {card.Ahead.What}")</p>
+                            <a class="mu-btn mu-primary lb-small" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">Practice</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+        else if (shown is not null && !Kept(shown).Any())
+        {
+            <p class="page-note">Nothing in “@shown.Name” yet. A tap on a starred piece's star puts it in.</p>
+        }
+    }
+
+    var lately = Lately(today).ToList();
+    @if (lately.Count > 0)
+    {
+        <section class="settings-section" aria-labelledby="lately-played">
+            <h2 id="lately-played" class="section-title">Lately played, not starred</h2>
+            <ul class="up-list rep-lately">
+                @foreach (var (piece, done) in lately)
+                {
+                    var playing = Openings.Playing == piece.Id;
+                    <li class="up-row piece-item">
+                        @if (!piece.IsPdf || piece.HasNotes || piece.Midi is not null)
+                        {
+                            <button type="button" class="mu-btn piece-hear" aria-pressed="@(playing ? "true" : "false")" aria-label="@(playing ? $"Stop {piece.Title}" : $"Hear the opening of {piece.Title}")" @onclick="() => Hear(piece)">@(playing ? "■" : "▶")</button>
+                        }
+                        else
+                        {
+                            <span class="piece-hear-none" title="A PDF without MIDI: nothing to play until its notes are read"></span>
+                        }
+                        <div class="up-main">
+                            <a class="up-title piece-title" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">@piece.Title</a>
+                            @if (!string.IsNullOrWhiteSpace(piece.Composer))
+                            {
+                                <span class="up-artist">@piece.Composer</span>
+                            }
+                        </div>
+                        <span class="up-last"><b>@Capital(PieceWords.When(done.Last.Day, today))</b>@($" · {PieceWords.Short(done.Last)}")</span>
+                        <button type="button" class="lb-star" aria-pressed="false" aria-label="@($"Add {piece.Title} to your repertoire")" @onclick="() => Star(piece)">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                        </button>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+<StarMenu Piece="starring?.Piece" X="@(starring?.X ?? 0)" Y="@(starring?.Y ?? 0)" OnClose="() => starring = null" OnSaid="said => note = said" />
+
+@code {
+    private static readonly (string Key, string Label)[] Sorts = [("last", "Last played"), ("least", "Least learned"), ("most", "Most learned"), ("az", "A–Z")];
+
+    // A card's meter: this many lamps for the whole piece.
+    private const int Segments = 24;
+
+    /// <summary>The collection shown, by its id; every kept piece when none.</summary>
+    [SupplyParameterFromQuery(Name = "in")]
+    public string? In { get; set; }
+
+    /// <summary>How the cards are sorted: "least", "most" or "az"; the last played first when none.</summary>
+    [SupplyParameterFromQuery(Name = "sort")]
+    public string? Sort { get; set; }
+
+    private Dictionary<string, PieceRecord> pieces = [];
+    private ILookup<string, PieceRun> runs = Enumerable.Empty<PieceRun>().ToLookup(_ => "");
+    // Each kept piece's card, once its standing is read.
+    private readonly Dictionary<string, PieceCard> cardOf = [];
+    private bool loaded;
+    private bool dealing;
+    private string? note;
+    // A collection being named: "" for a new one, its id for one renamed; null when none is.
+    private string? naming;
+    private string? typed;
+    private bool dropping;
+    private (PieceRecord Piece, double X, double Y)? starring;
+
+    private string Sorted => Sort is "least" or "most" or "az" ? Sort : "last";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.Name("Repertoire");
+        await Book.LoadAsync();
+        pieces = (await Store.GetPiecesAsync()).ToDictionary(p => p.Id);
+        runs = (await Store.GetPieceRunsAsync()).ToLookup(r => r.Piece, r => r.Run);
+        loaded = true;
+        Book.Changed += Changed;
+        Openings.Changed += Heard;
+        await Deal();
+    }
+
+    protected override void OnParametersSet() => dropping = false;
+
+    // A card for each kept piece that hasn't one yet: where it stands from its score and its runs, away from the screen's thread.
+    private async Task Deal()
+    {
+        if (dealing) return;
+
+        dealing = true;
+        try
+        {
+            while (Book.Current.Pieces.Where(k => pieces.ContainsKey(k.Piece) && !cardOf.ContainsKey(k.Piece)).Select(k => (pieces[k.Piece], k.Since)).ToList() is { Count: > 0 } missing)
+            {
+                foreach (var card in await RepertoireCards.OfAsync(Store, missing, runs, DateOnly.FromDateTime(DateTime.Now))) cardOf[card.Piece.Id] = card;
+            }
+        }
+        finally
+        {
+            dealing = false;
+        }
+    }
+
+    private void Changed() => _ = InvokeAsync(async () =>
+    {
+        StateHasChanged();
+        await Deal();
+        StateHasChanged();
+    });
+
+    private void Heard() => _ = InvokeAsync(StateHasChanged);
+
+    // The address with one of its values changed, in this one's place.
+    private void Keep(string name, string? value) => Navigation.Replace(Nav.GetUriWithQueryParameter(name, value));
+
+    private void Show(string? collection) => Keep("in", collection);
+
+    // The collection shown, when the address names one that's there.
+    private RepertoireCollection? Shown() => Book.Current.Collections.FirstOrDefault(c => c.Id == In);
+
+    // The kept pieces the Library still has: all of them, or a collection's in the order they were put in.
+    private IEnumerable<RepertoirePiece> Kept(RepertoireCollection? collection)
+    {
+        var kept = Book.Current.Pieces.Where(k => pieces.ContainsKey(k.Piece));
+        return collection is null ? kept : collection.Pieces.Select(id => kept.FirstOrDefault(k => k.Piece == id)).OfType<RepertoirePiece>();
+    }
+
+    private IEnumerable<PieceCard> InOrder(List<PieceCard> cards) => Sorted switch
+    {
+        "least" => cards.OrderBy(c => c.There).ThenBy(c => c.Reading).ThenBy(c => Works.Natural(c.Piece.Title), StringComparer.Ordinal),
+        "most" => cards.OrderByDescending(c => c.There).ThenByDescending(c => c.Reading).ThenBy(c => Works.Natural(c.Piece.Title), StringComparer.Ordinal),
+        "az" => cards.OrderBy(c => Works.Natural(Named(c.Piece).Title), StringComparer.Ordinal).ThenBy(c => Works.Natural(c.Piece.Title), StringComparer.Ordinal),
+        // The last played first; the ones not played yet after them, the latest kept first.
+        _ => cards.OrderByDescending(c => c.Done?.Last.At ?? DateTimeOffset.MinValue).ThenByDescending(c => c.Since),
+    };
+
+    // What a card is called: a movement by its work's name with the movement's own above it, anything else by its title with
+    // who it's by.
+    private static (string Title, string Kicker) Named(PieceRecord piece)
+    {
+        if (RepertoireCards.Named(piece) is (var work, { } part)) return (work, string.Join(" · ", new[] { Shelves.Surname(piece.Composer), part }.Where(s => s.Length > 0)));
+
+        return (piece.Title, string.Join(" · ", new[] { piece.Composer, piece.Work?.StartsWith("arr. ", StringComparison.Ordinal) == true ? piece.Work : null }.Where(s => !string.IsNullOrWhiteSpace(s))));
+    }
+
+    // Where a piece stands, in words, for its meter.
+    private static string Stands(PieceCard card) => card.Standing is not { Bars.Count: > 0 } standing ? (card.Done is null ? "Not played yet" : "Played; where it stands isn't known")
+        : $"{standing.Bars.Count(b => b.State is BarState.InTime or BarState.AtTempo)} of {standing.Bars.Count} bars there In time, {standing.Count(BarState.Reading)} more being read";
+
+    // The pieces played in the last month that aren't kept, the latest first.
+    private IEnumerable<(PieceRecord Piece, PieceHistory Done)> Lately(DateOnly today) =>
+        runs.Where(g => pieces.ContainsKey(g.Key) && !Book.Current.Has(g.Key)).Select(g => (Piece: pieces[g.Key], Done: PieceHistory.Of(g)))
+            .Where(p => p.Done is not null && p.Done.Last.Day >= today.AddDays(-30)).OrderByDescending(p => p.Done!.Last.At).Take(8).Select(p => (p.Piece, p.Done!));
+
+    private async Task Star(PieceRecord piece)
+    {
+        await Book.StarAsync(piece.Id);
+        note = $"“{piece.Title}” is in your repertoire.";
+    }
+
+    private async Task Hear(PieceRecord piece) => note = await Openings.ToggleAsync(piece);
+
+    private void Name(string collection) => (naming, typed, note, dropping) = (collection, Book.Current.Collections.FirstOrDefault(c => c.Id == collection)?.Name, null, false);
+
+    // A new collection under the name typed, shown at once; or the one shown under another name.
+    private async Task SaveName()
+    {
+        if (naming is not { } which) return;
+
+        if (string.IsNullOrWhiteSpace(typed))
+        {
+            note = "Give it a name.";
+            return;
+        }
+        if (which.Length == 0)
+        {
+            if (await Book.AddAsync(typed) is not { } id)
+            {
+                note = "A collection has that name already.";
+                return;
+            }
+            (naming, note) = (null, null);
+            Show(id);
+            return;
+        }
+
+        var renamed = Book.Current.Renamed(which, typed);
+        if (ReferenceEquals(renamed, Book.Current))
+        {
+            note = "A collection has that name already.";
+            return;
+        }
+        await Book.SetAsync(renamed);
+        (naming, note) = (null, null);
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveName();
+    }
+
+    // The collection shown, gone: its pieces stay kept.
+    private async Task Drop()
+    {
+        if (Shown() is not { } collection) return;
+
+        dropping = false;
+        await Book.SetAsync(Book.Current.Dropped(collection.Id));
+        note = $"“{collection.Name}” is gone; its pieces are still in your repertoire.";
+        Show(null);
+    }
+
+    private static string Capital(string text) => text.Length > 0 && char.IsLower(text[0]) ? char.ToUpperInvariant(text[0]) + text[1..] : text;
+
+    public void Dispose()
+    {
+        Book.Changed -= Changed;
+        Openings.Changed -= Heard;
+        Openings.Stop();
+    }
+}

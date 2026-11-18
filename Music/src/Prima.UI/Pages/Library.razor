@@ -254,7 +254,7 @@
                         <div class="settings-tabs" role="tablist" aria-label="Kinds">
                             @foreach (var each in tabs)
                             {
-                                <button type="button" role="tab" class="settings-tab" aria-selected="@(each == TabOf(works) ? "true" : "false")" @onclick="() => Turn(each.Name)">@each.Name<span class="tab-n">@each.Held</span></button>
+                                <button type="button" role="tab" class="settings-tab" aria-selected="@(each.Name == TabOf(works)?.Name ? "true" : "false")" @onclick="() => Turn(each.Name)">@each.Name<span class="tab-n">@each.Held</span></button>
                             }
                         </div>
                     }
@@ -556,34 +556,5 @@
     }
 
     @* A star's second tap: which of the repertoire's collections the piece is in, where it was tapped. *@
-    @if (starring is { } kept)
-    {
-        var holding = Book.Current.Holding(kept.Piece.Id).Select(c => c.Id).ToHashSet();
-        <div class="lb-away" @onclick="CloseStar"></div>
-        <div class="lb-menu add-to" role="menu" aria-label="@($"Where {kept.Piece.Title} is kept")" style="@($"--at-x: {kept.X.ToString("0", CultureInfo.InvariantCulture)}px; --at-y: {kept.Y.ToString("0", CultureInfo.InvariantCulture)}px")">
-            <p class="menu-title">Keep “@kept.Piece.Title” in</p>
-            <button type="button" role="menuitemcheckbox" aria-checked="true" @onclick="Unstar"><span class="mu-led"></span>Repertoire</button>
-            @foreach (var collection in Book.Current.Collections)
-            {
-                var there = holding.Contains(collection.Id);
-                <button type="button" role="menuitemcheckbox" aria-checked="@(there ? "true" : "false")" @onclick="() => Book.PutAsync(collection.Id, kept.Piece.Id, !there)"><span class="mu-led"></span>@collection.Name</button>
-            }
-            <hr />
-            @if (naming)
-            {
-                <div class="lb-menu-new">
-                    <input class="text-field" type="text" placeholder="Its name" aria-label="The new collection's name" maxlength="60" value="@newName" @oninput="e => newName = e.Value?.ToString()" @onkeydown="NameKey" />
-                    <button type="button" class="mu-btn mu-primary lb-small" @onclick="AddCollection">Add</button>
-                </div>
-                @if (nameNote is not null)
-                {
-                    <p class="menu-note" role="status">@nameNote</p>
-                }
-            }
-            else
-            {
-                <button type="button" role="menuitem" @onclick="() => naming = true">New collection…</button>
-            }
-        </div>
-    }
+    <StarMenu Piece="starring?.Piece" X="@(starring?.X ?? 0)" Y="@(starring?.Y ?? 0)" OnClose="CloseStar" OnSaid="Say" />
 </div>

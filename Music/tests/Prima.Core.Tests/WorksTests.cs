@@ -300,6 +300,18 @@ public class WorksTests
     }
 
     [Fact]
+    public void APieceByItselfIsNamedByItsWorkAndItsPartOfIt()
+    {
+        Assert.Equal(("Sonata No. 14 “quasi una fantasia” “Moonlight”", "I. Adagio sostenuto"),
+            Works.NameOf(Edition("dcml-beethoven-piano-sonatas-14-1", "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: I. Adagio sostenuto", "Piano sonatas")));
+        Assert.Equal(("Sonata No. 8 “Pathétique”", "II. Adagio cantabile"), Works.NameOf(Pdf("mutopia-pathetique-2", "Sonata No. 8 “Pathétique” (2nd Movement: Adagio cantabile)", "Op. 13")));
+        // A piece that's a work by itself has no part; nor has one whose title only looks like a work's and a part's.
+        Assert.Equal(("Hallelujah", null), Works.NameOf(new ListedPiece("import-1", "Hallelujah", null, null, false)));
+        Assert.Equal(("April: Snowdrop", null), Works.NameOf(Arranged("pdmx-april", "April: Snowdrop")));
+        Assert.Equal(("Allemande", null), Works.NameOf(Edition("allemande", "Allemande", "English Suites")));
+    }
+
+    [Fact]
     public void ANameSortsWithoutAccentsAndByItsNumbers()
     {
         Assert.Equal("etude no. 00002", Works.Natural("Étude No. 2"));

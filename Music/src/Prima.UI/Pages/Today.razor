@@ -5,6 +5,7 @@
 @inject IKeyboard Keyboard
 @inject NavigationManager Nav
 @inject Prima.UI.Routines.RoutineService Routines
+@inject Prima.UI.Library.RepertoireBook Book
 @using Prima.UI.Routines
 @using Prima.Core.Generation
 @using Prima.Core.Practice
@@ -129,8 +130,29 @@
     </div>
 }
 
+@* After the day's plan, the pieces kept in the repertoire: the three played last, each with what comes next on it, a tap away. *@
+@if (kept.Count > 0)
+{
+    <section class="settings-section" aria-labelledby="today-pieces">
+        <div class="band-head"><h2 id="today-pieces" class="section-title">Then your pieces</h2><a class="band-link" href="repertoire">Repertoire</a></div>
+        <div class="today-rep">
+            @foreach (var card in kept)
+            {
+                <a class="today-rep-item" href="@($"library/{Uri.EscapeDataString(card.Piece.Id)}")">
+                    <b>@(Prima.UI.Library.RepertoireCards.Named(card.Piece) is (var work, { } part) ? $"{work}: {part}" : card.Piece.Title)</b>
+                    <span>@(card.Ahead.Kind == "Next" ? Capital(card.Ahead.What) : $"{card.Ahead.Kind}: {card.Ahead.What}")</span>
+                    <span class="mu-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" /></svg></span>
+                </a>
+            }
+        </div>
+    </section>
+}
+
 @code {
     [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+
+    // The repertoire's pieces played last, as Today shows them.
+    private List<Prima.UI.Library.PieceCard> kept = [];
 
     private ReadingState? reading;
     private RoutineDefinition? activeRoutine;
@@ -167,7 +189,8 @@
         todayMinutes = day?.Minutes ?? 0;
         streak = Streak.Compute(days.Select(d => new PracticeDayRecord(d.Day, d.Minutes, d.ShortDone)), Day0);
         todayPassages = (await Store.GetAttemptsAsync(Day0, "passage")).Where(a => a.Day == Day0).ToList();
-        var played = (await Store.GetPieceRunsAsync()).Where(r => r.Run.Day == Day0).GroupBy(r => r.Piece).Select(g => (Id: g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToList();
+        var runs = await Store.GetPieceRunsAsync();
+        var played = runs.Where(r => r.Run.Day == Day0).GroupBy(r => r.Piece).Select(g => (Id: g.Key, Done: PieceHistory.Of(g.Select(r => r.Run)))).Where(p => p.Done is not null).ToList();
         var said = new List<string>();
         foreach (var (id, done) in played.OrderByDescending(p => p.Done!.Last.At).Take(2))
         {
@@ -184,7 +207,22 @@
         // The next passage, shown small: the one Sight-read gives next, generated or a stretch of a real piece.
         var next = await DayPassages.NextAsync(Store, reading ?? ReadingState.Start, Day0, todayPassages.Count, DayPassages.KeyOf(todayPassages.LastOrDefault()), reading?.Tempo ?? 60);
         (NextPassage, nextMei, nextMeasures) = (next.Passage, next.Mei, next.Measures);
+
+        // The day's plan shows before the pieces kept are read: their scores take a moment.
+        StateHasChanged();
+        await Book.LoadAsync();
+        if (Book.Current.Pieces.Count == 0) return;
+
+        var of = runs.ToLookup(r => r.Piece, r => r.Run);
+        var top = new List<(PieceRecord, DateTimeOffset)>();
+        foreach (var piece in Book.Current.Pieces.OrderByDescending(k => of[k.Piece].Select(r => r.At).DefaultIfEmpty(DateTimeOffset.MinValue).Max()).ThenByDescending(k => k.Since))
+        {
+            if (top.Count < 3 && await Store.GetPieceAsync(piece.Piece) is { } record) top.Add((record, piece.Since));
+        }
+        kept = await Prima.UI.Library.RepertoireCards.OfAsync(Store, top, of, Day0);
     }
+
+    private static string Capital(string text) => text.Length > 0 && char.IsLower(text[0]) ? char.ToUpperInvariant(text[0]) + text[1..] : text;
 
     private bool Done(StepKind kind) => day?.StepsDone.Contains(kind + ";") == true;
 

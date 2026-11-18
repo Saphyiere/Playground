@@ -11,11 +11,12 @@ namespace Prima.UI.Tests;
 // "you're not really going to it too much. Just put it in settings and then have it as another tab." You, "colour plus the
 // initial", with "a little dot on the bottom of it showing if the keyboard is plugged in or not ... We don't need the whole plug
 // in your keyboard", and after seeing it beside Settings: "maybe at the very top and not next to settings. So above practice."
-// Collection keeps Library.
+// Collection keeps Library, and has the Repertoire beside it: "We have a repertoire tab ... we don't need to put the repertoire in
+// the library" (the same day, on the Library's mock-ups).
 public class RailTests
 {
     [Fact]
-    public async Task YouHeadsTheRailRoutinesIsUnderPracticeTheCollectionHoldsTheLibraryAndSettingsIsAloneAtTheFoot()
+    public async Task YouHeadsTheRailRoutinesIsUnderPracticeTheCollectionHoldsTheLibraryAndTheRepertoireAndSettingsIsAloneAtTheFoot()
     {
         var piano = new TestPiano(plugged: false);
         await using var host = new ComponentHost(keyboard: piano);
@@ -24,9 +25,10 @@ public class RailTests
         var rail = host.Context.Render<Layout.Rail>();
 
         Assert.Equal(["Practice", "Collection"], rail.FindAll(".mu-nav-group .mu-studio-only").Select(g => g.TextContent));
-        Assert.Equal(["Today", "Drills", "Sight-read", "Exercises", "Routines", "Library", "Settings"],
+        Assert.Equal(["Today", "Drills", "Sight-read", "Exercises", "Routines", "Library", "Repertoire", "Settings"],
             rail.FindAll(".mu-nav-item").Select(k => k.QuerySelectorAll("span").Last().TextContent));
-        Assert.Equal(["A1", "A2", "A3", "A4", "A5", "B1", ""], rail.FindAll(".mu-nav-item .mu-nav-code").Select(c => c.TextContent));
+        Assert.Equal(["A1", "A2", "A3", "A4", "A5", "B1", "B2", ""], rail.FindAll(".mu-nav-item .mu-nav-code").Select(c => c.TextContent));
+        Assert.Equal("repertoire", rail.FindAll(".mu-nav-item").Single(k => k.TextContent.EndsWith("Repertoire", StringComparison.Ordinal)).GetAttribute("href"));
         var nav = rail.Find("nav.rail");
         Assert.Equal("Settings", nav.LastElementChild!.TextContent.Trim());
         Assert.Contains("mu-nav-end", nav.LastElementChild.ClassList);

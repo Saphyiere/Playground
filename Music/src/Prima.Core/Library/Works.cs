@@ -78,6 +78,17 @@ public static partial class Works
             { Number = w.Set ? null : w.Number })];
     }
 
+    /// <summary>
+    /// A piece by itself as the catalogue names it: its work's name without the catalogue number, and its own name in that work
+    /// where its title gives one ("Sonata No. 14 “quasi una fantasia” “Moonlight”" and "I. Adagio sostenuto"); no part for a
+    /// piece that's a work by itself.
+    /// </summary>
+    public static (string Work, string? Part) NameOf(ListedPiece piece)
+    {
+        var work = Of([piece])[0];
+        return (work.Title, work.Parts[0].Name == piece.Title.Trim() ? null : work.Parts[0].Name);
+    }
+
     private static Group Alone(Part only)
     {
         var alone = new Group("p:" + only.Piece.Id, only.Piece.Title, false);

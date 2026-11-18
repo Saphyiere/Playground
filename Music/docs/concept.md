@@ -46,7 +46,8 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 The rail down the left edge, in both looks: at its head You, a round key in the look's colour with the first letter of your name
 (a figure without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't; under Practice,
-Today, Drills, Sight-read, Exercises and Routines; under Collection, the Library; and Settings alone at the foot. In Vinyl
+Today, Drills, Sight-read, Exercises and Routines; under Collection, the Library and the Repertoire; and Settings alone at
+the foot. In Vinyl
 Practice and Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its start. The
 tools are a tab of Settings (Tools, below), whose key is lit on them.
 
@@ -64,7 +65,8 @@ practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
 every step is done, a line sums up the day. The pieces played today are in it, each with its runs and how the last went, and
-show as a line of their own before the plan is done.
+show as a line of their own before the plan is done. After the plan, **Then your pieces**: three of the repertoire's (below),
+the last played first, each with what comes next on it and a key that opens it; nothing when none is kept.
 
 The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
 calibration or straight to Today. From the welcome the timing leads on: once its offset is kept, **Done** goes to Today. With
@@ -200,36 +202,77 @@ a PDF plays out; this is what came of it.
   collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled
   pieces and your own imports are never touched. The Library then holds about 3,160 pieces, so a list is drawn again a second at
   a time at most while pieces are stored, and the search follows once typing pauses.
-- **Finding your way** (the Library's home): a search across everything, each word typed by itself and in any order (accents
-  aside: "Dvorak" finds Dvořák; a number is a whole number or a movement's, so "beethoven sonata 14" finds No. 14 and Op. 14,
-  and "moonlight first movement", "moonlight 1st" or "moonlight 1" the Moonlight's I. and the arrangements of its first
-  movement, "movement" itself left out), then **Working
-  on** (the pieces played in the last month, eight at most, the latest first, each with when it was last played and how that
-  run went), then **Near your level**: a few of the pieces to play along with whose most reads from your sight-reading level to
-  two above it (since a piece to learn sits above what you read at sight; with none there, the easiest there are), the ones not
-  opened yet first and the rest in an order of the day's, so the shelf changes daily, with all of them a tap away. Then the
-  ways in, each a key with how many pieces it holds: **Composers** (the twelve with the most, and all of them by surname under
-  their initials: a surname of two words whole, so Ralph Vaughan Williams is under V and Mendelssohn Bartholdy under M, a name
-  written surname first by what's before its comma, and "Jr." or "II" after a name no part of it), **Periods** (Baroque,
-  Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer, a few by their own names where a namesake's
-  would mislead: Hans Leo Hassler, older than any of them, with the Baroque, the hymn writer William G. Fischer with the
-  Romantics, J. C. F. Bach with his brothers in Classical, Richard Strauss in 1890–1930), **Kinds** (sonatas, études, preludes
-  and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of
-  them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says more, as a fantasy and fugue
-  or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum isn't an étude), **Levels**
-  (where most of a piece reads) and **Lists** (Everything, PDFs, and **Uploaded pieces**, the music you've imported, each
-  tagged Uploaded in a list; its own list has **Import files** at its head too, as the home does). With no piece naming a composer (imported MIDI
-  files and PDFs, say) there's no Composers, and the other ways in are there all the same. A list opened from one of them can
-  be cut to the pieces to play along with or the PDFs, and searched, All composers by name; a composer's pieces are grouped by
-  kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each
-  letter their surnames start with; the pieces without a composer are a group of their own there, with a key of their own, and
-  aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
-  about where its collection sits, or what its MIDI reads at. A title is shown whole in the lists, on as many lines as it takes
-  (a sonata's movements differ only at their ends, and an upload's file name can run long), and in a piece's own bar upright.
-  The Library remembers where it was left: a list's search and filter are in its address (`library?by=composer&of=…&only=pdf&q=
-  sonata`), taking its place as they change, so coming back to it from a piece, by the way back or the rail's Library key, finds
-  them as they were and the list scrolled to where it was; a list not seen before starts at its top. From a piece or another
-  screen the rail's Library key goes back to the list last shown, and from one of the Library's lists to its home.
+- **Finding your way**: the Library is a catalogue. Its lists stay down the left, each row with how many pieces it holds:
+  **Uploaded pieces** at their head once anything is uploaded, **Near your level**, then every composer by surname, surname
+  first ("Beethoven, Ludwig van"; a surname of two words whole, so Ralph Vaughan Williams is under V and Mendelssohn Bartholdy
+  under M, a name written surname first by what's before its comma, and "Jr." or "II" after a name no part of it), with **Find
+  a composer** over them (accents aside: "Dvorak" finds Dvořák). A switch over the composers turns the list to the **Kinds**
+  (sonatas, études, preludes and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and
+  work; a piece that's none of them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says
+  more, as a fantasy and fugue or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum
+  isn't an étude) or the **Levels** (where most of a piece reads). What's chosen in the list is beside it, the row turned
+  over, and each column scrolls by itself. With nothing chosen the Library opens on the uploaded pieces; with none uploaded, on
+  the pieces near your level, and else on its first composer.
+  - A **composer** has its kinds as tabs, the fullest first, each with how many pieces it holds; past five kinds the smallest
+    share one tab, Other. Under them its **works**, a row each: its number among its kind where its name has one (14 for
+    Sonata No. 14), its name without its catalogue number, then that number, how many movements, the other versions of it, and
+    the levels its movements are at. The work chosen (the first, until one is) is beside them: its movements in order, each
+    with ▶, its bars, its level and its star, then **Other versions of it**, each by its own title with whose it is (the
+    Mutopia Project's edition as a PDF, a MuseScore user's score). Upright, a work opens where it stands in the list, and
+    closes again. A kind whose pieces each stand alone is a list of them, each under its own name with its catalogue number
+    and the set its source has it in.
+  - **Works** are read from the titles and from the work each source names, since the Library keeps a piece a movement and
+    its sources title them differently: a sonata's movements were three rows among a hundred, and the same sonata stood in
+    three places. A title that names a work and a part of it is that work's part ("Sonata No. 12, Op. 26: III. …", "Sonata
+    No. 8 “Pathétique” (1st Movement: Grave)", and, where two or more titles share what stands before it, "English Suite No. 1,
+    BWV 806: Allemande", "24 Préludes Opus 28, No. 1", "Die Kunst der Fuge, Contrapunctus I, BWV 1080"). Otherwise a piece
+    belongs to the set its source names (Mazurkas, The Well-Tempered Clavier, Book I), unless that's only a catalogue number;
+    and stands by itself where it names none, or is the only piece of its set here. The editions that title every movement
+    the same way (the DCML's, the Humdrum scores, ASAP) give a work its movements; another edition's PDFs, or an arrangement,
+    of the same work are its other versions: told by the same catalogue number (the work's own, or one of a set's pieces'),
+    by the same number of the same kind ("Sonata No. 14", "Ballade No. 1" among the Ballades) where their catalogue numbers
+    don't say otherwise, by the same name, or by the name the work goes by ("Moonlight") when only one work of its kind goes
+    by it. Movements are in their order; a suite's dances as they're played (the prelude, allemande, courante, sarabande, the
+    lighter dances, the gigue); a set's pieces by opus and number, a prelude before its fugue. One edition leaves the
+    Moonlight's number out of its titles: it's taken from the piece's id. Beethoven's 187 pieces are 64 works this way, and
+    Bach's 806 are 105.
+  - A **kind** is an index of every composer's works of it, under their names, each going to its composer opened at that
+    work. A **level**, and the pieces **near your level** (the ones to play along with whose most reads from your
+    sight-reading level to two above it, since a piece to learn sits above what you read at sight; with none there, the
+    easiest there are), are lists of pieces under their composers by surname, which can be cut to the pieces to play along
+    with or the PDFs; a long list starts with a key for each composer, or, past twelve, for each letter their surnames start
+    with, and the pieces without a composer are a group of their own there, not counted as a composer. PDFs aren't near your
+    level: a PDF's level is only about where its collection sits, or what its MIDI reads at. Everything, the PDFs and a
+    period's pieces (Baroque, Classical, Romantic, 1890–1930, Ragtime, Teaching pieces and Other, by composer, a few by their
+    own names where a namesake's would mislead) are such lists too, by their addresses (`library?by=all`, `by=pdf`,
+    `by=period&of=Baroque`); the catalogue has no rows for them.
+  - The **search** is in the Library's head and looks through everything, whatever is shown: each word typed by itself and
+    in any order (accents aside; a number is a whole number or a movement's, so "moonlight first movement", "moonlight 1st"
+    or "moonlight 1" find the Moonlight's I. and the arrangements of its first movement, "movement" itself left out), in a
+    piece's title, its composer, the work its source names, and its work as the catalogue names it, so "beethoven sonata 14"
+    finds the Moonlight's movements, whose own titles leave the number out. What's found is listed under its composers, a
+    work's pieces together, each with its work under its title; the composers whose names have the words head the list, as
+    ways to all of theirs. Past 150 pieces it shows the first 150 and says another word narrows them.
+  - A title is shown whole, on as many lines as it takes (an upload's file name can run long), and in a piece's own bar
+    upright. The Library remembers where it was left: what's chosen, a composer's tab and work, a list's filter and the search
+    are in its address (`library?by=composer&of=…&kind=Sonatas&work=…`, `library?by=level&of=3&only=pdf`, `library?q=sonata`),
+    taking its place as they change, so the way back doesn't step through each tab or work, and coming back to it from a
+    piece, by the way back or the rail's Library key, finds them as they were, each column scrolled to where it was (a
+    composer's works stay where they are while another work is chosen); a list not seen before starts at its top. From a
+    piece or another screen the rail's Library key goes back to what was shown last, and from the Library itself to what it
+    opens on.
+- **Uploaded pieces** are a list in the same frame: each with its title whole and its artist under it (and who arranged it),
+  when it was last played and how that went, what it has (**Pages**, a PDF; **Notes**, to play along with), its level and its
+  star; the latest first, or **A–Z**, or **By artist**; and **Import files** on its heading, as in the Library's head. A
+  piece without an artist says **Add the artist** where the artist goes. The key at a row's end opens its **details**: its
+  title (with the file's name it came in as), its artist or composer and who arranged it, to change, since a file's name is
+  only where they start; what it has, with a way to add or replace its pages (a PDF) or its notes (a MIDI, MusicXML, MEI or
+  ABC file, graded and cut like an import; Convert PDF on the piece's own screen reads them from its pages instead); and
+  **Remove from the Library…**, with Undo as below. A piece given an artist is among the composers too, with its works read
+  like any composer's.
+- **Stars**: every piece's row ends with a star. The first tap keeps the piece in the repertoire (Repertoire, below); a tap
+  on a star that's lit opens, where it was tapped, where the piece is kept: the repertoire itself, each collection, and **New
+  collection…**, which makes one with the piece in it. Taking it out of the repertoire takes it out of every collection.
 - **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from its first note (a pickup's
   included; rests it starts with, and a drum part's bars before the piano comes in, aren't played through), at the tempo it
   starts at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is
@@ -497,8 +540,13 @@ a PDF plays out; this is what came of it.
   three weeks. Excerpts don't move the level: their grades aren't calibrated against your reading yet.
 - **Imports** (**Import files**, one or several at once, or a zip of them, like a download that bundles a song's files):
   MusicXML, MEI and ABC are engraved and graded like the collection, a song's lyrics kept with its notes (Notation, below,
-  says how they're printed); a PDF is kept as pages, and takes a MIDI file of the same name picked or zipped with it, to be
-  heard on the piano and scrolled at its tempo. One piece imported opens; several stay in the Library with a line saying
+  says how they're printed); a PDF is kept as pages, and a PDF with a MIDI file of the same name picked or zipped with it is
+  one piece: the PDF its pages, the MIDI its notes, written out, graded and cut as a MIDI file by itself is, to play along with
+  and to be heard, the print a key away (a MIDI that can't be written out as notes leaves the piece its pages, and is still
+  heard if it plays). They were two pieces of one name before; pieces imported then stay as they are, and a PDF's details
+  give it its notes from its MIDI afterwards. A piece's title starts from its file's name without what a shop adds after it
+  ("Hallelujah - C Major - MN0258239" is Hallelujah), or from the title its file gives; its details change it. One piece
+  imported opens; several stay in the Library with a line saying
   what came in and what couldn't: a file that can't be read is named there, whatever it trips on, and the others still come
   in. A part with no pitches, like a drum kit's, is printed with the piece but has no keys to play: its notes only keep their
   time, and its own rests and marks (its loud and soft) aren't the pianist's to read, so they don't change the piece's level
@@ -526,20 +574,41 @@ a PDF plays out; this is what came of it.
   bar. MuseScore and Humdrum files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
 - **Taking pieces out**: a piece's **Remove from the Library…**, under About this piece, takes it out once asked again, with
   its excerpts and readings, and an import's or a collection's PDF and MIDI. Its runs stay, so its days and the streak still
-  count them, and every screen that lists pieces goes on without it. Then it's back on the list it was opened from, as that was
-  left (the Library's home, when it wasn't opened from one), with a line held at the foot of the screen saying what went and
+  count them, and every screen that lists pieces goes on without it. Then it's back on what it was opened from, as that was
+  left, with a line at the foot of the screen saying what went and
   **Undo**, which puts it back as it was, with its excerpts, reading, conversion and files, until the Library is left. One of
   Prima's own stays out: the Library doesn't put it back when it stores the collection again. One of the collection's stays out
-  too: importing its zip again leaves it out (the import says so), and the Library's home says how many are out in a line at
+  too: importing its zip again leaves it out (the import says so), and the Library's list says how many are out in a line at
   its end, with **Let it back in** (**Let them back in**), after which their collection's next import brings them back.
   Settings' **Remove library** (Your data, below) takes every piece out at once,
   Prima's own too, and Prima then puts none of its own in by itself, not even those a newer release brings. The Library says
   so: when it's empty, in place of everything else, with **Put Prima's pieces back**; otherwise in a line at the end of its
-  home, with **Put them back** (**Put it back** for one removed by hand). Either stores every one of Prima's own again, those
+  list, with **Put them back** (**Put it back** for one removed by hand). Either stores every one of Prima's own again, those
   removed by hand too, as on the first open, with the meter showing how far it's got.
 
 Finger-independence patterns are meant to come from these pieces where possible, since finger training carries over only partly
 to other patterns; for now they're built-in five-finger figures.
+
+### Repertoire
+
+The pieces kept to come back to, by themselves: nothing of them is in the Library but their stars. A star on a piece in the
+Library keeps it here, and it can be put in **collections** under names of your own ("Learning pieces 5"), from its star or
+here with **New collection**. The collections are tabs after **Everything**, each with how many pieces it holds; the one shown
+can be renamed, or removed, which leaves its pieces kept.
+
+Each piece is a card: who it's by (a movement goes by its work's name, with the movement's own over it), **where it stands**
+as a row of twenty-four lamps for the whole of it, lit for the share of its bars whose notes are there In time with both
+hands and dim for the share played but not there yet (the bars' standing is the piece's own, as its screen has it); when it
+was last played and how that went, or since when it's kept; and **what comes next**, its last practice session's first step,
+with **Practice**, which opens it. A piece whose every bar holds at its own tempo (In time, where its music marks none) is
+**Learned**, and its next step is to keep it: once through, now and then. A piece not played yet starts with its first bars,
+a hand at a time; one with pages only says nothing plays along until it has its notes. The cards are sorted by when they were
+last played (the ones not played yet after them, the latest kept first), by the least or the most learned, or by name. A
+card's star opens where the piece is kept, to put it in a collection or take it out of the repertoire.
+
+Under the cards, **Lately played, not starred**: the pieces played in the last month that aren't kept, eight at most, the
+latest first, each with ▶, when it was played and how that went, and a star that keeps it. A piece the Library no longer has
+keeps its star, and shows again when it's put back.
 
 ### Routines
 
@@ -1015,7 +1084,9 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   screen. Imported
   files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces kept out of the Library (all of
   them after Remove library, and each one removed by hand, by its id) are kept as settings, so a copy and a restore carry them,
-  until the Library puts them back; so are the collection's pieces removed by hand, by id, until they're let back in. What
+  until the Library puts them back; so are the collection's pieces removed by hand, by id, until they're let back in. The
+  repertoire is a track of its own (`repertoire`): the pieces kept, by id, each with since when, and the collections, each
+  with its name and its pieces in the order they were put in. An uploaded piece's arranger is kept as its work ("arr. …"). What
   Undo puts back (the piece's rows and files as they were) is held in memory only, until the Library is left.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took

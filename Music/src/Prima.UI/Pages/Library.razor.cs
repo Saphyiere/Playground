@@ -96,9 +96,6 @@ public partial class Library
     private IJSObjectReference? places;
     // The piece whose star was tapped a second time, and where: its collections are chosen there.
     private (PieceRecord Piece, double X, double Y)? starring;
-    private bool naming;
-    private string? newName;
-    private string? nameNote;
     // The uploaded piece whose details are open, and what's typed there until it's saved.
     private PieceRecord? detailing;
     private string titleNow = "";
@@ -515,7 +512,6 @@ public partial class Library
     // A star: the first tap keeps the piece in the repertoire; a tap on one kept opens where it's kept, there.
     private async Task Star(PieceRecord piece, MouseEventArgs e)
     {
-        (naming, newName, nameNote) = (false, null, null);
         if (Book.Current.Has(piece.Id))
         {
             starring = (piece, e.ClientX, e.ClientY);
@@ -527,34 +523,8 @@ public partial class Library
 
     private void CloseStar() => starring = null;
 
-    // Out of the repertoire, and so out of every collection.
-    private async Task Unstar()
-    {
-        if (starring is not { } kept) return;
+    private void Say(string said) => note = said;
 
-        starring = null;
-        await Book.DropAsync(kept.Piece.Id);
-        note = $"“{kept.Piece.Title}” is out of your repertoire.";
-    }
-
-    // A new collection, with the piece in it.
-    private async Task AddCollection()
-    {
-        if (starring is not { } kept) return;
-
-        if (await Book.AddAsync(newName ?? "") is not { } id)
-        {
-            nameNote = string.IsNullOrWhiteSpace(newName) ? "Give it a name." : "A collection has that name already.";
-            return;
-        }
-        await Book.PutAsync(id, kept.Piece.Id, true);
-        (naming, newName, nameNote) = (false, null, null);
-    }
-
-    private async Task NameKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await AddCollection();
-    }
 
     // An uploaded piece's arranger is kept as its work, "arr. …".
     private const string Arr = "arr. ";

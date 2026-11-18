@@ -1,0 +1,94 @@
+@inject Prima.UI.Library.RepertoireBook Book
+
+@* Where a piece kept in the repertoire is kept: the repertoire itself (taking it out takes it out of every collection) and each
+   collection, with a new one made here. Opened where the star was tapped, and kept on the screen; a tap beside it closes it. *@
+@if (Piece is { } piece)
+{
+    var holding = Book.Current.Holding(piece.Id).Select(c => c.Id).ToHashSet();
+    <div class="lb-away" @onclick="Close"></div>
+    <div class="lb-menu add-to @(X == 0 && Y == 0 ? "middle" : "")" role="menu" aria-label="@($"Where {piece.Title} is kept")" style="@($"--at-x: {X.ToString("0", CultureInfo.InvariantCulture)}px; --at-y: {Y.ToString("0", CultureInfo.InvariantCulture)}px")">
+        <p class="menu-title">Keep “@piece.Title” in</p>
+        <button type="button" role="menuitemcheckbox" aria-checked="true" @onclick="Unstar"><span class="mu-led"></span>Repertoire</button>
+        @foreach (var collection in Book.Current.Collections)
+        {
+            var there = holding.Contains(collection.Id);
+            <button type="button" role="menuitemcheckbox" aria-checked="@(there ? "true" : "false")" @onclick="() => Book.PutAsync(collection.Id, piece.Id, !there)"><span class="mu-led"></span>@collection.Name</button>
+        }
+        <hr />
+        @if (naming)
+        {
+            <div class="lb-menu-new">
+                <input class="text-field" type="text" placeholder="Its name" aria-label="The new collection's name" maxlength="60" value="@newName" @oninput="e => newName = e.Value?.ToString()" @onkeydown="NameKey" />
+                <button type="button" class="mu-btn mu-primary lb-small" @onclick="Add">Add</button>
+            </div>
+            @if (nameNote is not null)
+            {
+                <p class="menu-note" role="status">@nameNote</p>
+            }
+        }
+        else
+        {
+            <button type="button" role="menuitem" @onclick="() => naming = true">New collection…</button>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The piece whose star was tapped; none while the menu is closed.</summary>
+    [Parameter] public PieceRecord? Piece { get; set; }
+
+    /// <summary>Where on the screen it was tapped.</summary>
+    [Parameter] public double X { get; set; }
+
+    [Parameter] public double Y { get; set; }
+
+    /// <summary>The menu is to close: tapped beside it, or the piece taken out of the repertoire.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>A line for the screen about what was done.</summary>
+    [Parameter] public EventCallback<string> OnSaid { get; set; }
+
+    private string? shown;
+    private bool naming;
+    private string? newName;
+    private string? nameNote;
+
+    // Each time it opens for a piece, it starts without a name being typed.
+    protected override void OnParametersSet()
+    {
+        if (Piece?.Id == shown) return;
+
+        (shown, naming, newName, nameNote) = (Piece?.Id, false, null, null);
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    // Out of the repertoire, and so out of every collection.
+    private async Task Unstar()
+    {
+        if (Piece is not { } piece) return;
+
+        await Book.DropAsync(piece.Id);
+        await OnSaid.InvokeAsync($"“{piece.Title}” is out of your repertoire.");
+        await OnClose.InvokeAsync();
+    }
+
+    // A new collection, with the piece in it.
+    private async Task Add()
+    {
+        if (Piece is not { } piece) return;
+
+        if (await Book.AddAsync(newName ?? "") is not { } id)
+        {
+            nameNote = string.IsNullOrWhiteSpace(newName) ? "Give it a name." : "A collection has that name already.";
+            return;
+        }
+        await Book.PutAsync(id, piece.Id, true);
+        (naming, newName, nameNote) = (false, null, null);
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Add();
+    }
+}

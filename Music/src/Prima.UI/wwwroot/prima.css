@@ -7774,7 +7774,8 @@ button.up-artist {
 
 .lb-menu {
     position: fixed;
-    right: max(12px, calc(100vw - var(--at-x, 100vw) - 22px));
+    /* Its end by where the star was tapped, and all of it on the screen. */
+    right: clamp(12px, calc(100vw - var(--at-x, 100vw) - 22px), calc(100vw - 344px));
     top: max(12px, min(calc(var(--at-y, 0px) + 22px), calc(100dvh - 372px)));
     z-index: 30;
     width: 320px;
@@ -7792,6 +7793,12 @@ button.up-artist {
 
 .lb-menu > * {
     flex: none;
+}
+
+/* Opened from the keyboard, which has no place on the screen: in the middle. */
+.lb-menu.middle {
+    right: calc(50vw - 160px);
+    top: 22dvh;
 }
 
 [data-theme="vinyl"] .lb-menu {
@@ -7876,6 +7883,268 @@ button.up-artist {
     line-height: 18px;
 }
 
+/* The Repertoire: its collections as tabs, how it's sorted, then the pieces kept as cards three across, each with where it
+   stands (a lamp for each twenty-fourth of it: lit where its notes are there In time, dim where it's being read), when it was
+   last played and what comes next. Under them, what was played lately without being kept. */
+/* A collection's name may end in a number of its own ("Learning pieces 5"): a dot before how many it holds. */
+.tab-dot {
+    margin: 0 2px 0 8px;
+    opacity: 0.6;
+}
+
+.tab-dot + .tab-n {
+    margin-left: 0;
+}
+
+.rep-name .text-field {
+    flex: 0 1 360px;
+}
+
+.rep-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.rep-tools .control-label {
+    min-width: 0;
+    margin-right: 2px;
+}
+
+.rep-own {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.rep-own .text-key.away {
+    margin-left: 0;
+}
+
+.rep-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.rep-card {
+    min-width: 0;
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: var(--radius-cap);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+}
+
+[data-theme="vinyl"] .rep-card {
+    padding: 18px 20px 20px;
+    border-radius: 0;
+    border-top: 3px solid var(--accent);
+    box-shadow: none;
+}
+
+.rep-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 4px 6px;
+}
+
+.rep-top .lb-star {
+    margin: -8px -10px 0 0;
+}
+
+.rep-kicker {
+    margin: 0 0 4px;
+    min-height: 14px;
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    overflow-wrap: anywhere;
+}
+
+[data-theme="vinyl"] .rep-kicker {
+    min-height: 16px;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+}
+
+.rep-done {
+    color: var(--accent);
+}
+
+.rep-title {
+    margin: 0;
+    font-family: var(--mu-name);
+    font-size: 19px;
+    line-height: 24px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.rep-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+[data-theme="vinyl"] .rep-title {
+    font-size: 30px;
+    line-height: 29px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+.rep-meter {
+    display: flex;
+    gap: 3px;
+    padding: 6px;
+    border-radius: var(--radius-display);
+    background: var(--screen);
+}
+
+.rep-meter > span {
+    flex: 1;
+    height: 10px;
+    border-radius: 1.5px;
+    background: var(--meter-off);
+}
+
+.rep-meter > span.s1 {
+    background: color-mix(in srgb, var(--meter-on) 42%, var(--meter-off));
+}
+
+.rep-meter > span.s2 {
+    background: var(--meter-on);
+}
+
+[data-theme="vinyl"] .rep-meter {
+    gap: 2px;
+    padding: 0;
+    background: none;
+}
+
+[data-theme="vinyl"] .rep-meter > span {
+    height: 8px;
+    border-radius: 0;
+    background: var(--seam);
+}
+
+[data-theme="vinyl"] .rep-meter > span.s1 {
+    background: color-mix(in srgb, var(--meter-on) 45%, var(--seam));
+}
+
+[data-theme="vinyl"] .rep-meter > span.s2 {
+    background: var(--meter-on);
+}
+
+.rep-line {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink-muted);
+}
+
+.rep-line b {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.rep-card .rep-line b {
+    color: var(--on-surface);
+}
+
+.rep-foot {
+    margin-top: auto;
+    padding-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rep-foot .rep-line {
+    min-width: 0;
+}
+
+.rep-foot .mu-btn {
+    flex: none;
+}
+
+.rep-lately .up-row {
+    grid-template-columns: 44px minmax(0, 1.5fr) minmax(0, 1fr) 44px;
+}
+
+/* Today's own band for the repertoire: the pieces played last, each with what comes next. */
+.band-link {
+    font-size: 14px;
+    color: var(--accent);
+}
+
+.today-rep {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.today-rep-item {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-cap);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+    text-decoration: none;
+}
+
+[data-theme="vinyl"] .today-rep-item {
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 3px solid var(--seam);
+}
+
+.today-rep-item b {
+    font-size: 16px;
+    line-height: 21px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.today-rep-item > span:not(.mu-play) {
+    grid-column: 1;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink-muted);
+}
+
+.today-rep-item .mu-play {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 56px;
+    height: 44px;
+    padding: 0 14px;
+    color: var(--on-accent);
+}
+
+.today-rep-item .mu-play svg {
+    width: 18px;
+    height: 18px;
+}
+
 /* After a piece is taken out: what went, with Undo, under the columns. */
 .lib > .library-removed {
     position: static;
@@ -7919,6 +8188,15 @@ button.up-artist {
 
     .up-row .up-last {
         display: none;
+    }
+
+    .rep-grid,
+    .today-rep {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rep-lately .up-row {
+        grid-template-columns: 44px minmax(0, 1fr) 40px;
     }
 
     .lb-sheet {

@@ -1,3 +1,6 @@
+using Prima.Core.Music;
+using Prima.Core.Timing;
+
 namespace Prima.Core.Practice;
 
 /// <summary>
@@ -6,6 +9,24 @@ namespace Prima.Core.Practice;
 /// </summary>
 public sealed record PieceShape(int FirstBar, int LastBar, double? Tempo, bool TwoHands = true)
 {
+    /// <summary>
+    /// A piece's shape from its score: its bars by number, the tempo it marks in its first metre's beats (♩. in 6/8), whether
+    /// its notes are on two staves, the notes in each bar and the order its repeats play them in.
+    /// </summary>
+    public static PieceShape Of(Score score)
+    {
+        var expected = score.Expected();
+        var (first, last) = (score.Bars[0].Number, score.Bars[^1].Number);
+        var opening = score.WithSignatures().First().Meter;
+        var counts = expected.GroupBy(n => n.Bar).ToDictionary(g => g.Key, g => g.Count());
+        return new(first, last, score.MainTempo() is { } quarters ? Math.Round(quarters * Ticks.Quarter / opening.BeatTicks) : null,
+            expected.Select(n => n.Staff).Distinct().Order().SequenceEqual([1, 2]))
+        {
+            Notes = [.. Enumerable.Range(first, last - first + 1).Select(bar => counts.GetValueOrDefault(bar))],
+            Order = [.. score.PlayOrder().Select(i => score.Bars[i].Number)],
+        };
+    }
+
     public int Bars => LastBar - FirstBar + 1;
 
     /// <summary>

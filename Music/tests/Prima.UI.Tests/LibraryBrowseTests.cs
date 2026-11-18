@@ -74,6 +74,7 @@ public class LibraryBrowseTests
         var view = host.Context.Render<Pages.Library>();
 
         view.WaitForAssertion(() => Assert.Equal(["Preludes and fugues1", "Dances1"], view.FindAll(".settings-tab").Select(t => t.TextContent)));
+        Assert.Equal(["true", "false"], view.FindAll(".settings-tab").Select(t => t.GetAttribute("aria-selected")));
         Assert.Equal("Johann Sebastian Bach", view.Find(".col-head").TextContent);
         Assert.Equal("2 pieces · 2 works", view.Find(".lib-main-head .col-sub").TextContent);
         Assert.Equal("Bach, Johann Sebastian", view.Find(".lib-list .col-item[aria-current]").QuerySelector("span")!.TextContent);
@@ -85,6 +86,7 @@ public class LibraryBrowseTests
         await view.InvokeAsync(() => view.FindAll(".settings-tab").Single(t => t.TextContent == "Dances1").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
 
         view.WaitForAssertion(() => Assert.Equal(["Allemande"], view.FindAll(".piece-title").Select(t => t.TextContent)));
+        Assert.Equal(["false", "true"], view.FindAll(".settings-tab").Select(t => t.GetAttribute("aria-selected")));
         Assert.EndsWith("library?by=composer&of=Johann%20Sebastian%20Bach&kind=Dances", nav.Uri);
         // The tab took the address's place: the way back doesn't step through each tab.
         Assert.True(((Bunit.TestDoubles.BunitNavigationManager)nav).History.First().Options.ReplaceHistoryEntry);
