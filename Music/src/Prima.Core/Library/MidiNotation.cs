@@ -11,13 +11,16 @@ namespace Prima.Core.Library;
 /// <item>The bars come from its time signatures, the key from its key signature (less a flat or sharp its notes never play), or
 /// from the notes when it has none. A first bar in a shorter time signature of its own is a pickup, bar 0.</item>
 /// <item>Where the file lets its notes go a little early, as notation software does, each is written at the length it would
-/// have held in full.</item>
+/// have held in full; and where it plays some for a share of their value of its own, about half, those are staccato notes,
+/// written at their value with a dot.</item>
 /// <item>A small note played just before another a step away, over the notes before it, is a grace note.</item>
 /// <item>Each hand's quarter-note beats are snapped to sixteenths, thirty-seconds or triplets, whichever fits that hand's notes
 /// there best, so one hand's triplets stay triplets against the other's eighths.</item>
 /// <item>Notes a hand holds over others make a second voice; notes are tied across barlines, and off the beat across beats,
 /// but one from the half beat stays whole within its half of the bar.</item>
 /// <item>The sustain pedal becomes the score's pedal marks, which <see cref="Mei"/> writes out.</item>
+/// <item>A hand that stays far from its staff for a while changes clef, or goes under an octave line, as an engraver prints it;
+/// the keys it plays are the same.</item>
 /// </list>
 /// A file exported from notation software comes out close to its score. One recorded from playing comes out ragged, and a pickup
 /// written from the bar's start comes out as a whole bar with rests.
@@ -38,7 +41,34 @@ public static class MidiNotation
     private static readonly double[] MajorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
     private static readonly double[] MinorProfile = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
 
-    private sealed record Chord(long On, long Off, List<int> Keys);
+    // The values a note can be written at: those of a single note, and a triplet's quarter, eighth and sixteenth.
+    private static readonly int[] Written = [.. Values, 320, 160, 80];
+
+    // The longest a staccato note is written: a dotted quarter. A note held in full before a rest sounds as long as a staccato one
+    // of twice its value; a staccato half note is rare, so a long one is the former.
+    private const int LongestStaccato = 720;
+
+    private sealed record Chord(long On, long Off, List<int> Keys, bool Staccato = false);
+
+    /// <summary>A way to print a hand's notes: a clef, and the octave line over them (1 an 8va, -1 an 8vb) or none.</summary>
+    private sealed record Way(Clef Clef, int Ottava);
+
+    /// <summary>
+    /// A way a hand can be printed: what it costs a note to be printed so, what it costs to come to it or leave it, and how many
+    /// ledger lines a note can take above and below the staff before it costs.
+    /// </summary>
+    private sealed record Printed(Way Way, double PerNote, double Change, int Above, int Below);
+
+    // The ways each hand can be printed, its staff's own first. Fitted to how some 1,900 engraved piano scores in Prima's library
+    // and its local collection (research editions, MuseScore's public-domain scores, Humdrum's and ASAP's) print their hands, so
+    // that they choose as those engravers did as often as can be: the right hand goes to the bass clef, or under an 8va line; the
+    // left hand to the treble clef (with an 8va line when it goes higher still), or under an 8vb line when it goes very low.
+    private static readonly Printed[] RightHand = [new(new(Clef.Treble, 0), 0, 0, 2, 2), new(new(Clef.Bass, 0), 0.1, 4, 2, 2), new(new(Clef.Treble, 1), 0.6, 4, 2, 2)];
+
+    private static readonly Printed[] LeftHand = [new(new(Clef.Bass, 0), 0, 0, 2, 4), new(new(Clef.Treble, 0), 0.1, 2, 2, 2), new(new(Clef.Treble, 1), 0.6, 8, 2, 2), new(new(Clef.Bass, -1), 0.6, 8, 2, 4)];
+
+    // What a clef change off the beat costs beyond one on it: a hand's clef flickering within a beat is hard to read.
+    private const double OffBeat = 4;
 
     public static Score Read(ReadOnlySpan<byte> data, string fallbackTitle)
     {
@@ -73,8 +103,10 @@ public static class MidiNotation
         // dotted sixteenth, and a rest. So where notes stop a little short of their hand's next note, off any sixteenth's or
         // triplet's place, the share they're held is taken from them (the middle one: some may be held in full, as notes
         // under a slur are said to be), and each note is written up to the half beat, or the next note, nearest where it would
-        // end held in full. A little is a fifth of the time held: a staccato note stops well short and stays short, a written
-        // rest stays, and a file that holds its notes in full is left as it is.
+        // end held in full. A little is a fifth of the time held: a written rest stays, and a file that holds its notes in full
+        // is left as it is. Such a file plays a staccato note for a share of its own, about half its length (MuseScore's is
+        // half, less a tick): where it does, a note held for that share of a value is that value with a staccato dot
+        // (StaccatoShare and Staccato say when), and no rest after it.
         var hands = heard.GroupBy(n => (n.Track, n.Channel)).ToDictionary(g => g.Key, g => g.Select(n => n.On).Distinct().Order().ToList());
         var reaching = heard.Select(n =>
         {
@@ -94,13 +126,23 @@ public static class MidiNotation
         var near = reaching.Where(r => r.Next - r.Note.Off <= (r.Note.Off - r.Note.On) / 5).ToList();
         var offPlace = near.Where(r => r.Note.Off % 120 is > 2 and < 118 && r.Note.Off % 160 is > 2 and < 158);
         var shares = offPlace.Select(r => (r.Note.Off - r.Note.On) / (double)(r.Next - r.Note.On)).Where(share => share < 0.99).Order().ToList();
+        // The notes the file plays staccato, at their written length: a staccato dot is in their sound, not in a MIDI file.
+        var staccato = new HashSet<TickNote>();
         if (shares.Count >= 3 && shares.Count * 50 >= near.Count)
         {
             var share = shares[shares.Count / 2];
+            var touch = StaccatoShare(reaching, share, shares, near.Count);
             heard = [.. reaching.Select(r =>
             {
                 var (n, next) = r;
                 var held = n.Off - n.On;
+                if (touch is { } t && Staccato(held, next - n.On, share, t) is { } value)
+                {
+                    var dotted = n with { Off = n.On + value };
+                    staccato.Add(dotted);
+                    return dotted;
+                }
+
                 var full = n.On + held / share;
                 var last = Math.Min(next, n.Off + held / 5);
                 var first = (n.Off / Ticks.Eighth + 1) * Ticks.Eighth;
@@ -126,6 +168,7 @@ public static class MidiNotation
         long Snap(int staff, long tick) => tick / Ticks.Quarter * Ticks.Quarter + (long)Math.Round(tick % Ticks.Quarter / (double)GridAt(staff, tick), MidpointRounding.AwayFromZero) * GridAt(staff, tick);
         var notes = heard.Select(n => (Staff: StaffOf(n), n.Midi, n.On, n.Off)).Select(n => n with { On = Snap(n.Staff, n.On), Off = Snap(n.Staff, n.Off) })
             .Select(n => n with { Off = Math.Max(n.Off, n.On + GridAt(n.Staff, n.On)) }).ToList();
+        var dots = staccato.Select(n => (Staff: StaffOf(n), n.Midi, On: Snap(StaffOf(n), n.On))).ToHashSet();
 
         // The bars, from the time signatures: one that falls inside a bar starts at the next. A first bar in a time signature of
         // its own, shorter than the next one's and used by no other bar, is a pickup to it, as notation software writes one (a
@@ -195,7 +238,7 @@ public static class MidiNotation
             List<Chord>[] voices = [[], []];
             foreach (var group in own.GroupBy(n => (n.On, n.Off)).OrderBy(g => g.Key.On).ThenByDescending(g => g.Max(n => n.Midi)))
             {
-                var chord = new Chord(group.Key.On, group.Key.Off, [.. group.Select(n => n.Midi).Distinct().OrderDescending()]);
+                var chord = new Chord(group.Key.On, group.Key.Off, [.. group.Select(n => n.Midi).Distinct().OrderDescending()], group.All(n => dots.Contains((staff, n.Midi, n.On))));
                 var free = Array.FindIndex(voices, v => v.Count == 0 || v[^1].Off <= chord.On);
                 if (free >= 0)
                 {
@@ -205,7 +248,7 @@ public static class MidiNotation
 
                 var busy = voices[0][^1].Off <= voices[1][^1].Off ? 0 : 1;
                 var held = voices[busy][^1];
-                if (held.On == chord.On) voices[busy][^1] = held with { Off = Math.Min(held.Off, chord.Off), Keys = [.. held.Keys.Union(chord.Keys).OrderDescending()] };
+                if (held.On == chord.On) voices[busy][^1] = held with { Off = Math.Min(held.Off, chord.Off), Keys = [.. held.Keys.Union(chord.Keys).OrderDescending()], Staccato = held.Staccato && chord.Staccato };
                 else
                 {
                     voices[busy][^1] = held with { Off = chord.On };
@@ -225,6 +268,30 @@ public static class MidiNotation
             if (layer < 0) layer = Array.FindIndex(voices, v => v.Any(c => c.On == on));
             if (layer >= 0) gracesBefore[(staff, layer, on)] = [.. group.Select(g => g.Midi).Distinct().OrderDescending()];
         }
+
+        // How each hand is printed, chord by chord: its clef, and an octave line over it or not (Printing says how that's chosen).
+        // A clef changes on a beat, at a barline or where the first voice strikes a chord, so its sign goes in that voice, before
+        // that chord; never while a note of the hand sounds on through it (which would go on in the other clef). One the hand
+        // starts in goes at the very start.
+        var barStarts = bars.Select(b => b.Start).ToHashSet();
+        bool OnBeat(long tick) => bars.FindLast(b => b.Start <= tick) is var (start, meter) && (tick - start) % meter.BeatTicks == 0;
+        var printing = new Dictionary<int, Dictionary<long, Way>>();
+        var clefTurns = new Dictionary<int, List<(long Tick, Clef Clef)>>();
+        foreach (var staff in new[] { 1, 2 })
+        {
+            var struck = voicesOf[staff][0].Select(c => c.On).ToHashSet();
+            var all = voicesOf[staff].SelectMany(v => v).ToList();
+            // What a clef change costs at a tick beyond the change itself: nothing on a beat or at a barline, a little more off the
+            // beat; null where it can't be.
+            double? Turn(long tick) => all.Any(c => c.On < tick && c.Off > tick) ? null : barStarts.Contains(tick) || struck.Contains(tick) && OnBeat(tick) ? 0 : struck.Contains(tick) ? OffBeat : null;
+            var chords = all.GroupBy(c => c.On).OrderBy(g => g.Key)
+                .Select(g => (On: g.Key, Steps: g.SelectMany(c => c.Keys).Distinct().Select(k => KeyAt(g.Key).Spell(k).Diatonic).ToList(), Turn: Turn(g.Key))).ToList();
+            var ways = Printing(staff == 1 ? RightHand : LeftHand, chords);
+            printing[staff] = chords.Select((c, i) => (c.On, Way: ways[i])).ToDictionary(c => c.On, c => c.Way);
+            var home = staff == 1 ? Clef.Treble : Clef.Bass;
+            clefTurns[staff] = [.. chords.Select((c, i) => (Tick: i == 0 ? 0 : c.On, ways[i].Clef, Before: i == 0 ? home : ways[i - 1].Clef)).Where(t => t.Clef != t.Before).Select(t => (t.Tick, t.Clef))];
+        }
+        int OttavaAt(int staff, long on) => printing[staff].TryGetValue(on, out var way) ? way.Ottava : 0;
 
         // Bar by bar: each voice's chords clipped to the bar and rests between them (hidden in the second voice), each split into
         // values that can be written, and tied where a note goes on.
@@ -300,7 +367,7 @@ public static class MidiNotation
                         {
                             var id = $"n{++count}";
                             var tuplet = pieces[0].Tuplet is { } running && events.Count > 0 && ReferenceEquals(events[^1].Tuplet, running) ? running : null;
-                            var tones = small.Select((k, j) => new Tone(small.Count == 1 ? id : $"{id}-{j}", key.Spell(k)));
+                            var tones = small.Select((k, j) => new Tone(small.Count == 1 ? id : $"{id}-{j}", key.Spell(k)) { Ottava = OttavaAt(staff, chord.On) });
                             events.Add(new Notes(id, from, Ticks.Eighth * (tuplet?.Normal ?? 1) / (tuplet?.Actual ?? 1), [.. tones]) { Grace = true, Tuplet = tuplet });
                         }
 
@@ -309,10 +376,23 @@ public static class MidiNotation
                             var id = $"n{++count}";
                             var tiedIn = p > 0 || chord.On < barStart;
                             var tiedOn = p < pieces.Count - 1 || chord.Off > barEnd;
-                            var tones = chord.Keys.Select((k, j) => new Tone(chord.Keys.Count == 1 ? id : $"{id}-{j}", key.Spell(k)) { TiedFromPrevious = tiedIn, TieToNext = tiedOn });
-                            events.Add(new Notes(id, pieces[p].Start, pieces[p].Length, [.. tones]) { Tuplet = pieces[p].Tuplet });
+                            var tones = chord.Keys.Select((k, j) => new Tone(chord.Keys.Count == 1 ? id : $"{id}-{j}", key.Spell(k)) { TiedFromPrevious = tiedIn, TieToNext = tiedOn, Ottava = OttavaAt(staff, chord.On) });
+                            // A staccato note's dot goes where it's struck.
+                            var touch = chord.Staccato && p == 0 && chord.On >= barStart ? Articulation.Staccato : Articulation.None;
+                            events.Add(new Notes(id, pieces[p].Start, pieces[p].Length, [.. tones]) { Tuplet = pieces[p].Tuplet, Articulation = touch });
                         }
                         position = to;
+                    }
+
+                    // The hand's clef changes in this bar, in its first voice: each before the first thing at or after it.
+                    if (layer == 0)
+                    {
+                        foreach (var (tick, clef) in clefTurns[staff].Where(t => t.Tick >= barStart && t.Tick < barEnd).Reverse())
+                        {
+                            var at = (int)(tick - barStart);
+                            var before = events.FindIndex(e => e.Start >= at);
+                            events.Insert(before < 0 ? events.Count : before, new ClefChange(at, clef));
+                        }
                     }
                     voices.Add(new Voice(staff, events, layer + 1));
                 }
@@ -385,6 +465,121 @@ public static class MidiNotation
         }
         return low;
     }
+
+    /// <summary>
+    /// How a hand's chords are printed, one way each (<see cref="Printed"/>), as engraved music prints a hand that stays far from
+    /// its staff for a while: the cheapest choice over the whole piece, where a note costs the square of its ledger lines past the
+    /// way's allowance, and what each way costs a note and to come to and leave. A single high note stays on ledger lines; a run
+    /// of them changes clef, or goes under an octave line. The clef changes only where a chord says it may, and off the beat
+    /// only at a cost of its own (a chord's Turn); an octave line can start and end at any chord, and costs its start and end
+    /// even at the piece's.
+    /// </summary>
+    private static List<Way> Printing(Printed[] ways, List<(long On, List<int> Steps, double? Turn)> chords)
+    {
+        double Cost(int way, List<int> steps)
+        {
+            var ((clef, ottava), perNote, _, above, below) = ways[way];
+            var cost = perNote * steps.Count;
+            foreach (var step in steps)
+            {
+                var lines = Ledger(step - 7 * ottava, clef);
+                var over = lines > above ? lines - above : lines < -below ? -below - lines : 0;
+                cost += over * over;
+            }
+            return cost;
+        }
+
+        var best = new double[ways.Length];
+        var back = new int[chords.Count][];
+        for (var i = 0; i < chords.Count; i++)
+        {
+            var next = new double[ways.Length];
+            back[i] = new int[ways.Length];
+            for (var k = 0; k < ways.Length; k++)
+            {
+                // A hand can start in its other clef as it starts in its own, with no sign to change; an octave line from the very
+                // first chord is a line all the same.
+                var (from, cost) = (k, i > 0 ? best[k] : ways[k].Way.Ottava != 0 ? ways[k].Change : 0);
+                for (var j = 0; i > 0 && j < ways.Length; j++)
+                {
+                    var turning = ways[j].Way.Clef != ways[k].Way.Clef;
+                    var change = best[j] + ways[j].Change + ways[k].Change + (turning ? chords[i].Turn ?? 0 : 0);
+                    if (j == k || turning && chords[i].Turn is null || change >= cost) continue;
+                    (from, cost) = (j, change);
+                }
+                next[k] = cost + Cost(k, chords[i].Steps);
+                back[i][k] = from;
+            }
+            best = next;
+        }
+
+        // And an octave line to the very last chord ends all the same.
+        var chosen = new List<Way>();
+        var at = Enumerable.Range(0, ways.Length).MinBy(k => best[k] + (ways[k].Way.Ottava != 0 ? ways[k].Change : 0));
+        for (var i = chords.Count - 1; i >= 0; i--)
+        {
+            chosen.Add(ways[at].Way);
+            at = back[i][at];
+        }
+        chosen.Reverse();
+        return chosen;
+    }
+
+    // The ledger lines a note needs on a clef's staff, by its place (Spelled.Diatonic): above it, or below it as a negative.
+    private static int Ledger(int step, Clef clef)
+    {
+        var (bottom, top) = clef == Clef.Treble ? (30, 38) : (18, 26);
+        return step < bottom ? -((bottom - step) / 2) : step > top ? (step - top) / 2 : 0;
+    }
+
+    /// <summary>
+    /// The share of its value a file plays a staccato note for, when it plays them so; null when it doesn't. Only a file from
+    /// notation software does: one that lets its other notes go early by a single share, no more than 0.97 (at least half of the
+    /// notes its hands go straight on from are let go by a share, three in four of those within 0.02 of it: a performance's are
+    /// all over), and plays some well short of it, under three quarters of the way to their hand's next note and more than 3% off
+    /// any value let go by that share (a quarter or longer held in full before a rest is tied or legato, and left out). Of those,
+    /// three in four must be a value, a dotted quarter at most, at or before their hand's next note held for one share of it,
+    /// give or take 3%: that's the staccato share, a quarter to six tenths of the value (and seven tenths of the other share at
+    /// most). MuseScore's is half, less a tick (59 ticks of a 120-tick sixteenth), and LilyPond's articulated MIDI's half, with
+    /// seven eighths for the rest. A file that holds its notes in full (LilyPond's plain MIDI) has no such share, so its short
+    /// notes and rests stay as they are.
+    /// </summary>
+    private static double? StaccatoShare(List<(TickNote Note, long Next)> reaching, double share, List<double> shares, int goingOn)
+    {
+        if (share > 0.97 || shares.Count * 2 < goingOn || shares.Count(s => Math.Abs(s - share) <= 0.02) * 4 < shares.Count * 3) return null;
+
+        // A quarter or longer held in full before a rest is a tied or legato note, not a staccato one.
+        static bool HeldInFull(long held, long gap) => Written.Any(v => v >= Ticks.Quarter && v - 2 <= gap && Math.Abs(held - v) <= Math.Max(1, v / 200));
+        var detached = reaching.Select(r => (Held: r.Note.Off - r.Note.On, Gap: r.Next - r.Note.On))
+            .Where(c => c.Held < c.Gap * share * 0.75 && Nearest(c.Held, share, c.Gap).Misfit > 0.03 && !HeldInFull(c.Held, c.Gap)).ToList();
+        if (detached.Count == 0) return null;
+
+        // The share, in half percents from a quarter to six tenths, that the most of them fit; then the middle one of their own.
+        var (best, fits) = Enumerable.Range(50, 71).Select(i => i / 200.0).Where(t => t <= share * 0.7)
+            .Select(t => (Share: t, Fits: detached.Count(c => Nearest(c.Held, t, Math.Min(c.Gap, LongestStaccato)).Misfit <= 0.03))).DefaultIfEmpty((Share: 0.0, Fits: 0)).MaxBy(f => f.Fits);
+        if (fits == 0 || fits * 4 < detached.Count * 3) return null;
+
+        var own = detached.Select(c => (c.Held, Fit: Nearest(c.Held, best, Math.Min(c.Gap, LongestStaccato)))).Where(c => c.Fit.Misfit <= 0.03).Select(c => c.Held / (double)c.Fit.Value).Order().ToList();
+        return own[own.Count / 2];
+    }
+
+    /// <summary>
+    /// The value a note is written at with a staccato dot, when the file plays it staccato: well short of its hand's next note,
+    /// held for the file's staccato share of a value at or before that note (give or take 3%), a dotted quarter at most, and twice
+    /// as near that as any value let go by the file's other share. Null for any other note.
+    /// </summary>
+    private static int? Staccato(long held, long gap, double share, double touch)
+    {
+        if (held >= gap * share * 0.75) return null;
+
+        var (value, misfit) = Nearest(held, touch, Math.Min(gap, LongestStaccato));
+        return misfit <= 0.03 && misfit * 2 < Nearest(held, share, gap).Misfit ? value : null;
+    }
+
+    // The value, at most a gap long (give or take two ticks), that a note held for some ticks is nearest to being held a share of,
+    // and how far off it is, as a share of the time held.
+    private static (int Value, double Misfit) Nearest(long held, double share, long gap) =>
+        Written.Where(v => v - 2 <= gap).Select(v => (Value: v, Misfit: Math.Abs(held - share * v) / held)).DefaultIfEmpty((Value: 0, Misfit: double.MaxValue)).MinBy(f => f.Misfit);
 
     // Whether a tick is on a sixteenth's or a triplet eighth's place in its beat, give or take two.
     private static bool OnPlace(long tick) => tick % 120 is <= 2 or >= 118 || tick % 160 is <= 2 or >= 158;

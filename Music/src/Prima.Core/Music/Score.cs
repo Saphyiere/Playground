@@ -497,6 +497,9 @@ public sealed record ExpectedNote(string Id, int Midi, int Bar, int Staff, long 
     /// <summary>What its articulation asks: short (staccato), a stress (an accent), or held its whole length (tenuto).</summary>
     public Articulation Articulation { get; init; }
 
+    /// <summary>How long the piano holds it when Prima plays it (Listen, a part played along): a staccato note half its length.</summary>
+    public int Sounds => Articulation == Articulation.Staccato ? Length / 2 : Length;
+
     /// <summary>The slur it's under, by the id of the slur's first note (a pass's own, played again), so its notes are joined.</summary>
     public string? Slur { get; init; }
 

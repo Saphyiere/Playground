@@ -484,7 +484,8 @@
         double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
         bar = music.Score.Bars[bars[0].Index].Number;
         var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
-        IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. timed, .. music.PianoPart ?? []] : music.PianoPart;
+        // The piano holds a staccato note half its length.
+        IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. music.Notes.Select(n => (n.Midi, Beat(n), n.Sounds / (double)music.BeatTicks)), .. music.PianoPart ?? []] : music.PianoPart;
         var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
         var completion = savedCompletion;
         run.Changed += () => _ = InvokeAsync(async () =>

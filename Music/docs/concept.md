@@ -605,7 +605,21 @@ a PDF plays out; this is what came of it.
   2/4, two beats of 2/4 before the 4/4), is a pickup, so the bars are numbered as printed. Notation software lets each note
   go a little before its written end (a file from MuseScore holds each for 95% of its length), so where a file's notes stop a
   little short of the next, each is written at its full length: a half note is a half note, not a dotted quarter tied to a
-  scrap with a rest after it. A staccato note stays as short as it sounds, with its rest, and a written rest stays. One
+  scrap with a rest after it. A written rest stays. Such a file plays a staccato note for a share of its value of its own,
+  about half (MuseScore's is half, less a tick; LilyPond's articulated MIDI's half, its other notes seven eighths): where three
+  in four of a file's notes let go well short fit one such share, each of them is written at its value, up to a dotted quarter,
+  with a staccato dot and no rest after it. A sixteenth held 59 ticks of 120 is a staccato sixteenth, not a thirty-second and a
+  thirty-second rest, while a thirty-second let go at 95% keeps its rest. A file that holds its notes in full (LilyPond's
+  plain MIDI) can't say which short notes are staccato, so its short notes and rests stay as they are, and so do a
+  performance's, whose notes are let go anywhere. Listen, a hand played along and Hear first play a staccato note for half its
+  length. A hand that stays far from its staff for a while is printed as an engraver would: the left hand in the treble clef
+  and back, the right hand in the bass clef, a right hand high above its staff (or a left hand above the treble's) under an
+  8va line, and a left hand far below its staff under an 8vb line; a note or two out stay on their ledger lines. How far and
+  for how long was fitted to how some 1,900 engraved piano scores in the library and the local collection print their hands
+  (research editions, MuseScore users', Humdrum's and ASAP's): of the notes two or more ledger lines from their staff, the
+  rule prints the right hand's as their engravers did 82% of the time and the left hand's 84%. A clef changes only at a
+  barline or where the hand's first voice strikes a chord, never while a note of the hand sounds on through it. The keys to
+  play are the same however a note is printed, and levels read the ledger lines as drawn. One
   exported from notation software comes out close to its score, less what a MIDI file can't hold: its repeats are written
   out, a trill is the notes it plays, and slurs and dynamics are gone, as are any lyrics it carries (a song's words come with
   its MusicXML). One recorded from playing comes out ragged, and a pickup written from the bar's start comes out as a full
@@ -1083,9 +1097,10 @@ a drop.
   Yamaha's MIDI references for the P-145 and P-125 (the P-225's couldn't be opened) and from how it failed; only the piano
   can confirm it, and whether a second voice set an octave away is sent as a different key.
 - **Sound from the piano.** Prima sends notes back to the piano over MIDI, so Duet, Hear first and Listen and play back play
-  through the piano itself, and so do a piece's Listen and play along. Each note goes out a fifth of a second ahead, its time
-  worked out then from the click's beats: the tablet's click knows when its beats really sound only once its audio timestamp
-  settles, a moment after it starts, so notes timed at the start came early by the speaker's delay.
+  through the piano itself, and so do a piece's Listen and play along, a staccato note held for half its length. Each note
+  goes out a fifth of a second ahead, its time worked out then from the click's beats: the tablet's click knows when its beats
+  really sound only once its audio timestamp settles, a moment after it starts, so notes timed at the start came early by the
+  speaker's delay.
 - **Latency** is calibrated once (play along to a click; the median offset is taken out). The piano's own notes are played that
   much after the beat, so they land where yours do: the piano's hand with yours in play along, Listen with the way you hear
   the beat. How much timing jitter the keyboard

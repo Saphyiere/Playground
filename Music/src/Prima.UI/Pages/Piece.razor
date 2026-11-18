@@ -1177,7 +1177,7 @@ else
         var beatZero = Math.Max(0, start);
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
         var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
-        var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Length))).ToList();
+        var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Sounds))).ToList();
         music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
     }
 

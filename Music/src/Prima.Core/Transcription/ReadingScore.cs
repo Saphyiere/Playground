@@ -270,49 +270,6 @@ public static class ReadingScore
             }
         }
 
-        // Tone already separates written and sounding octaves. Collect runs in each voice, then join overlapping runs on
-        // the same staff so parallel voices do not print duplicate octave lines. Endpoints are the first/last affected notes.
-        var octaveSpans = new List<OctaveSpan>();
-        var openOctaves = new Dictionary<(int Staff, int Voice), OctaveSpan>();
-        long position = 0;
-        foreach (var timed in score.WithSignatures())
-        {
-            foreach (var voice in timed.Bar.Voices)
-            {
-                var lane = (voice.Staff, voice.Layer);
-                foreach (var note in voice.Events.OfType<Notes>().OrderBy(n => n.Start))
-                {
-                    var shift = note.Tones[0].Ottava;
-                    if (openOctaves.TryGetValue(lane, out var prior) && prior.Shift != shift)
-                    {
-                        octaveSpans.Add(prior);
-                        openOctaves.Remove(lane);
-                    }
-                    if (shift == 0) continue;
-                    var id = note.Tones.Count == 1 ? note.Tones[0].Id : note.Id;
-                    var end = position + note.Start + (note.Grace ? 0 : note.Length);
-                    openOctaves[lane] = openOctaves.TryGetValue(lane, out prior)
-                        ? prior with { End = end, EndId = id }
-                        : new(voice.Staff, shift, timed.Bar.Number, position + note.Start, end, id, id);
-                }
-            }
-            position += timed.Bar.Length ?? timed.Meter.BarTicks;
-        }
-        octaveSpans.AddRange(openOctaves.Values);
-        foreach (var group in octaveSpans.GroupBy(s => (s.Staff, s.Shift)))
-        {
-            var joined = new List<OctaveSpan>();
-            foreach (var span in group.OrderBy(s => s.Start).ThenBy(s => s.End))
-            {
-                if (joined.Count == 0 || span.Start > joined[^1].End) joined.Add(span);
-                else if (span.End >= joined[^1].End) joined[^1] = joined[^1] with { End = span.End, EndId = span.EndId };
-            }
-            foreach (var span in joined)
-                measures[span.Bar].Add(new XElement(ns + "octave", new XAttribute("staff", span.Staff),
-                    new XAttribute("dis", Math.Abs(span.Shift) == 2 ? "15" : "8"), new XAttribute("dis.place", span.Shift > 0 ? "above" : "below"),
-                    new XAttribute("startid", "#" + span.StartId), new XAttribute("endid", "#" + span.EndId)));
-        }
-
         // Pedal marks go under the lowest staff, as printed music has them, by the beat when their note is on another.
         var lowest = score.Bars.SelectMany(b => b.Voices).Select(v => v.Staff).DefaultIfEmpty(1).Max();
         var marks = score.FileMarks;
@@ -351,6 +308,4 @@ public static class ReadingScore
         }
         return mei.ToString(SaveOptions.DisableFormatting);
     }
-
-    private sealed record OctaveSpan(int Staff, int Shift, int Bar, long Start, long End, string StartId, string EndId);
 }

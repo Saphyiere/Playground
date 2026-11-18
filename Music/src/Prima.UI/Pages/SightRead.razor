@@ -455,7 +455,7 @@
         return $"{keys}, in {string.Join(", ", spec.Meters)}, {hands}, at {spec.Tempo.Min:0} to {spec.TopTempo:0} a minute.";
     }
 
-    private IReadOnlyList<(int Midi, double Beat, double Beats)> Beats(IReadOnlyList<ExpectedNote> notes) => [.. notes.Select(n => (n.Midi, n.Tick / BeatTicks, n.Length / BeatTicks))];
+    private IReadOnlyList<(int Midi, double Beat, double Beats)> Beats(IReadOnlyList<ExpectedNote> notes) => [.. notes.Select(n => (n.Midi, n.Tick / BeatTicks, n.Sounds / BeatTicks))];
 
     // At one-hand levels the piano plays a bass note a bar: the tonic, or the dominant where the bar leans on it.
     private IReadOnlyList<(int Midi, double Beat, double Beats)> Accompaniment()

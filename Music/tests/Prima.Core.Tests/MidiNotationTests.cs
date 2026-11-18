@@ -402,7 +402,7 @@ public class MidiNotationTests
     }
 
     [Fact]
-    public void AStaccatoNoteAndAWrittenRestStayAmongNotesLetGoEarly()
+    public void AStaccatoNoteIsWrittenWholeWithADotAndAWrittenRestStaysAmongNotesLetGoEarly()
     {
         // Held for 95%: a quarter, a staccato quarter (half its length), a dotted eighth before a sixteenth rest, a quarter; then
         // two quarters and a half.
@@ -410,9 +410,79 @@ public class MidiNotationTests
 
         var score = MidiNotation.Read(file, "Detached");
 
-        Assert.Equal([(72, 0L, 480), (72, 480L, 240), (72, 960L, 360), (72, 1440L, 480), (72, 2880L, 960), (74, 1920L, 480), (76, 2400L, 480)], Sounding(score));
-        Assert.Equal([(720, 240), (1320, 120)], score.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Rest>().Select(r => (r.Start, r.Length)));
+        Assert.Equal([(72, 0L, 480), (72, 480L, 480), (72, 960L, 360), (72, 1440L, 480), (72, 2880L, 960), (74, 1920L, 480), (76, 2400L, 480)], Sounding(score));
+        var treble = score.Bars[0].Voices.Single(v => v.Staff == 1).Events;
+        Assert.Equal([Articulation.None, Articulation.Staccato, Articulation.None, Articulation.None], treble.OfType<Notes>().Select(n => n.Articulation));
+        // The staccato quarter has no rest after it; the dotted eighth keeps its sixteenth rest.
+        Assert.Equal([(1320, 120)], treble.OfType<Rest>().Select(r => (r.Start, r.Length)));
         Assert.DoesNotContain(score.Bars[1].Voices.Single(v => v.Staff == 1).Events, e => e is Rest);
+        // Played short all the same: lifted when judged, and half its length when Prima plays it.
+        var dotted = score.Expected().Single(n => n.Tick == 480);
+        Assert.True(dotted.Lifted);
+        Assert.Equal(240, dotted.Sounds);
+    }
+
+    // MuseScore's MIDI of a bar of 6/8: the left hand's four staccato sixteenths (each held 59 ticks of 120), a staccato sixteenth
+    // with rests after it, and three eighths let go at 95%, less a tick; the right hand's two sixteenths and an eighth let go the
+    // same way, a thirty-second note with a thirty-second rest after it (56 ticks, then 64 of silence), a sixteenth and a dotted
+    // quarter.
+    private static byte[] MuseScoreBar() => File(480,
+        [Meter(6, 3), .. Notes((72, 0, 113), (74, 120, 233), (76, 240, 467), (77, 480, 536), (79, 600, 713), (81, 720, 1403))],
+        [.. Notes((50, 0, 59), (62, 120, 179), (65, 240, 299), (62, 360, 419), (53, 480, 539), (57, 720, 947), (60, 960, 1187), (64, 1200, 1427))]);
+
+    [Fact]
+    public void MuseScoresStaccatoSixteenthsAreSixteenthsWithDotsNotThirtySecondsAndRests()
+    {
+        var score = MidiNotation.Read(MuseScoreBar(), "Staccato");
+
+        var bass = score.Bars[0].Voices.Single(v => v.Staff == 2).Events;
+        // Five staccato sixteenths, the last with a sixteenth rest after it, then three eighths.
+        Assert.Equal([(0, 120, true), (120, 120, true), (240, 120, true), (360, 120, true), (480, 120, true), (720, 240, false), (960, 240, false), (1200, 240, false)],
+            bass.OfType<Notes>().Select(n => (n.Start, n.Length, n.Articulation == Articulation.Staccato)));
+        Assert.Equal([(600, 120)], bass.OfType<Rest>().Select(r => (r.Start, r.Length)));
+        // The real thirty-second keeps its rest, and nothing in the right hand is staccato.
+        var treble = score.Bars[0].Voices.Single(v => v.Staff == 1).Events;
+        Assert.Contains(treble.OfType<Notes>(), n => n.Start == 480 && n.Length == 60 && n.Articulation == Articulation.None);
+        Assert.Equal([(540, 60)], treble.OfType<Rest>().Select(r => (r.Start, r.Length)));
+        Assert.DoesNotContain(treble.OfType<Notes>(), n => n.Articulation == Articulation.Staccato);
+    }
+
+    [Fact]
+    public void TheStaccatoDotIsKeptInTheWrittenNotation()
+    {
+        // As a piece is kept: written out as MEI, then read back.
+        var reread = MeiReader.Read(MidiNotation.Mei(MuseScoreBar(), "Staccato"));
+
+        var bass = reread.Expected().Where(n => n.Staff == 2).ToList();
+        Assert.Equal([true, true, true, true, true, false, false, false], bass.Select(n => n.Articulation == Articulation.Staccato));
+        Assert.All(bass.Take(5), n => Assert.Equal((120, 60, true), (n.Length, n.Sounds, n.Lifted)));
+    }
+
+    [Fact]
+    public void AFileThatHoldsItsNotesInFullKeepsItsShortNotesAndRestsWithoutDots()
+    {
+        // LilyPond's plain MIDI: every note held in full, the left hand an eighth and an eighth rest to each beat.
+        var file = File(480, [Meter(4, 2), .. Notes((72, 0, 480), (74, 480, 960), (76, 960, 1440), (77, 1440, 1920))],
+            [.. Notes((48, 0, 240), (55, 480, 720), (52, 960, 1200), (55, 1440, 1680))]);
+
+        var score = MidiNotation.Read(file, "Held");
+
+        var bass = score.Bars[0].Voices.Single(v => v.Staff == 2).Events;
+        Assert.All(bass.OfType<Notes>(), n => Assert.Equal((240, Articulation.None), (n.Length, n.Articulation)));
+        Assert.Equal(4, bass.OfType<Rest>().Count(r => r.Length == 240));
+    }
+
+    [Fact]
+    public void APerformanceGetsNoStaccatoDots()
+    {
+        // The same bar played: each note let go anywhere from a third to all of the way to the next.
+        var file = File(480,
+            [Meter(6, 3), .. Notes((72, 4, 101), (74, 117, 228), (76, 243, 452), (77, 478, 530), (79, 606, 1220))],
+            [.. Notes((50, 3, 52), (62, 118, 192), (65, 236, 330), (62, 365, 401), (53, 477, 570), (57, 724, 880), (60, 955, 1130), (64, 1204, 1390))]);
+
+        var score = MidiNotation.Read(file, "Played");
+
+        Assert.DoesNotContain(score.Bars.SelectMany(b => b.Voices).SelectMany(v => v.Events).OfType<Notes>(), n => n.Articulation == Articulation.Staccato);
     }
 
     [Fact]
@@ -463,6 +533,121 @@ public class MidiNotationTests
 
         Assert.Equal("Bourrée", MidiNotation.Read(lilypond, "Bourrée").Title);
         Assert.Equal("Bourrée", MidiNotation.Read(named, "Bourrée").Title);
+    }
+
+    // Quarters for a hand, one after another from a tick, each held in full.
+    private static (int Key, long On, long Off)[] Quarters(long from, params int[] keys) => [.. keys.Select((k, i) => (k, from + i * 480L, from + i * 480L + 480))];
+
+    // Where each staff's clef changes (its first voice's ClefChange events), as (bar index, start, clef).
+    private static List<(int Bar, int Start, Clef Clef)> Clefs(Score score, int staff) =>
+        [.. score.Bars.SelectMany((b, i) => b.Voices.Where(v => v.Staff == staff && v.Layer == 1).SelectMany(v => v.Events.OfType<ClefChange>().Select(c => (i, c.Start, c.Clef))))];
+
+    [Fact]
+    public void ALeftHandThatStaysHighForAWhileGoesToTheTrebleClefAndBack()
+    {
+        // The right hand's quarters over four bars; the left hand's first bar on the bass staff, then a bar and a half around A4 and
+        // C5 (four and five ledger lines above it), then down again.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 77, 79, 81, 79, 77, 76, 74, 72, 74, 76, 77, 79, 77, 76, 74))],
+            [.. Notes(Quarters(0, 48, 52, 55, 52, 69, 72, 71, 69, 67, 69, 55, 52, 48, 43, 48, 43))]);
+
+        var score = MidiNotation.Read(file, "High left hand");
+
+        Assert.Equal([(1, 0, Clef.Treble), (2, 960, Clef.Bass)], Clefs(score, 2));
+        Assert.Empty(Clefs(score, 1));
+        // The keys to play are the same; nothing goes under an octave line.
+        Assert.Equal([48, 52, 55, 52, 69, 72, 71, 69, 67, 69, 55, 52, 48, 43, 48, 43], score.Expected().Where(n => n.Staff == 2).Select(n => n.Midi));
+        Assert.All(score.Bars.SelectMany(b => b.Voices).SelectMany(v => v.Events).OfType<Notes>().SelectMany(n => n.Tones), t => Assert.Equal(0, t.Ottava));
+    }
+
+    [Fact]
+    public void AHandThatGoesHighOnceStaysOnItsLedgerLines()
+    {
+        // The left hand reaches E4, two ledger lines up, once, and A4, four, once: neither is worth a clef.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 77, 79, 81, 79, 77, 76, 74))], [.. Notes(Quarters(0, 48, 52, 64, 52, 48, 55, 69, 55))]);
+
+        var score = MidiNotation.Read(file, "Reaching");
+
+        Assert.Empty(Clefs(score, 2));
+    }
+
+    [Fact]
+    public void ARightHandRunningHighGoesUnderAnOctaveLineAndPlaysTheSameKeys()
+    {
+        // The right hand climbs to A6, then two bars around C7 and E7 (five and six ledger lines), then comes down.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 81, 84, 88, 96, 100, 98, 96, 100, 98, 96, 93, 84, 81, 79, 76))],
+            [.. Notes(Quarters(0, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52))]);
+
+        var score = MidiNotation.Read(file, "High");
+
+        var right = score.Bars.SelectMany(b => b.Voices.Where(v => v.Staff == 1)).SelectMany(v => v.Events.OfType<Notes>()).Select(n => n.Tones[0]).ToList();
+        // Under the line from C7 to the last high note (E6 before it may go either way); E5 to C6, and A5 down, on the staff.
+        Assert.All(right.Skip(4).Take(8), t => Assert.Equal(1, t.Ottava));
+        Assert.All(right.Take(3).Concat(right.Skip(12)), t => Assert.Equal(0, t.Ottava));
+        // Printed an octave below what it plays: C7 is written C6, and played as C7.
+        Assert.Equal((new Spelled(Step.C, 0, 6), 96), (right[4].Written, right[4].Pitch.Midi));
+        Assert.Equal([76, 81, 84, 88, 96, 100, 98, 96, 100, 98, 96, 93, 84, 81, 79, 76], score.Expected().Where(n => n.Staff == 1).Select(n => n.Midi));
+        Assert.Empty(Clefs(score, 1));
+
+        // The notation draws one 8va line over them, the notes printed in their written octave and played in the one they sound.
+        System.Xml.Linq.XNamespace ns = "http://www.music-encoding.org/ns/mei";
+        var mei = MidiNotation.Mei(file, "High");
+        var line = Assert.Single(System.Xml.Linq.XDocument.Parse(mei).Descendants(ns + "octave"));
+        Assert.Equal(("8", "above"), ((string?)line.Attribute("dis"), (string?)line.Attribute("dis.place")));
+        var reread = MeiReader.Read(mei);
+        Assert.Equal(score.Expected().Select(n => (n.Midi, n.Tick, n.Length)), reread.Expected().Select(n => (n.Midi, n.Tick, n.Length)));
+    }
+
+    [Fact]
+    public void ARightHandLowForAWhileGoesToTheBassClefAndBack()
+    {
+        // The right hand comes down to a bar around E3 and C3 (three and four ledger lines below the treble staff), then goes
+        // back up to its staff for two bars.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 72, 67, 64, 60, 52, 48, 50, 52, 72, 76, 79, 77, 76, 74, 72, 71))],
+            [.. Notes(Quarters(0, 36, 40, 43, 40, 36, 31, 33, 36, 36, 40, 43, 48, 36, 40, 43, 48))]);
+
+        var score = MidiNotation.Read(file, "Low right hand");
+
+        Assert.Equal([(1, 0, Clef.Bass), (2, 0, Clef.Treble)], Clefs(score, 1));
+    }
+
+    [Fact]
+    public void AClefDoesntChangeWhileANoteOfTheHandSoundsOnThroughIt()
+    {
+        // The left hand's first bar on its staff; then it holds C3 for two bars in one voice while the other climbs to A4 and C5
+        // from the second beat. A clef may change where the C3 starts, but not at a beat or barline it sounds through.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 77, 79, 81, 79, 77, 76, 74, 72, 74, 76, 77))],
+            [.. Notes(Quarters(0, 48, 52, 55, 52)), .. Notes((48, 1920, 5760), (52, 2400, 2880), (69, 2880, 3360), (72, 3360, 3840), (71, 3840, 4320), (69, 4320, 4800), (72, 4800, 5280), (69, 5280, 5760))]);
+
+        var score = MidiNotation.Read(file, "Held under");
+
+        var starts = score.BarStarts().ToList();
+        var held = score.Expected().Single(n => n.Staff == 2 && n.Midi == 48 && n.Bar == 2);
+        Assert.All(Clefs(score, 2), c => Assert.False(starts[c.Bar].Start + c.Start > held.Tick && starts[c.Bar].Start + c.Start < held.Tick + held.Length));
+    }
+
+    [Fact]
+    public void LevelsGradeLedgerLinesAsDrawn()
+    {
+        // As in the octave line's test: notes five and six ledger lines up, printed under an 8va line, two and three.
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 81, 84, 88, 96, 100, 98, 96, 100, 98, 96, 93, 84, 81, 79, 76))],
+            [.. Notes(Quarters(0, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52))]);
+
+        var grade = Grader.Grade(MidiNotation.Read(file, "High"));
+
+        Assert.DoesNotContain(grade.Reasons, r => r.EndsWith("ledger lines", StringComparison.Ordinal) && int.Parse(r.Split(' ')[0]) > 3);
+    }
+
+    [Fact]
+    public void AnExcerptUnderAnOctaveLineDrawsTheLine()
+    {
+        var file = File(480, [Meter(4, 2), .. Notes(Quarters(0, 76, 81, 84, 88, 96, 100, 98, 96, 100, 98, 96, 93, 84, 81, 79, 76))],
+            [.. Notes(Quarters(0, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52, 48, 52, 55, 52))]);
+
+        // Bar 2 by itself, as Sight-read and the day's passages write a stretch of a piece.
+        var mei = MeiWriter.Write(MidiNotation.Read(file, "High").Excerpt(2, 2));
+
+        System.Xml.Linq.XNamespace ns = "http://www.music-encoding.org/ns/mei";
+        Assert.Single(System.Xml.Linq.XDocument.Parse(mei).Descendants(ns + "octave"));
     }
 
     [Fact]

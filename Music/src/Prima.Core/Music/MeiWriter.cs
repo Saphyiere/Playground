@@ -6,8 +6,8 @@ namespace Prima.Core.Music;
 /// <summary>
 /// Writes a score as MEI for Verovio to engrave: the grand staff (or one rhythm line), every note, chord, rest and bar with its id,
 /// beams by the beat, tuplets, ties, accidentals as a printed score shows them (the key signature's and those earlier in the bar
-/// aren't repeated), notes under an octave line where they're printed with the octave they sound in, and the printed marks. No
-/// XML declaration: Verovio reads the text as it is.
+/// aren't repeated), notes under an octave line where they're printed with the octave they sound in, and the line over them, and
+/// the printed marks. No XML declaration: Verovio reads the text as it is.
 /// </summary>
 public static class MeiWriter
 {
@@ -51,6 +51,7 @@ public static class MeiWriter
             xml.WriteEndElement();
 
             xml.WriteStartElement("section", Ns);
+            var octaves = OctaveLines(score);
             var staffOf = score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.SelectMany(e => Ids(e).Select(id => (id, v.Staff))))).ToDictionary(p => p.id, p => p.Staff);
             var barOf = score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.SelectMany(Ids)).Select(id => (id, b.Number))).ToDictionary(p => p.id, p => p.Number);
             var signatures = score.WithSignatures().ToList();
@@ -98,6 +99,16 @@ public static class MeiWriter
                 }
 
                 foreach (var mark in score.Marks.Where(m => barOf.GetValueOrDefault(m.StartId, -1) == bar.Number)) WriteMark(xml, mark, staffOf.GetValueOrDefault(mark.StartId, 1));
+                foreach (var line in octaves.Where(l => l.Bar == bar.Number))
+                {
+                    xml.WriteStartElement("octave", Ns);
+                    xml.WriteAttributeString("staff", line.Staff.ToString(CultureInfo.InvariantCulture));
+                    xml.WriteAttributeString("dis", Math.Abs(line.Shift) == 2 ? "15" : "8");
+                    xml.WriteAttributeString("dis.place", line.Shift > 0 ? "above" : "below");
+                    xml.WriteAttributeString("startid", "#" + line.StartId);
+                    xml.WriteAttributeString("endid", "#" + line.EndId);
+                    xml.WriteEndElement();
+                }
                 // Its tempos (a MIDI file's own), unprinted, for what it goes at: each at its beat, as MeiReader reads them back.
                 foreach (var (start, perMinute) in bar.Tempos)
                 {
@@ -118,6 +129,58 @@ public static class MeiWriter
             xml.WriteEndElement();
         }
         return text.ToString();
+    }
+
+    private sealed record OctaveLine(int Staff, int Shift, int Bar, long Start, long End, string StartId, string EndId);
+
+    /// <summary>
+    /// The octave lines over notes printed an octave or two from where they sound (<see cref="Tone.Ottava"/>), so a piece, and any
+    /// stretch of it, shows them wherever its notes are: each voice's run of notes shifted alike, through its rests, from its first
+    /// note to its last; runs on one staff that overlap are one line, so two voices don't print two. A run whose first note an
+    /// <see cref="MarkKind.OctaveUp"/> mark starts on is the mark's to draw.
+    /// </summary>
+    private static List<OctaveLine> OctaveLines(Score score)
+    {
+        var runs = new List<OctaveLine>();
+        var open = new Dictionary<(int Staff, int Layer), OctaveLine>();
+        var position = 0L;
+        foreach (var (bar, _, meter) in score.WithSignatures())
+        {
+            foreach (var voice in bar.Voices)
+            {
+                var lane = (voice.Staff, voice.Layer);
+                foreach (var note in voice.Events.OfType<Notes>().OrderBy(n => n.Start))
+                {
+                    var shift = note.Tones[0].Ottava;
+                    if (open.TryGetValue(lane, out var prior) && prior.Shift != shift)
+                    {
+                        runs.Add(prior);
+                        open.Remove(lane);
+                    }
+                    if (shift == 0) continue;
+
+                    var id = note.Tones.Count == 1 ? note.Tones[0].Id : note.Id;
+                    var end = position + note.Start + (note.Grace ? 0 : note.Length);
+                    open[lane] = open.TryGetValue(lane, out prior) ? prior with { End = end, EndId = id } : new(voice.Staff, shift, bar.Number, position + note.Start, end, id, id);
+                }
+            }
+            position += bar.Length ?? meter.BarTicks;
+        }
+        runs.AddRange(open.Values);
+
+        var marked = score.Marks.Where(m => m.Kind == MarkKind.OctaveUp).Select(m => m.StartId).ToHashSet();
+        var lines = new List<OctaveLine>();
+        foreach (var group in runs.Where(r => !marked.Contains(r.StartId)).GroupBy(r => (r.Staff, r.Shift)))
+        {
+            var joined = new List<OctaveLine>();
+            foreach (var run in group.OrderBy(r => r.Start).ThenBy(r => r.End))
+            {
+                if (joined.Count == 0 || run.Start > joined[^1].End) joined.Add(run);
+                else if (run.End >= joined[^1].End) joined[^1] = joined[^1] with { End = run.End, EndId = run.EndId };
+            }
+            lines.AddRange(joined);
+        }
+        return lines;
     }
 
     private static IEnumerable<string> Ids(Event e) => e switch

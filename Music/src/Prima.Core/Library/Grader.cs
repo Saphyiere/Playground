@@ -36,21 +36,21 @@ public static class Grader
         var barStart = 0L;
         foreach (var (bar, _, meter) in signatures)
         {
+            // A clef change (in a staff's first voice) holds from where it is in the bar, for every voice on the staff.
+            var changes = bar.Voices.Where(v => v.Layer == 1).SelectMany(v => v.Events.OfType<ClefChange>().Select(c => (v.Staff, c.Start, c.Clef))).ToList();
+            Clef ClefAt(int staff, int start) => changes.LastOrDefault(c => c.Staff == staff && c.Start <= start, (Staff: staff, Start: 0, Clef: clefs.GetValueOrDefault(staff, Clef.Treble))).Clef;
             foreach (var voice in bar.Voices.Where(v => keyed.Contains(v.Staff)))
             {
                 foreach (var e in voice.Events)
                 {
-                    if (e is ClefChange change)
-                    {
-                        if (voice.Layer == 1) clefs[voice.Staff] = change.Clef;
-                        Need(7, "clef changes");
-                    }
-                    else if (e is Notes n) notes.Add((barStart + n.Start, voice.Staff, clefs.GetValueOrDefault(voice.Staff, Clef.Treble), n, meter));
+                    if (e is ClefChange) Need(7, "clef changes");
+                    else if (e is Notes n) notes.Add((barStart + n.Start, voice.Staff, ClefAt(voice.Staff, n.Start), n, meter));
                     // A bar's rest for a hand that's silent is nothing to read; rests inside the music are.
                     else if (e is Rest { Hidden: false } rest && !(rest.Start == 0 && rest.Length >= (bar.Length ?? meter.BarTicks))) Need(RestLevel(rest.Length), $"{Name(rest.Length)} rests");
                     if (e.Tuplet is { } t) Need(t is { Actual: 3, Normal: 2 } ? 9 : 11, t.Actual == 3 ? "triplets" : $"{t.Actual}-tuplets");
                 }
             }
+            foreach (var (staff, _, clef) in changes.OrderBy(c => c.Start)) clefs[staff] = clef;
             barStart += bar.Length ?? meter.BarTicks;
         }
 
