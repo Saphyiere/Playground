@@ -240,7 +240,13 @@ a PDF plays out; this is what came of it.
   Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes until
   they're read (below), so it shows about where its collection sits.
 - **A piece** opens on its front: its music, About this piece under it, and on its bar its level and two big keys,
-  **Practice** and **Play** ([practice.md](practice.md) has the design). Only a tap presses them, never the piano's buttons,
+  **Practice** and **Play** ([practice.md](practice.md) has the design). While it opens (a long piece's engraving takes
+  seconds on the tablet), its head, its bar and About are there at once, and the paper waits with faint staves and a light
+  sweeping across them, which moves by transform alone so it keeps moving while the engraver has the page; a card on it says
+  what's happening ("Engraving its 543 bars…", a PDF's "Opening its pages…") with the way back, named for the list it goes
+  back to ("‹ Ludwig van Beethoven"), which is taken as soon as the engraver lets go of the page. A piece that opens at once
+  never shows it. Its music is engraved once, in the view it opens in (it used to be laid out as pages first, then again as
+  the scroll). Only a tap presses them, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
   read opens on its pages, as below.) In Practice its tools come first on the bar, after the level: **?** (What's this,
   below), **Options**, which shows the piece's options in place of the music (the view, a song's lyrics, the hands, play along, how much Practice tells you, whether a loop waits after each pass,

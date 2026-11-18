@@ -120,10 +120,14 @@ else
             <section class="reading-bar piece-bar piece-front-bar" aria-label="The piece">
                 <p class="piece-bar-title">@piece.Title</p>
                 <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
-                <div class="piece-actions">
-                    <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="StartPractice">Practice</button>
-                    <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="OpenPlay">Play</button>
-                </div>
+                @* Its keys once its music is read: the engraving after that is waited for by a tap, as by the piano. *@
+                @if (!loading)
+                {
+                    <div class="piece-actions">
+                        <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="StartPractice">Practice</button>
+                        <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="OpenPlay">Play</button>
+                    </div>
+                }
             </section>
         }
         else if (stage == Stage.LookBack && session is not null && review is not null && story is not null)
@@ -222,6 +226,25 @@ else
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
                 }
             </div>
+            @* While it opens: the paper waiting, faint staves with a light sweeping across them (it moves by transform alone, so it
+               keeps moving while the engraver has the page's thread), what's happening, and the way back. A tap on it is taken
+               between the engraver's steps, as the tablet's own back is. Shown only once opening takes more than a moment. *@
+            @if (Opening)
+            {
+                <div class="piece-opening" role="status">
+                    <div class="piece-opening-paper" aria-hidden="true">
+                        @for (var i = 0; i < 6; i++)
+                        {
+                            <span class="piece-opening-system"></span>
+                        }
+                        <span class="piece-opening-sweep"></span>
+                    </div>
+                    <div class="piece-opening-card">
+                        <p class="piece-opening-words">@OpeningWords()…</p>
+                        <button type="button" class="mu-btn" data-piano="off" @onclick="Leave">‹ @(Navigation.PreviousName ?? "Back")</button>
+                    </div>
+                </div>
+            }
             @if (options)
             {
                 <section class="piece-options" aria-label="Options">
@@ -531,6 +554,9 @@ else
 
     private PieceRecord? piece;
     private bool missing;
+    // The piece's music is still being read; then, until its sheet or pages are first drawn, it's still opening (Opening).
+    private bool loading = true;
+    private bool painted;
     private string? mei;
     private Score? score;
     // The piece is a song with words to show or hide (SongWords): its Options have the switch.
@@ -629,6 +655,9 @@ else
             return;
         }
 
+        // Its head, its bar and About show at once, the paper waiting with a mark that moves and the way back, while its music is
+        // read and drawn.
+        StateHasChanged();
         tempo = piece.Tempo ?? 72;
         if (piece.IsPdf)
         {
@@ -652,8 +681,10 @@ else
         }
 
         {
-            mei = await Store.GetMeiAsync(Id);
-            if (mei is { } text)
+            // The music is the piece's only once its view is known (below): the sheet is drawn once, in that view. Set first, it was
+            // drawn as pages while the rest was read, then again as the scroll, a long piece's engraving done twice over.
+            var text = await Store.GetMeiAsync(Id);
+            if (text is not null)
             {
                 // Read away from the screen's thread: a long piece takes a moment.
                 (score, lyrics) = await Task.Run(() => (MeiReader.Read(text), SongWords.Has(text)));
@@ -686,6 +717,7 @@ else
                     else (session, clock, counted, covered, stage, fullScreen) = (open, new PracticeClock(DateTimeOffset.Now, open.Playing, open.Idle, paused: true, lastPlayed: open.LastPlayed), open.Playing, true, Stage.Practice, true);
                 }
             }
+            mei = text;
         }
 
         if (piece.Position is { } position && JsonSerializer.Deserialize<Dictionary<string, double>>(position) is { } saved)
@@ -710,7 +742,17 @@ else
             returnToRoutineBar = true;
         }
         await Store.SetPieceAsync(Id);
+        loading = false;
     }
+
+    // Opening: the piece's music still being read, or not yet drawn the first time (its sheet painted, or a PDF's pages opened).
+    private bool Opening => !painted && !readingNotes && (loading || (Pdf ? pdfBytes is not null : mei is not null));
+
+    // What the paper says while the piece opens.
+    private string OpeningWords() => Pdf ? "Opening its pages" : piece!.Bars is { } bars ? $"Engraving its {bars} bars" : "Engraving its music";
+
+    // The way back while it opens: to the screen it was opened from (the list, as it was left), or the Library's last list.
+    private Task Leave() => Navigation.BackAsync(Place.Last);
 
     protected override void OnParametersSet()
     {
@@ -900,8 +942,12 @@ else
         return Task.CompletedTask;
     }
 
-    // A run waits for the sheet to be drawn in its new layout before it starts.
-    private void Painted(long _) => repainted?.TrySetResult();
+    // A run waits for the sheet to be drawn in its new layout before it starts. The first time, the piece has opened.
+    private void Painted(long _)
+    {
+        painted = true;
+        repainted?.TrySetResult();
+    }
 
     private async Task SetView(View to)
     {
@@ -1552,7 +1598,7 @@ else
 
     private async Task Opened(IReadOnlyList<double> shapes)
     {
-        ratios = shapes;
+        (ratios, painted) = (shapes, true);
         if (pdf is null) return;
 
         // Each page's systems are found once and kept: staff lines, five to a staff, paired into grand staves.

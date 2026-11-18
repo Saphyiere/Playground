@@ -4135,6 +4135,112 @@ html[data-full] .bar-strip {
     position: relative;
 }
 
+/* A piece opening: the paper waits with faint staves and a light sweeping across them, and a card says what's happening with the
+   way back. The light moves by transform alone, so the compositor keeps it moving while the engraver has the page's thread. It
+   all fades in after a moment, so a piece that opens at once doesn't flash it. */
+.piece-opening {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    animation: piece-opening-in 0.2s ease-out 0.35s both;
+}
+
+@keyframes piece-opening-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.piece-opening-paper {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    padding: 28px 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    border-radius: var(--mu-r-panel);
+    background: var(--sheet);
+    box-shadow: 0 0 0 1px var(--sheet-edge), 0 3px 10px var(--sheet-edge);
+}
+
+[data-theme="vinyl"] .piece-opening-paper {
+    box-shadow: var(--shadow-sleeve);
+}
+
+/* A system of the grand staff, faint: two staves of five lines, and its bars. */
+.piece-opening-system {
+    position: relative;
+    flex: none;
+    height: 118px;
+    border-left: 2px solid var(--sheet-edge);
+    border-right: 2px solid var(--sheet-edge);
+    background:
+        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) top / 100% 37px no-repeat,
+        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) bottom / 100% 37px no-repeat;
+}
+
+.piece-opening-system::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px), var(--sheet-edge) calc(25% - 1px) 25%);
+}
+
+.piece-opening-sweep {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 22%;
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 10%, transparent) 50%, color-mix(in srgb, var(--accent) 34%, transparent) 97%, transparent);
+    transform: translateX(-100%);
+    animation: piece-opening-sweep 1.6s linear infinite;
+    will-change: transform;
+}
+
+@keyframes piece-opening-sweep {
+    to { transform: translateX(460%); }
+}
+
+.piece-opening-card {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    width: min(520px, calc(100% - 48px));
+    box-sizing: border-box;
+    padding: 12px 12px 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-radius: var(--radius-cap);
+    background: var(--key-dark);
+    color: var(--on-key-dark);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="vinyl"] .piece-opening-card {
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sleeve);
+}
+
+.piece-opening-words {
+    margin: 0;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .piece-opening-sweep {
+        animation: none;
+        transform: translateX(200%);
+    }
+}
+
 .piece-frame-hidden {
     visibility: hidden;
 }

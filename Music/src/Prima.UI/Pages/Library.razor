@@ -398,9 +398,13 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
     protected override void OnParametersSet()
     {
         (format, search, note) = (Only is "notation" or "pdf" ? Only : "all", string.IsNullOrWhiteSpace(Query) ? null : Query, null);
-        // Only a list's own address: a piece's, as the list is left for it, isn't one.
+        // Only a list's own address: a piece's, as the list is left for it, isn't one. The list's name is a piece's way back.
         var here = Nav.ToBaseRelativePath(Nav.Uri).Split('#')[0];
-        if (here.Split('?')[0] == "library") Place.Last = here;
+        if (here.Split('?')[0] == "library")
+        {
+            Place.Last = here;
+            Navigation.Name(Heading ?? "Library");
+        }
         placing = true;
     }
 
