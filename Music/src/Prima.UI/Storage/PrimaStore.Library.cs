@@ -147,12 +147,14 @@ public sealed partial class PrimaStore
 
     /// <summary>
     /// A notation piece's MEI, or a PDF's read from it; null for a PDF not read. Without the hidden playback tempos (bare numbers)
-    /// that a piece stored before the bundle left them out still has.
+    /// that a piece stored before the bundle left them out still has, and with the dynamics a research edition typed as lyrics as
+    /// marks (<see cref="LyricDynamics"/>), as the Library tool makes them now: a collection's piece stored before that has them as
+    /// words. Both away from the screen's thread.
     /// </summary>
     public async Task<string?> GetMeiAsync(string id)
     {
         var mei = await RunAsync(c => c.QuerySingleOrDefaultAsync<string?>("SELECT Mei FROM Piece WHERE Id = @id", new { id }));
-        return mei is null ? null : MeiReader.WithoutBareTempos(mei);
+        return mei is null ? null : await Task.Run(() => LyricDynamics.Mark(MeiReader.WithoutBareTempos(mei)));
     }
 
     /// <summary>The pieces already in the Library, by id: so a bundled piece is prepared once.</summary>

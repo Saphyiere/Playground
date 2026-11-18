@@ -80,14 +80,16 @@ internal static class Prepare
                     continue;
                 }
 
-                // A score's hidden playback tempos (bare numbers) are left out: Verovio would print them on the music. A score the
-                // Core can't read (a note without a pitch, say) is left out, named, rather than stopping the rest.
+                // A score's hidden playback tempos (bare numbers) are left out: Verovio would print them on the music. Dynamics an
+                // edition typed as lyrics (the DCML's Beethoven sonatas and some of its Chopin mazurkas) are made into the marks they
+                // are, or left out, rather than printed as words under the staff (LyricDynamics). A score the Core can't read (a note
+                // without a pitch, say) is left out, named, rather than stopping the rest.
                 // The local collection's pieces go without their instrument's name, as its MuseScore and Humdrum ones are made: it
                 // would print as "Piano" beside the first system and "Pno." beside the rest.
                 IReadOnlyList<string> parts;
                 try
                 {
-                    var mei = MeiReader.WithoutBareTempos(await File.ReadAllTextAsync(raw));
+                    var mei = LyricDynamics.Mark(MeiReader.WithoutBareTempos(await File.ReadAllTextAsync(raw)));
                     if (grandStaff) mei = System.Text.RegularExpressions.Regex.Replace(mei, @"<(label|labelAbbr)\b[^>]*>[\s\S]*?</\1>", "");
                     parts = Collections.Split(mei);
                 }

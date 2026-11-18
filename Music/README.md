@@ -113,7 +113,8 @@ sources:
 - **humdrum**: Craig Sapp's Humdrum editions (Mozart's, Haydn's and Scarlatti's sonatas, Joplin, Bach's 370 chorales), CC BY-NC-SA 4.0.
 - **dcml**: the DCML's research corpora as MuseScore files (Beethoven's sonatas, Bach's English and French Suites, Chopin's
   mazurkas, Grieg's Lyric Pieces, Kinderszenen, The Seasons, Debussy with his Études and Arabesques, Liszt, Bartók's Bagatelles,
-  Koželuch's sonatas, Frescobaldi, Poulenc, the Bach sons and more), converted with webmscore, CC BY-NC-SA 4.0.
+  Koželuch's sonatas, Frescobaldi, Poulenc, the Bach sons and more), converted with webmscore, CC BY-NC-SA 4.0. The dynamics
+  its editors typed as lyrics are made into dynamics and hairpins (`LyricDynamics` in the Core).
 - **asap**: the scores of the ASAP dataset (Bach's Well-Tempered Clavier, Chopin's études, ballades and scherzos, Liszt,
   Schubert's impromptus, Schumann's Kreisleriana, Rachmaninoff's preludes), CC BY-NC-SA 4.0.
 - **pdmx**: more of PDMX, public-domain and CC0 piano music whose own composer field names a composer who died before 1931

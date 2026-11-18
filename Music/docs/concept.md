@@ -196,7 +196,14 @@ a PDF plays out; this is what came of it.
   of the Mutopia Project's keyboard music as PDFs with their MIDI, each PDF at the level its MIDI reads at, those under CC BY-SA
   share-alike (a tier of their own, as in the bundle); and the Open Hymnal's public-domain hymns, four voices on the grand staff
   with their verses under the notes, shelved with the chorales. About 2,860 pieces, all keyboard music, prepared like the bundle
-  and packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. **Import files** with a zip
+  and packed in a few zips, none much over 40 MB, since the tablet reads a zip it imports whole. The DCML types many of its
+  dynamics into the lyrics line, a sign under a note (82 pieces: most of Beethoven's sonatas, a few of Chopin's mazurkas): its
+  letters, "<" or ">" where a crescendo or diminuendo starts, "(" or ")" on each note under one, "[" or "]" where it ends. They
+  become the marks they are, below their staff: a dynamic, a hairpin where its notes or end are marked, and where they aren't,
+  the word "cresc." or "dim." (there's no end to draw a hairpin to); a sign the score marks already at that place is left out,
+  and so is one that can't be placed (a pedal's "*"). A piece whose syllables include any of a song's words keeps them all as
+  they are. Prima does the same as it reads a piece stored before the tool did, so those show their dynamics without being
+  imported again. **Import files** with a zip
   stores its pieces in the background with the same meter, credited like the collection's; those already here take its titles
   and credits. Each zip names the whole collection it's part of, so importing any one of a collection built again takes out the
   collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled

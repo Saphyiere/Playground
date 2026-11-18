@@ -689,6 +689,21 @@ another way to read the music.
   tool), one file a run, since after some files its memory breaks and every later file fails; under Node 22 it needs Node's own
   `navigator` made writable and `fetch` hidden while it loads. The DCML's harmony labels are taken out first (they'd print as
   chord symbols), and so are the instrument's names (they'd print as "Piano" and "Pno.").
+- **The DCML's dynamics typed as lyrics**: 82 of its pieces (72 of Beethoven's sonata movements, 7 Chopin mazurkas, one
+  Debussy étude and two Grieg pieces) have syllables under their notes that are all signs, 3,271 notes' worth: letters ("p" 732
+  times, "f" 390, "pp" 246, "sf" 211, "ff" 205, and the music font's own p and f), "<" 573 and ">" 309 where a crescendo or
+  diminuendo starts, "(" and ")" on each note under one, "[" and "]" where it ends (about 230 brackets), a "dolce" and a
+  pedal's "*". Read against the 62 pieces whose scores have their own dynamics too, they're the editors' dynamics typed onto
+  the notes: of 1,359 letters, 745 stand at the same moment as the score's own of the same name and 113 more within a beat,
+  while 452 have none of that name within four beats, the score lacking them; a "<" at the same moment as the score's own
+  crescendo is at the word "cresc." 118 times, at a hairpin 33. In the 20 without (Op. 7, 22, 26, 27/2, 28, 49/2's first
+  movement) they're all the dynamics there are, and in Op. 78, 81a, 109, 110 and 111 the p and f the score's own marks (its
+  accents, its hairpins) lack. The tool's `Prepare` makes them marks with the Core's
+  `LyricDynamics`, after Verovio: the letters dynamics, a start with its notes or end marked a hairpin to the last of them,
+  one without the word "cresc." or "dim."; a sign is a copy, left out, when the score's own mark nearest it (on either staff,
+  within four quarter notes, the nearest copy first) says the same, or another dynamic stands at its very moment. It came to
+  1,239 dynamics, 125 hairpins and 474 words; the Moonlight's first movement has 9 dynamics, 19 hairpins and 4 words. The app
+  does the same when it reads a piece stored before (`PrimaStore.GetMeiAsync`).
 - **Hymns** come as ABC with four voices on two staves, of which the app's Verovio reads one ("Multi-voice music is not
   supported"); a hymn's MIDI through the app's import went ragged at its first fermata. abc2svg 1.22.1 (the last its author put
   on npm, which now calls it unsupported; LGPL and GPL, used only by the tool) writes each as MEI with its backend `tomei.js`,
