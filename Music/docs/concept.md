@@ -262,8 +262,9 @@ a PDF plays out; this is what came of it.
   like; while it goes it's a pause key, and a new tempo carries it on at that. So the tempo shows after it in either mode.
   A run, or Listen, has the click to itself, so starting one stops the metronome; leaving the piece or putting Prima away
   stops it too. Its key among the tools opens its settings under it: where it's heard (Tablet or Piano), its sound (Wood or
-  Beep) and how loud, which are Settings' click's. Where the piece marks a tempo of its own (the one it goes at most, or a
-  MIDI file's) and the tempo has been set to another, **Original** shows that one beside it, quieter: a tap goes back to it. A
+  Beep) and how loud, which are Settings' click's. A piece opens at its own tempo where it marks one (the one it goes at
+  most, or a MIDI file's) and at 72 where it marks none, until a tempo is set for it, which is then kept for that piece. Once
+  it's been set to another, **Original** shows the piece's own beside it, quieter: a tap goes back to it. A
   piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
   the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back

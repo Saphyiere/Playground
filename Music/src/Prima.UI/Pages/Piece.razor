@@ -632,7 +632,8 @@ else
             }
             if (piece.Layout is { } json) pdfLayout = JsonSerializer.Deserialize<PdfLayoutState>(json, PrimaStore.Json) ?? pdfLayout;
             else if (midi is not null) pdfLayout = pdfLayout with { BeatsPerBar = midi.BeatsPerBar, Bpm = Math.Round(midi.Bpm) };
-            tempo = piece.Tempo ?? pdfLayout.Bpm;
+            // A PDF's own tempo is its MIDI's, whenever its layout was first kept (it may have been opened before it had one).
+            tempo = piece.Tempo ?? (midi is not null ? Math.Round(midi.Bpm) : pdfLayout.Bpm);
             // Keep the PDF visible on arrival; the conversion button reopens any saved draft.
             reading = await Store.GetReadingAsync(Id);
         }
@@ -648,6 +649,9 @@ else
                 // as the tempo is (♩. in 6/8).
                 var opening = score.WithSignatures().First().Meter;
                 originalTempo = (score.MainTempo() ?? midi?.MarkedTempo) is { } quarters ? Math.Round(quarters * Ticks.Quarter / opening.BeatTicks) : null;
+                // It opens at its own tempo until one has been set for this piece (the play bar's, a step's, the metronome's): only a
+                // score that marks none starts at 72.
+                if (piece.Tempo is null && originalTempo is { } own) tempo = Math.Clamp(own, 20, 240);
                 // A bar number met again (a second ending, say) keeps its first place.
                 barStarts = score.BarStarts().GroupBy(b => b.Bar.Number).ToDictionary(g => g.Key, g => g.First().Start);
                 twoHands = expected.Select(n => n.Staff).Distinct().Order().SequenceEqual([1, 2]);
