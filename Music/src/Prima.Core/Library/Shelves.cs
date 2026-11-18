@@ -50,7 +50,7 @@ public static class Shelves
             ("Chorales and hymns", @"\bchorales?\b|\bchoral\b|\bhymn|\bpsalm"),
             ("Sonatas", @"sonat"),
             ("Variations", @"variat|chaconne|passacaglia"),
-            ("Études", @"[ée]tude|\bstud(y|ies)\b|exercise|übung|uebung|school of|(?<!doctor )gradus"),
+            ("Études", @"[ée]t(u|ü)de|\bstud(y|ies)\b|exercise|übung|uebung|school of|(?<!doctor )gradus"),
             ("Preludes and fugues", @"prelud|pr(é|e)lude|pr(ä|ae|a)eludium|praeambulum|\bfug(ue|a|hetta|ato)\b|invention|sinfonia|ricercar|recercar|canzon|\bcanon\b|contrapunctus|well-tempered"),
             ("Dances", @"waltz|valse|walzer|mazur|minuet|menuet|polonaise|polacca|gavott|bourr|sarabande|gigue|\bgiga\b|allemande|courante|corrente|polka|tarant|l(ä|a)ndler|(é|e)cossaise|galop|\bmarch|\bmarche\b|\brags?\b|ragtime|cake-?\s?walk|two-step|bolero|sicilian|passepied|rigaudon|hornpipe|\bjig\b|musette|tango|habanera|cz(á|a)rd(á|a)s|\bdance|\bdanse|\btanz|loure|forlane|anglaise|contredanse|quadrille|schottische|seguidilla|\bjota\b"),
         }.Select(k => (k.Item1, new Regex(k.Item2, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))),

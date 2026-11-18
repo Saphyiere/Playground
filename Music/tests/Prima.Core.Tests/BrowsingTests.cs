@@ -24,6 +24,7 @@ public class BrowsingTests
     [InlineData("Allemande", "English Suites", "Dances")]
     [InlineData("Prelude No. 1 in C major, BWV 846", "The Well-Tempered Clavier, Book I", "Preludes and fugues")]
     [InlineData("Étude in C major, Op. 10 No. 1", "Études", "Études")]
+    [InlineData("Etüde f-moll, No. 9", "Op. 10", "Études")]
     [InlineData("Aus meines Herzens Grunde, BWV 269", "Chorales", "Chorales and hymns")]
     [InlineData("Träumerei, No. 7", "Kinderszenen Op. 15", "Character pieces")]
     [InlineData("Maple Leaf Rag", "Rags, marches and waltzes", "Dances")]
