@@ -101,7 +101,7 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
                 bytes = File.Exists(path) ? await File.ReadAllBytesAsync(path) : null;
             }
             if (bytes is null) throw new InvalidOperationException("The piece's MIDI file is unavailable.");
-            mei = MeiWriter.Write(MidiNotation.Read(bytes, piece.Title));
+            mei = MidiNotation.Mei(bytes, piece.Title);
             fromMidi = true;
         }
         var score = MeiReader.Read(mei);

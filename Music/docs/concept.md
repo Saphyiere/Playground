@@ -480,18 +480,23 @@ a PDF plays out; this is what came of it.
   key from its signature or its notes, each hand's beats snapped to sixteenths, thirty-seconds or triplets on their own, so
   one hand's triplets stay triplets against the other's eighths or sixteenths (and in a file from notation software, whose
   notes start exactly where they're written, triplets in one voice stay triplets against eighths in another of the same
-  hand), a hand's held notes as a second voice, ties across beats and barlines, and its first tempo kept, unprinted, as the
-  piece's own. A small note played just before another a step away, over the notes before it, is a grace note, written small
-  before it and not played, as a file made from a Musicnotes PDF or by LilyPond plays one. A first bar in a short time
-  signature of its own, as Musicnotes' files write a pickup (a 1/4 bar before the 2/4), is a pickup, so the bars are numbered
-  as printed. Notation software lets each note go a little before its written end (a file from MuseScore holds each for 95% of
-  its length), so where a file's notes stop a little short of the next, each is written at its full length: a half note is a
-  half note, not a dotted quarter tied to a scrap with a rest after it. A staccato note stays as short as it sounds, with its
-  rest, and a written rest stays. One exported from notation software comes out close to its score, less what a MIDI file
-  can't hold: its repeats are written out, a trill is the notes it plays, and slurs and dynamics are gone, as are any lyrics
-  it carries (a song's words come with its MusicXML). One recorded from playing comes out ragged, and a pickup written from
-  the bar's start comes out as a full bar. MuseScore and Humdrum files need converting to MusicXML on the PC first (the
-  Library tool does it for its corpora).
+  hand), a hand's held notes as a second voice, ties across beats and barlines, its sustain pedal as pedal marks under the
+  bass staff (a change where it's lifted and pressed again at once, as under every bar), and its first tempo kept, unprinted,
+  as the piece's own. A note from the half beat stays one note over the next beat when it ends within its half of the bar (in
+  2/4 and 3/4, the bar), as print writes an eighth, a quarter and an eighth; rests show every beat. A key signature whose last
+  flat or sharp the notes never play, while they play its natural often, has one too many when the key the notes fit best
+  agrees: a musescore.com file says four flats over music in three, with D after D and not one D flat, while Burgmüller's
+  Ballade keeps its three flats with every A raised. A small note played just before another a step away, over the notes
+  before it, is a grace note, written small before it and not played, as a file made from a Musicnotes PDF or by LilyPond
+  plays one. A first bar in a short time signature of its own, as notation software writes a pickup (a 1/4 bar before the
+  2/4, two beats of 2/4 before the 4/4), is a pickup, so the bars are numbered as printed. Notation software lets each note
+  go a little before its written end (a file from MuseScore holds each for 95% of its length), so where a file's notes stop a
+  little short of the next, each is written at its full length: a half note is a half note, not a dotted quarter tied to a
+  scrap with a rest after it. A staccato note stays as short as it sounds, with its rest, and a written rest stays. One
+  exported from notation software comes out close to its score, less what a MIDI file can't hold: its repeats are written
+  out, a trill is the notes it plays, and slurs and dynamics are gone, as are any lyrics it carries (a song's words come with
+  its MusicXML). One recorded from playing comes out ragged, and a pickup written from the bar's start comes out as a full
+  bar. MuseScore and Humdrum files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
 - **Taking pieces out**: a piece's **Remove from the Library…**, under About this piece, takes it out once asked again, with
   its excerpts and readings, and an import's or a collection's PDF and MIDI. Its runs stay, so its days and the streak still
   count them, and every screen that lists pieces goes on without it. One of Prima's own stays out: the Library doesn't put it

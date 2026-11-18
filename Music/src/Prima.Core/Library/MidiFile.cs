@@ -11,7 +11,7 @@ public sealed record TickNote(int Track, int Channel, int Midi, long On, long Of
 /// <summary>
 /// A Standard MIDI File, read for what a PDF piece needs from the MIDI made with it: the notes in seconds (to hear the piece on the
 /// piano), the first tempo and time signature (for the scroll's defaults), and how many bars there are. For notation it also keeps
-/// the notes in ticks with their tracks, the time and key signatures, and the tracks' names.
+/// the notes in ticks with their tracks, the time and key signatures, the tracks' names, and the sustain pedal.
 /// </summary>
 public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int BeatsPerBar, int BeatUnit, double Seconds, int Bars)
 {
@@ -35,6 +35,9 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
     /// <summary>The tempo the file sets first, in quarter notes a minute; null when it sets none (it's played at 120 then).</summary>
     public double? MarkedTempo { get; init; }
 
+    /// <summary>The sustain pedal (controller 64) as the file plays it: each press or lift, by track, channel and tick, in order.</summary>
+    public IReadOnlyList<(int Track, int Channel, long Tick, bool Down)> Pedals { get; init; } = [];
+
     public static MidiFile Read(ReadOnlySpan<byte> data)
     {
         if (data.Length < 14 || !data[..4].SequenceEqual("MThd"u8)) throw new FormatException("Not a MIDI file.");
@@ -49,6 +52,7 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
         var names = new List<(int Track, string Name)>();
         var ons = new Dictionary<(int Track, int Channel, int Key), Stack<(long Tick, int Velocity)>>();
         var notes = new List<TickNote>();
+        var pedals = new List<(int Track, int Channel, long Tick, bool Down)>();
         var lastTick = 0L;
         var trackNumber = 0;
 
@@ -103,6 +107,7 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
                                 notes.Add(new TickNote(trackNumber, channel, d1, onTick, tick, velocity));
                             }
                         }
+                        else if (kind == 0xB0 && d1 == 64) pedals.Add((trackNumber, channel, tick, d2 >= 64));
                     }
                     else i++;
                     lastTick = Math.Max(lastTick, tick);
@@ -139,6 +144,7 @@ public sealed record MidiFile(IReadOnlyList<FileNote> Notes, double Bpm, int Bea
             Keys = [.. keys.OrderBy(k => k.Tick)],
             Names = names,
             MarkedTempo = tempos.Count > 0 ? 60_000_000.0 / tempos[0].MicrosPerQuarter : null,
+            Pedals = [.. pedals.OrderBy(p => p.Tick)],
         };
     }
 

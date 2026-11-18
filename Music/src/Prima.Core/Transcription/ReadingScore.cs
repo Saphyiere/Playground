@@ -231,7 +231,8 @@ public static class ReadingScore
     /// <summary>
     /// The score as MEI for Verovio, with the file marks <see cref="MeiWriter"/> leaves to a piece's own file: each in its note's
     /// bar, on the note when it's tied to it, and by its beat when it's ticks after it, so <see cref="MeiReader"/> brings it back
-    /// to the same note and ticks when the notation is kept. A pedal lifted and pressed again at once is written as a bounce.
+    /// to the same note and ticks when the notation is kept. A pedal mark goes under the lowest staff, and a pedal lifted and pressed
+    /// again at once is written as a bounce.
     /// </summary>
     public static string Mei(Score score)
     {
@@ -312,6 +313,8 @@ public static class ReadingScore
                     new XAttribute("startid", "#" + span.StartId), new XAttribute("endid", "#" + span.EndId)));
         }
 
+        // Pedal marks go under the lowest staff, as printed music has them, by the beat when their note is on another.
+        var lowest = score.Bars.SelectMany(b => b.Voices).Select(v => v.Staff).DefaultIfEmpty(1).Max();
         var marks = score.FileMarks;
         for (var i = 0; i < marks.Count; i++)
         {
@@ -333,8 +336,9 @@ public static class ReadingScore
             };
             if (element is null) continue;
 
-            element.Add(new XAttribute("staff", start.Staff));
-            if (mark.StartOffset == 0) element.Add(new XAttribute("startid", "#" + mark.StartId));
+            var staff = mark.Kind is MarkKind.PedalDown or MarkKind.PedalUp ? lowest : start.Staff;
+            element.Add(new XAttribute("staff", staff));
+            if (mark.StartOffset == 0 && staff == start.Staff) element.Add(new XAttribute("startid", "#" + mark.StartId));
             else element.Add(new XAttribute("tstamp", Beat(start.Bar, start.Start + mark.StartOffset)));
             if (mark.EndId is { } endId)
             {

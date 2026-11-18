@@ -238,9 +238,9 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                     try
                     {
                         // A MIDI file has no notation of its own: the Core writes it out (MidiNotation says how), and it's read as MEI.
-                        var score = extension is ".mid" or ".midi" ? await Task.Run(() => MidiNotation.Read(data, title)) : null;
-                        var bytes = score is null ? data : System.Text.Encoding.UTF8.GetBytes(MeiWriter.Write(score));
-                        var (mei, graded, excerpts) = await ReadMusic(bytes, score is null ? extension.TrimStart('.') : "mei", record);
+                        var written = extension is ".mid" or ".midi" ? await Task.Run(() => MidiNotation.Mei(data, title)) : null;
+                        var bytes = written is null ? data : System.Text.Encoding.UTF8.GetBytes(written);
+                        var (mei, graded, excerpts) = await ReadMusic(bytes, written is null ? extension.TrimStart('.') : "mei", record);
                         var (fileTitle, composer) = Header(mei);
                         music = (mei, graded with { Title = fileTitle ?? title, Composer = composer ?? "" }, excerpts);
                     }

@@ -41,6 +41,13 @@ public class MidiNotationTests
 
     private static (long Tick, byte[] Event) Name(string name) => (0, [0xFF, 0x03, (byte)name.Length, .. System.Text.Encoding.Latin1.GetBytes(name)]);
 
+    // The sustain pedal (controller 64) pressed or lifted.
+    private static (long Tick, byte[] Event) Pedal(long tick, bool down) => (tick, [0xB0, 64, (byte)(down ? 127 : 0)]);
+
+    // A note's id as the sheet carries it, by its bar's place, staff and start: a single note's tone, or a chord.
+    private static string IdAt(Score score, int bar, int staff, int start) =>
+        score.Bars[bar].Voices.Where(v => v.Staff == staff).SelectMany(v => v.Events.OfType<Notes>()).Where(n => n.Start == start && !n.Grace).Select(n => n.Tones.Count == 1 ? n.Tones[0].Id : n.Id).Single();
+
     // What the score sounds: each note's key, start and length, ties followed through.
     private static List<(int Midi, long Tick, int Length)> Sounding(Score score) => [.. score.Expected().Select(n => (n.Midi, n.Tick, n.Length)).Order()];
 
@@ -261,6 +268,84 @@ public class MidiNotationTests
         Assert.Equal(new Meter(5, 4), promenade.Meter);
         Assert.Equal([(1, (int?)null), (2, null), (3, null)], promenade.Bars.Select(b => (b.Number, b.Length)));
         Assert.Equal(new Meter(6, 4), promenade.Bars[1].NewMeter);
+    }
+
+    [Fact]
+    public void TwoBeatsInTheirOwnTimeSignatureBeforeFourFourAreAPickup()
+    {
+        // As a musescore.com file writes a two-beat pickup: a bar of 2/4, then 4/4 from its third beat.
+        var score = MidiNotation.Read(File(480, [Meter(2, 2), Meter(4, 2, 960), .. Notes((79, 0, 480), (75, 480, 960), (72, 960, 2880))]), "Two beats");
+
+        Assert.Equal(new Meter(4, 4), score.Meter);
+        Assert.Equal([(0, 960), (1, (int?)null)], score.Bars.Select(b => (b.Number, b.Length)));
+        Assert.Null(score.Bars[1].NewMeter);
+        Assert.Equal([(72, 0L, 1920), (75, -480L, 480), (79, -960L, 480)], Sounding(score));
+    }
+
+    [Fact]
+    public void TheSustainPedalIsWrittenAsPedalMarksUnderTheBassStaff()
+    {
+        // As MuseScore plays "Ped." under every bar: pressed in the pickup, where only the right hand plays; at each barline lifted
+        // a tick after it and pressed again a tick later; lifted at the end. A 1/4 pickup, then two bars of 2/4.
+        var file = File(480,
+            [Meter(1, 2), Meter(2, 2, 480), .. Notes((67, 0, 480), (72, 480, 1440), (74, 1440, 2400))],
+            [Pedal(2, true), Pedal(481, false), Pedal(482, true), Pedal(1441, false), Pedal(1442, true), Pedal(2400, false),
+                .. Notes((48, 480, 960), (55, 960, 1440), (43, 1440, 1920), (55, 1920, 2400))]);
+
+        var score = MidiNotation.Read(file, "Pedalled");
+
+        // Each on the note it comes with (the pickup's on the right hand's, the bass being silent), a lift and a press at each
+        // barline, and the last lift at the end, a quarter after the last bass note.
+        Assert.Equal(
+            [
+                (MarkKind.PedalDown, IdAt(score, 0, 1, 0), 0L),
+                (MarkKind.PedalUp, IdAt(score, 1, 2, 0), 0L), (MarkKind.PedalDown, IdAt(score, 1, 2, 0), 0L),
+                (MarkKind.PedalUp, IdAt(score, 2, 2, 0), 0L), (MarkKind.PedalDown, IdAt(score, 2, 2, 0), 0L),
+                (MarkKind.PedalUp, IdAt(score, 2, 2, 480), 480L),
+            ],
+            score.FileMarks.Select(m => (m.Kind, m.StartId, m.StartOffset)));
+
+        // As MEI, all under the bass staff, the pickup's by its beat, a lift and press at once as a bounce; and read back as a kept
+        // piece is, the same marks.
+        var mei = MidiNotation.Mei(file, "Pedalled");
+        var pedals = System.Xml.Linq.XDocument.Parse(mei).Descendants(System.Xml.Linq.XName.Get("pedal", "http://www.music-encoding.org/ns/mei"))
+            .Select(p => ((string?)p.Attribute("dir"), (string?)p.Attribute("staff"), (string?)p.Attribute("tstamp"))).ToList();
+        Assert.Equal([("down", "2", "1"), ("bounce", "2", null), ("bounce", "2", null), ("up", "2", "3")], pedals);
+        Assert.Equal(score.FileMarks.Select(m => (m.Kind, m.StartId, m.StartOffset)), MeiReader.Read(mei).FileMarks.Select(m => (m.Kind, m.StartId, m.StartOffset)));
+    }
+
+    [Fact]
+    public void AKeySignatureTheNotesContradictGivesWayToThem()
+    {
+        // A musescore.com file says four flats over music in E flat: D after D, and not one D flat.
+        var eFlat = new[] { 63, 67, 70, 75, 74, 70, 72, 68, 67, 65, 63, 62, 63, 70, 67, 63 };
+        var contradicted = MidiNotation.Read(File(480, [Meter(4, 2), KeySignature(-4), .. Notes([.. Enumerable.Range(0, 64).Select(i => (eFlat[i % 16], i * 240L, i * 240L + 240))])]), "Four flats");
+        // Burgmüller's Ballade in C minor raises every A and B, and never plays an A flat: its three flats stay all the same.
+        var cMinor = new[] { 60, 63, 67, 72, 71, 69, 67, 63, 60, 62, 63, 65, 67, 69, 71, 72 };
+        var melodic = MidiNotation.Read(File(480, [Meter(4, 2), KeySignature(-3, minor: true), .. Notes([.. Enumerable.Range(0, 64).Select(i => (cMinor[i % 16], i * 240L, i * 240L + 240))])]), "C minor");
+
+        Assert.Equal(-3, contradicted.Key.Fifths);
+        Assert.Equal(new Spelled(Step.D, 0, 5), contradicted.Bars[0].Voices.Single(v => v.Staff == 1).Events.OfType<Notes>().ElementAt(4).Tones[0].Pitch);
+        Assert.Equal(new Key(-3, true), melodic.Key);
+    }
+
+    [Fact]
+    public void ANoteFromTheHalfBeatIsOneNoteWithinItsHalfOfTheBar()
+    {
+        // Autumn Days' left hand in 4/4: a bass eighth, a chord a quarter from the half beat, the chord an eighth, twice a bar. Then
+        // a quarter from beat 2's half beat, over the bar's middle, which a tie shows; and rests, which show every beat.
+        var fourFour = MidiNotation.Read(File(480, [Meter(4, 2), .. Notes((72, 0, 1920), (72, 1920, 3840))],
+            [.. Notes((44, 0, 240), (56, 240, 720), (51, 240, 720), (56, 720, 960), (51, 720, 960), (44, 960, 1200), (56, 1200, 1680), (51, 1200, 1680), (56, 1680, 1920), (51, 1680, 1920),
+                (44, 1920, 2160), (55, 2640, 3120), (48, 3360, 3840))]), "Four four");
+        // In 3/4: an eighth, two quarters from the half beats, and an eighth; then a half note from the half beat, over two beats,
+        // tied at the first.
+        var threeFour = MidiNotation.Read(File(480, [Meter(3, 2), .. Notes((60, 0, 240), (62, 240, 720), (64, 720, 1200), (65, 1200, 1440), (60, 1440, 1680), (62, 1680, 2640), (64, 2640, 2880))]), "Three four");
+
+        static List<(string, int, int, bool)> Written(Bar bar, int staff) => [.. bar.Voices.Single(v => v.Staff == staff).Events.Select(e => (e is Rest ? "rest" : "note", e.Start, e.Length, e is Notes n && n.Tones[0].TieToNext))];
+        Assert.Equal([("note", 0, 240, false), ("note", 240, 480, false), ("note", 720, 240, false), ("note", 960, 240, false), ("note", 1200, 480, false), ("note", 1680, 240, false)], Written(fourFour.Bars[0], 2));
+        Assert.Equal([("note", 0, 240, false), ("rest", 240, 240, false), ("rest", 480, 240, false), ("note", 720, 240, true), ("note", 960, 240, false), ("rest", 1200, 240, false), ("note", 1440, 480, false)], Written(fourFour.Bars[1], 2));
+        Assert.Equal([("note", 0, 240, false), ("note", 240, 480, false), ("note", 720, 480, false), ("note", 1200, 240, false)], Written(threeFour.Bars[0], 1));
+        Assert.Equal([("note", 0, 240, false), ("note", 240, 240, true), ("note", 480, 720, false), ("note", 1200, 240, false)], Written(threeFour.Bars[1], 1));
     }
 
     [Fact]
