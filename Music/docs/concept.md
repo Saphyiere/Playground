@@ -313,7 +313,10 @@ a PDF plays out; this is what came of it.
   beside the piece's name: **Playing**, the time a run or Listen is going or you're playing the piano yourself with the music
   stopped (going over a bar on your own: a key in the last ten seconds counts), and **Idle**, the rest of the session: looking
   at the music, working out a fingering, a drink of water. **Finish practice**, beside them, ends the session (a run going
-  stops first, and is kept with it) and shows its look back. After 15 minutes with nothing played the session pauses: the
+  stops first, and is kept with it) and shows its look back. Full screen has no clocks, upright too: it's for the music. It
+  has its own **Finish practice** instead, first in the piece's bar, before the level and the piece's tools and away from Play
+  and the run's keys, there only in full screen: it does what the one beside the clocks does, as if you'd left full screen to
+  press it. Only a tap presses it; no piano key does. After 15 minutes with nothing played the session pauses: the
   page is covered by **Still practicing?**, with **Keep practicing** and **Finish practice**, and the clocks stop until you
   carry on. Leaving the piece, or the tablet sleeping or Prima put away, pauses it the same way, and coming back shows the
   cover; a key played on the piano carries on too. Finished from the cover, the session ends as of the last thing played, and

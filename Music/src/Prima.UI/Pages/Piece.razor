@@ -170,6 +170,13 @@ else
                     {
                         <p class="piece-bar-title">@piece.Title</p>
                     }
+                    @* Full screen's way to finish the session: Finish practice first in the bar, away from Play and the run's keys,
+                       doing what the strip's does (the look back, out of full screen). Only a tap presses it, and no clocks go with
+                       it: full screen is for the music. *@
+                    @if (fullScreen && stage == Stage.Practice && clock is not null)
+                    {
+                        <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
+                    }
                     <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                     @if (view == View.Pages && !playing)
                     {

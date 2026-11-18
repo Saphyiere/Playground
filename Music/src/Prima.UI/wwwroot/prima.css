@@ -5906,6 +5906,38 @@ html[data-full] .piece .summary {
     line-height: 30px;
 }
 
+/* Full screen's Finish practice: first in a practice's bar, the level between it and the piece's tools, its words on two lines
+   where the bar is short of room, as any key's. Only while the page is full screen, which has no clocks: upright, the bar's
+   title row loses them and their Finish practice too, so the title has its row to itself. In landscape it's first before a
+   run's figure too. */
+.piece-bar .piece-finish {
+    margin-left: 0;
+}
+
+html:not([data-full]) .piece-finish,
+html[data-full] .piece-title-row .practice-strip {
+    display: none;
+}
+
+@media (orientation: landscape) {
+    .piece-bar .piece-finish {
+        order: -2;
+    }
+}
+
+/* Landscape narrower than the tablet's 1557 px (the preview's 1280): it takes the level's place, as a run's figure does, and
+   Studio's keys sit a little closer, so a piece in pages, with a loop for one hand and its tempo changed, keeps its keys on
+   one row. */
+@media (orientation: landscape) and (max-width: 1540px) {
+    html[data-full] .play-bar.piece-bar:has(.piece-finish) .piece-level {
+        display: none;
+    }
+
+    html[data-full]:not([data-theme="vinyl"]) .play-bar.piece-bar:has(.piece-finish) {
+        gap: 22px;
+    }
+}
+
 /* The session paused: the page covered, a card in its middle asking whether you're still practicing. */
 .pause-cover {
     position: fixed;
