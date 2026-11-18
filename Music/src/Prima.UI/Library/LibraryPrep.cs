@@ -221,7 +221,8 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
             var extension = Path.GetExtension(name).ToLowerInvariant();
             var title = Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
             var id = $"import-{Guid.NewGuid():N}";
-            var record = new PieceRecord(id, "import", title, "", null, "mei", name, null, null, null, null, null, null, null, null, null, null, null, null, null, null, DateTimeOffset.Now, null);
+            // Where it came from is the file as it was named: a PDF is kept under a name of Prima's own, and About says the real one.
+            var record = new PieceRecord(id, "import", title, "", null, "mei", name, null, null, null, null, null, name, null, null, null, null, null, null, null, null, DateTimeOffset.Now, null);
             switch (extension)
             {
                 case ".pdf":

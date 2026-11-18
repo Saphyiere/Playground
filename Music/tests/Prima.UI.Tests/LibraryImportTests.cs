@@ -134,6 +134,26 @@ public class LibraryImportTests
         foreach (var id in new[] { "kept-one", "removed-one" }) File.Delete(Path.Combine(host.Store.FilesPath, id + ".pdf"));
     }
 
+    // About this piece said "Imported 17 November from import-92d6….pdf", the name Prima keeps a PDF under: it says the file's own
+    // name now, and for a PDF imported before that name was kept, only when.
+    [Fact]
+    public async Task AboutNamesTheFileAsItWasImported()
+    {
+        await using var host = new ComponentHost();
+        var prep = new LibraryPrep(host.Store, new NoBundle(), new PassingVerovio());
+        var (id, _) = await prep.ImportAsync([("Numb  Linkin Park Piano Solo Arrangement.pdf", "%PDF-1.4 a score"u8.ToArray())]);
+        var day = DateTimeOffset.Now.ToString("d MMMM", System.Globalization.CultureInfo.InvariantCulture);
+
+        var page = host.Context.Render<Pages.Piece>(p => p.Add(c => c.Id, id!));
+
+        page.WaitForAssertion(() => Assert.Contains($"Imported {day} from Numb  Linkin Park Piano Solo Arrangement.pdf.", page.FindAll(".piece-about li").Select(l => l.TextContent)));
+        Assert.StartsWith("import-", (await host.Store.GetPieceAsync(id!))!.File, StringComparison.Ordinal);
+
+        await host.Store.SavePieceAsync((await host.Store.GetPieceAsync(id!))! with { Source = null }, null, []);
+        var before = host.Context.Render<Pages.Piece>(p => p.Add(c => c.Id, id!));
+        before.WaitForAssertion(() => Assert.Contains($"Imported {day}.", before.FindAll(".piece-about li").Select(l => l.TextContent)));
+    }
+
     // A PDF of the local collection as the Library tool lists it.
     private static BundledPiece Pdf(string id, string title) => new(id, title, "Robert Schumann", "Op. 68", "pdf", $"pieces/{id}.pdf", null, "", "Mutopia", "",
         "Public domain", "", "Typeset for the Mutopia Project; Public domain.", Tier.A, null, 7);

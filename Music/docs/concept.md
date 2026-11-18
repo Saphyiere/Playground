@@ -259,7 +259,10 @@ a PDF plays out; this is what came of it.
   played and how it went (round a loop, its bars, its passes and how they went from the first to the last); then how often
   it's been played through In time (from its start to its end, not round a loop or stopped), with the last time and the
   best; its runs, the days they were on, and the first; and **Next**, what the last practice session's look back said to do
-  first, with **Start there**, which starts a session set up for it. A run that reached fewer than eight notes, round a loop all its
+  first, with **Start there**, which starts a session set up for it. Then its level and why, and where it comes from: a
+  collection's credit and licence, or for an uploaded piece when it was imported and the file it was, as that file was named
+  ("Imported 17 November from Numb.pdf"; a PDF is kept under a name of Prima's own, and one imported before its name was kept
+  says only when). A run that reached fewer than eight notes, round a loop all its
   passes together, is a false start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
   bar it was to start from, or its loop. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
@@ -993,7 +996,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   the music, for the in-depth review. A run kept before 15 November has no time, lean or markings, and the look back says
   less of it.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle or a local collection
-  built again never takes out the others), with their sources, licences and tiers (A: public domain or CC BY; SA: share-alike;
+  built again never takes out the others), with their sources (an uploaded piece's, the name of the file it was imported
+  from), licences and tiers (A: public domain or CC BY; SA: share-alike;
   B: non-commercial), levels, and the MEI Verovio made from each notation piece (bars numbered in order, a
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation

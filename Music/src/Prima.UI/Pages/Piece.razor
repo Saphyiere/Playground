@@ -469,7 +469,10 @@ else
                 }
                 else if (piece.Imported)
                 {
-                    <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture) from @piece.File.</li>
+                    // The file as it was named: a PDF is kept under a name of Prima's own, and one imported before its name was
+                    // kept says only when.
+                    var file = piece.Source ?? (piece.IsPdf ? null : piece.File);
+                    <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture)@(file is null ? "" : $" from {file}").</li>
                 }
             </ul>
             <div class="control-row">
