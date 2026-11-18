@@ -318,7 +318,7 @@ and the rest of Prima keeps working; Android's own log has the errors too (`adb 
 
 The P-225B's **USB TO HOST** port (a square USB-B socket on the back) goes to the tablet's USB-C port, with a USB-B to USB-C
 cable or a USB-B cable and an adapter. The tablet then has no free port, so it practices on battery unless a USB-C hub with power
-delivery sits in between. Prima finds the piano by itself, and the lamp on You's round key at the foot of the rail lights up.
+delivery sits in between. Prima finds the piano by itself, and the lamp on You's round key at the head of the rail lights up.
 
 Then try, in **Settings → Tools**:
 

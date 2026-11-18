@@ -1,7 +1,8 @@
 @* The sections down the left edge (along the bottom in portrait): Studio's function keys with their lamps, or Vinyl's two sides
-   of a record as a tracklist. Practice holds Routines; Settings holds the tools. At the foot, Settings and You, whose round key
-   carries the keyboard's lamp. *@
+   of a record as a tracklist. You heads it, a round key carrying the keyboard's lamp; Practice holds Routines; Settings, which
+   holds the tools, is alone at the foot. *@
 <nav class="mu-nav rail" aria-label="Sections">
+    <YouKey />
     <p class="mu-nav-group"><span class="mu-studio-only">Practice</span><span class="mu-vinyl-only">Side A</span></p>
     <NavLink class="mu-nav-item" href="" Match="NavLinkMatch.All"><span class="mu-nav-code">A1</span><span>Today</span></NavLink>
     <PracticeNavLink class="mu-nav-item" href="drills"><span class="mu-nav-code">A2</span><span>Drills</span></PracticeNavLink>
@@ -10,8 +11,5 @@
     <RoutinesNavLink class="mu-nav-item" href="routines"><span class="mu-nav-code">A5</span><span>Routines</span></RoutinesNavLink>
     <p class="mu-nav-group"><span class="mu-studio-only">Collection</span><span class="mu-vinyl-only">Side B</span></p>
     <LibraryKey />
-    <div class="rail-foot">
-        <SettingsNavLink class="mu-nav-item mu-nav-end" href="settings"><span class="mu-nav-code"></span><span>Settings</span></SettingsNavLink>
-        <YouKey />
-    </div>
+    <SettingsNavLink class="mu-nav-item mu-nav-end" href="settings"><span class="mu-nav-code"></span><span>Settings</span></SettingsNavLink>
 </nav>

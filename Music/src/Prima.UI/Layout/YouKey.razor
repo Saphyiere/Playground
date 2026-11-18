@@ -3,8 +3,8 @@
 @inject PrimaSettings Settings
 @inject NavigationManager Nav
 
-@* You, at the rail's foot beside Settings: a round key in the look's colour with the first letter of your name (a figure without
-   one), and the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't. A tap opens You. *@
+@* You, at the head of the rail, above Practice: a round key in the look's colour with the first letter of your name (a figure
+   without one), and the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't. A tap opens You. *@
 <NavLink class="rail-you" href="you" data-keyboard="@(Keyboard.Name is null ? "off" : "live")" aria-label="@Label" title="@Label">
     @if (Initial is { } initial)
     {

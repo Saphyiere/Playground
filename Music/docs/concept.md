@@ -44,11 +44,11 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 ## Sections
 
-The rail down the left edge, in both looks: under Practice, Today, Drills, Sight-read, Exercises and Routines; under Collection,
-the Library; and at the foot Settings, then You as a round key in the look's colour with the first letter of your name (a figure
-without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't. In Vinyl Practice and
-Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its end. The tools are a tab of
-Settings (Tools, below), whose key is lit on them.
+The rail down the left edge, in both looks: at its head You, a round key in the look's colour with the first letter of your name
+(a figure without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't; under Practice,
+Today, Drills, Sight-read, Exercises and Routines; under Collection, the Library; and Settings alone at the foot. In Vinyl
+Practice and Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its start. The
+tools are a tab of Settings (Tools, below), whose key is lit on them.
 
 Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
 **This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
@@ -589,7 +589,7 @@ the address it always had, and the old Tools screen's address opens the tab.
 
 ### You
 
-Opened by the round key at the rail's foot. Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
+Opened by the round key at the head of the rail. Progress, as trends over the last twelve weeks (see [Progress](#progress-and-the-streak)), with a note that a plateau after quick
 early gains is normal. First, **Pieces**: the Library's pieces you've played, the latest first (twelve at most), each with its
 runs, the days it was played on, when it was last played, how the last run was played and went, and the best of the times it
 was played through In time. The profile it's headed with (name, which clefs you drill, daily goal, the practice cue) is set in

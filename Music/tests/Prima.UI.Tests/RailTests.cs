@@ -8,13 +8,14 @@ using Playground.Kit;
 namespace Prima.UI.Tests;
 
 // The owner's decisions for the rail, 17 November: "Routines is part of practice. It's not really a collection thing." Tools,
-// "you're not really going to it too much. Just put it in settings and then have it as another tab." You at the foot with
-// Settings, "colour plus the initial", with "a little dot on the bottom of it showing if the keyboard is plugged in or not ... We
-// don't need the whole plug in your keyboard." Collection keeps Library.
+// "you're not really going to it too much. Just put it in settings and then have it as another tab." You, "colour plus the
+// initial", with "a little dot on the bottom of it showing if the keyboard is plugged in or not ... We don't need the whole plug
+// in your keyboard", and after seeing it beside Settings: "maybe at the very top and not next to settings. So above practice."
+// Collection keeps Library.
 public class RailTests
 {
     [Fact]
-    public async Task RoutinesIsUnderPracticeTheCollectionHoldsTheLibraryAndSettingsAndYouAreAtTheFoot()
+    public async Task YouHeadsTheRailRoutinesIsUnderPracticeTheCollectionHoldsTheLibraryAndSettingsIsAloneAtTheFoot()
     {
         var piano = new TestPiano(plugged: false);
         await using var host = new ComponentHost(keyboard: piano);
@@ -26,12 +27,15 @@ public class RailTests
         Assert.Equal(["Today", "Drills", "Sight-read", "Exercises", "Routines", "Library", "Settings"],
             rail.FindAll(".mu-nav-item").Select(k => k.QuerySelectorAll("span").Last().TextContent));
         Assert.Equal(["A1", "A2", "A3", "A4", "A5", "B1", ""], rail.FindAll(".mu-nav-item .mu-nav-code").Select(c => c.TextContent));
-        Assert.Equal(["Settings"], rail.FindAll(".rail-foot .mu-nav-item").Select(k => k.TextContent.Trim()));
+        var nav = rail.Find("nav.rail");
+        Assert.Equal("Settings", nav.LastElementChild!.TextContent.Trim());
+        Assert.Contains("mu-nav-end", nav.LastElementChild.ClassList);
         Assert.DoesNotContain(rail.FindAll("a"), a => a.GetAttribute("href") == "tools");
         Assert.DoesNotContain("Plug in your keyboard", rail.Markup, StringComparison.Ordinal);
 
-        // You: a round key with the name's first letter, after Settings, opening You, its lamp hollow with no keyboard.
-        var you = rail.Find(".rail-foot .rail-you");
+        // You: first, above Practice, a round key with the name's first letter, opening You, its lamp hollow with no keyboard.
+        Assert.Contains("rail-you", nav.FirstElementChild!.ClassList);
+        var you = rail.Find(".rail-you");
         Assert.Equal("you", you.GetAttribute("href"));
         Assert.Equal("S", you.QuerySelector(".rail-you-initial")!.TextContent);
         Assert.Equal("off", you.GetAttribute("data-keyboard"));
@@ -64,7 +68,7 @@ public class RailTests
         foreach (var (at, lit) in new[] { ("settings?tab=tools", true), ("tools/metronome", true), ("tools/timing?from=welcome", true), ("glossary", true), ("library", false), ("routine", false) })
         {
             nav.NavigateTo(at);
-            rail.WaitForAssertion(() => Assert.Equal(lit, rail.Find(".rail-foot .mu-nav-item").HasAttribute("aria-current")));
+            rail.WaitForAssertion(() => Assert.Equal(lit, rail.Find(".mu-nav-end").HasAttribute("aria-current")));
         }
         // Routines, under Practice, is lit on a routine's screens.
         Assert.True(rail.FindAll(".mu-nav-item").Single(k => k.TextContent.EndsWith("Routines", StringComparison.Ordinal)).HasAttribute("aria-current"));
