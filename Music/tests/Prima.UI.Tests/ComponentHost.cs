@@ -97,13 +97,19 @@ internal sealed class ComponentHost : IAsyncDisposable
         await Store.GetSettingsAsync();
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, ForeignKeys = true }.ToString());
         SqliteConnection.ClearPool(connection);
-        File.Delete(database);
-        try
+        // The test's folder, its data file with it. A file the machine still holds a moment (scanning a new file, say) is waited
+        // for a little, then left to the temporary folder's own clean-up: tidying up isn't what a test tests.
+        for (var tries = 1; Directory.Exists(folder); tries++)
         {
-            Directory.Delete(folder, recursive: true);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (tries == 5) break;
+                await Task.Delay(100);
+            }
         }
         Problems.Clear();
         if (Directory.Exists(downloadFolder))
