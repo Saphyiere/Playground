@@ -37,6 +37,48 @@ public class BrowsingTests
     [InlineData("Traditional", "Traditional")]
     public void ComposersAreListedBySurname(string composer, string surname) => Assert.Equal(surname, Shelves.Surname(composer));
 
+    // The owner, 17 November: "beethoven sonata 14" and "moonlight first movement" found nothing, the search taking only the
+    // whole phrase. Each word counts by itself, in any order; a number is a whole number or a movement's, and so is an ordinal.
+    // The pieces' words as the Library searches them: title, composer, work.
+    private const string MoonlightI = "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: I. Adagio sostenuto Ludwig van Beethoven Piano sonatas";
+    private const string MoonlightII = "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: II. Allegretto Ludwig van Beethoven Piano sonatas";
+    private const string MoonlightIII = "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: III. Presto agitato Ludwig van Beethoven Piano sonatas";
+    private const string Arranged14 = "Sonata No. 14 Moonlight Ludwig van Beethoven ";
+    private const string ArrangedFirst = "Moonlight Sonata 1st movement Ludwig van Beethoven ";
+    private const string Op14 = "Sonata No. 9, Op. 14/1: I. Allegro Ludwig van Beethoven Piano sonatas";
+    private const string Op140 = "Grand Duo in C major, D. 812 (Op. 140) Franz Schubert ";
+    private const string Haydn = "Sonata No. 45 in A major, Hob. XVI:30: III. Tema con variazioni: Tempo di Menuetto Joseph Haydn Piano sonatas";
+
+    [Theory]
+    [InlineData("beethoven sonata 14", Arranged14, true)]
+    [InlineData("sonata beethoven 14", Arranged14, true)]
+    [InlineData("beethoven sonata 14", Op14, true)]
+    [InlineData("beethoven sonata 14", MoonlightI, false)]
+    [InlineData("14", Op140, false)]
+    [InlineData("moonlight first movement", MoonlightI, true)]
+    [InlineData("moonlight first movement", ArrangedFirst, true)]
+    [InlineData("moonlight first movement", MoonlightII, false)]
+    [InlineData("Moonlight 1st mvt.", MoonlightI, true)]
+    [InlineData("moonlight 1", MoonlightI, true)]
+    [InlineData("moonlight 1", Arranged14, false)]
+    [InlineData("moonlight third", MoonlightIII, true)]
+    [InlineData("moonlight 3", MoonlightIII, true)]
+    [InlineData("moonlight 3", MoonlightII, false)]
+    [InlineData("haydn 16", Haydn, false)]
+    [InlineData("haydn 30 iii", Haydn, true)]
+    [InlineData("movement", ArrangedFirst, true)]
+    [InlineData("movement", MoonlightI, false)]
+    [InlineData("op. 27/2", MoonlightII, true)]
+    [InlineData("beeth", MoonlightI, true)]
+    [InlineData("  ", MoonlightI, true)]
+    public void ASearchTakesEachWordByItselfANumberWholeOrAMovementsAndAnOrdinalAMovements(string typed, string words, bool found) =>
+        Assert.Equal(found, Shelves.Finds(words, typed));
+
+    [Theory]
+    [InlineData("Dvorak humoresque", "Humoresque, Op. 101 No. 7 Antonín Dvořák Humoresques")]
+    [InlineData("SAINT-SAENS", "Le Cygne Camille Saint-Saëns ")]
+    public void ASearchStillFoldsAccentsAndCase(string typed, string words) => Assert.True(Shelves.Finds(words, typed));
+
     [Fact]
     public void AnOpeningIsTheFirstHalfMinuteAtTheTempoItStartsAt()
     {

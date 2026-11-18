@@ -88,8 +88,82 @@ public static class Shelves
         static string Bare(string name) => Regex.Replace(name.Trim(), @"(,?\s+(I{1,3}|IV|Jr\.?|Sr\.?))+$", "").Trim();
     }
 
-    /// <summary>Whether a search finds what's typed in a piece's words: big or small letters and accents aside, so "Dvorak" finds Dvořák.</summary>
-    public static bool Finds(string words, string typed) => Plain(words).Contains(Plain(typed.Trim()), StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Whether a search finds what's typed in a piece's words: each word typed by itself, in any order, and every one of them
+    /// ("beethoven sonata 14"), big or small letters and accents aside, so "Dvorak" finds Dvořák. A number typed is a whole
+    /// number there ("14" finds No. 14 and Op. 14, not Op. 140), or a movement's: a movement is asked for by its number or as an
+    /// ordinal ("1", "first", "1st"), and found by its numeral ("I. Adagio") or the way an arrangement's title says it ("1st
+    /// movement", "Movement 1"). "Movement" itself needn't be written, so "moonlight first movement" finds the Moonlight's I.
+    /// </summary>
+    public static bool Finds(string words, string typed)
+    {
+        var asked = typed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Select(Folded).Where(w => w.Any(char.IsLetterOrDigit)).ToList();
+        // "Movement" is how the number beside it is meant: left out when there's anything else to find.
+        if (asked.Any(w => !MovementWords.Contains(w))) asked.RemoveAll(MovementWords.Contains);
+        if (asked.Count == 0) return true;
+
+        var text = Folded(words);
+        HashSet<int>? numbers = null;
+        HashSet<int>? movements = null;
+        foreach (var word in asked)
+        {
+            if (word.All(char.IsAsciiDigit) && int.TryParse(word, CultureInfo.InvariantCulture, out var number))
+            {
+                numbers ??= [.. WholeNumber.Matches(text).Select(m => int.TryParse(m.Value, CultureInfo.InvariantCulture, out var n) ? n : -1)];
+                movements ??= Movements(text);
+                if (!numbers.Contains(number) && !movements.Contains(number)) return false;
+            }
+            else if (Ordinal(word) is { } nth)
+            {
+                movements ??= Movements(text);
+                if (!movements.Contains(nth) && !text.Contains(word, StringComparison.Ordinal)) return false;
+            }
+            else if (!text.Contains(word, StringComparison.Ordinal)) return false;
+        }
+        return true;
+    }
+
+    // Words that say a number beside them is a movement's.
+    private static readonly HashSet<string> MovementWords = ["movement", "movements", "mvt", "mvt.", "mvts", "mvmt", "mov", "mov."];
+
+    private static readonly string[] OrdinalWords = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"];
+
+    private static readonly Regex WholeNumber = new(@"\d+", RegexOptions.CultureInvariant);
+
+    private static readonly Regex DigitOrdinal = new(@"^(\d+)(st|nd|rd|th)$", RegexOptions.CultureInvariant);
+
+    // A movement in a title, in folded words: its numeral and a full stop ("op. 27/2: iii. presto", not "hob. xvi:30" nor "i.e."),
+    // an ordinal ("1st movement", "the first and second movements"), or the number after "movement" ("movement 1", "mvt. 2").
+    private static readonly Regex MovementInTitle = new(
+        @"(?<![\p{L}\p{N}])(?<numeral>[ivx]+)\.(?!\p{L})|(?<![\p{L}\p{N}])(?<nth>\d+(st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)(?![\p{L}\p{N}])|\b(movement|mvt|mvmt|mov)\.?\s*(no\.?\s*)?(?<after>\d+)",
+        RegexOptions.CultureInvariant);
+
+    // The movements a title names, by number.
+    private static HashSet<int> Movements(string text)
+    {
+        var found = new HashSet<int>();
+        foreach (Match m in MovementInTitle.Matches(text))
+        {
+            if (m.Groups["numeral"].Success && Roman(m.Groups["numeral"].Value) is { } numeral) found.Add(numeral);
+            else if (m.Groups["nth"].Success && Ordinal(m.Groups["nth"].Value) is { } nth) found.Add(nth);
+            else if (m.Groups["after"].Success && int.TryParse(m.Groups["after"].Value, CultureInfo.InvariantCulture, out var after)) found.Add(after);
+        }
+        return found;
+    }
+
+    // "first" or "1st" as 1; null for any other word.
+    private static int? Ordinal(string word) =>
+        Array.IndexOf(OrdinalWords, word) is >= 0 and var at ? at + 1
+        : DigitOrdinal.Match(word) is { Success: true } m && int.TryParse(m.Groups[1].Value, CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    // The Roman numerals below 40, written the usual way ("xiv" is 14): "iiii" or "vx" isn't one.
+    private static readonly Dictionary<string, int> Romans = Enumerable.Range(1, 39)
+        .ToDictionary(n => new string('x', n / 10) + new[] { "", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix" }[n % 10], n => n);
+
+    private static int? Roman(string numeral) => Romans.TryGetValue(numeral, out var n) ? n : null;
+
+    // Small letters without their accents, as a search reads them.
+    private static string Folded(string text) => Plain(text).ToLowerInvariant();
 
     // The letters without their accents, as the Library's letter keys take them: ř is r, é e.
     private static string Plain(string text) =>

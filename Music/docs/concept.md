@@ -197,7 +197,10 @@ a PDF plays out; this is what came of it.
   collection's pieces it no longer has, with their excerpts and files: their runs stay, as a piece removed by hand's do. Bundled
   pieces and your own imports are never touched. The Library then holds about 3,160 pieces, so a list is drawn again a second at
   a time at most while pieces are stored, and the search follows once typing pauses.
-- **Finding your way** (the Library's home): a search across everything (accents aside: "Dvorak" finds Dvořák), then **Working
+- **Finding your way** (the Library's home): a search across everything, each word typed by itself and in any order (accents
+  aside: "Dvorak" finds Dvořák; a number is a whole number or a movement's, so "beethoven sonata 14" finds No. 14 and Op. 14,
+  and "moonlight first movement", "moonlight 1st" or "moonlight 1" the Moonlight's I. and the arrangements of its first
+  movement, "movement" itself left out), then **Working
   on** (the pieces played in the last month, eight at most, the latest first, each with when it was last played and how that
   run went), then **Near your level**: a few of the pieces to play along with whose most reads from your sight-reading level to
   two above it (since a piece to learn sits above what you read at sight; with none there, the easiest there are), the ones not
