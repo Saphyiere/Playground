@@ -287,7 +287,7 @@ else if (note is not null)
     private async Task Star(PieceRecord piece)
     {
         await Book.StarAsync(piece.Id);
-        note = $"“{piece.Title}” is in your repertoire.";
+        note = $"{RepertoireCards.Called(piece)} is in your repertoire.";
     }
 
     private async Task Hear(PieceRecord piece) => note = await Openings.ToggleAsync(piece);

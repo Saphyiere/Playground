@@ -80,7 +80,18 @@ public partial class Library
     private string format = "all";
     private string? search;
     private string? find;
-    private string? note;
+    // What was just done, in a line; each time it's said it shows afresh, though the words be the same.
+    private string? lastSaid;
+    private int sayings;
+    private string? note
+    {
+        get => lastSaid;
+        set
+        {
+            lastSaid = value;
+            if (value is not null) sayings++;
+        }
+    }
     private DateTime lastLoad;
     private CancellationTokenSource? typing;
     private bool holding;
@@ -518,7 +529,7 @@ public partial class Library
             return;
         }
         await Book.StarAsync(piece.Id);
-        note = $"“{piece.Title}” is in your repertoire.";
+        note = $"{Prima.UI.Library.RepertoireCards.Called(piece)} is in your repertoire.";
     }
 
     private void CloseStar() => starring = null;

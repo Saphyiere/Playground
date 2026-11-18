@@ -131,6 +131,27 @@ public class LibraryBrowseTests
         Assert.Equal(["Adagio sostenuto", "Moonlight Sonata 1st movement"], view.FindAll(".work-list .piece-title").Select(t => t.TextContent));
     }
 
+    // The Moonlight's stored title leaves its number out, so a line about one of its movements names it as the catalogue does.
+    [Fact]
+    public async Task ALineAboutAMovementNamesItByItsWorkAndItsPartOfIt()
+    {
+        await using var host = new ComponentHost();
+        await Add(host, "dcml-beethoven-piano-sonatas-14-1", "Ludwig van Beethoven", "Sonata No. 'quasi una fantasia' ('Moonlight'), Op. 27/2: I. Adagio sostenuto", "Piano sonatas", 11, source: "DCML");
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("library?by=composer&of=Ludwig%20van%20Beethoven");
+        var view = host.Context.Render<Pages.Library>();
+        view.WaitForAssertion(() => Assert.Single(view.FindAll(".lb-star")));
+
+        await view.InvokeAsync(() => view.Find(".lb-star").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        view.WaitForAssertion(() => Assert.Equal("Sonata No. 14 “quasi una fantasia” “Moonlight”: I. Adagio sostenuto is in your repertoire.", view.Find(".control-note").TextContent));
+
+        await view.InvokeAsync(() => view.Find(".lb-star").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        Assert.Equal("Keep Sonata No. 14 “quasi una fantasia” “Moonlight”: I. Adagio sostenuto in", view.Find(".lb-menu .menu-title").TextContent);
+        // Opened without a place on the screen (a keyboard's Enter), the menu is in the middle of it.
+        Assert.Contains("middle", view.Find(".lb-menu").ClassList);
+    }
+
     // A kind is an index of every composer's works of it, each going to its composer opened at that work; and what's typed
     // above finds a piece by its work's name as the catalogue has it ("sonata 14" for a movement titled without its number).
     [Fact]
@@ -174,6 +195,10 @@ public class LibraryBrowseTests
 
         view.WaitForAssertion(() => Assert.Equal("true", view.Find(".lb-star").GetAttribute("aria-pressed")));
         Assert.Equal("“Maple Leaf Rag” is in your repertoire.", view.Find(".control-note").TextContent);
+        // On the tablet, 17 November: the line came in the columns' way and pushed every row down a line, the star just
+        // tapped with them. It's over the foot of the Library now, and goes by itself.
+        Assert.Contains("lib-said", view.Find(".control-note").ClassList);
+        Assert.DoesNotContain("staying", view.Find(".control-note").ClassList);
         Assert.True(book.Current.Has("maple"));
         Assert.Empty(view.FindAll(".lb-menu"));
 

@@ -258,7 +258,9 @@ a PDF plays out; this is what came of it.
     are in its address (`library?by=composer&of=…&kind=Sonatas&work=…`, `library?by=level&of=3&only=pdf`, `library?q=sonata`),
     taking its place as they change, so the way back doesn't step through each tab or work, and coming back to it from a
     piece, by the way back or the rail's Library key, finds them as they were, each column scrolled to where it was (a
-    composer's works stay where they are while another work is chosen); a list not seen before starts at its top. From a
+    composer's works stay where they are while another work is chosen). A column not seen before starts where what's chosen
+    in it shows (a composer far down the list, a work arrived at from a kind's index), or at its top; a row taller than its
+    column, as a work open upright with all its movements is, starts at the column's top, its name showing. From a
     piece or another screen the rail's Library key goes back to what was shown last, and from the Library itself to what it
     opens on.
 - **Uploaded pieces** are a list in the same frame: each with its title whole and its artist under it (and who arranged it),
@@ -279,7 +281,11 @@ a PDF plays out; this is what came of it.
   plugged in and takes notes; otherwise on the tablet's speaker, through Android's own MIDI player. A PDF plays the MIDI it
   came with, without its drum channel, from its first note; one without MIDI or read notes has nothing to play. One opening at
   a time: ■ stops it, another's ▶ starts that one instead (the last tapped, even while the one before is still being read), and
-  it stops by itself at the opening's end or when the Library is left. A line at the top says what's playing and where.
+  it stops by itself at the opening's end or when the Library is left. A line over the foot of the Library says what's
+  playing and where, while it plays. What was just done is said there too (a piece starred or taken out, details saved, what
+  an import brought in): the line takes no taps and moves nothing, since in the columns' way it pushed every row down under
+  the finger, and it goes by itself once there's been time to read it, a line about something still going on staying. It
+  names a movement as the catalogue does ("Sonata No. 14 “Moonlight”: I. Adagio sostenuto"), not by its stored title.
 - **Levels**: each MusicXML piece is cut into 2-, 4- and 8-bar excerpts at phrase starts (never into a tie or a slur, and never
   the same bars twice) and each is graded by the ladder's own features: key, metre, rhythm figures, hands, chords in a hand,
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as

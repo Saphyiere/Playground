@@ -46,6 +46,12 @@ public static class RepertoireCards
     public static (string Work, string? Part) Named(PieceRecord piece) => Works.NameOf(new ListedPiece(piece.Id, piece.Title, piece.Work, piece.Source, piece.IsPdf));
 
     /// <summary>
+    /// A piece as a line about it calls it: a movement by its work and its own name ("Sonata No. 14 “Moonlight”: I. Adagio
+    /// sostenuto", since its stored title may leave the number out), anything else by its title in quotes.
+    /// </summary>
+    public static string Called(PieceRecord piece) => Named(piece) is (var work, { } part) ? $"{work}: {part}" : $"“{piece.Title}”";
+
+    /// <summary>
     /// A card for each piece: its history from its runs, and for one that plays along and has been played, its standing and next
     /// step from its score, read away from the screen's thread.
     /// </summary>

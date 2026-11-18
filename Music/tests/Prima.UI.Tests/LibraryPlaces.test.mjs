@@ -22,7 +22,13 @@ function page() {
         // A column as the screen draws it: what it keeps, and of what (the address, when it doesn't say).
         column(keep, at) {
             const listeners = [];
-            const column = { scrollTop: 0, dataset: at === undefined ? { keep } : { keep, at }, addEventListener: (kind, f) => kind === "scroll" && listeners.push(f) };
+            const column = {
+                scrollTop: 0, clientHeight: 700, dataset: at === undefined ? { keep } : { keep, at },
+                addEventListener: (kind, f) => kind === "scroll" && listeners.push(f),
+                getBoundingClientRect: () => ({ top: 200 }),
+                // The row chosen in it, when the test gives it one: `row` px down the column's own length.
+                querySelector: () => (column.row === undefined ? null : { offsetHeight: column.tall ?? 60, getBoundingClientRect: () => ({ top: 200 + column.row - column.scrollTop }) }),
+            };
             column.scroll = to => {
                 column.scrollTop = to;
                 for (const f of listeners) f();
@@ -84,6 +90,38 @@ test("a new search starts at the top of its results, and the list without it com
     p.go("/library?by=near&q=moonlight");
     p.ctx.show();
     assert.equal(pieces.scrollTop, 150);
+});
+
+test("a column not seen before starts where what's chosen in it shows, and one that was left stays as it was left", () => {
+    const p = page();
+    const list = p.column("list", "composers");
+    const works = p.column("works", "Ludwig van Beethoven Sonatas");
+    // Beethoven is far down the list of composers; his fourteenth sonata is far down his sonatas; nothing was scrolled yet.
+    list.row = 2400;
+    works.row = 1500;
+    p.go("/library?by=composer&of=Ludwig%20van%20Beethoven&work=w%3Asonata%20no.%2014");
+    p.ctx.show();
+    // Each is in the middle of its column: its top less half of what's left of the column's height.
+    assert.deepEqual([list.scrollTop, works.scrollTop], [2400 - (700 - 60) / 2, 1500 - (700 - 60) / 2]);
+
+    // A row near the top leaves the column at its top.
+    const early = p.column("works", "Johann Sebastian Bach Dances");
+    early.row = 120;
+    p.ctx.show();
+    assert.equal(early.scrollTop, 0);
+
+    // A work open upright with two dozen movements is taller than its column: it starts at the column's top, its name showing.
+    const upright = p.column("works-upright", "Pyotr Ilyich Tchaikovsky Character pieces");
+    upright.row = 1300;
+    upright.tall = 1450;
+    p.ctx.show();
+    assert.equal(upright.scrollTop, 1300);
+
+    // Once a column has been scrolled by hand, that's its place, whatever is chosen in it.
+    works.scroll(40);
+    works.row = 900;
+    p.ctx.show();
+    assert.equal(works.scrollTop, 40);
 });
 
 test("the composers and a composer's works stay where they are while another work is chosen", () => {

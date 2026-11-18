@@ -42,13 +42,16 @@
             <p class="page-panel-line">Once only: each piece is stored with its excerpts. The ones done are in the lists already.</p>
         </section>
     }
+    @* What's playing, or what was just done: a line over the foot of the Library, so that nothing under a finger moves when it
+       comes (in the columns' way it pushed every row down a line, the star just tapped with them). What's playing stays while
+       it plays, and so does a line that says something is still going on; any other goes by itself, the longer the later. *@
     @if (Openings.Playing is { } hearing && byId.GetValueOrDefault(hearing) is { } heard)
     {
-        <p class="control-note" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
+        <p class="control-note lib-said staying" role="status">The opening of @heard.Title, @Openings.Where. ■ stops it.</p>
     }
     else if (note is not null)
     {
-        <p class="control-note" role="status">@note</p>
+        <p class="control-note lib-said @(note.EndsWith('…') ? "staying" : "")" role="status" style="@($"--said: {(4 + note.Length * 0.07).ToString("0.0", CultureInfo.InvariantCulture)}s")" @key="sayings">@note</p>
     }
 
     @{

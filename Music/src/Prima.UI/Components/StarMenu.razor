@@ -7,7 +7,7 @@
     var holding = Book.Current.Holding(piece.Id).Select(c => c.Id).ToHashSet();
     <div class="lb-away" @onclick="Close"></div>
     <div class="lb-menu add-to @(X == 0 && Y == 0 ? "middle" : "")" role="menu" aria-label="@($"Where {piece.Title} is kept")" style="@($"--at-x: {X.ToString("0", CultureInfo.InvariantCulture)}px; --at-y: {Y.ToString("0", CultureInfo.InvariantCulture)}px")">
-        <p class="menu-title">Keep “@piece.Title” in</p>
+        <p class="menu-title">Keep @Prima.UI.Library.RepertoireCards.Called(piece) in</p>
         <button type="button" role="menuitemcheckbox" aria-checked="true" @onclick="Unstar"><span class="mu-led"></span>Repertoire</button>
         @foreach (var collection in Book.Current.Collections)
         {
@@ -69,7 +69,7 @@
         if (Piece is not { } piece) return;
 
         await Book.DropAsync(piece.Id);
-        await OnSaid.InvokeAsync($"“{piece.Title}” is out of your repertoire.");
+        await OnSaid.InvokeAsync($"{Prima.UI.Library.RepertoireCards.Called(piece)} is out of your repertoire.");
         await OnClose.InvokeAsync();
     }
 
