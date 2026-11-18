@@ -1294,6 +1294,13 @@ a {
     min-width: 0;
 }
 
+/* A head with two keys at its end, the main one first: the uploaded pieces' Import files, and the way to the Library's home. */
+.page-head > .page-head-keys {
+    flex: none;
+    display: flex;
+    gap: 10px;
+}
+
 .page-kicker {
     margin: 0;
     font-family: var(--font-mono);

@@ -214,7 +214,8 @@ a PDF plays out; this is what came of it.
   and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and work; a piece that's none of
   them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says more, as a fantasy and fugue
   or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum isn't an étude), **Levels**
-  (where most of a piece reads) and **Lists** (everything, PDFs, your imports). With no piece naming a composer (imported MIDI
+  (where most of a piece reads) and **Lists** (Everything, PDFs, and **Uploaded pieces**, the music you've imported, each
+  tagged Uploaded in a list; its own list has **Import files** at its head too, as the home does). With no piece naming a composer (imported MIDI
   files and PDFs, say) there's no Composers, and the other ways in are there all the same. A list opened from one of them can
   be cut to the pieces to play along with or the PDFs, and searched, All composers by name; a composer's pieces are grouped by
   kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each

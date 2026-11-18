@@ -13,9 +13,9 @@ namespace Prima.UI.Tests;
 public class LibraryBrowseTests
 {
     // A piece in notation: four bars of crotchets, with its composer, title and work.
-    private static async Task<PieceRecord> Add(ComponentHost host, string id, string composer, string title, string? work, int level = 7)
+    private static async Task<PieceRecord> Add(ComponentHost host, string id, string composer, string title, string? work, int level = 7, string origin = "collection")
     {
-        var piece = new PieceRecord(id, "collection", title, composer, work, "mei", null, null, level, level, null, 4, null, null, null, null, null, null, null, null, null,
+        var piece = new PieceRecord(id, origin, title, composer, work, "mei", null, null, level, level, null, 4, null, null, null, null, null, null, null, null, null,
             DateTimeOffset.Now, null);
         var bars = Enumerable.Range(1, 4).Select(b => new Bar(b, [new Voice(1, [.. Enumerable.Range(0, 4).Select(q =>
             new Notes($"n{b}-{q}", q * Ticks.Quarter, Ticks.Quarter, [new Tone($"t{b}-{q}", new Spelled(Step.C, 0, 4))]))])])).ToArray();
@@ -176,6 +176,35 @@ public class LibraryBrowseTests
         await composers.InvokeAsync(() => composers.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "dvorak" }));
 
         composers.WaitForAssertion(() => Assert.Equal(["Antonín Dvořák 1"], composers.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())), TimeSpan.FromSeconds(3));
+    }
+
+    // The owner, 17 November: "The biggest part about yours is the import file, which is just gone ... I have to go back for
+    // whatever reason to import my own files." And "Yours" is "Uploaded pieces", "because they're not really yours, right?"
+    [Fact]
+    public async Task TheUploadedPiecesHaveImportFilesOnTheirListAndAreCalledUploadedPieces()
+    {
+        await using var host = new ComponentHost();
+        await AddFew(host);
+        await Add(host, "import-numb", "", "Numb  Piano Solo Arrangement", null, origin: "import");
+        var nav = host.Context.Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("library");
+        var home = host.Context.Render<Pages.Library>();
+        home.WaitForAssertion(() => Assert.Contains("Uploaded pieces 1", home.FindAll(".shelf-chip").Select(a => a.TextContent.Trim())));
+        Assert.DoesNotContain("Yours", home.Markup, StringComparison.Ordinal);
+
+        nav.NavigateTo("library?by=mine");
+        var uploaded = host.Context.Render<Pages.Library>();
+
+        uploaded.WaitForAssertion(() => Assert.Single(uploaded.FindAll(".piece-item")));
+        Assert.Equal("Uploaded pieces", uploaded.Find("h1").TextContent);
+        Assert.Equal(["Import files", "Library"], uploaded.FindAll(".page-head .mu-btn").Select(b => b.TextContent));
+        Assert.Equal("Uploaded", uploaded.Find(".piece-tag").TextContent);
+        Assert.DoesNotContain("Yours", uploaded.Markup, StringComparison.Ordinal);
+
+        // It imports from here as from the Library's home (the test's tablet has no files to pick).
+        await uploaded.InvokeAsync(() => uploaded.FindAll(".page-head .mu-btn").First().ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        uploaded.WaitForAssertion(() => Assert.Equal("No file chosen.", uploaded.Find(".control-note").TextContent));
     }
 
     private static async Task WaitFor(Func<bool> condition)
