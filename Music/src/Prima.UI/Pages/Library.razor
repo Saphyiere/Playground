@@ -281,8 +281,26 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
         <button type="button" class="mu-btn" @onclick="PutBack">@(ownOut is { All: false, Removed.Count: 1 } ? "Put it back" : "Put them back")</button>
     </div>
 }
+@* The collection's pieces removed by hand stay out when it's imported again, until they're let back in here. *@
+@if (By is null && string.IsNullOrWhiteSpace(search) && collectionOut.Count > 0)
+{
+    <div class="control-row library-put-back">
+        <p class="section-note">@(collectionOut.Count == 1 ? "1 of your collection's pieces is out of the Library: you removed it, and importing its collection again leaves it out." : $"{collectionOut.Count} of your collection's pieces are out of the Library: you removed them, and importing their collection again leaves them out.")</p>
+        <button type="button" class="mu-btn" @onclick="LetBackIn">@(collectionOut.Count == 1 ? "Let it back in" : "Let them back in")</button>
+    </div>
+}
 
 <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
+
+@* The piece just taken out, from its own Remove: what went, and Undo, held at the foot of the screen wherever the list was left
+   scrolled to, until the Library is left. *@
+@if (Place.Removed is { } removed)
+{
+    <div class="control-row library-removed" role="status">
+        <p class="control-note">Removed “@removed.Piece.Title” from the Library.</p>
+        <button type="button" class="mu-btn" @onclick="Undo">Undo</button>
+    </div>
+}
 
 @code {
     // Titles sort with their numbers as numbers: "No. 2" before "No. 11".
@@ -329,6 +347,8 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
     // back while it's done.
     private (bool All, HashSet<string> Removed) ownOut = (false, []);
     private Task? puttingBack;
+    // The collection's pieces removed by hand, which its zip imported again leaves out.
+    private HashSet<string> collectionOut = [];
     // The pieces are read, and the list drawn from them is to be scrolled to where it was left (Library.razor.js keeps where).
     private bool loaded;
     private bool placing;
@@ -404,6 +424,27 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
         periodOf = pieces.ToDictionary(p => p.Id, p => Shelves.Period(p.Composer));
         kindOf = pieces.ToDictionary(p => p.Id, p => Shelves.Kind(p.Title, p.Work));
         ownOut = await Store.GetOwnPiecesOutAsync();
+        collectionOut = await Store.GetCollectionPiecesOutAsync();
+    }
+
+    // The piece just taken out put back as it was, where it was in the list.
+    private async Task Undo()
+    {
+        if (Place.Removed is not { } removed) return;
+
+        Place.Removed = null;
+        await Store.PutPieceBackAsync(removed);
+        await Load();
+        note = $"“{removed.Piece.Title}” is back in the Library.";
+    }
+
+    // The collection's pieces removed by hand let back in: they come back the next time their collection is imported.
+    private async Task LetBackIn()
+    {
+        var count = collectionOut.Count;
+        await Store.LetCollectionPiecesBackAsync();
+        await Load();
+        note = count == 1 ? "It comes back the next time its collection is imported." : "They come back the next time their collection is imported.";
     }
 
     // What the home's last line says of Prima's own pieces kept out, when any are.
@@ -593,8 +634,9 @@ else if (By is null && string.IsNullOrWhiteSpace(search) && puttingBack is null 
     {
         Prep.Changed -= Changed;
         Openings.Changed -= Heard;
-        // Leaving the Library (opening a piece, say) stops an opening playing.
+        // Leaving the Library (opening a piece, say) stops an opening playing, and a piece taken out can't be put back any more.
         Openings.Stop();
+        Place.Removed = null;
         typing?.Cancel();
         try
         {

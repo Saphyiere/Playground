@@ -185,6 +185,8 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     /// <summary>How many times a Library list, drawn, was scrolled to where it was left, and how many times one was left.</summary>
     public int ListsPlaced { get; private set; }
     public int ListsLeft { get; private set; }
+    /// <summary>The steps back the page was asked to take (history.go), as the way back asks them.</summary>
+    public List<int> WentBack { get; } = [];
 
     public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, default, args);
 
@@ -209,6 +211,7 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
         if (identifier == "render") lock (Renders) Renders.Add(((string)args![1]!, JsonSerializer.SerializeToElement(args[2])));
         if (identifier == "show" && args is null or []) ListsPlaced++;
         if (identifier == "leave") ListsLeft++;
+        if (identifier == "history.go") WentBack.Add(Convert.ToInt32(args![0], System.Globalization.CultureInfo.InvariantCulture));
         if (identifier == "show" && args?.Length == 7) ShownPdfs.Add((ElementReference)args[0]!);
         if (identifier == "show" && args is [string section])
         {

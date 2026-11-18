@@ -8,6 +8,8 @@
 @inject ILibraryBundle Bundle
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
+@inject Prima.UI.Library.LibraryPlace Place
 @inject ISystemBars SystemBars
 @inject ILogger<Piece> Logger
 @using Microsoft.Extensions.Logging
@@ -462,10 +464,14 @@ else
                     <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
                 }
             </div>
-            @* One of Prima's own goes as an import does, and stays out: Prima doesn't put it back by itself. *@
+            @* One of Prima's own goes as an import does, and stays out: Prima doesn't put it back by itself. A collection's too. *@
             @if (removing && piece.Origin == "bundle")
             {
                 <p class="section-note" role="status">One of Prima's own pieces: it stays out of the Library, and Prima won't put it back by itself (the Library has a key that puts Prima's own back). Your runs on it still count.</p>
+            }
+            else if (removing && piece.Origin == "collection")
+            {
+                <p class="section-note" role="status">From your collection: it stays out of the Library, even when the collection is imported again (the Library has a key that lets it back in). Your runs on it still count.</p>
             }
         </section>
         @if (stage == Stage.Practice && clock is { Paused: true } && !Pdf)
@@ -1756,11 +1762,12 @@ else
     }
 
     // Out of the Library with its excerpts and readings, and the files a PDF that isn't Prima's own keeps beside the imports; one of
-    // Prima's own stays out.
+    // Prima's own, or a collection's, stays out. Back to the list it was opened from, as it was left, which says what went and can
+    // put it back (Undo); the Library's home, when it wasn't opened from one.
     private async Task Remove()
     {
-        await Store.RemovePieceAsync(Id);
-        Nav.NavigateTo("library");
+        Place.Removed = await Store.RemovePieceAsync(Id);
+        await Navigation.ReturnToAsync("library");
     }
 
     public async ValueTask DisposeAsync()

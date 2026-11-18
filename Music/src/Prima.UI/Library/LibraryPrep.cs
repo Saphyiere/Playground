@@ -179,11 +179,15 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
                 if (removed > 0) notes.Add($"{Pieces(removed)} the collection no longer has {(removed == 1 ? "was" : "were")} taken out.");
                 if (changed > 0) notes.Add($"Titles and credits of {Pieces(changed)} brought up to date.");
 
-                var adding = entries.Where(e => !have.Contains(e.Part?.Id ?? e.Piece.Id)).ToList();
+                // Its pieces removed by hand stay out: importing the collection again doesn't bring them back.
+                var removedByHand = await store.GetCollectionPiecesOutAsync();
+                var keptOut = entries.Count(e => (e.Part?.Id ?? e.Piece.Id) is var id && !have.Contains(id) && removedByHand.Contains(id));
+                if (keptOut > 0) notes.Add($"{Pieces(keptOut)} you removed {(keptOut == 1 ? "stays" : "stay")} out.");
+                var adding = entries.Where(e => (e.Part?.Id ?? e.Piece.Id) is var id && !have.Contains(id) && !removedByHand.Contains(id)).ToList();
                 if (adding.Count == 0)
                 {
                     zip.Dispose();
-                    notes.Add($"Everything in {name} is in the Library already.");
+                    notes.Add(keptOut > 0 ? $"Everything else in {name} is in the Library already." : $"Everything in {name} is in the Library already.");
                     continue;
                 }
 

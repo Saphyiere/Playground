@@ -510,8 +510,13 @@ a PDF plays out; this is what came of it.
   bar. MuseScore and Humdrum files need converting to MusicXML on the PC first (the Library tool does it for its corpora).
 - **Taking pieces out**: a piece's **Remove from the Library…**, under About this piece, takes it out once asked again, with
   its excerpts and readings, and an import's or a collection's PDF and MIDI. Its runs stay, so its days and the streak still
-  count them, and every screen that lists pieces goes on without it. One of Prima's own stays out: the Library doesn't put it
-  back when it stores the collection again. Settings' **Remove library** (Your data, below) takes every piece out at once,
+  count them, and every screen that lists pieces goes on without it. Then it's back on the list it was opened from, as that was
+  left (the Library's home, when it wasn't opened from one), with a line held at the foot of the screen saying what went and
+  **Undo**, which puts it back as it was, with its excerpts, reading, conversion and files, until the Library is left. One of
+  Prima's own stays out: the Library doesn't put it back when it stores the collection again. One of the collection's stays out
+  too: importing its zip again leaves it out (the import says so), and the Library's home says how many are out in a line at
+  its end, with **Let it back in** (**Let them back in**), after which their collection's next import brings them back.
+  Settings' **Remove library** (Your data, below) takes every piece out at once,
   Prima's own too, and Prima then puts none of its own in by itself, not even those a newer release brings. The Library says
   so: when it's empty, in place of everything else, with **Put Prima's pieces back**; otherwise in a line at the end of its
   home, with **Put them back** (**Put it back** for one removed by hand). Either stores every one of Prima's own again, those
@@ -989,7 +994,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   screen. Imported
   files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces kept out of the Library (all of
   them after Remove library, and each one removed by hand, by its id) are kept as settings, so a copy and a restore carry them,
-  until the Library puts them back.
+  until the Library puts them back; so are the collection's pieces removed by hand, by id, until they're let back in. What
+  Undo puts back (the piece's rows and files as they were) is held in memory only, until the Library is left.
 - **Readings**: a PDF's reading by Claude, waiting to be reviewed or kept: each system's step and note, its reading as Claude
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
   (Read again's included), and when it was kept.

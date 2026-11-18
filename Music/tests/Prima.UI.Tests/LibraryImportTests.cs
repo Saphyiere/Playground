@@ -104,6 +104,36 @@ public class LibraryImportTests
         foreach (var id in new[] { "older-one", "older-two" }) File.Delete(Path.Combine(host.Store.FilesPath, id + ".pdf"));
     }
 
+    // The owner, 17 November: "If I remove something, it doesn't remember that." A collection's piece removed by hand came back
+    // with its zip imported again. It stays out now, as one of Prima's own does, until the Library is asked to let it back in.
+    [Fact]
+    public async Task ACollectionsPieceRemovedByHandStaysOutWhenItsZipIsImportedAgainUntilItsLetBackIn()
+    {
+        await using var host = new ComponentHost();
+        var prep = new LibraryPrep(host.Store, new NoBundle(), new PassingVerovio());
+        var zip = Zip("prima-collection-pdmx.zip", [Pdf("kept-one", "Melodie"), Pdf("removed-one", "Diabelli Variations (WIP)")], null);
+        await prep.ImportAsync([zip]);
+        await prep.EnsureAsync();
+
+        await host.Store.RemovePieceAsync("removed-one");
+        var (_, note) = await prep.ImportAsync([zip]);
+
+        Assert.Equal("1 piece you removed stays out. Everything else in prima-collection-pdmx.zip is in the Library already.", note);
+        Assert.Equal(["kept-one"], (await host.Store.GetPiecesAsync()).Select(p => p.Id));
+        var home = host.Context.Render<Pages.Library>();
+        home.WaitForAssertion(() => Assert.Equal("1 of your collection's pieces is out of the Library: you removed it, and importing its collection again leaves it out.",
+            home.FindAll(".library-put-back .section-note").Single().TextContent));
+
+        await home.InvokeAsync(() => home.FindAll(".library-put-back button").Single(b => b.TextContent == "Let it back in").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+
+        home.WaitForAssertion(() => Assert.Empty(home.FindAll(".library-put-back")));
+        Assert.Equal("It comes back the next time its collection is imported.", home.Find(".control-note").TextContent);
+        await prep.ImportAsync([zip]);
+        await prep.EnsureAsync();
+        Assert.Equal(["kept-one", "removed-one"], (await host.Store.GetPiecesAsync()).Select(p => p.Id).Order(StringComparer.Ordinal));
+        foreach (var id in new[] { "kept-one", "removed-one" }) File.Delete(Path.Combine(host.Store.FilesPath, id + ".pdf"));
+    }
+
     // A PDF of the local collection as the Library tool lists it.
     private static BundledPiece Pdf(string id, string title) => new(id, title, "Robert Schumann", "Op. 68", "pdf", $"pieces/{id}.pdf", null, "", "Mutopia", "",
         "Public domain", "", "Typeset for the Mutopia Project; Public domain.", Tier.A, null, 7);

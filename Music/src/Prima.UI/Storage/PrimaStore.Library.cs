@@ -56,6 +56,12 @@ public sealed record PieceReading(string Piece, string Result, DateTimeOffset Sa
 /// <summary>An excerpt of a piece for the sight-reading track: its bars, level, and when it was last read.</summary>
 public sealed record ExcerptRecord(long Id, string Piece, int FirstBar, int LastBar, int Level, double Within, int Used, DateOnly? LastUsed);
 
+/// <summary>
+/// A piece taken out by hand, as it was just before: every row of it (the piece with its music, its excerpts, its reading, and
+/// what converting its PDF kept), by table, and the files a PDF kept beside the imports. Enough to put it back as it was (Undo).
+/// </summary>
+public sealed record RemovedPiece(PieceRecord Piece, IReadOnlyList<(string Table, IReadOnlyDictionary<string, object?> Row)> Rows, IReadOnlyList<(string Name, byte[] Data)> Files);
+
 public sealed partial class PrimaStore
 {
     private const string LibrarySchema = """
@@ -115,6 +121,13 @@ public sealed partial class PrimaStore
     // them, and Reset settings, which puts back only what's on the Settings screen, leaves them.
     private const string OwnPiecesOutKey = "Library.OwnPiecesOut";
     private const string RemovedKey = "Library.Removed.";
+    // A collection's piece removed by hand, under its id: importing its collection again leaves it out. Not under RemovedKey,
+    // whose keys the bundle's own refresh lets go of when the bundle no longer has their piece.
+    private const string CollectionRemovedKey = "Library.CollectionRemoved.";
+
+    // A piece's rows, table by table, the piece's own first: what a piece taken out takes with it, and Undo puts back.
+    private static readonly (string Table, string Key)[] PieceTables =
+        [("Piece", "Id"), ("Excerpt", "Piece"), ("PieceReading", "Piece"), ("ConversionSource", "Piece"), ("ConversionJob", "Piece"), ("NotationReviewSession", "Piece")];
 
     /// <summary>The folder imported files are kept in, beside the data file.</summary>
     public string FilesPath => Path.Combine(Path.GetDirectoryName(databasePath) ?? ".", "library");
@@ -147,14 +160,17 @@ public sealed partial class PrimaStore
 
     /// <summary>
     /// Saves a piece with its MEI (null for a PDF) and its excerpts, replacing any it had: false, and nothing saved, for one of
-    /// Prima's own that's kept out of the Library (all of them after Remove library, or this one removed by hand), so nothing
-    /// that comes after puts it back (the bundle still being stored, or a reading of it kept).
+    /// Prima's own that's kept out of the Library (all of them after Remove library, or this one removed by hand), or a
+    /// collection's removed by hand, so nothing that comes after puts it back (the bundle still being stored, its collection
+    /// imported again, or a reading of it kept).
     /// </summary>
     public Task<bool> SavePieceAsync(PieceRecord piece, string? mei, IReadOnlyList<BundledExcerpt> excerpts) => RunAsync(async c =>
     {
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         if (piece.Origin == "bundle" && await c.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Setting WHERE Key IN (@all, @one)",
             new { all = OwnPiecesOutKey, one = RemovedKey + piece.Id }, transaction) > 0) return false;
+        if (piece.Origin == "collection" && await c.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Setting WHERE Key = @one",
+            new { one = CollectionRemovedKey + piece.Id }, transaction) > 0) return false;
 
         await c.ExecuteAsync($"""
             INSERT INTO Piece ({PieceColumns}, Mei) VALUES (@Id, @Origin, @Title, @Composer, @Work, @Format, @File, @Midi, @Level, @TypicalLevel, @Reasons, @Bars, @Source, @SourceUrl, @Licence, @LicenceUrl, @Credit, @Tier, @Tempo, @Layout, @Position, @Added, @Opened, @mei)
@@ -245,26 +261,87 @@ public sealed partial class PrimaStore
     /// <summary>
     /// Takes a piece out of the Library by hand (its Remove from the Library…), with its excerpts and readings, and an import's or a
     /// collection's PDF and MIDI kept beside the data file. One of Prima's own stays out from then on: the Library doesn't put it
-    /// back when it stores Prima's pieces again, until it's asked to put them all back. Its runs and practice sessions stay, as
-    /// any piece's that goes do: the days still count them.
+    /// back when it stores Prima's pieces again, until it's asked to put them all back. One of a collection's stays out too: its
+    /// collection imported again leaves it out, until it's let back in. Its runs and practice sessions stay, as any piece's that
+    /// goes do: the days still count them. What went, to put back with Undo; null when there was no such piece.
     /// </summary>
-    public async Task RemovePieceAsync(string id)
+    public async Task<RemovedPiece?> RemovePieceAsync(string id)
     {
-        var gone = await RunAsync(async c =>
+        if (await GetPieceAsync(id) is not { } record) return null;
+
+        // A PDF's file and MIDI beside the imports, read before they go (a bundled piece's are in the bundle, and stay).
+        var files = new List<(string Name, byte[] Data)>();
+        if (record is { Origin: not "bundle", IsPdf: true })
+        {
+            foreach (var name in new[] { record.File, record.Midi }.OfType<string>())
+            {
+                var path = Path.Combine(FilesPath, name);
+                if (File.Exists(path)) files.Add((name, await File.ReadAllBytesAsync(path)));
+            }
+        }
+
+        var rows = await RunAsync(async c =>
         {
             await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
-            var piece = await c.QuerySingleOrDefaultAsync<(string Origin, string Format, string? File, string? Midi)?>("SELECT Origin, Format, File, Midi FROM Piece WHERE Id = @id", new { id }, transaction);
-            if (piece?.Origin == "bundle")
+            var kept = new List<(string Table, IReadOnlyDictionary<string, object?> Row)>();
+            foreach (var (table, key) in PieceTables)
+            {
+                foreach (IDictionary<string, object?> row in await c.QueryAsync($"SELECT * FROM {table} WHERE {key} = @id", new { id }, transaction))
+                {
+                    kept.Add((table, new Dictionary<string, object?>(row)));
+                }
+            }
+            var mark = record.Origin switch { "bundle" => RemovedKey, "collection" => CollectionRemovedKey, _ => null };
+            if (mark is not null)
             {
                 await c.ExecuteAsync("INSERT INTO Setting (Key, Value) VALUES (@key, @at) ON CONFLICT (Key) DO UPDATE SET Value = excluded.Value",
-                    new { key = RemovedKey + id, at = Iso(DateTimeOffset.Now) }, transaction);
+                    new { key = mark + id, at = Iso(DateTimeOffset.Now) }, transaction);
             }
+            // A reading's systems and review, and its conversion's jobs, go with their piece (they're its own, by its id).
             await c.ExecuteAsync("DELETE FROM Excerpt WHERE Piece = @id; DELETE FROM PieceReading WHERE Piece = @id; DELETE FROM Piece WHERE Id = @id", new { id }, transaction);
             await transaction.CommitAsync();
-            return piece;
+            return kept;
         });
-        if (gone is { Origin: not "bundle", Format: "pdf" } kept) DeleteFiles(Beside([kept.File, kept.Midi]));
+        DeleteFiles(Beside(files.Select(f => (string?)f.Name)));
+        return new RemovedPiece(record, rows, files);
     }
+
+    /// <summary>
+    /// Puts a piece taken out by hand back as it was (Undo): every row it took with it, its files, and in the Library's lists again,
+    /// one of Prima's own or a collection's no longer kept out. An excerpt whose number has been taken meanwhile takes another.
+    /// </summary>
+    public async Task PutPieceBackAsync(RemovedPiece removed)
+    {
+        if (removed.Files.Count > 0) Directory.CreateDirectory(FilesPath);
+        foreach (var (name, data) in removed.Files) await File.WriteAllBytesAsync(Path.Combine(FilesPath, name), data);
+
+        await RunAsync(async c =>
+        {
+            await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+            foreach (var (table, row) in removed.Rows)
+            {
+                var values = new DynamicParameters(row);
+                var put = await c.ExecuteAsync($"INSERT OR IGNORE INTO {table} ({string.Join(", ", row.Keys)}) VALUES ({string.Join(", ", row.Keys.Select(k => "@" + k))})", values, transaction);
+                if (put == 0 && table == "Excerpt")
+                {
+                    var rest = row.Keys.Where(k => k != "Id").ToList();
+                    await c.ExecuteAsync($"INSERT INTO Excerpt ({string.Join(", ", rest)}) VALUES ({string.Join(", ", rest.Select(k => "@" + k))})", values, transaction);
+                }
+            }
+            await c.ExecuteAsync("DELETE FROM Setting WHERE Key IN (@own, @collection)",
+                new { own = RemovedKey + removed.Piece.Id, collection = CollectionRemovedKey + removed.Piece.Id }, transaction);
+            await transaction.CommitAsync();
+        });
+    }
+
+    /// <summary>The collection's pieces removed by hand, by id: importing their collection again leaves them out.</summary>
+    public Task<HashSet<string>> GetCollectionPiecesOutAsync() => RunAsync(async c =>
+        (await c.QueryAsync<string>("SELECT Key FROM Setting WHERE substr(Key, 1, @length) = @prefix", new { length = CollectionRemovedKey.Length, prefix = CollectionRemovedKey }))
+            .Select(k => k[CollectionRemovedKey.Length..]).ToHashSet());
+
+    /// <summary>Lets the collection's pieces removed by hand back in: they come back the next time their collection is imported.</summary>
+    public Task LetCollectionPiecesBackAsync() => RunAsync(c => c.ExecuteAsync("DELETE FROM Setting WHERE substr(Key, 1, @length) = @prefix",
+        new { length = CollectionRemovedKey.Length, prefix = CollectionRemovedKey }));
 
     /// <summary>
     /// Takes every piece out of the Library (Settings › Your data › Remove library), Prima's own too, as one piece of work: their
