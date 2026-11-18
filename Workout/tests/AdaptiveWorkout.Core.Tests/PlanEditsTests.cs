@@ -74,6 +74,8 @@ public class PlanEditsTests
 
         Assert.Equal([1, 3, 2, 4], changed.Select(e => e.Line));
         Assert.Equal(2, changed[0].PlannedSets);
+        Assert.True(changed[0].FinishedByUser);
+        Assert.False(changed.Single(e => e.Line == 4).FinishedByUser);
         Assert.Equal([1, 2], sets.Select(s => s.Order));
         Assert.Equal(new PlanStep([Skulls], [3], 1, 4), WorkoutPlan.Next(changed, sets, NoHistory));
         for (var i = 0; i < 4; i++) sets.Add(Set(3, Skulls, 3 + i));
@@ -125,6 +127,24 @@ public class PlanEditsTests
         Assert.Equal(new PlanStep([Skulls], [3], 1, 3), WorkoutPlan.Next(changed, sets, history));
         var again = PlanEdits.AdjustCount(changed, WorkoutPlan.Blocks(changed)[0], sets, history, more: false);
         Assert.Equal(2, again[0].PlannedSets);
+        Assert.All(WorkoutPlan.Blocks(again)[0], e => Assert.True(e.FinishedByUser));
+        var reopened = PlanEdits.AdjustCount(again, WorkoutPlan.Blocks(again)[0], sets, history, more: true);
+        Assert.All(WorkoutPlan.Blocks(reopened)[0], e => Assert.False(e.FinishedByUser));
+        Assert.All(PlanEdits.AsSession(again), e => Assert.False(e.FinishedByUser));
+    }
+
+    [Fact]
+    public void FinishBlock_CorrectingALoggedSetToWarmUpDoesNotPutTheExerciseBackInTheQueue()
+    {
+        var plan = ChestDay();
+        List<WorkoutSet> sets = [Set(1, Bench, 1), Set(1, Bench, 2)];
+        var finished = PlanEdits.FinishBlock(plan, [plan[0]], sets, done: 2);
+
+        sets[0].WarmUp = true;
+        Assert.Equal(new BlockProgress(1, 1, false, true), WorkoutPlan.Progress([finished[0]], sets, NoHistory));
+        Assert.Equal(new PlanStep([Incline], [2], 1, 3), WorkoutPlan.Next(finished, sets, NoHistory));
+        var reopened = PlanEdits.AdjustCount(finished, [finished[0]], sets, NoHistory, more: true);
+        Assert.Equal(new PlanStep([Bench], [1], 2, 2), WorkoutPlan.Next(reopened, sets, NoHistory));
     }
 
     [Fact]

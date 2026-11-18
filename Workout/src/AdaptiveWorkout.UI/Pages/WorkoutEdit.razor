@@ -383,11 +383,20 @@
                 }
                 @if (!active)
                 {
-                    <button type="button" class="btn" @onclick="@(() => Show(place.Done ? Panel.Swap : Panel.Change))">@(place.Done ? "Correct exercise…" : "Change…")</button>
+                    <button type="button" class="btn" @onclick="@(() => Show(place.Done ? Panel.Swap : Panel.Change))">
+                        @if (place.Done)
+                        {
+                            <FitLabel Text="Correct exercise…" Short="Correct…" />
+                        }
+                        else
+                        {
+                            @("Change…")
+                        }
+                    </button>
                 }
                 else if (!single)
                 {
-                    <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))">Replace in superset…</button>
+                    <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))"><FitLabel Text="Replace in superset…" Short="Replace…" /></button>
                 }
                 @if (single)
                 {
@@ -470,8 +479,8 @@
 
     private string CountNote(List<TemplateExercise> block, BlockProgress progress)
     {
-        if (block[0].PlannedSets is not int count) return progress.Target is null ? "Open until you move on" : $"Suggested count · {progress.Done} done";
-        if (progress.Done > 0) return count > progress.Done ? $"{progress.Done} done, {count - progress.Done} to go" : $"{progress.Done} done, none to go";
+        if (block[0].PlannedSets is null) return progress.Target is null ? "Open until you move on" : $"Suggested count · {progress.Done} done";
+        if (progress.Done > 0) return progress.Target > progress.Done ? $"{progress.Done} done, {progress.Target - progress.Done} to go" : $"{progress.Done} done, none to go";
         return block.Count > 1 ? "Each round is one set of each exercise" : "Then the big button moves on";
     }
 

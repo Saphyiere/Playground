@@ -52,6 +52,9 @@ public sealed class TemplateExercise
     /// whatever exercise it has and wherever it moves, and the same exercise can be on two lines. 0 in a session.
     /// </summary>
     public int Line { get; set; }
+
+    /// <summary>The user finished this line for today and does not want another set offered.</summary>
+    public bool FinishedByUser { get; set; }
 }
 
 /// <summary>An exercise is whatever name I typed; variations are separate names.</summary>

@@ -79,7 +79,8 @@ public static class WorkoutPlan
             done = Math.Max(done, count);
         }
 
-        return new BlockProgress(done, block[0].PlannedSets ?? (openEnded ? null : LastTime(block, setsLastTime)), running, started);
+        var target = block.All(e => e.FinishedByUser) ? done : block[0].PlannedSets ?? (openEnded ? null : LastTime(block, setsLastTime));
+        return new BlockProgress(done, target, running, started);
     }
 
     /// <summary>Where <see cref="Next"/>'s step is in the plan: the first block of <see cref="Blocks"/> that isn't done; null when all are.</summary>

@@ -217,10 +217,11 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     /// </summary>
     public void StartAnother()
     {
-        if (Current is not { Running: [], LastRound: [var last, ..] } state || state.BlockOf(last.Line) is not { } block) return;
+        if (Current is not { Running: [], RepeatableLastBlock: { } block } state) return;
 
-        if (state.Progress(block) is { Complete: true, Done: var done }) SavePlan(state, PlanEdits.Count(state.Plan, last.Line, done + 1));
-        StartSets(state.StepOf(state.BlockOf(last.Line)!));
+        var line = block[0].Line;
+        if (state.Progress(block) is { Complete: true, Done: var done }) SavePlan(state, PlanEdits.Count(state.Plan, line, done + 1));
+        StartSets(state.StepOf(state.BlockOf(line)!));
     }
 
     /// <summary>
@@ -231,7 +232,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         if (Current is not { Running: [], CanMoveOn: true, NextBlock: int at } state) return;
 
         var block = state.Blocks()[at];
-        SavePlan(state, PlanEdits.Count(state.Plan, block[0].Line, state.Progress(block).Done));
+        SavePlan(state, PlanEdits.FinishBlock(state.Plan, block, state.Sets, state.Progress(block).Done));
         if (state.Next is { } next) StartSets(next);
         else Announce();
     }

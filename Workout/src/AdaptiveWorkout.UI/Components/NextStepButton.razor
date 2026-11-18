@@ -77,7 +77,7 @@ else if (State.Next is { } next)
             <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
         </div>
     }
-    else if (!State.OpenEnded && !goingOn && !takenApart && LastBlock is { } again)
+    else if (!State.OpenEnded && !goingOn && !takenApart && State.RepeatableLastBlock is { } again)
     {
         <button type="button" class="btn tall" @onclick="StartAnotherAsync">
             @if (again.Count == 1)
@@ -116,7 +116,7 @@ else if (State.WarmingUp)
 else
 {
     <p class="note center">@(State.OpenEnded ? "Pick what's next, or finish." : "Every planned exercise is done.")</p>
-    @if (LastBlock is { } again)
+    @if (State.RepeatableLastBlock is { } again)
     {
         <div class="grid-2">
             <button type="button" class="btn tall" @onclick="StartAnotherAsync">@(again.Count > 1 ? "Another round" : "Another set")</button>
@@ -139,10 +139,6 @@ else
     [Parameter] public EventCallback OnFinish { get; set; }
 
     private string FinishText => State.CoolDownNext ? "Start cool-down" : "Finish workout";
-
-    // What I just did, as it stands in today's workout now: its line's block, which is one exercise once its superset was taken
-    // apart. Null before the first set, and once its line is gone.
-    private List<TemplateExercise>? LastBlock => State.LastRound is [var last, ..] ? State.BlockOf(last.Line) : null;
 
     // More to do once everything is done: another exercise picked to start, when just tracking; else the edit screen, on adding one.
     private RenderFragment AddMore => State.OpenEnded

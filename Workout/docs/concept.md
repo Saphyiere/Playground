@@ -228,7 +228,7 @@ Today's workout is its lines in the order they're done: each line is an exercise
 2. Without a count, if I've done the exercise before, it's done after as many sets as last time.
 3. Between sets I can **move on to the next exercise** at any count. If I leave after two of three, those two are my finished exercise. While a set is running, **Skip set and move on** drops the unfinished attempt and leaves the next exercise ready to start. In a superset this applies to the whole round.
 4. The remaining exercises follow their order in the editor. I can use the arrows to postpone an exercise, or add a fresh line to do the same exercise again later.
-5. Once a line is done, a second button offers **Another set of rows** (or **Another round**) for when I'm doing more than planned; it's one more than the line had.
+5. When I complete the planned count, **Another set of rows** or **Another round** lets me do one extra right away. Explicitly finishing or switching exercises clears that suggestion, including after I reopen the workout.
 
 A warm-up set says where I am in the plan without being one of the exercise's sets: after it, the same set is still next.
 
@@ -546,7 +546,7 @@ RoutineDay         RoutineId, Day (Monday 0 to Sunday 6), TemplateId (empty = re
 SessionTemplate    Id, Name, Order, WarmUp, CoolDown
 Setting            Key, Value                    (the routine in use, the theme, rest countdowns, the calorie goal, sex, birth year, height, usual day)
 TemplateExercise   TemplateId, ExerciseId, Order, PlannedSets (optional), SupersetGroup (optional)
-SessionExercise    SessionId, ExerciseId, Order, PlannedSets, SupersetGroup   (the workout's own lines, changed as it goes)
+SessionExercise    SessionId, ExerciseId, Order, PlannedSets, SupersetGroup, FinishedByUser   (the workout's own lines, changed as it goes)
                    Line                          (the line's number in its workout, kept while it moves; its sets carry it)
 Session            Id, TemplateId (empty = just tracking), StartedAt, FinishedAt, LoggedAfterward
                    WarmUp, WarmUpEndedAt         (copied from the template at Start; warming up from StartedAt until the first set)

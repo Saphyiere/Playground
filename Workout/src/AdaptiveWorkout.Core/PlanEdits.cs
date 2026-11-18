@@ -12,7 +12,7 @@ public static class PlanEdits
     public static List<TemplateExercise> Copy(IReadOnlyList<TemplateExercise> entries)
     {
         var plan = Build(Parse(entries));
-        for (var i = 0; i < plan.Count; i++) plan[i].Line = i + 1;
+        for (var i = 0; i < plan.Count; i++) (plan[i].Line, plan[i].FinishedByUser) = (i + 1, false);
         return plan;
     }
 
@@ -20,7 +20,7 @@ public static class PlanEdits
     public static List<TemplateExercise> AsSession(IReadOnlyList<TemplateExercise> plan)
     {
         var entries = Build(Parse(plan));
-        foreach (var entry in entries) entry.Line = 0;
+        foreach (var entry in entries) (entry.Line, entry.FinishedByUser) = (0, false);
         return entries;
     }
 
@@ -71,7 +71,7 @@ public static class PlanEdits
     public static List<TemplateExercise> FinishBlock(IReadOnlyList<TemplateExercise> plan, IReadOnlyList<TemplateExercise> block, List<WorkoutSet> sets, int done)
     {
         sets.RemoveAll(s => s.StoppedAt is null && block.Any(e => e.Line == s.Line));
-        return Count(plan, block[0].Line, done);
+        return Count(plan, block[0].Line, done, finishedByUser: true);
     }
 
     /// <summary>Puts a chosen block first among those still to do, finishing the exercise the user is leaving.</summary>
@@ -90,16 +90,21 @@ public static class PlanEdits
     {
         var progress = WorkoutPlan.Progress(block, sets, history);
         var line = block[0].Line;
-        if (more) return Count(plan, line, (progress.EditableCount ?? progress.Done) + 1);
+        if (more) return Count(plan, line, (progress.EditableCount ?? progress.Done) + 1, finishedByUser: false);
         if (progress.EditableCount is not int count || count <= progress.Done) return plan;
         return count - 1 == progress.Done ? FinishBlock(plan, block, sets, progress.Done) : Count(plan, line, count - 1);
     }
 
     /// <summary>Sets a line's sets (its superset's rounds); empty means as many as last time.</summary>
-    public static List<TemplateExercise> Count(IReadOnlyList<TemplateExercise> plan, int line, int? count)
+    public static List<TemplateExercise> Count(IReadOnlyList<TemplateExercise> plan, int line, int? count, bool? finishedByUser = null)
     {
         var blocks = Parse(plan);
-        if (Find(blocks, line) is { } block) block.Count = count;
+        if (Find(blocks, line) is { } block)
+        {
+            block.Count = count;
+            if (finishedByUser is bool finished)
+                foreach (var entry in block.Lines) entry.FinishedByUser = finished;
+        }
         return Build(blocks);
     }
 
@@ -202,6 +207,8 @@ public static class PlanEdits
         if (WorkoutPlan.Blocks(plan).Find(b => b.Exists(e => e.Line == line)) is not { } block) return Build(Parse(plan));
 
         var progress = WorkoutPlan.Progress(block, sets, setsLastTime, openEnded);
+        if (block.TrueForAll(e => e.FinishedByUser) && !progress.Running)
+            return progress.Started ? Count(plan, line, progress.Done) : RemoveBlock(plan, line);
         if (progress.Complete || progress.Running) return Build(Parse(plan));
 
         return progress.Started ? Count(plan, line, progress.Done) : RemoveBlock(plan, line);
@@ -230,7 +237,7 @@ public static class PlanEdits
 
     // A plan's blocks, each with its count and copies of its lines, so an edit never touches the plan it was handed.
     private static List<Block> Parse(IReadOnlyList<TemplateExercise> plan) =>
-        [.. WorkoutPlan.Blocks(plan).Select(b => new Block(b[0].PlannedSets, [.. b.Select(e => new TemplateExercise { ExerciseId = e.ExerciseId, Line = e.Line })]))];
+        [.. WorkoutPlan.Blocks(plan).Select(b => new Block(b[0].PlannedSets, [.. b.Select(e => new TemplateExercise { ExerciseId = e.ExerciseId, Line = e.Line, FinishedByUser = e.FinishedByUser })]))];
 
     private static Block? Find(List<Block> blocks, int line) => blocks.Find(b => b.Has(line));
 
@@ -246,7 +253,7 @@ public static class PlanEdits
             {
                 plan.Add(new TemplateExercise
                 {
-                    ExerciseId = block.Lines[i].ExerciseId, Line = block.Lines[i].Line, Order = plan.Count,
+                    ExerciseId = block.Lines[i].ExerciseId, Line = block.Lines[i].Line, FinishedByUser = block.Lines[i].FinishedByUser, Order = plan.Count,
                     PlannedSets = i == 0 ? block.Count : null, SupersetGroup = block.Lines.Count > 1 ? group : null,
                 });
             }

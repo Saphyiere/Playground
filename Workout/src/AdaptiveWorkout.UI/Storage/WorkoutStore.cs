@@ -27,7 +27,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         CREATE TABLE IF NOT EXISTS FoodEntry (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Calories INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS BodyWeightEntry (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Weight REAL NOT NULL, WeightUnit INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS HeartRateSample (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, Bpm INTEGER NOT NULL);
-        CREATE TABLE IF NOT EXISTS SessionExercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, PlannedSets INTEGER, SupersetGroup INTEGER, Line INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS SessionExercise (Id INTEGER PRIMARY KEY AUTOINCREMENT, SessionId INTEGER NOT NULL REFERENCES WorkoutSession (Id) ON DELETE CASCADE, ExerciseId INTEGER NOT NULL REFERENCES Exercise (Id), "Order" INTEGER NOT NULL, PlannedSets INTEGER, SupersetGroup INTEGER, Line INTEGER NOT NULL DEFAULT 0, FinishedByUser INTEGER NOT NULL DEFAULT 0);
         -- Each call to Claude (never the key): when, for which workout, the task and model, how it went, what was asked and answered,
         -- and what it used and cost. A workout deleted keeps its calls, so a month's cost stays true.
         CREATE TABLE IF NOT EXISTS ClaudeCall (Id INTEGER PRIMARY KEY AUTOINCREMENT, At TEXT NOT NULL, SessionId INTEGER, Task TEXT NOT NULL, Version INTEGER NOT NULL, Model TEXT NOT NULL, Attempt INTEGER NOT NULL, Kind TEXT NOT NULL, Summary TEXT NOT NULL, Question TEXT NOT NULL, Reply TEXT NOT NULL, InputTokens INTEGER NOT NULL, OutputTokens INTEGER NOT NULL, CacheReadTokens INTEGER NOT NULL, CacheWriteTokens INTEGER NOT NULL, Cost REAL NOT NULL, Ms INTEGER NOT NULL, MessageId TEXT NOT NULL, Error TEXT NOT NULL);
@@ -99,6 +99,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     // A workout's lines got numbers, which their sets carry, after the tables existed (0 in a workout from before). Each table
     // is looked at on its own, since a workout's own exercises came later than its sets did.
     private const string SessionExerciseLine = "ALTER TABLE SessionExercise ADD COLUMN Line INTEGER NOT NULL DEFAULT 0;";
+    private const string SessionExerciseFinished = "ALTER TABLE SessionExercise ADD COLUMN FinishedByUser INTEGER NOT NULL DEFAULT 0;";
     private const string SetLine = "ALTER TABLE WorkoutSet ADD COLUMN Line INTEGER NOT NULL DEFAULT 0;";
 
     private const string ActiveRoutineKey = "ActiveRoutineId";
@@ -299,7 +300,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
     /// sets carry. Empty when none was saved.
     /// </summary>
     public Task<List<TemplateExercise>> GetSessionPlanAsync(long sessionId) => RunAsync(async c =>
-        (await c.QueryAsync<TemplateExercise>("""SELECT ExerciseId, "Order", PlannedSets, SupersetGroup, Line FROM SessionExercise WHERE SessionId = @sessionId ORDER BY "Order" """, new { sessionId })).AsList());
+        (await c.QueryAsync<TemplateExercise>("""SELECT ExerciseId, "Order", PlannedSets, SupersetGroup, Line, FinishedByUser FROM SessionExercise WHERE SessionId = @sessionId ORDER BY "Order" """, new { sessionId })).AsList());
 
     /// <summary>Replaces a workout's own plan. The session may still be waiting to be saved; its Id is read when this runs.</summary>
     public Task SaveSessionPlanAsync(WorkoutSession session, IReadOnlyList<TemplateExercise> plan) => SaveEditAsync(session, plan, [], [], []);
@@ -311,7 +312,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         if (plan is not null)
         {
             await c.ExecuteAsync("DELETE FROM SessionExercise WHERE SessionId = @Id", session, transaction);
-            await c.ExecuteAsync("""INSERT INTO SessionExercise (SessionId, ExerciseId, "Order", PlannedSets, SupersetGroup, Line) VALUES (@SessionId, @ExerciseId, @Order, @PlannedSets, @SupersetGroup, @Line)""", plan.Select(e => new { SessionId = session.Id, e.ExerciseId, e.Order, e.PlannedSets, e.SupersetGroup, e.Line }), transaction);
+            await c.ExecuteAsync("""INSERT INTO SessionExercise (SessionId, ExerciseId, "Order", PlannedSets, SupersetGroup, Line, FinishedByUser) VALUES (@SessionId, @ExerciseId, @Order, @PlannedSets, @SupersetGroup, @Line, @FinishedByUser)""", plan.Select(e => new { SessionId = session.Id, e.ExerciseId, e.Order, e.PlannedSets, e.SupersetGroup, e.Line, e.FinishedByUser }), transaction);
         }
 
         if (removed.Count > 0) await c.ExecuteAsync(DeleteSetSql, removed, transaction);
@@ -394,6 +395,7 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('Exercise') WHERE name = 'TaggedBy'") == 0) await connection.ExecuteAsync(ExerciseTaggedBy);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSession') WHERE name = 'PausedAt'") == 0) await connection.ExecuteAsync(Pause);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('SessionExercise') WHERE name = 'Line'") == 0) await connection.ExecuteAsync(SessionExerciseLine);
+                    if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('SessionExercise') WHERE name = 'FinishedByUser'") == 0) await connection.ExecuteAsync(SessionExerciseFinished);
                     if (await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM pragma_table_info('WorkoutSet') WHERE name = 'Line'") == 0) await connection.ExecuteAsync(SetLine);
                     schemaReady = true;
                 }

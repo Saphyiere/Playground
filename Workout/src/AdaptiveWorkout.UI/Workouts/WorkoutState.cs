@@ -71,6 +71,10 @@ public sealed class WorkoutState
     /// <summary>The last set and any started with it (a superset's round), once stopped. Empty before the first.</summary>
     public List<WorkoutSet> LastRound => ToLog is { } last ? Sets[(Sets.FindLastIndex(s => s.StartedAt != last.StartedAt) + 1)..] : [];
 
+    /// <summary>The last exercise the rest screen may offer to extend. Explicitly finishing it removes that suggestion.</summary>
+    public List<TemplateExercise>? RepeatableLastBlock => LastRound is [var last, ..] && BlockOf(last.Line) is { } block
+        && !block.Exists(e => e.FinishedByUser) ? block : null;
+
     /// <summary>Per exercise, how many sets I did the last time (the trainer's count, when its plan is taken for this time).</summary>
     public IReadOnlyDictionary<long, int> SetsLastTime => setsLastTime;
 
