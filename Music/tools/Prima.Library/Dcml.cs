@@ -95,6 +95,13 @@ internal static class Dcml
 
     private static readonly string[] Roman = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
+    // The corpus's own slips in its titles, put right: three typing errors (Op. 78's first movement, Op. 26's funeral march and
+    // Bartók's last Bagatelle) and the Pathétique's accent.
+    private static readonly (string Slip, string Right)[] Slips =
+    [
+        ("ma non broppo", "ma non troppo"), ("morte d'n eroe", "morte d'un eroe"), ("ma mie quie danse", "ma mie qui danse"), ("'Pathetique'", "'Pathétique'"),
+    ];
+
     public static async Task<List<BundledPiece>> Fetch(HttpClient http, string cache, string output, string modules, string root)
     {
         Console.WriteLine("DCML: the lab's corpora…");
@@ -138,7 +145,9 @@ internal static class Dcml
                     "cpe_bach_keyboard" => $"{Regex.Replace(F("workTitle"), "Major|Minor", m => m.Value.ToLowerInvariant())}, {opus}{(number.Length > 0 ? $": {movement}" : "")}",
                     "dvorak_silhouettes" => $"No. {number}, {F("movementTitle")}",
                     "grieg_lyric_pieces" or "liszt_pelerinage" => $"{F("movementTitle")}, {opus} No. {number}",
-                    "jc_bach_sonatas" => $"Sonata in {Regex.Match(F("workTitle"), @"in ([^,]+)").Groups[1].Value}, {Regex.Replace(piece, @"^.*op0*(\d+)no(\d+).*$", "Op. $1 No. $2")}: {movement}",
+                    // Op. 5 No. 2's minuet is two files, both "Minuetto" in the metadata; the second's name says it's the Minore.
+                    "jc_bach_sonatas" => $"Sonata in {Regex.Match(F("workTitle"), @"in ([^,]+)").Groups[1].Value}, {Regex.Replace(piece, @"^.*op0*(\d+)no(\d+).*$", "Op. $1 No. $2")}: {movement}" +
+                        (piece.EndsWith("_Minore", StringComparison.Ordinal) ? " (Minore)" : ""),
                     "medtner_tales" => $"Tale, {opus} No. {number} ({F("movementTitle")})",
                     "ravel_piano" => number.Length == 0 ? F("workTitle") : $"{F("workTitle")}: {movement}",
                     "scarlatti_sonatas" => $"Sonata, {opus}",
@@ -178,6 +187,7 @@ internal static class Dcml
                     _ => debussy.Work,
                 };
                 if (string.IsNullOrWhiteSpace(title)) continue;
+                title = Slips.Aggregate(title, (t, s) => t.Replace(s.Slip, s.Right, StringComparison.Ordinal));
 
                 var id = $"dcml-{Regex.Replace($"{repo}-{piece}", "[^A-Za-z0-9-]", "-")}";
                 var file = $"pieces/{id}.mxl";

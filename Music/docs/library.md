@@ -731,7 +731,10 @@ another way to read the music.
   as any metre the ladder doesn't teach.
 - The titles come from each corpus's metadata, and Debussy's from a list by Lesure number, since the DCML's metadata for him is
   mostly dedications and engravers' headings. The Moonlight's metadata leaves out its number ("Sonata no. 'quasi una fantasia'
-  ('Moonlight')"), which its files' names keep ("14-1"); no other DCML title lost one. Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
+  ('Moonlight')"), which its files' names keep ("14-1"); no other DCML title lost one. Its slips are put right: "Allegro ma non
+  broppo" (Op. 78), "sulla morte d'n eroe" (Op. 26), Bartók's "ma mie quie danse" and the Pathétique without its accent. J. C.
+  Bach's Op. 5 No. 2 has its minuet as two files, both "Minuetto" in the metadata, the second named for its Minore: "III.
+  Minuetto (Minore)". Grieg's Norwegian titles come without their diacritics. ASAP's come from a list
   by its folders, since its scores' own titles are unreliable ("a", "title"). PDMX's are the uploaders' own, without the
   composer's name where it labels the title, with the first names and initials written with it, at the start or the end,
   after a dash or a colon, in brackets or after "by" ("Aleksandr Scriabin: Nocturne", "Nocturne (F.Chopin Op.55. No.2)", "LE
