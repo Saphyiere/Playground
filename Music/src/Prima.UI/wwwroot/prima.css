@@ -6141,6 +6141,11 @@ html[data-full] .piece-title-row .practice-strip {
     }
 }
 
+/* A run's review in a practice session: Finish practice first in its keys, set a little apart from Again. */
+.review-keys .review-finish {
+    margin-right: 16px;
+}
+
 /* Landscape narrower than the tablet's 1557 px (the preview's 1280): it takes the level's place, as a run's figure does, and
    Studio's keys sit a little closer, so a piece in pages, with a loop for one hand and its tempo changed, keeps its keys on
    one row. */

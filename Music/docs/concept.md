@@ -326,10 +326,12 @@ a PDF plays out; this is what came of it.
   beside the piece's name: **Playing**, the time a run or Listen is going or you're playing the piano yourself with the music
   stopped (going over a bar on your own: a key in the last ten seconds counts), and **Idle**, the rest of the session: looking
   at the music, working out a fingering, a drink of water. **Finish practice**, beside them, ends the session (a run going
-  stops first, and is kept with it) and shows its look back. Full screen has no clocks, upright too: it's for the music. It
-  has its own **Finish practice** instead, first in the piece's bar, before the level and the piece's tools and away from Play
-  and the run's keys, there only in full screen: it does what the one beside the clocks does, as if you'd left full screen to
-  press it. Only a tap presses it; no piano key does. After 15 minutes with nothing played the session pauses: the
+  stops first, and is kept with it; Listen going stops, and the session ends then) and shows its look back. Full screen has
+  no clocks, upright too: it's for the music. It has its own **Finish practice** instead, first in the piece's bar, before
+  the level and the piece's tools and away from Play and the run's keys, there only in full screen: it does what the one
+  beside the clocks does, as if you'd left full screen to press it. Only a tap presses it; no piano key does. A PDF read into
+  notes, with **Print** showing its print, keeps the session's clocks and both Finish practice keys, and finishing brings
+  the notation back for the look back. After 15 minutes with nothing played the session pauses: the
   page is covered by **Still practicing?**, with **Keep practicing** and **Finish practice**, and the clocks stop until you
   carry on. Leaving the piece, or the tablet sleeping or Prima put away, pauses it the same way, and coming back shows the
   cover; a key played on the piano carries on too. Finished from the cover, the session ends as of the last thing played, and
@@ -340,7 +342,8 @@ a PDF plays out; this is what came of it.
   (none at all with Marks as you play off), and round a loop the bar counts the passes but doesn't score them. **Standard**
   sums each run up under the music, and each pass in the bar as the next begins. **Hands-on** gives each run the in-depth
   review (below), taking the screen, with **Again** (the run again, from the same bar; the piano's go key presses it) and
-  **Back to practicing**, which leaves every mark the run left on the music; and its loops wait for you after each pass.
+  **Back to practicing**, which leaves every mark the run left on the music, and first among them, a little apart, **Finish
+  practice**, which goes back to practicing and finishes the session; and its loops wait for you after each pass.
   Whether a loop waits is a setting of its own in every way (**Round a loop** on the Options: **Go straight on**, to drill a
   riff over and over, or **Wait after each pass**, for a breather to look at it): waiting, each pass is a run of its own,
   ended and kept as one, and the next starts with its key or the go key, but the loop still counts on: the bar says the pass

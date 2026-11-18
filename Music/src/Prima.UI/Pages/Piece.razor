@@ -38,7 +38,8 @@ else
                 <p class="page-kicker">@Kicker()</p>
                 <h1 class="page-title">@piece.Title</h1>
             </div>
-            @if (stage == Stage.Practice && clock is not null && !Pdf)
+            @* A session's clocks, counted here, with Finish practice: while Print shows a PDF's print too. *@
+            @if (stage == Stage.Practice && clock is not null)
             {
                 <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
             }
@@ -95,7 +96,23 @@ else
         else if (Pdf)
         {
             <section class="reading-bar piece-bar" aria-label="The piece">
-                <p class="piece-bar-title">@piece.Title</p>
+                @if (stage == Stage.Practice && clock is not null)
+                {
+                    @* A practice session while Print shows a PDF's print: its clocks beside the title (portrait's), and in full
+                       screen Finish practice first, as on the notation's bar. *@
+                    <div class="piece-title-row">
+                        <p class="piece-bar-title">@piece.Title</p>
+                        <PracticeStrip Clock="clock" OnFinish="FinishPractice" Counts="false" />
+                    </div>
+                    @if (fullScreen)
+                    {
+                        <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
+                    }
+                }
+                else
+                {
+                    <p class="piece-bar-title">@piece.Title</p>
+                }
                 @if (pdfBytes is not null)
                 {
                     <button type="button" class="mu-btn mu-primary piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
@@ -397,8 +414,13 @@ else
         }
         @if (stage == Stage.Review)
         {
-            @* Back to the look back, or the run again; the bar picked, to practice; and the way out. *@
+            @* Back to the look back, or the run again; the bar picked, to practice; and the way out. A run's review in a practice
+               session, full screen as Practice is, has Finish practice first, as the bar has. *@
             <div class="review-keys">
+                @if (reviewFrom == Stage.Practice && clock is not null)
+                {
+                    <button type="button" class="mu-btn review-finish" data-piano="off" @onclick="FinishFromReview">Finish practice</button>
+                }
                 @if (reviewFrom == Stage.LookBack)
                 {
                     <button type="button" class="mu-btn" data-piano="off" @onclick="BackToLookBack">Back</button>
@@ -500,7 +522,7 @@ else
                 <p class="section-note" role="status">From your collection: it stays out of the Library, even when the collection is imported again (the Library has a key that lets it back in). Your runs on it still count.</p>
             }
         </section>
-        @if (stage == Stage.Practice && clock is { Paused: true } && !Pdf)
+        @if (stage == Stage.Practice && clock is { Paused: true })
         {
             <PauseCover Clock="clock" OnKeep="KeepPracticing" OnFinish="FinishPractice" />
         }
@@ -1359,6 +1381,8 @@ else
         var today = DateOnly.FromDateTime(DateTime.Now);
         story = SessionStory.Of(reviewed, runs.Where(r => r.Session != session.Id), Shape, today);
         if (reviewed.Count > 0) next = story.Steps.Count > 0 ? (today, story.Steps) : null;
+        // Finished while Print showed a PDF's print: the notation back, for the look back to take the page (the print's would).
+        if (print) await TogglePrint();
         (stage, outcome, picked) = (Stage.LookBack, null, null);
         if (fullScreen) await ToggleFullScreen();
     }
@@ -1472,6 +1496,14 @@ else
         if (to == Stage.Practice && !again && outcome is not null && sheet is not null) await sheet.ShowMarks(outcome.Marks);
     }
 
+    // Finish practice from a run's review: as if back to practicing first (the review's outline gone, the run's marks back on the
+    // music), then finished.
+    private async Task FinishFromReview()
+    {
+        await Return(Stage.Practice, again: false);
+        await FinishPractice();
+    }
+
     // Practice a bar, from Play's quick review, the look back or the in-depth review: the bar looped with a bar either side, the
     // session carried on (or, from Play, one started), the music as it was before the review.
     private async Task PracticeBar(int bar)
@@ -1553,11 +1585,17 @@ else
         StateHasChanged();
     }
 
-    // Listen ended: its time was playing time.
-    private void Listened()
+    // Listen ended: its time was playing time. Finish practice pressed while it played finishes the session now, as it does once
+    // a run it stopped is kept (Listen keeps nothing), not after the next run.
+    private async Task Listened()
     {
         playing = false;
         if (stage == Stage.Practice) clock?.RunEnded(DateTimeOffset.Now);
+        if (finishAfterRun)
+        {
+            finishAfterRun = false;
+            await FinishPractice();
+        }
     }
 
     // ——— Play ———

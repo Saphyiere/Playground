@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 using Prima.UI.Components;
 using Prima.UI.Pages;
 using Prima.UI.Storage;
@@ -201,5 +202,90 @@ public class PracticeFullscreenTests
         Assert.Equal(kept.Id, run.Session);
         Assert.True(run.Stopped);
         Assert.Equal(1, run.Notes);
+    }
+
+    // Pressed while Listen plays (the piano playing the piece, nothing kept): Listen stops and the session finishes then, with its
+    // look back. It used to stop Listen only, and leave the finish waiting to end the session after the next run.
+    [Fact]
+    public async Task FinishPracticeWhileListenPlaysFinishesTheSessionThenNotAfterTheNextRun()
+    {
+        await using var host = new ComponentHost(keyboard: new TestPiano(plugged: true, takesNotes: true));
+        host.Context.Services.GetRequiredService<PrimaSettings>().SendToPiano = true;
+        var piece = await host.AddPiece(bars: 4);
+        var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
+        view.WaitForElement(".piece-front-bar .mu-primary");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
+
+        view.WaitForElement(".play-listen button");
+        await view.InvokeAsync(() => view.Find(".play-listen button").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Contains(view.FindAll(".play-bar .mu-readout-label"), l => l.TextContent == "Listening"));
+        await view.InvokeAsync(() => view.Find(".piece-finish").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForElement(".look-headline");
+        Assert.Equal([true, false], host.Browser.Fullscreen);
+        Assert.NotNull(Assert.Single(await host.Store.GetSessionsAsync(piece.Id)).Finished);
+        Assert.Empty(await host.Store.GetPieceRunsAsync(piece.Id));
+    }
+
+    // A PDF read into notes, practiced with Print showing its print: the session keeps its clocks and Finish practice (the head's,
+    // and in full screen the print's bar's), and finishing brings the notation back for the look back, which the print would hide.
+    [Fact]
+    public async Task FinishPracticeWhilePrintShowsAPdfsPrintOpensTheLookBack()
+    {
+        await using var host = new ComponentHost();
+        var piece = await host.AddPiece(pdf: true, read: true);
+        var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
+        view.WaitForElement(".piece-front-bar .mu-primary");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
+
+        view.WaitForElement("[aria-label='Show the print']");
+        await view.InvokeAsync(() => view.Find("[aria-label='Show the print']").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement("[aria-label='Show the notation']");
+        Assert.Empty(view.FindAll(".play-bar"));
+        Assert.Single(view.FindAll(".reading-head .practice-strip"));
+        var finish = view.Find(".piece-bar > .piece-title-row + .piece-finish");
+        Assert.Equal("off", finish.GetAttribute("data-piano"));
+
+        await view.InvokeAsync(() => view.Find(".piece-bar .piece-finish").ClickAsync(new MouseEventArgs()));
+
+        // The look back only takes the page with the notation back: the print's bar comes first.
+        view.WaitForElement(".look-headline");
+        Assert.Equal([true, false], host.Browser.Fullscreen);
+        Assert.NotNull(Assert.Single(await host.Store.GetSessionsAsync(piece.Id)).Finished);
+    }
+
+    // Hands-on gives each run its review, taking the screen, full screen as Practice is: Finish practice is first in its keys, and
+    // does what Back to practicing then Finish practice would. The run is kept with the session.
+    [Fact]
+    public async Task FinishPracticeFromARunsReviewOpensTheLookBack()
+    {
+        var piano = new TestPiano(plugged: true);
+        await using var host = new ComponentHost(keyboard: piano);
+        host.Context.Services.GetRequiredService<PrimaSettings>().UseWay("hands-on");
+        await host.Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), "wait");
+        var piece = await host.AddPiece();
+        var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
+        view.WaitForElement(".piece-front-bar .mu-primary");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
+
+        // Wait for me, its one note played: the run ends, and its review takes the screen.
+        view.WaitForElement(".play-bar [data-piano=go]");
+        await view.InvokeAsync(() => view.Find(".play-bar [data-piano=go]").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Contains(view.FindAll(".play-bar button"), b => b.TextContent == "Stop"));
+        piano.Play(60, 1_000_000_000);
+        var keys = view.WaitForElement(".review-keys");
+        Assert.Equal(["Finish practice", "Again"], keys.QuerySelectorAll("button").Take(2).Select(b => b.TextContent));
+        Assert.Equal("off", view.Find(".review-keys .review-finish").GetAttribute("data-piano"));
+
+        await view.InvokeAsync(() => view.Find(".review-keys .review-finish").ClickAsync(new MouseEventArgs()));
+
+        view.WaitForElement(".look-headline");
+        Assert.Equal([true, false], host.Browser.Fullscreen);
+        var kept = Assert.Single(await host.Store.GetSessionsAsync(piece.Id));
+        Assert.NotNull(kept.Finished);
+        Assert.Equal(kept.Id, Assert.Single(await host.Store.GetPieceRunsAsync(piece.Id)).Run.Session);
     }
 }

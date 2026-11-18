@@ -72,14 +72,14 @@ internal sealed class ComponentHost : IAsyncDisposable
         ConversionHost.Run = Jobs.RunAsync;
     }
 
-    // The test piece: a bar, or so many, each a whole note.
-    public async Task<PieceRecord> AddPiece(bool pdf = false, bool bundled = false, int bars = 1)
+    // The test piece: a bar, or so many, each a whole note. A PDF has no notes unless they've been read (read).
+    public async Task<PieceRecord> AddPiece(bool pdf = false, bool bundled = false, int bars = 1, bool read = false)
     {
         var piece = new PieceRecord("test", bundled ? "bundle" : "import", "Test piece", "", null, pdf ? "pdf" : "mei", bundled ? "score.pdf" : null, null,
             1, 1, null, 1, null, null, null, null, null, null, 72, null, null, DateTimeOffset.Now, null);
         var score = new Score(new Prima.Core.Music.Key(0), new Meter(4, 4),
             [.. Enumerable.Range(1, bars).Select(n => new Bar(n, [new Voice(1, [new Notes($"n{n}", 0, 1920, [new Tone($"t{n}", new Spelled(Step.C, 0, 4))])])]))]);
-        await Store.SavePieceAsync(piece, pdf ? null : MeiWriter.Write(score), []);
+        await Store.SavePieceAsync(piece, pdf && !read ? null : MeiWriter.Write(score), []);
         await Context.Services.GetRequiredService<IAssistKeyStore>().SetAsync("test-key");
         return piece;
     }
@@ -135,11 +135,12 @@ internal sealed class KeptLogs(ILoggerProvider provider) : ILoggerFactory
 }
 
 /// <summary>A piano that isn't plugged in until it is (or is from the start), with a key played when a test says.</summary>
-internal sealed class TestPiano(bool plugged = false) : IKeyboard
+/// <param name="takesNotes">Whether it plays notes the tablet sends it (Listen, play along), once it's plugged in.</param>
+internal sealed class TestPiano(bool plugged = false, bool takesNotes = false) : IKeyboard
 {
     public string? Name { get; private set; } = plugged ? "P-225B" : null;
 
-    public bool CanSend => false;
+    public bool CanSend => takesNotes && Name is not null;
 
     public SensingJitter Sensing { get; } = new();
 
