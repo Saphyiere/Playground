@@ -2022,6 +2022,94 @@ a.mu-btn {
     fill: currentColor;
 }
 
+/* A whole piece's scroll is drawn in parts, one under the other, each with the space over it that its lines need (the sheet's
+   script sets it): kept inside the music, not let out over the paper's top. */
+.sheet-music {
+    display: flow-root;
+}
+
+/* Each drawing is a layer of its own to the browser: a part put under the others is painted without the browser going over
+   the others' again, which on a long piece was as much work again as the part. */
+.sheet-music > svg {
+    isolation: isolate;
+}
+
+/* A whole piece's paper waiting for its music: faint staves with a light sweeping across them. The sheet's script says what the
+   paper shows (data-drawn): nothing yet, and the paper waits, as tall as its frame; "part", with more lines coming, and the
+   same waits under the lines that are there; "stopped" or "all", and it's gone. It fades in after a moment, so a piece drawn
+   at once doesn't flash it. The light moves by transform alone, which the browser can keep moving by itself. */
+.sheet-wait {
+    display: none;
+    overflow: hidden;
+    flex-direction: column;
+    gap: 40px;
+    padding: 26px 34px 0;
+}
+
+.sheet-whole:not([data-drawn]) {
+    min-height: 240px;
+}
+
+.sheet-whole:not([data-drawn]) > .sheet-wait {
+    display: flex;
+    position: absolute;
+    inset: 0;
+    animation: sheet-wait-in 0.15s ease-out 0.15s both;
+}
+
+.sheet-whole[data-drawn="part"] > .sheet-wait {
+    display: flex;
+    position: relative;
+    height: 300px;
+}
+
+@keyframes sheet-wait-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* A system of the grand staff, faint: two staves of five lines, and its bar lines. */
+.sheet-wait-system {
+    position: relative;
+    flex: none;
+    height: 118px;
+    border-left: 2px solid var(--sheet-edge);
+    border-right: 2px solid var(--sheet-edge);
+    background:
+        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) top / 100% 37px no-repeat,
+        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) bottom / 100% 37px no-repeat;
+}
+
+.sheet-wait-system::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px), var(--sheet-edge) calc(25% - 1px) 25%);
+}
+
+.sheet-wait-sweep {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 20%;
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 10%, transparent) 50%, color-mix(in srgb, var(--accent) 34%, transparent) 97%, transparent);
+    transform: translateX(-100%);
+    animation: sheet-wait-sweep 1.6s linear infinite;
+    will-change: transform;
+}
+
+@keyframes sheet-wait-sweep {
+    to { transform: translateX(500%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sheet-wait-sweep {
+        animation: none;
+        transform: translateX(200%);
+    }
+}
+
 /* What's drawn over the music (the marks), on a layer of its own, so marking a note while playing paints that layer and not
    the music. */
 .sheet-overlay {
@@ -3788,10 +3876,18 @@ a.mu-btn {
 
 .piece-frame-scroll {
     overflow-y: auto;
+    /* The sheet keeps the music's place itself when it's drawn at another size (by its bar): the browser's own way of holding
+       a scrolled place, moving the frame as what's in it changes size, is left off, or the two would each move it. */
+    overflow-anchor: none;
 }
 
 .piece-frame-scroll .sheet {
     height: auto;
+}
+
+/* A piece's paper waiting for its music fills its frame. */
+.piece-frame .sheet-whole:not([data-drawn]) {
+    min-height: 100%;
 }
 
 /* Between runs a piece fits the screen: the music takes what its head, its bar and About this piece leave, and is all that
@@ -4190,110 +4286,186 @@ html[data-full] .bar-strip {
     position: relative;
 }
 
-/* A piece opening: the paper waits with faint staves and a light sweeping across them, and a card says what's happening with the
-   way back. The light moves by transform alone, so the compositor keeps it moving while the engraver has the page's thread. It
-   all fades in after a moment, so a piece that opens at once doesn't flash it. */
-.piece-opening {
+/* A piece opening. Its paper waits in its sheet (above: .sheet-wait), and a PDF's frame has the same until its first page is
+   drawn. Over the foot of the paper a card says what's happening and how far it has got, with its key (Cancel, then Stop) and a
+   meter of the lines drawn. It fades in after a moment, so a piece that opens at once never shows it. */
+.piece-pdf-wait {
     position: absolute;
     inset: 0;
-    z-index: 3;
-    animation: piece-opening-in 0.2s ease-out 0.35s both;
-}
-
-@keyframes piece-opening-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.piece-opening-paper {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    padding: 28px 34px;
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
     border-radius: var(--mu-r-panel);
-    background: var(--sheet);
-    box-shadow: 0 0 0 1px var(--sheet-edge), 0 3px 10px var(--sheet-edge);
 }
 
-[data-theme="vinyl"] .piece-opening-paper {
-    box-shadow: var(--shadow-sleeve);
-}
-
-/* A system of the grand staff, faint: two staves of five lines, and its bars. */
-.piece-opening-system {
-    position: relative;
-    flex: none;
-    height: 118px;
-    border-left: 2px solid var(--sheet-edge);
-    border-right: 2px solid var(--sheet-edge);
-    background:
-        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) top / 100% 37px no-repeat,
-        repeating-linear-gradient(to bottom, var(--sheet-edge) 0 1px, transparent 1px 9px) bottom / 100% 37px no-repeat;
-}
-
-.piece-opening-system::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px), var(--sheet-edge) calc(25% - 1px) 25%);
-}
-
-.piece-opening-sweep {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 22%;
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 10%, transparent) 50%, color-mix(in srgb, var(--accent) 34%, transparent) 97%, transparent);
-    transform: translateX(-100%);
-    animation: piece-opening-sweep 1.6s linear infinite;
-    will-change: transform;
-}
-
-@keyframes piece-opening-sweep {
-    to { transform: translateX(460%); }
-}
-
-.piece-opening-card {
+.piece-wait {
     position: absolute;
     left: 50%;
-    bottom: 24px;
+    bottom: 26px;
+    z-index: 3;
     transform: translateX(-50%);
-    width: min(520px, calc(100% - 48px));
+    width: min(560px, calc(100% - 48px));
     box-sizing: border-box;
-    padding: 12px 12px 12px 18px;
-    display: flex;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 6px 18px;
     border-radius: var(--radius-cap);
     background: var(--key-dark);
     color: var(--on-key-dark);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    animation: sheet-wait-in 0.15s ease-out 0.15s both;
 }
 
-[data-theme="vinyl"] .piece-opening-card {
+[data-theme="vinyl"] .piece-wait {
     border-radius: 0;
-    background: var(--surface);
+    background: var(--ground);
     color: var(--ink);
-    box-shadow: var(--shadow-sleeve);
 }
 
-.piece-opening-words {
-    margin: 0;
+.piece-wait-what {
     font-size: 16px;
     line-height: 22px;
     font-weight: 600;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .piece-opening-sweep {
-        animation: none;
-        transform: translateX(200%);
-    }
+.piece-wait-more {
+    grid-column: 1;
+    font-size: 13px;
+    line-height: 18px;
+    opacity: 0.78;
+}
+
+.piece-wait .mu-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+}
+
+.piece-wait-meter {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.piece-wait-meter > span {
+    flex: 1;
+    height: 6px;
+    border-radius: 2px;
+    background: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.piece-wait-meter > span.on {
+    background: var(--meter-on);
+}
+
+/* A line on a piece's bar about its music as it opens ("Getting its music ready", "Line 6 of 38"), and the key beside it that
+   draws the rest of a piece stopped part-way. */
+.bar-note {
+    margin: 0;
+    font-family: var(--mu-print);
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--on-screen-muted);
+}
+
+.piece-bar .bar-note-key {
+    margin-left: 0;
+    min-height: 40px;
+}
+
+/* The piece's keys while there's no music to play from yet: there, and plainly off. */
+.piece-front-bar .piece-key[disabled] {
+    opacity: 0.45;
+    box-shadow: none;
+}
+
+/* A PDF's pages while their systems are found, down the frame's edge: those still to come in outline. They stand on the PDF's
+   own page, white in both looks, so they're the same in both. */
+.pages-strip {
+    position: absolute;
+    right: 18px;
+    top: 22px;
+    bottom: 22px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap-reverse;
+    align-content: flex-start;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.pages-strip span {
+    width: 44px;
+    height: 57px;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #56534e;
+}
+
+.pages-strip span.wait {
+    background: color-mix(in srgb, #fff 45%, transparent);
+    box-shadow: none;
+    outline: 1.5px dashed rgba(0, 0, 0, 0.28);
+    outline-offset: -1.5px;
+}
+
+/* A piece's long title keeps to a size that reads on a line or two: a movement's name is never cut, and the music keeps its room. */
+.piece .page-title-long {
+    font-size: 26px;
+    line-height: 32px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+[data-theme="vinyl"] .piece .page-title-long {
+    font-size: 46px;
+    line-height: 44px;
+}
+
+/* The way back at a piece's head, by the name of where it goes. */
+.way-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    margin: 0 0 10px;
+    padding: 0 13px 0 9px;
+    border: 1.5px solid var(--button-edge);
+    border-radius: var(--mu-r-control);
+    background: var(--button);
+    color: var(--on-button);
+    box-shadow: var(--shadow-cap);
+    font-family: var(--mu-print);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.way-back::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-left: 3px;
+    border-left: 2.5px solid var(--accent);
+    border-bottom: 2.5px solid var(--accent);
+    transform: rotate(45deg);
+}
+
+[data-theme="vinyl"] .way-back {
+    min-height: 30px;
+    padding: 0 12px 0 8px;
+    font-size: 12px;
+    letter-spacing: 0.18em;
 }
 
 .piece-frame-hidden {
@@ -4436,10 +4608,18 @@ html[data-full] .piece .summary {
     display: none;
 }
 
-/* Portrait: the page as large as it goes, under a slim bar with the title in it, whole. */
+/* Portrait: the page as large as it goes, under a slim bar with the title in it, whole. Of the head only the way back is
+   kept, over the bar (the look back keeps all of its head). */
 @media (orientation: portrait) {
-    .piece .reading-head {
+    .piece:not(.piece-lookback) .reading-head .page-kicker,
+    .piece:not(.piece-lookback) .reading-head .page-title,
+    .piece:not(.piece-lookback) .reading-head .practice-strip,
+    .piece:not(.piece-lookback) .reading-head .mu-status {
         display: none;
+    }
+
+    .piece .reading-head .way-back {
+        margin-bottom: 0;
     }
 
     .piece-bar-title {

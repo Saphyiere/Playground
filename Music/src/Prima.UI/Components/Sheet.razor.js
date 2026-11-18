@@ -3,6 +3,11 @@
 // music's own layer has the browser go over the whole piece again, which a cursor moving at every frame can't afford. The
 // engraving itself is never changed. Sizes: a printed piano staff is about
 // 7 mm tall, and the 13-inch tablet's long side is about 280 mm, so a millimetre is the screen's long side in CSS pixels / 280.
+//
+// A passage ("line") is engraved here, on the page's own thread, as it's asked for: it's a few bars, and drills time answers
+// from when it's painted. A whole piece (a "scroll", or its "page"s) is engraved by a Verovio in a worker of its own
+// (engraver.js), and a scroll a part at a time: a long piece takes seconds to lay out on the tablet, and the page must go on
+// answering meanwhile. "Whole pieces", below, has how.
 
 const svgNs = "http://www.w3.org/2000/svg";
 const sheets = new WeakMap();
@@ -11,9 +16,11 @@ const renderOwners = new Map();
 let sheetCount = 0;
 let toolkitPromise;
 
-// Verovio's toolkit, loaded once: a 7 MB script with WebAssembly inside. Called at start so the first sheet doesn't wait.
+// Verovio's toolkit, loaded once: a 7 MB script with WebAssembly inside. Called at start so the first sheet doesn't wait, nor
+// the first piece for its engraver.
 export function warm() {
     toolkit();
+    pieceEngraver();
 }
 
 function toolkit() {
@@ -144,7 +151,8 @@ export function pixelsPerMm() {
 // Engraves `mei` into the sheet: options are layout ("line": a passage, its systems as wide as the sheet; "scroll": a whole
 // piece down one sheet; "page": one page the sheet's size), staffMm, font, page, header, and words (the music has a song's words
 // to print: .NET has given each a line of its own, SongWords). Redraws by itself when the sheet's width changes, and tells .NET
-// when it has painted.
+// when it has painted. A passage is drawn by the time this returns; a whole piece is being drawn, and .NET hears how far it
+// has got (Progress) and when it's all there (Painted).
 export async function render(element, mei, options, dotnet, ownerId) {
     if (!element?.isConnected) return;
     if (ownerId) renderOwners.set(ownerId, element);
@@ -155,7 +163,7 @@ export async function render(element, mei, options, dotnet, ownerId) {
     const state = sheets.get(element) ?? { number: ++sheetCount, moves: [], kept: new Map() };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's), and so
     // do the drawings kept of it and the size its words were fitted at.
-    if (state.mei !== mei) Object.assign(state, { marks: null, music: mei, kept: new Map(), fitted: null });
+    if (state.mei !== mei) Object.assign(state, { marks: null, music: mei, kept: new Map(), fitted: null, timemap: null, timed: null });
     Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay"), line: [...element.children].find(c => c.classList.contains("sheet-cursor")) });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
@@ -195,9 +203,20 @@ export async function render(element, mei, options, dotnet, ownerId) {
 const songFits = [[3.8, 1.2], [3.8, 2.4], [3.8, 3.6], [3.3, 2.4], [2.9, 2.4], [2.5, 2.4]];
 const ownFit = [4.5, 1.2];
 
-function draw(element, state) {
-    const { tk, options } = state;
-    const music = element.querySelector(".sheet-music");
+// A scroll is drawn in parts, each a page of this many of Verovio's units (some twenty staves' height: two or three lines of
+// piano music), one under the other. Verovio breaks the lines the same whatever the page's height, and spaces the lines on a
+// page the same too, so the parts make the drawing one tall page would, without the wait for all of it. Only where two parts
+// meet is the space this sheet's to leave: between two lines on one page Verovio leaves its system spacing (4 of its staff
+// units, 36 here) and the room each line's own notes and marks need above and below, and a part's page is exactly as high as
+// its lines and that room (its margins are left off; the paper's are put round the whole). So the seam is the 36, and the
+// little a page's height is rounded down by (under one unit, half of that on average).
+const partHeight = 1500;
+const seam = 36.4;
+
+// The paper the sheet's music is laid out on, at the sheet's size as it is now, in Verovio's units: its options, and for a
+// scroll the margins left over its first part and under its last (Verovio's own top and bottom ones, on any other layout).
+function paperOf(element, state) {
+    const { options } = state;
     const staffPx = options.staffMm * pixelsPerMm();
     // A staff is 72 of Verovio's units at scale 100, so the page is the sheet's width in units at this staff size.
     const unitsPerPx = 72 / staffPx;
@@ -209,11 +228,13 @@ function draw(element, state) {
     // Fingering is printed over the top staff, and a mark's words (the name of a wrong key) go over the fingering: a deeper
     // top margin leaves them room there, over their own note.
     const fingered = /<fing[\s>]/.test(state.music);
+    const scroll = options.layout === "scroll";
+    const [top, bottom] = [options.layout === "page" || fingered ? 40 : 24, 24];
     const paper = {
         font: options.font,
         scale: 100,
         pageWidth: Math.max(600, Math.round(state.width * unitsPerPx)),
-        pageHeight: options.layout === "page" ? Math.max(600, Math.round(state.height * unitsPerPx)) : 60000,
+        pageHeight: options.layout === "page" ? Math.max(600, Math.round(state.height * unitsPerPx)) : scroll ? partHeight : 60000,
         adjustPageHeight: options.layout !== "page",
         breaks: "auto",
         minLastJustification: options.layout === "line" ? 0 : 0.8,
@@ -221,31 +242,31 @@ function draw(element, state) {
         footer: "none",
         pageMarginLeft: joined ? 50 : 24,
         pageMarginRight: 24,
-        pageMarginTop: options.layout === "page" || fingered ? 40 : 24,
-        pageMarginBottom: 24,
+        pageMarginTop: scroll ? 0 : top,
+        pageMarginBottom: scroll ? 0 : bottom,
         svgViewBox: true,
         svgHtml5: true,
         fontTextLiberation: true,
     };
-    // The whole piece at a size it was drawn at before (out of full screen, or the tablet turned back): the drawing kept then
-    // goes back on the paper, rather than the piece being laid out and drawn again, which on a long piece takes seconds. The
-    // last three sizes' drawings are kept.
-    const key = options.layout === "scroll" ? JSON.stringify([paper, options.measures ?? null, options.page ?? 1, !!options.words]) : null;
-    const kept = key ? state.kept.get(key) : null;
-    if (kept) {
-        state.kept.delete(key);
-        state.kept.set(key, kept);
-        music.replaceChildren(...kept.drawing);
-        music.querySelectorAll("[class*='mark-']").forEach(n => n.classList.remove(...markKinds));
-        // The engraver still has the size laid out last: anything asked of it, or drawn next, lays this one out first.
-        if (tk.current === state.number) tk.current = 0;
-        Object.assign(state, { pages: kept.pages, timemap: kept.timemap, loaded: kept.loaded, laidOut: null });
-        finish(element, state);
-        return;
-    }
+    return { paper, top, bottom };
+}
 
-    // A song's words at the first fit whose lines hold them apart, starting from the one that did on this paper before (a page
-    // turned, say): with a passage's bars shared evenly first, then its lines broken where their bars fit, then the next fit.
+// Draws the sheet's music at the sheet's size as it is now: a passage at once, a whole piece as it comes from its engraver.
+function draw(element, state) {
+    if (state.options.layout === "line") drawPassage(element, state);
+    else drawPiece(element, state);
+}
+
+function drawPassage(element, state) {
+    const { tk, options } = state;
+    const music = element.querySelector(".sheet-music");
+    // A whole piece's drawing, if this sheet showed one before, is let go of.
+    endRun(state);
+    shown(element, null);
+    const { paper } = paperOf(element, state);
+
+    // A song's words at the first fit whose lines hold them apart, starting from the one that did on this paper before: with
+    // the passage's bars shared evenly first, then its lines broken where their bars fit, then the next fit.
     const kind = JSON.stringify([paper, options.measures ?? null]);
     let fit = state.fitted?.kind === kind ? state.fitted.fit : 0;
     let even = true;
@@ -262,10 +283,6 @@ function draw(element, state) {
     state.fitted = { kind, fit };
     // When each moment of the music is, as laid out last (its time doesn't change with the layout): a page turned keeps its own.
     if (!turnedOnly) state.timemap = tk.renderToTimemap({ includeMeasures: true });
-    if (key) {
-        state.kept.set(key, { drawing: [...music.childNodes], pages: state.pages, timemap: state.timemap, loaded: state.loaded });
-        if (state.kept.size > 3) state.kept.delete(state.kept.keys().next().value);
-    }
     finish(element, state);
 }
 
@@ -327,10 +344,20 @@ function crowded(music) {
 // New paper, drawn or put back: what was drawn over the old one goes, and so does what was found on it (each id's place, the
 // music's words); the marks go on again, and .NET hears once it's painted.
 function finish(element, state) {
+    fresh(state);
+    if (state.marks) showMarks(element, state.marks);
+    painted(element, state);
+}
+
+// New paper: nothing drawn over the old one is left, nor anything found on it.
+function fresh(state) {
     state.overlay.replaceChildren();
     state.line.hidden = true;
     Object.assign(state, { points: null, byId: null, words: null, drawn: new Map() });
-    if (state.marks) showMarks(element, state.marks);
+}
+
+// .NET hears that the music is drawn once the browser has painted it.
+function painted(element, state) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
         if (element.isConnected && sheets.get(element) === state) state.dotnet?.invokeMethodAsync("Painted", state.pages);
     }));
@@ -370,6 +397,498 @@ function ensureLoaded(state) {
     load(state.tk, state, state.music);
 }
 
+// ——— Whole pieces ———
+//
+// A whole piece is laid out and drawn by a Verovio of its own, in a worker (engraver.js). Laying a long piece out is one step
+// that can't be broken up, seconds long on the tablet: on the page's own thread nothing could answer meanwhile, not a tap, not
+// the way back. From the worker, nothing is asked of the page until there's music to put on it. A scroll comes a part at a
+// time, so its first lines show as soon as they're drawn; the rest follows, and can be stopped. Whatever ends a drawing (the
+// sheet gone, another size, other music) lets go of the engraver at once: in the middle of laying a piece out, the worker is
+// ended and another started.
+//
+// Should the worker not start, the same steps are taken on the page's thread, a breath between them, and the problem log says
+// so (Settings › Problems).
+
+// The engraver: its worker (none: the page's own thread does its steps), the steps asked and not yet answered, the one in hand,
+// whose drawing has it, and the layout it holds.
+const engine = { worker: null, calls: new Map(), count: 0, doing: null, holder: null, laid: null, tail: Promise.resolve(), own: null, up: null };
+let engraverReady;
+
+// What a drawing stops on when its step was given up.
+const letGo = new Error("The drawing was let go of.");
+
+// The engraver, started once and ready: in its worker, or on the page's thread if that couldn't be had.
+function pieceEngraver() {
+    engraverReady ??= new Promise(resolve => {
+        engine.up = resolve;
+        startWorker();
+    }).then(() => engine);
+    return engraverReady;
+}
+
+function startWorker() {
+    let worker = null;
+    // The worker can't be had (or has gone wrong): the steps it was asked fail, and from here on the page's thread takes them.
+    const broken = why => {
+        if (engine.worker !== worker) return;
+        clearTimeout(late);
+        worker?.terminate();
+        engine.worker = engine.doing = engine.laid = null;
+        const stopped = new Error(`The sheet's engraver stopped (${why}).`);
+        for (const call of [...engine.calls.values()]) call.reject(stopped);
+        engine.calls.clear();
+        console.error(`The sheet's engraver couldn't run in a worker (${why}). Whole pieces are engraved on the page's own thread from here on, which can't answer taps while it lays one out.`);
+        engine.up?.();
+    };
+    // Not ready in half a minute, it isn't going to be.
+    const late = setTimeout(() => broken("it didn't start within 30 seconds"), 30000);
+    try {
+        worker = engine.worker = new Worker("_content/Prima.UI/engraver.js");
+    } catch (error) {
+        broken(error?.message ?? String(error));
+        return;
+    }
+    worker.onerror = event => {
+        event.preventDefault?.();
+        broken(event.message || "its script couldn't be loaded");
+    };
+    worker.onmessage = ({ data }) => {
+        if (data.ready) {
+            clearTimeout(late);
+            engine.up?.();
+            return;
+        }
+        const call = engine.calls.get(data.id);
+        if (!call) return;
+        engine.calls.delete(data.id);
+        if (engine.calls.size === 0) engine.doing = null;
+        if ("error" in data) call.reject(new Error(data.error));
+        else call.resolve(data.result);
+    };
+}
+
+// A step asked of the engraver: "load" (the music, the layout's options, the bars shown: its pages and lines), "page" (a
+// page's drawing, keeping of its style sheets "all", only the drawing's own "rules", or "none"), "timemap", "pageOf" (a
+// note's page). Answered in the order asked.
+function ask(op, ...args) {
+    if (!engine.worker) return onOwnThread(op, args);
+    return new Promise((resolve, reject) => {
+        const id = ++engine.count;
+        engine.calls.set(id, { resolve, reject });
+        engine.doing = op;
+        engine.worker.postMessage({ id, op, args });
+    });
+}
+
+// The same steps on the page's own thread (engraver.js has them for the worker), where the worker can't be had: with a
+// toolkit of the sheet's own, and a breath before each for a tap or the way back to be taken.
+const pageSteps = {
+    load(tk, mei, options, measures) {
+        tk.setOptions(options);
+        if (!tk.loadData(mei)) throw new Error("Verovio couldn't read the music.");
+        if (measures) {
+            tk.select({ measureRange: measures });
+            tk.redoLayout();
+        }
+        let lines = 0;
+        try {
+            if (!measures) lines = (tk.getMEI({ scoreBased: false }).match(/<system[\s>]/g) ?? []).length;
+        } catch {
+            // Then the lines aren't counted.
+        }
+        return { pages: tk.getPageCount(), lines };
+    },
+    page(tk, n, keep) {
+        const svg = tk.renderToSVG(n);
+        return keep === "all" ? svg : keep === "rules" ? withoutTextFaces(svg) : svg.replace(/<style[^>]*>[\s\S]*?<\/style>/g, "");
+    },
+    timemap: tk => tk.renderToTimemap({ includeMeasures: true }),
+    pageOf: (tk, id) => tk.getPageWithElement(id),
+};
+
+async function onOwnThread(op, args) {
+    await new Promise(resolve => setTimeout(resolve));
+    await toolkit();
+    engine.own ??= new verovio.toolkit();
+    return pageSteps[op](engine.own, ...args);
+}
+
+// One drawing at a time has the engraver, for all its steps: it holds one piece's layout. Returns what gives it up.
+async function takeEngraver(holder) {
+    const before = engine.tail;
+    let free;
+    engine.tail = new Promise(resolve => free = resolve);
+    await before;
+    engine.holder = holder;
+    return () => {
+        if (engine.holder === holder) engine.holder = null;
+        free();
+    };
+}
+
+// A sheet's drawing ended from outside (the sheet gone, drawn afresh, or showing a passage now): it stops at its next step,
+// and a long step the engraver has in hand for it (laying the piece out, or its time map) is given up at once, the worker
+// ended and another started, ready for the next piece.
+function endRun(state) {
+    const run = state.run;
+    state.run = null;
+    if (!run || engine.holder !== run || !engine.worker || (engine.doing !== "load" && engine.doing !== "timemap")) return;
+    const [worker, calls] = [engine.worker, [...engine.calls.values()]];
+    worker.onerror = worker.onmessage = null;
+    worker.terminate();
+    engine.calls.clear();
+    engine.doing = engine.laid = null;
+    startWorker();
+    for (const call of calls) call.reject(letGo);
+}
+
+// The music laid out by the engraver with these options, unless that's the layout it holds: its pages and its lines.
+async function laidOut(state, loaded) {
+    const key = JSON.stringify([loaded, state.options.measures ?? null]);
+    const has = engine.laid;
+    if (has?.number === state.number && has.music === state.music && has.key === key) return has;
+    engine.laid = null;
+    const { pages, lines } = await ask("load", state.music, loaded, state.options.measures ?? null);
+    return engine.laid = { number: state.number, music: state.music, key, pages, lines };
+}
+
+// What the paper shows of a whole piece, for the stylesheet (data-drawn): nothing yet when it's not there (the paper waits,
+// with a mark that moves), "part" with more coming under it, "stopped" part-way, or "all".
+function shown(element, how) {
+    if (how) element.setAttribute("data-drawn", how);
+    else element.removeAttribute("data-drawn");
+}
+
+// .NET hears how far a whole piece's drawing has got: the lines drawn of the lines in all, and how it stands ("coming",
+// "done", "stopped" or "failed"). As lines come, a few times a second at most.
+function tell(state, how) {
+    const now = performance.now();
+    if (!how && now - (state.told ?? 0) < 250) return;
+    state.told = now;
+    Promise.resolve(state.dotnet?.invokeMethodAsync("Progress", state.drawnLines ?? 0, state.lines ?? 0, how ?? "coming")).catch(() => { });
+}
+
+// Whether the music is a song: words under its notes all through, a syllable or more to a bar on the whole. (A sonata whose
+// file has a few "pp" entered as lyrics isn't.)
+function wordy(mei) {
+    const count = what => {
+        let n = 0;
+        for (let at = mei.indexOf(what); at >= 0; at = mei.indexOf(what, at + what.length)) n++;
+        return n;
+    };
+    return count("<syl") >= count("<measure");
+}
+
+// Draws a whole piece at the sheet's size as it is now, ending any drawing of it still going.
+function drawPiece(element, state) {
+    endRun(state);
+    const run = state.run = { stopped: false };
+    drawWhole(element, state, run).catch(error => failed(element, state, run, error));
+}
+
+// A drawing that couldn't be done: said (and so kept in the problem log), the paper left with what it has, and .NET told.
+function failed(element, state, run, error) {
+    if (state.run !== run || error === letGo) return;
+    console.error(`The sheet couldn't draw its music: ${error?.stack ?? error}`);
+    element.querySelector(".sheet-music").style.visibility = "";
+    shown(element, "stopped");
+    tell(state, "failed");
+}
+
+async function drawWhole(element, state, run) {
+    const live = () => state.run === run && element.isConnected;
+    const { options } = state;
+    const music = element.querySelector(".sheet-music");
+    const scroll = options.layout === "scroll";
+    // Where a scroll drawn already is in its frame: it's put back there, by its bar, in the new drawing. A drawing that
+    // was still to be put back somewhere when this one was asked for leaves this one the same place.
+    state.place = !scroll ? null : state.place ?? (music.childElementCount > 0 ? placeIn(element, state) : null);
+    const { paper, top, bottom } = paperOf(element, state);
+
+    // The whole piece at a size it was drawn at before (out of full screen, or the tablet turned back): the drawing kept then
+    // goes back on the paper, rather than the piece being laid out and drawn again, which on a long piece takes seconds. The
+    // last three sizes' drawings are kept.
+    state.key = scroll ? JSON.stringify([paper, options.measures ?? null, options.page ?? 1, !!options.words]) : null;
+    const kept = state.key ? state.kept.get(state.key) : null;
+    if (kept) {
+        state.kept.delete(state.key);
+        state.kept.set(state.key, kept);
+        music.replaceChildren(...kept.drawing);
+        music.style.visibility = "";
+        music.querySelectorAll("[class*='mark-']").forEach(n => n.classList.remove(...markKinds));
+        Object.assign(state, { pages: 1, loaded: kept.loaded, parts: kept.parts, drawnParts: kept.parts, lines: kept.lines, drawnLines: kept.lines, margins: kept.margins, shownWidth: state.width });
+        shown(element, "all");
+        backInPlace(state, music, true);
+        finish(element, state);
+        tell(state, "done");
+        return;
+    }
+
+    // The paper waiting: nothing on it, nor over it. What was drawn before stays until the new drawing's first lines are
+    // there, or a moment has passed without them: a short piece is simply drawn afresh, a long one's paper waits.
+    const wait = () => {
+        music.replaceChildren();
+        music.style.visibility = "";
+        state.glyphs = new Set();
+        fresh(state);
+        shown(element, null);
+    };
+    let old = 0;
+    if (music.childElementCount > 0) old = setTimeout(() => live() && wait(), 300);
+    else wait();
+    const begun = () => {
+        clearTimeout(old);
+        wait();
+        state.shownWidth = state.width;
+    };
+
+    await pieceEngraver();
+    if (!live()) return clearTimeout(old);
+    const release = await takeEngraver(run);
+    try {
+        if (!live()) return;
+        // A song's words at the first fit whose lines hold them apart, starting from the one that did on this paper before (a
+        // page turned, say). A song is shown once all of it is drawn with its words apart, as it always was: a fit that crowds
+        // a line is never seen. Anything else is shown as its lines come.
+        const kind = JSON.stringify([paper, options.measures ?? null]);
+        const song = options.words && wordy(state.music);
+        for (let fit = state.fitted?.kind === kind ? state.fitted.fit : 0; ; fit++) {
+            const [lyricSize, lyricWordSpace] = options.words ? songFits[fit] : ownFit;
+            const loaded = { ...paper, lyricSize, lyricWordSpace };
+            const { pages, lines } = await laidOut(state, loaded);
+            if (!live()) return;
+            state.loaded = loaded;
+            state.fitted = { kind, fit };
+            // Whether the words still running together would have another fit tried.
+            const check = options.words && fit < songFits.length - 1;
+            if (scroll) {
+                Object.assign(state, { pages: 1, parts: pages, lines, drawnParts: 0, drawnLines: 0, margins: { top, bottom, width: paper.pageWidth } });
+                const went = await drawParts(element, state, run, song, check, begun);
+                if (went === "crowded") {
+                    wait();
+                    continue;
+                }
+                if (went !== "gone") await ended(element, state, run, went);
+                return;
+            }
+
+            // One page of it: the one showing.
+            const svg = await ask("page", Math.min(options.page ?? 1, pages), textFont ? "rules" : "all");
+            if (!live()) return;
+            clearTimeout(old);
+            // A song's page isn't seen until its words are apart on it: the paper waits meanwhile.
+            if (check) {
+                music.style.visibility = "hidden";
+                shown(element, null);
+            }
+            music.innerHTML = svg;
+            if (check && crowded(music)) continue;
+            music.style.visibility = "";
+            Object.assign(state, { pages, parts: pages, drawnParts: pages, lines, drawnLines: lines });
+            shown(element, "all");
+            finish(element, state);
+            tell(state, "done");
+            await timed(state, live);
+            return;
+        }
+    } finally {
+        clearTimeout(old);
+        release();
+    }
+}
+
+// Draws the scroll's parts that aren't drawn yet, each put under the last as it comes from the engraver, which is drawing the
+// next meanwhile. `hidden` keeps them out of sight (a song, until it's all there); with `check`, a part where a song's words
+// run together ends it, for another fit to be tried. Returns how it went: "done", "stopped" (Stop: what's drawn stays),
+// "crowded", or "gone" (the drawing was let go of).
+async function drawParts(element, state, run, hidden, check, begun) {
+    const music = element.querySelector(".sheet-music");
+    const part = n => {
+        if (n > state.parts) return null;
+        // The first part brings the drawing's rules for them all (and the text faces, if the page hasn't them): a style sheet
+        // with every part would have the browser go over all the parts before it again.
+        const drawn = ask("page", n, n > 1 ? "none" : textFont ? "rules" : "all");
+        // Let go of before it's looked at, it has nobody to tell.
+        drawn.catch(() => { });
+        return drawn;
+    };
+    let coming = part(state.drawnParts + 1);
+    for (let n = state.drawnParts + 1; n <= state.parts; n++) {
+        let svg;
+        try {
+            svg = await coming;
+        } catch (error) {
+            if (state.run !== run) return "gone";
+            throw error;
+        }
+        if (state.run !== run || !element.isConnected) return "gone";
+        if (run.stopped) return "stopped";
+        coming = part(n + 1);
+        if (n === 1) {
+            begun();
+            if (hidden) music.style.visibility = "hidden";
+        }
+        const added = addPart(state, music, svg, n);
+        if (check && crowded(added)) return "crowded";
+        backInPlace(state, added, n === state.parts);
+        state.drawnParts = n;
+        state.drawnLines += added.querySelectorAll(".system").length;
+        if (hidden) continue;
+        shown(element, n < state.parts ? "part" : "all");
+        tell(state, n === 1 ? "coming" : null);
+    }
+    return "done";
+}
+
+// A part put on the paper under those before it, with the space Verovio would have left between their lines (`seam`), or
+// the paper's margin over the first and under the last: in the paper's units as a share of its width, which is what a
+// margin's % is of, so it keeps to the music's size.
+function addPart(state, music, svg, n) {
+    music.insertAdjacentHTML("beforeend", withNewGlyphs(state, svg));
+    const part = music.lastElementChild;
+    const { top, bottom, width } = state.margins;
+    part.style.marginTop = `${(n === 1 ? top : seam) / width * 100}%`;
+    if (n === state.parts) part.style.marginBottom = `${bottom / width * 100}%`;
+    // What was found on the paper holds for the parts before, which don't move: the new part's notes join them, and the
+    // words in a mark's way and the cursor's places are found again when next needed.
+    if (state.byId) {
+        for (const printed of part.querySelectorAll("[data-id]")) if (!state.byId.has(printed.dataset.id)) state.byId.set(printed.dataset.id, printed);
+    }
+    state.words = null;
+    state.points = null;
+    return part;
+}
+
+// Where the music is in the frame it scrolls in (a piece's), for a drawing at another size to be put back there: the first
+// line in view, by its first bar, and how far its top is from the frame's. Nothing at the piece's top, which stays the top.
+// The sheet has its new width by now, and the drawing on it is stretched or shrunk to it under a frame that hasn't moved
+// (the stylesheet has the browser leave the frame's place alone), so where each line was is worked back from the width it
+// was drawn at; at the piece's very end, where the frame has had to move, the lines are taken as they stand. Not moved since
+// it was last put back, it's the same bar again, so going in and out of full screen doesn't creep. Moved by hand before it's
+// back there, the music stays where it's been put.
+function placeIn(element, state) {
+    const frame = element.closest("[data-follow]");
+    if (!frame || frame.scrollTop <= 0) return null;
+    const put = state.put;
+    if (put && Math.abs(frame.scrollTop - put.top) < 2) return watched(state, { frame, id: put.id, offset: put.offset, system: null });
+    const [sheet, top] = [element.getBoundingClientRect().top, frame.getBoundingClientRect().top];
+    const atEnd = frame.scrollTop + frame.clientHeight >= frame.scrollHeight - 2;
+    const scaled = !atEnd && state.shownWidth > 0 ? element.clientWidth / state.shownWidth : 1;
+    const was = y => sheet - top + (y - sheet) / scaled;
+    for (const system of element.querySelectorAll(".sheet-music .system")) {
+        const box = system.getBoundingClientRect();
+        if (was(box.bottom) <= 1) continue;
+        const id = system.querySelector(".measure[data-id]")?.dataset.id;
+        return id ? watched(state, { frame, id, offset: was(box.top), system: null }) : null;
+    }
+    return null;
+}
+
+function watched(state, place) {
+    const moved = () => { if (state.place === place) state.place = null; };
+    place.frame.addEventListener("pointerdown", moved, { once: true, passive: true });
+    place.frame.addEventListener("wheel", moved, { once: true, passive: true });
+    return place;
+}
+
+// The music back where it was (placeIn), once the line that was first in view is drawn again (looked for in what's just
+// been `drawn`) and there's enough under it for the frame to scroll that far; with `all` of it drawn, as near as it goes.
+function backInPlace(state, drawn, all) {
+    const place = state.place;
+    if (!place) return;
+    place.system ??= drawn.querySelector(`.measure[data-id="${CSS.escape(place.id)}"]`)?.closest(".system") ?? null;
+    if (place.system) {
+        const { frame } = place;
+        const to = frame.scrollTop + place.system.getBoundingClientRect().top - frame.getBoundingClientRect().top - place.offset;
+        frame.scrollTop = to;
+        if (Math.abs(frame.scrollTop - to) < 2 || all) {
+            state.put = { id: place.id, offset: place.offset, top: frame.scrollTop };
+            state.place = null;
+        }
+    }
+    if (all) state.place = null;
+}
+
+// A part with only the glyphs the paper hasn't yet. Every page Verovio draws carries the outlines of the glyphs on it, under
+// ids the pieces' pages share, and its notes are uses of them. An outline put on the page again has the browser make every use
+// of it on the parts before all over again, so each part would cost more than the last: one outline of each is enough, where
+// it first comes.
+function withNewGlyphs(state, svg) {
+    const [start, end] = [svg.indexOf("<defs>"), svg.indexOf("</defs>")];
+    if (start < 0 || end < start) return svg;
+    const outlines = svg.slice(start, end).replace(/<g id="([^"]+)">[\s\S]*?<\/g>\s*/g, (outline, id) => state.glyphs.has(id) ? "" : (state.glyphs.add(id), outline));
+    return svg.slice(0, start) + outlines + svg.slice(end);
+}
+
+// A scroll's drawing over: stopped part-way, or all there. All there, its marks go on, .NET hears it's painted, a cursor
+// already moving is given the whole of its way, and the drawing is kept for this size once its time map has come.
+async function ended(element, state, run, went) {
+    const music = element.querySelector(".sheet-music");
+    music.style.visibility = "";
+    state.place = null;
+    if (went === "stopped") {
+        shown(element, "stopped");
+        tell(state, "stopped");
+        painted(element, state);
+        return;
+    }
+    shown(element, "all");
+    if (state.marks) showMarks(element, state.marks);
+    tell(state, "done");
+    painted(element, state);
+    cursorAgain(element, state);
+    if (!await timed(state, () => state.run === run && element.isConnected)) return;
+    state.kept.set(state.key, { drawing: [...music.childNodes], loaded: state.loaded, parts: state.parts, lines: state.lines, margins: state.margins });
+    if (state.kept.size > 3) state.kept.delete(state.kept.keys().next().value);
+}
+
+// When each moment of the music is, from the engraver, unless the sheet has it for this music already: its time doesn't change
+// with the layout. Whether the drawing is still the sheet's once it has come.
+async function timed(state, live) {
+    const of = state.options.measures ?? "";
+    if (state.timemap && state.timed === of) return true;
+    const map = await ask("timemap");
+    if (!live()) return false;
+    Object.assign(state, { timemap: map, timed: of, points: null });
+    return true;
+}
+
+// Stop: no more of a scroll is drawn than is there already.
+export function stop(element) {
+    const run = sheets.get(element)?.run;
+    if (run) run.stopped = true;
+}
+
+// The rest of a scroll that was stopped part-way.
+export function rest(element) {
+    const state = sheets.get(element);
+    if (!state || element.getAttribute("data-drawn") !== "stopped" || !(state.drawnParts < state.parts)) return;
+    endRun(state);
+    const run = state.run = { stopped: false };
+    const live = () => state.run === run && element.isConnected;
+    (async () => {
+        await pieceEngraver();
+        if (!live()) return;
+        const release = await takeEngraver(run);
+        try {
+            if (!live()) return;
+            await laidOut(state, state.loaded);
+            if (!live()) return;
+            shown(element, "part");
+            tell(state, "coming");
+            const went = await drawParts(element, state, run, false, state.options.words && state.fitted.fit < songFits.length - 1, () => { });
+            // Words run together further on: the whole of it, at the next fit.
+            if (went === "crowded") {
+                state.fitted = { ...state.fitted, fit: state.fitted.fit + 1 };
+                drawPiece(element, state);
+            }
+            else if (went !== "gone") await ended(element, state, run, went);
+        } finally {
+            release();
+        }
+    })().catch(error => failed(element, state, run, error));
+}
+
 // Everything printed that has an id (a note, a rest, a bar), by that id: listed once for the music as it's drawn. Looking one up
 // in the page itself walks the whole piece, which a long piece pays for at every mark and every step of the cursor.
 function printedById(element, state) {
@@ -380,12 +899,28 @@ function printedById(element, state) {
     return state.byId;
 }
 
-// The page a note is on (1 for the first), or 0 if it isn't in the music.
-export function pageOf(element, id) {
+// The page a note is on (1 for the first), or 0 if it isn't in the music. A whole piece's engraver is asked, once it has
+// the piece laid out as the sheet shows it.
+export async function pageOf(element, id) {
     const state = sheets.get(element);
     if (!state) return 0;
-    ensureLoaded(state);
-    return state.tk.getPageWithElement(id);
+    if (state.options.layout === "line") {
+        ensureLoaded(state);
+        return state.tk.getPageWithElement(id);
+    }
+    if (!state.loaded) return 0;
+    await pieceEngraver();
+    const asking = {};
+    const release = await takeEngraver(asking);
+    try {
+        if (sheets.get(element) !== state) return 0;
+        await laidOut(state, state.loaded);
+        return await ask("pageOf", id);
+    } catch {
+        return 0;
+    } finally {
+        release();
+    }
 }
 
 // Which of these notes are on the page showing.
@@ -427,7 +962,7 @@ function positions(element, state) {
             points.push({ q, x: h.left - box.left - 6, top: s.top - box.top - 6, bottom: s.bottom - box.top + 6, system });
         }
     } else {
-        for (const entry of state.timemap) {
+        for (const entry of state.timemap ?? []) {
             // The first of the moment's notes that's on this page with a head to stand at, or a rest.
             const printed = (entry.on ?? []).map(i => byId.get(i)).find(e => e && (e.classList.contains("rest") || e.querySelector(".notehead")));
             if (!printed) continue;
@@ -441,6 +976,8 @@ function positions(element, state) {
 
     // The systems' ends, so the cursor carries on through a system's last note to its closing barline, reaching it as the bar
     // ends, instead of stopping on the note. Bar times are the time map's, moved onto the stretch's times for a stretch.
+    // A whole piece's time map comes after its drawing: until it has, there are no bar ends to find.
+    if (!state.timemap) return points;
     const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, q: e.qstamp }));
     let shift = 0;
     if (onsets) {
@@ -545,6 +1082,8 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     const state = sheets.get(element);
     if (!state) return;
     cursorStop(element);
+    // Kept with when it was asked for: a scroll still being drawn gives the cursor the whole of its way once it's all there.
+    state.cursor = { at: performance.now(), args: [msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown, beats] };
     const points = path ? pathPoints(element, state, path) : positions(element, state);
     state.points = points;
     if (points.length === 0) return;
@@ -582,16 +1121,19 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
         pulse.startTime = from;
         state.moves.push(pulse);
     }
-    // The line being played is kept in view: the first at once, and each one after when its first moment comes. Nothing else
-    // is done from here while the cursor moves, so the page is free for the keys.
-    follow(element, points[0].system);
+    // The line being played is kept in view: at once the first (or the one the music has reached, for a cursor given its way
+    // again part-way), and each one after when its first moment comes. Nothing else is done from here while the cursor moves,
+    // so the page is free for the keys.
     const lines = points.filter((p, i) => i > 0 && p.system !== points[i - 1].system);
+    const reached = () => lines.findLastIndex(p => due(p.q) <= performance.now() + 1);
+    const begun = reached();
+    follow(element, (begun >= 0 ? lines.splice(0, begun + 1)[begun] : points[0]).system);
     const onward = () => {
-        const reached = lines.findLastIndex(p => due(p.q) <= performance.now() + 1);
-        if (reached >= 0) follow(element, lines.splice(0, reached + 1)[reached].system);
+        const next = reached();
+        if (next >= 0) follow(element, lines.splice(0, next + 1)[next].system);
         if (lines.length > 0) state.timer = setTimeout(onward, due(lines[0].q) - performance.now());
     };
-    onward();
+    if (lines.length > 0) state.timer = setTimeout(onward, due(lines[0].q) - performance.now());
     // Read ahead's covers move with the music at every frame.
     if (!bars) return;
     const frame = now => {
@@ -611,6 +1153,15 @@ function along(points, x, from, to) {
     return b[from] === a[from] ? a[to] : a[to] + (x - a[from]) * (b[to] - a[to]) / (b[from] - a[from]);
 }
 
+// A cursor that's moving, given its way again as the paper stands now (all of a scroll there, where only its first lines
+// were when it started), its times as they were asked for.
+function cursorAgain(element, state) {
+    if (!state.cursor) return;
+    const passed = performance.now() - state.cursor.at;
+    const [msUntilStart, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat, path, shown, beats] = state.cursor.args;
+    cursorStart(element, msUntilStart - passed, msPerQuarter, startQuarter, windowQuarters, beatMs, msUntilBeat == null ? msUntilBeat : msUntilBeat - passed, path, shown, beats);
+}
+
 // The cursor at a place: a line a pixel high at the sheet's corner, moved there and stretched to its system's height, so its
 // place and its height are one transform the browser can animate by itself.
 function placed(point) {
@@ -626,6 +1177,7 @@ export function cursorAt(element, id) {
     cancelAnimationFrame(state.raf);
     clearTimeout(state.timer);
     for (const move of state.moves.splice(0)) move.cancel();
+    state.cursor = null;
     const box = element.getBoundingClientRect();
     const system = head.closest(".system");
     const s = system.getBoundingClientRect();
@@ -653,12 +1205,14 @@ export function cursorStop(element) {
     cancelAnimationFrame(state.raf);
     clearTimeout(state.timer);
     for (const move of state.moves.splice(0)) move.cancel();
+    state.cursor = null;
     state.line.hidden = true;
     state.overlay.querySelectorAll(".sheet-cover").forEach(c => c.remove());
 }
 
 // Read ahead: each bar with its span in quarters and a cover the colour of the paper, drawn over it when it's hidden.
 function measures(element, state) {
+    if (!state.timemap) return [];
     const box = element.getBoundingClientRect();
     const byId = printedById(element, state);
     const starts = state.timemap.filter(e => e.measureOn).map(e => ({ id: e.measureOn, start: e.qstamp }));
@@ -1014,6 +1568,8 @@ export function dispose(element, ownerId) {
     const state = sheets.get(element);
     if (!state) return;
     state.dotnet = null;
+    // A whole piece still being drawn is let go of: its engraver is free for the next one at once.
+    endRun(state);
     cancelAnimationFrame(state.raf);
     clearTimeout(state.timer);
     state.observer?.disconnect();

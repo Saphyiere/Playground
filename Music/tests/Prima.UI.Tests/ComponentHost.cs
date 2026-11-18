@@ -202,6 +202,14 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public double[] PageRatios { get; set; } = [0.75];
     /// <summary>What sheets gave Verovio to engrave: the music, and the options with it.</summary>
     public List<(string Mei, JsonElement Options)> Renders { get; } = [];
+    /// <summary>
+    /// A whole piece's sheet says it's drawn as soon as it's asked to draw, as a short piece's is. Off, nothing is said: the paper
+    /// waits, and a test says how far the drawing has got itself (the sheet's Progress).
+    /// </summary>
+    public bool DrawsPieces { get; set; } = true;
+    /// <summary>How many times a sheet was told to stop drawing, and to draw the rest.</summary>
+    public int SheetStops { get; private set; }
+    public int SheetRests { get; private set; }
     /// <summary>How many times a Library list, drawn, was scrolled to where it was left, and how many times one was left.</summary>
     public int ListsPlaced { get; private set; }
     public int ListsLeft { get; private set; }
@@ -228,7 +236,14 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
             }
         }
         if (identifier == "outline") Outlines.Add(((ElementReference)args![0]!, (string?)args[1]));
-        if (identifier == "render") lock (Renders) Renders.Add(((string)args![1]!, JsonSerializer.SerializeToElement(args[2])));
+        if (identifier == "render")
+        {
+            var options = JsonSerializer.SerializeToElement(args![2]);
+            lock (Renders) Renders.Add(((string)args[1]!, options));
+            if (DrawsPieces && options.GetProperty("layout").GetString() != "line" && args[3] is DotNetObjectReference<Prima.UI.Components.Sheet> sheet) await sheet.Value.Progress(1, 1, "done");
+        }
+        if (identifier == "stop") SheetStops++;
+        if (identifier == "rest") SheetRests++;
         if (identifier == "show" && args is null or []) ListsPlaced++;
         if (identifier == "leave") ListsLeft++;
         if (identifier == "history.go") WentBack.Add(Convert.ToInt32(args![0], System.Globalization.CultureInfo.InvariantCulture));

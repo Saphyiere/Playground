@@ -292,15 +292,35 @@ a PDF plays out; this is what came of it.
   Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes until
   they're read (below), so it shows about where its collection sits.
 - **A piece** opens on its front: its music, About this piece under it, and on its bar its level and two big keys,
-  **Practice** and **Play** ([practice.md](practice.md) has the design). While it opens (a long piece's engraving takes
-  seconds on the tablet), its head, its bar and About are there at once, and the paper waits with faint staves and a light
-  sweeping across them, which moves by transform alone so it keeps moving while the engraver has the page; a card on it says
-  what's happening ("Engraving its 543 bars…", a PDF's "Opening its pages…") with the way back, named for the list it goes
-  back to ("‹ Ludwig van Beethoven"), which is taken as soon as the engraver lets go of the page. A piece that opens at once
-  never shows it. Its music is engraved once, in the view it opens in (it used to be laid out as pages first, then again as
-  the scroll). Only a tap presses them, never the piano's buttons,
+  **Practice** and **Play** ([practice.md](practice.md) has the design). At its head is **the way back**, a key named for
+  where it goes: the list the piece was opened from ("Ludwig van Beethoven", "Uploaded pieces"), or the Library when it was
+  opened from anywhere else. Only a tap presses Practice and Play, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
-  read opens on its pages, as below.) In Practice its tools come first on the bar, after the level: **?** (What's this,
+  read opens on its pages, as below.)
+- **Opening a piece never holds the page.** A long piece takes seconds to engrave on the tablet (Waldstein's last movement,
+  543 bars; Liszt's Sonata, 763), and the page used to freeze for all of them, on an empty screen with no way back. Now its
+  head, its bar (its level and its bars, Practice and Play there but off) and About are there at once, with the paper
+  waiting: faint staves and a light sweeping across them. A card over the foot of the paper says what's happening
+  ("Engraving 543 bars"), with **Cancel**, which goes back; the bar says "Getting its music ready". Its first lines show as
+  soon as they're drawn, to read and scroll, and Practice and Play come on: the rest follows a few lines at a time, the bar
+  and the card saying how far it has got ("Line 6 of 38") on a meter, with **Stop**, which leaves what's drawn ("Stopped at
+  line 6 of 38", and **Draw the rest** beside it). The way back, the tablet's own back, Cancel and Stop are taken at once at
+  any moment. A piece that opens at once shows none of it: the paper and the card fade in only after a moment. A run started
+  on the first lines is given the rest of its way when they're all there. A piece left in Practice opens in Practice again,
+  full screen, and is laid out once, at that width (as it's laid out once in the view it was left in, not as pages first
+  and then the scroll).
+  How: a whole piece is engraved by a Verovio of its own in a worker (`engraver.js`), never on the page's thread, since
+  laying a piece out is one step that can't be broken up (3 s for Waldstein on a stand-in for the tablet). A scroll is drawn
+  in parts, each a page two or three lines high, put one under the other with the space Verovio would have left between their
+  lines: its lines break the same whatever the page's height, so the parts make the one tall drawing the sheet used to ask
+  for, to within a pixel over the whole of Waldstein (and all of a piece longer than that one drawing could hold, which
+  used to stop part-way: Liszt's Sonata). A song is still shown whole, once its words fit: its fits are tried out of sight.
+  Whatever ends a drawing (the piece left, the tablet turned) lets go of the engraver at once, ending the worker in the middle
+  of a layout and starting another for the next piece. Should the worker not start on a device, the same steps are taken on
+  the page's thread, which then can't answer while a long piece is laid out, and Settings › Problems says so. A passage (a
+  drill's, a sight-reading's) is still engraved on the page's thread as it's asked for: it's a few bars, and answers are
+  timed from when it's painted.
+- **In Practice** a piece's tools come first on its bar, after the level: **?** (What's this,
   below), **Options**, which shows the piece's options in place of the music (the view, a song's lyrics, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
   where to start; a PDF's tempo and bars) until it's pressed again, the **metronome**'s settings (below), and **Full
   screen**, which leaves only the bar and the
@@ -480,10 +500,15 @@ a PDF plays out; this is what came of it.
 - **Screens over the music don't draw it again.** The look back, the in-depth review and Play cover the music or take it full
   screen; the music isn't drawn while it's hidden, and the last three sizes it was drawn at are kept, so coming back, leaving
   full screen or turning the tablet back puts the drawing back rather than laying out the piece again (seconds, on a long
-  piece on the tablet). The first time it goes full screen it's drawn at that size once.
+  piece on the tablet). The first time it goes full screen it's drawn at that size once, its lines coming as they do when it
+  opens. Drawn again at another size, the music stays where it was: the line that was first in view is first in view again,
+  by its bar (it used to be left at the same distance down, which is other bars at another width, or at the top).
 - **A PDF** turns by the same means, and by a tap on the page's outer thirds. Portrait shows a whole page, and by default a half-page turn first shows the next page's
-  top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. **Scroll at the tempo** finds
-  the page's systems from its staff lines, and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
+  top over this one's bottom (as forScore does). Landscape moves a screenful of systems at a time. A PDF's first page shows
+  as soon as it's drawn (the paper waiting until then, as a sheet's does). The first time it's opened, each page's systems
+  are then found behind it, a page at a time, the bar saying which are still to come ("Pages 3 to 6 still coming") with the
+  pages down the frame's edge, those to come in outline; they're kept once they're all found. **Scroll at the tempo** finds
+  the page's systems from its staff lines (it waits for them, that first time), and after a bar of count-in moves a system at a time, each lasting bars × beats a bar
   × 60 ÷ tempo seconds, with the system being played lit. The tempo and metre start from the piece's MIDI, which the piano can
   also play (**Hear it on the piano**). A staff line is one unbroken stroke across more than half the page, so a row of beams
   lying along a staff, the ties under a system or a dashed octave line isn't taken for one, however much ink it adds up to.
@@ -1152,7 +1177,10 @@ details.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
   describes.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
-  looks, with the look around it and the cursor and marks drawn on top. Bars are as wide as their notes need, as in print, and
+  looks, with the look around it and the cursor and marks drawn on top. A passage is engraved on the page's own thread as
+  it's asked for; a whole piece by a second Verovio in a worker (`wwwroot/engraver.js`), a scroll's lines coming a part at a
+  time, so the page goes on answering while a long piece is laid out ([Library](#library), "Opening a piece never holds the
+  page"). Bars are as wide as their notes need, as in print, and
   each line is spread to the paper's width. A whole piece's lines break where its bars fit, so a busy bar is never squeezed to
   share a line, and a short last line keeps its bars' own widths; a short passage's bars are shared evenly between its lines.
   In the music Prima writes itself (passages, drills, exercises, a piece from a MIDI file, notes read from a PDF), notes

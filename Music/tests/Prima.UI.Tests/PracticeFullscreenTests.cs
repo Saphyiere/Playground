@@ -16,7 +16,7 @@ public class PracticeFullscreenTests
         await using var host = new ComponentHost();
         var piece = await host.AddPiece();
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary").Click();
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])").Click();
 
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
         Assert.Equal([false], host.Bars.Shown);
@@ -40,9 +40,9 @@ public class PracticeFullscreenTests
 
             // Practice tapped while the page is still setting itself up (listening for keys, its last step); it's going full screen
             // when the setting up ends.
-            view.WaitForElement(".piece-front-bar .mu-primary");
+            view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
             view.WaitForAssertion(() => Assert.Equal(1, host.Browser.ListenKeysCalls));
-            view.Find(".piece-front-bar .mu-primary").Click();
+            view.Find(".piece-front-bar .mu-primary:not([disabled])").Click();
             // Nothing's drawn as it goes full screen, to wake a wait for it (WaitForAssertion's): so it's looked for until it's there.
             await Eventually(() => Assert.Equal([true], host.Browser.Fullscreen));
             keys.SetResult();
@@ -86,7 +86,11 @@ public class PracticeFullscreenTests
         try
         {
             var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-            view.WaitForElement(".piece-front-bar .mu-primary").Click();
+            // Practice is off until there's music on the paper: its sheet says there is, while the page's own scripts (the one
+            // that takes it full screen among them) are still loading.
+            view.WaitForElement(".piece-front-bar .mu-primary");
+            await view.InvokeAsync(() => view.FindComponent<Sheet>().Instance.Progress(1, 1, "done"));
+            view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])").Click();
             view.WaitForElement(".bar-strip");
             Assert.Empty(host.Browser.Fullscreen);
 
@@ -122,10 +126,10 @@ public class PracticeFullscreenTests
         await using var host = new ComponentHost();
         var piece = await host.AddPiece();
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary");
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
         Assert.Empty(view.FindAll(".piece-finish"));
 
-        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
         // After the title's row (portrait's row of its own; landscape has no title) and before the level and the piece's tools.
@@ -181,8 +185,8 @@ public class PracticeFullscreenTests
         var piece = await host.AddPiece(bars: 4);
         await host.Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), "wait");
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary");
-        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
         // Wait for me, its first note played: the run waits at bar 2's.
@@ -213,8 +217,8 @@ public class PracticeFullscreenTests
         host.Context.Services.GetRequiredService<PrimaSettings>().SendToPiano = true;
         var piece = await host.AddPiece(bars: 4);
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary");
-        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
         view.WaitForElement(".play-listen button");
@@ -236,8 +240,8 @@ public class PracticeFullscreenTests
         await using var host = new ComponentHost();
         var piece = await host.AddPiece(pdf: true, read: true);
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary");
-        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
         view.WaitForElement("[aria-label='Show the print']");
@@ -267,8 +271,8 @@ public class PracticeFullscreenTests
         await host.Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), "wait");
         var piece = await host.AddPiece();
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary");
-        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])");
+        await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
         // Wait for me, its one note played: the run ends, and its review takes the screen.

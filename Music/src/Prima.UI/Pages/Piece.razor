@@ -35,8 +35,10 @@ else
     <div class="piece @(readingNotes || stage == Stage.LookBack ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary" ? "piece-summed" : "") @(Pdf ? "" : $"piece-{stage.ToString().ToLowerInvariant()}")">
         <header class="reading-head">
             <div>
+                @* The way back, by the name of where it goes: the list the piece was opened from, or the Library. *@
+                <button type="button" class="way-back" data-piano="off" @onclick="Leave">@WayBack</button>
                 <p class="page-kicker">@Kicker()</p>
-                <h1 class="page-title">@piece.Title</h1>
+                <h1 class="page-title @(piece.Title.Length > 40 ? "page-title-long" : null)">@piece.Title</h1>
             </div>
             @* A session's clocks, counted here, with Finish practice: while Print shows a PDF's print too. *@
             @if (stage == Stage.Practice && clock is not null)
@@ -120,12 +122,18 @@ else
                 <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">@(view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
                 <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
+                @* The first time it's opened: the pages whose systems are still being found, behind the page showing. *@
+                @if (PagesNote() is { } coming)
+                {
+                    <p class="bar-note" role="status">@coming</p>
+                }
                 <div class="piece-actions">
                     <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
                     <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
                     @if (view == View.Scroll)
                     {
-                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                        @* Scrolling goes a system at a time: it waits for every page's to be found. *@
+                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" disabled="@(found is not null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
                     }
                     @tools
                 </div>
@@ -137,14 +145,24 @@ else
             <section class="reading-bar piece-bar piece-front-bar" aria-label="The piece">
                 <p class="piece-bar-title">@piece.Title</p>
                 <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
-                @* Its keys once its music is read: the engraving after that is waited for by a tap, as by the piano. *@
-                @if (!loading)
+                @if (piece.Bars is { } count)
                 {
-                    <div class="piece-actions">
-                        <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="StartPractice">Practice</button>
-                        <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(music is not { Notes.Count: > 0 })" @onclick="OpenPlay">Play</button>
-                    </div>
+                    <div class="mu-readout"><span class="mu-readout-label">Bars</span><span class="mu-readout-value">@count</span></div>
                 }
+                @* How its music's drawing stands, while it isn't all there; stopped part-way, the key that draws the rest. *@
+                @if (BarNote() is { } note)
+                {
+                    <p class="bar-note" role="status">@note</p>
+                }
+                @if (drawing is { Drawing: SheetDrawing.Stopped })
+                {
+                    <button type="button" class="mu-btn bar-note-key" data-piano="off" @onclick="DrawTheRest">Draw the rest</button>
+                }
+                @* Its keys are off until there's music on the paper to play from: its first lines are enough. *@
+                <div class="piece-actions">
+                    <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(!Playable)" @onclick="StartPractice">Practice</button>
+                    <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(!Playable)" @onclick="OpenPlay">Play</button>
+                </div>
             </section>
         }
         else if (stage == Stage.LookBack && session is not null && review is not null && story is not null)
@@ -177,7 +195,7 @@ else
         else
         {
             <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="piece-bar" ShowResult="@(Settings.AfterRun != "nothing")" ShowPassFigure="Settings.PassFigure"
-                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="music is { Notes.Count: > 0 }" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
+                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="Playable" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
                        Metronome="true" OriginalTempo="originalTempo">
                 <Readouts>
                     @if (clock is not null)
@@ -230,10 +248,27 @@ else
                     {
                         <PdfPages @ref="pdf" Data="pdfBytes" Class="piece-pdf" OnOpened="Opened" />
                     }
+                    @* Until its first page is drawn, the paper waits as a sheet's does. *@
+                    @if (!painted)
+                    {
+                        <div class="sheet sheet-whole piece-pdf-wait"><SheetWait /></div>
+                    }
+                    @* While its systems are found: its pages, those still to come in outline. *@
+                    @if (found is { } pagesFound && !readingNotes)
+                    {
+                        <div class="pages-strip" aria-hidden="true">
+                            @for (var n = 1; n <= pages; n++)
+                            {
+                                <span class="@(n > pagesFound ? "wait" : null)">@n</span>
+                            }
+                        </div>
+                    }
                 }
-                else if (mei is not null)
+                else if (loading || mei is not null)
                 {
-                    <Sheet @ref="sheet" Mei="@mei" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    @* The sheet is there from the first, its paper waiting while the music is still being read (no music yet), then
+                       while it's laid out; its lines show as they're drawn. *@
+                    <Sheet @ref="sheet" Mei="@SheetMusic" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnProgress="Progressed" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@
@@ -243,22 +278,20 @@ else
                     <button type="button" class="turn-zone turn-on" aria-label="On a page" @onclick="() => Tapped(1)"></button>
                 }
             </div>
-            @* While it opens: the paper waiting, faint staves with a light sweeping across them (it moves by transform alone, so it
-               keeps moving while the engraver has the page's thread), what's happening, and the way back. A tap on it is taken
-               between the engraver's steps, as the tablet's own back is. Shown only once opening takes more than a moment. *@
-            @if (Opening)
+            @* While its music isn't all there, a card over the foot of the paper says what's happening and how far it has got, with
+               the key for it: Cancel while there's nothing to read yet, which goes back; Stop once its first lines are there, which
+               leaves what's drawn. It fades in after a moment, so a piece that opens at once never shows it. *@
+            @if (Card() is { } card)
             {
-                <div class="piece-opening" role="status">
-                    <div class="piece-opening-paper" aria-hidden="true">
-                        @for (var i = 0; i < 6; i++)
+                <div class="piece-wait" role="status">
+                    <b class="piece-wait-what">@card.What</b>
+                    <span class="piece-wait-more">@card.More</span>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="card.Press">@card.Key</button>
+                    <div class="piece-wait-meter" aria-hidden="true">
+                        @for (var i = 0; i < 19; i++)
                         {
-                            <span class="piece-opening-system"></span>
+                            <span class="@(i < card.Lit ? "on" : null)"></span>
                         }
-                        <span class="piece-opening-sweep"></span>
-                    </div>
-                    <div class="piece-opening-card">
-                        <p class="piece-opening-words">@OpeningWords()…</p>
-                        <button type="button" class="mu-btn" data-piano="off" @onclick="Leave">‹ @(Navigation.PreviousName ?? "Back")</button>
                     </div>
                 </div>
             }
@@ -579,8 +612,10 @@ else
 
     private PieceRecord? piece;
     private bool missing;
-    // The piece's music is still being read; then, until its sheet or pages are first drawn, it's still opening (Opening).
+    // The piece's music is still being read (loading). Then how its drawing stands, as its sheet tells it as its lines come
+    // (nothing said yet: the paper is waiting); and whether its sheet has been drawn whole, or a PDF's first page has.
     private bool loading = true;
+    private SheetProgress? drawing;
     private bool painted;
     private string? mei;
     private Score? score;
@@ -661,7 +696,9 @@ else
     private PieceReading? reading;
     private bool print;
 
-    private bool Pdf => piece!.IsPdf && (mei is null || print);
+    // A PDF shows its pages until its notes are read; then its notation, and Print shows the pages again. While the piece is
+    // still being read, one whose notes are read is its notation already: its paper waits, rather than its print flashing by.
+    private bool Pdf => piece!.IsPdf && (print || (loading ? !piece.HasNotes : mei is null));
 
     private IReadOnlyList<double> ratios = [];
     private double drawnWidth;
@@ -687,6 +724,8 @@ else
         if (piece.IsPdf)
         {
             pdfBytes = await ReadFile(piece.File);
+            // A PDF's pages start opening at once, while the rest about it is read.
+            StateHasChanged();
             if (piece.Midi is not null && await ReadFile(piece.Midi) is { } bytes)
             {
                 try
@@ -770,14 +809,66 @@ else
         loading = false;
     }
 
-    // Opening: the piece's music still being read, or not yet drawn the first time (its sheet painted, or a PDF's pages opened).
-    private bool Opening => !painted && !readingNotes && (loading || (Pdf ? pdfBytes is not null : mei is not null));
+    // ——— Opening ———
 
-    // What the paper says while the piece opens.
-    private string OpeningWords() => Pdf ? "Opening its pages" : piece!.Bars is { } bars ? $"Engraving its {bars} bars" : "Engraving its music";
+    // The way back, by the name of where it goes: the list the piece was opened from, as that list named itself ("Ludwig van
+    // Beethoven", "Uploaded pieces"), and otherwise the Library.
+    private string WayBack => Navigation.PreviousName ?? "Library";
 
-    // The way back while it opens: to the screen it was opened from (the list, as it was left), or the Library's last list.
-    private Task Leave() => Navigation.BackAsync(Place.Last);
+    // Back to the list the piece was opened from, as it was left. Opened from anywhere else (or first, as Prima started), the
+    // way back says Library and goes there: back to it if it was open on the way here, and otherwise in this screen's place.
+    private Task Leave() => Navigation.PreviousName is not null ? Navigation.BackAsync(Place.Last) : Navigation.ReturnToAsync("library");
+
+    // The music the sheet is given: none while it's still being read, nor until the page has the shape it's going to have. A
+    // piece left in Practice opens in Practice again, full screen, which the page can only show once its scripts are loaded:
+    // given its music before that, the sheet laid the piece out at the narrower width first, then all over again.
+    private string SheetMusic => mei is null || shownFull != fullScreen ? "" : mei;
+
+    // The sheet says how its drawing stands: as its paper starts waiting, as its lines come, and when it's over.
+    private void Progressed(SheetProgress progress) => drawing = progress;
+
+    // There's music on the paper to play from: all of it, or its first lines with the rest coming (or stopped).
+    private bool Playable => !loading && music is { Notes.Count: > 0 } && drawing is { Drawing: SheetDrawing.Done or SheetDrawing.Stopped } or { Lines: > 0 };
+
+    // Nothing of the piece to read yet: its music still being read or laid out, or a PDF's first page not drawn.
+    private bool Waiting => !readingNotes && (Pdf ? pdfBytes is not null && !painted : (loading || mei is not null) && drawing is null or { Drawing: SheetDrawing.Coming, Lines: 0 });
+
+    private static string LineOf(SheetProgress lines) => lines.Total > 0 ? $"Line {lines.Lines} of {lines.Total}" : $"Line {lines.Lines}";
+
+    // The bar's note on its front: how its music's drawing stands, while it isn't all there.
+    private string? BarNote() => Waiting ? "Getting its music ready" : drawing switch
+    {
+        { Drawing: SheetDrawing.Coming } coming => LineOf(coming),
+        { Drawing: SheetDrawing.Stopped } stopped => $"Stopped at {LineOf(stopped).ToLowerInvariant()}",
+        { Drawing: SheetDrawing.Failed } => "Not drawn",
+        _ => null,
+    };
+
+    // The card over the foot of the paper: what's happening, a line more, its key and what it does, and how much of its meter
+    // is lit (of 19).
+    private sealed record WaitCard(string What, string More, string Key, Func<Task> Press, int Lit);
+
+    private WaitCard? Card()
+    {
+        if (readingNotes || options) return null;
+        if (Waiting)
+        {
+            var what = Pdf ? "Opening its pages" : piece!.Bars is { } bars ? $"Engraving {bars} bars" : "Engraving its music";
+            return new(what, Pdf ? "Its first page shows as soon as it's drawn." : "The first lines show as soon as they're drawn.", "Cancel", Leave, 0);
+        }
+        return Pdf ? null : drawing switch
+        {
+            { Drawing: SheetDrawing.Coming } coming => new("The rest is on its way", $"{LineOf(coming)} · read and scroll what's here{(stage == Stage.Front ? ", or start from bar " + FirstBar : "")}.", "Stop", StopDrawing,
+                coming.Total > 0 ? Math.Clamp(19 * coming.Lines / coming.Total, 1, 19) : 1),
+            { Drawing: SheetDrawing.Failed } => new("Its music couldn't be drawn", "What went wrong is kept in Settings › Problems.", "Back", Leave, 0),
+            _ => null,
+        };
+    }
+
+    // Stop: what's drawn of the music stays, and no more is. Draw the rest carries on from there.
+    private Task StopDrawing() => sheet?.StopDrawing() ?? Task.CompletedTask;
+
+    private Task DrawTheRest() => sheet?.DrawTheRest() ?? Task.CompletedTask;
 
     protected override void OnParametersSet()
     {
@@ -822,8 +913,17 @@ else
             return;
         }
 
-        // Full screen as it should be, if the page couldn't show it when it was asked for (before turns.js was loaded).
-        if (shownFull != fullScreen) await ShowFullScreen();
+        // Full screen as it should be, if the page couldn't show it when it was asked for (before turns.js was loaded). The sheet
+        // waits for it before taking its music (SheetMusic): now it can, and the page is drawn again to give it.
+        if (shownFull != fullScreen)
+        {
+            await ShowFullScreen();
+            if (shownFull == fullScreen)
+            {
+                StateHasChanged();
+                return;
+            }
+        }
 
         // Closing the reader restores a stage that was display:none. Measure and draw only after that visible DOM is rendered.
         if (returnToRoutineBar)
@@ -1637,24 +1737,50 @@ else
 
     // ——— A PDF piece ———
 
+    // The pages whose systems are found so far, while a PDF opened for the first time has them found; null once they all are.
+    private int? found;
+
     private async Task Opened(IReadOnlyList<double> shapes)
     {
-        (ratios, painted) = (shapes, true);
+        ratios = shapes;
         if (pdf is null) return;
 
-        // Each page's systems are found once and kept: staff lines, five to a staff, paired into grand staves.
-        if (pdfLayout.Pages.Count != shapes.Count)
-        {
-            var found = new List<List<PageSystem>>();
-            for (var n = 1; n <= shapes.Count; n++) found.Add([.. PdfLayout.FindSystems(await pdf.Profile(n))]);
-            var systems = found.Sum(p => p.Count);
-            var barsPerSystem = midi is { Bars: > 0 } && systems > 0 ? Math.Max(1, (int)Math.Round(midi.Bars / (double)systems)) : 4;
-            pdfLayout = pdfLayout with { Pages = [.. found.Select(p => p.Select(s => s with { Bars = barsPerSystem }).ToList())] };
-            await SaveLayout();
-        }
+        // Its first page shows first. Then, the first time it's opened, each page's systems are found behind it and kept.
         pages = shapes.Count;
         await ShowPdf();
+        if (pdfLayout.Pages.Count != shapes.Count) await FindSystems(pdf, shapes.Count);
     }
+
+    // Each page's systems, found once and kept: staff lines, five to a staff, paired into grand staves. A page at a time, behind
+    // the page that's showing, the bar saying which are still to come; kept only once every page's are found, so a piece left
+    // meanwhile has them found afresh the next time.
+    private async Task FindSystems(PdfPages document, int count)
+    {
+        var all = new List<List<PageSystem>>();
+        for (var n = 1; n <= count; n++)
+        {
+            found = n - 1;
+            StateHasChanged();
+            var rows = await document.Profile(n);
+            // The piece left, or its pages put away: a page gone has no rows to give. Nothing is kept, nor said any more.
+            if (gone || !ReferenceEquals(pdf, document) || rows.Length == 0)
+            {
+                found = null;
+                if (!gone) StateHasChanged();
+                return;
+            }
+            all.Add([.. PdfLayout.FindSystems(rows)]);
+        }
+        var systems = all.Sum(p => p.Count);
+        var barsPerSystem = midi is { Bars: > 0 } && systems > 0 ? Math.Max(1, (int)Math.Round(midi.Bars / (double)systems)) : 4;
+        pdfLayout = pdfLayout with { Pages = [.. all.Select(p => p.Select(s => s with { Bars = barsPerSystem }).ToList())] };
+        found = null;
+        await SaveLayout();
+        StateHasChanged();
+    }
+
+    // The bar's note while a PDF's systems are being found: the pages still to come.
+    private string? PagesNote() => found is not { } done || done >= pages ? null : done + 1 == pages ? $"Page {pages} still coming" : $"Pages {done + 1} to {pages} still coming";
 
     private Task SaveLayout() => Store.SetPieceAsync(Id, layout: JsonSerializer.Serialize(pdfLayout, PrimaStore.Json));
 
@@ -1684,6 +1810,12 @@ else
         var (cover, shown) = half is { } h ? HalfSplit(h - 1) : (0, 0);
         await pdf.Show(y, 0, portraitFit || fit, half, cover, shown);
         await pdf.Band(null);
+        // Its first page is drawn: the paper has stopped waiting.
+        if (!painted)
+        {
+            painted = true;
+            StateHasChanged();
+        }
     }
 
     private double PageHeight(int n) => drawnWidth / ratios[n - 1];
@@ -1857,8 +1989,12 @@ else
         await Navigation.ReturnToAsync("library");
     }
 
+    // The page has gone: what it was still doing behind the screen stops.
+    private bool gone;
+
     public async ValueTask DisposeAsync()
     {
+        gone = true;
         Keyboard.Received -= Heard;
         // Leaving the piece pauses its session, to carry on or finish when it's opened again.
         if (clock is not null && session is { Finished: null } && stage == Stage.Practice)

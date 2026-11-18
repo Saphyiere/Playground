@@ -1,0 +1,10 @@
+@* Paper waiting for its music: faint staves, with a light sweeping across them that moves by transform alone. A sheet has it
+   for a whole piece (the stylesheet shows it while the sheet's script says nothing is drawn yet, or more is coming), and a
+   PDF's frame until its first page is drawn. *@
+<div class="sheet-wait" aria-hidden="true">
+    @for (var i = 0; i < 6; i++)
+    {
+        <span class="sheet-wait-system"></span>
+    }
+    <span class="sheet-wait-sweep"></span>
+</div>

@@ -4,9 +4,12 @@
 @inject PrimaSettings Settings
 
 @* Sheet music, engraved by Verovio from MEI: black on paper in both looks. The marks are drawn over it, and the cursor is a
-   line of its own over both, so it can move without the music under it being painted again. *@
-<div class="sheet @Class" @ref="element">
+   line of its own over both, so it can move without the music under it being painted again. A whole piece's paper waits
+   until its music is drawn, faint staves with a light sweeping across them (the stylesheet shows them by data-drawn, which
+   the sheet's script keeps), and while a scroll's lines are still coming the same waits under those that are there. *@
+<div class="sheet @(Whole ? "sheet-whole" : null) @Class" @ref="element">
     <div class="sheet-music"></div>
+    <SheetWait />
     <svg class="sheet-overlay" aria-hidden="true"></svg>
     <div class="sheet-cursor" aria-hidden="true" hidden></div>
 </div>
@@ -22,13 +25,18 @@
     private bool disposed;
     private readonly string ownerId = Guid.NewGuid().ToString("N");
 
+    /// <summary>The music. A whole piece's sheet can be shown before its music is read: empty, its paper waits.</summary>
     [Parameter, EditorRequired] public string Mei { get; set; } = "";
 
     /// <summary>
     /// "line": a passage, its systems as wide as the sheet and as tall as the music, its bars shared evenly between them;
-    /// "scroll": a whole piece down one sheet, each line broken where its bars fit; "page": one page the sheet's size.
+    /// "scroll": a whole piece down one sheet, each line broken where its bars fit; "page": one page the sheet's size. A
+    /// passage is drawn at once; a whole piece is drawn away from the screen's thread, a scroll's lines showing as they come
+    /// (<see cref="OnProgress"/>), and <see cref="OnPainted"/> is when it's all there.
     /// </summary>
     [Parameter] public string Layout { get; set; } = "line";
+
+    private bool Whole => Layout != "line";
 
     /// <summary>Larger or smaller than the normal staff, for drill items and the small sheet on Today.</summary>
     [Parameter] public double Scale { get; set; } = 1;
@@ -49,6 +57,9 @@
     [Parameter] public EventCallback<long> OnPainted { get; set; }
 
     [Parameter] public EventCallback<int> OnPages { get; set; }
+
+    /// <summary>How far a whole piece's drawing has got, as its lines come and when it's over.</summary>
+    [Parameter] public EventCallback<SheetProgress> OnProgress { get; set; }
 
     [Parameter] public EventCallback<string> OnNoteTapped { get; set; }
 
@@ -80,7 +91,8 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (disposed) return;
+        // No music yet: a whole piece's paper waits for it.
+        if (disposed || Mei.Length == 0) return;
         var size = Settings.SheetSize switch { < 0 => 0.85, > 0 => 1.2, _ => 1.0 };
         var lyrics = Names || (Lyrics ?? Settings.Lyrics);
         var key = $"{Mei.Length}|{Mei.GetHashCode()}|{Layout}|{Scale}|{Page}|{Header}|{Measures}|{Settings.MusicFont}|{size}|{lyrics}";
@@ -148,6 +160,16 @@
         if (!disposed) await OnPainted.InvokeAsync(at);
     }
 
+    /// <summary>From the sheet's script: the lines drawn of a whole piece's lines, and "coming", "done", "stopped" or "failed".</summary>
+    [JSInvokable]
+    public Task Progress(int lines, int total, string how) => disposed ? Task.CompletedTask : OnProgress.InvokeAsync(new SheetProgress(lines, total, how switch
+    {
+        "done" => SheetDrawing.Done,
+        "stopped" => SheetDrawing.Stopped,
+        "failed" => SheetDrawing.Failed,
+        _ => SheetDrawing.Coming,
+    }));
+
     [JSInvokable]
     public Task NoteTapped(string id) => disposed ? Task.CompletedTask : OnNoteTapped.InvokeAsync(id);
 
@@ -213,6 +235,18 @@
     public async Task ClearMarks()
     {
         if (module is not null) await module.InvokeVoidAsync("clearMarks", element);
+    }
+
+    /// <summary>Stop: no more of a scroll is drawn than is there already.</summary>
+    public async Task StopDrawing()
+    {
+        if (module is not null) await module.InvokeVoidAsync("stop", element);
+    }
+
+    /// <summary>The rest of a scroll that was stopped part-way.</summary>
+    public async Task DrawTheRest()
+    {
+        if (module is not null) await module.InvokeVoidAsync("rest", element);
     }
 
     /// <summary>The page a note is on (1 for the first), or 0 when it isn't in the music.</summary>

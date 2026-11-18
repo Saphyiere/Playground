@@ -79,3 +79,44 @@ test("an unselected choice removes single-bar and loop bands, tabs and handles",
         assert.ok(layer.querySelectorAll(".bar-handle").every(h => h.hidden));
     }
 });
+
+// A long piece's lines come a part at a time. The line the piece was left at may not be drawn yet when the bars are first shown,
+// nor, once it is, enough music under it for the frame to scroll that far: put back too soon, the piece opened a line short.
+test("the line a piece was left at is waited for, and for the room under it, while its lines are still coming", () => {
+    const { context, sheet, state } = harness();
+    const bars = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => ({ n: from + i, line: Math.floor((from + i - 1) / 4), left: 0, right: 100, top: Math.floor((from + i - 1) / 4) * 200 + 40, bottom: Math.floor((from + i - 1) / 4) * 200 + 160 }));
+    // The frame goes no further down than what's drawn lets it.
+    const frame = { furthest: 0, top: 0, get scrollTop() { return this.top; }, set scrollTop(to) { this.top = Math.min(to, this.furthest); } };
+    Object.assign(state, { frame, at: 21 });
+    Object.assign(context, { sheet, list: bars(1, 12) });
+    vm.runInContext("drawn = () => ({ sheet, list }); drawMarks = () => {}; drawStrip = () => {};", context);
+    sheet.offsetTop = 0;
+
+    // Its line isn't drawn yet.
+    sheet.setAttribute("data-drawn", "part");
+    context.drawAll(state);
+    assert.equal(state.at, 21);
+    assert.equal(frame.scrollTop, 0);
+
+    // Its line is drawn, the last so far: the frame can't bring it to the top yet, and goes as far as it can.
+    context.list = bars(1, 24);
+    frame.furthest = 700;
+    context.drawAll(state);
+    assert.equal(frame.scrollTop, 700);
+    assert.equal(state.at, 21);
+
+    // More under it: it's at the top (a little under it), and that's the end of it.
+    context.list = bars(1, 40);
+    frame.furthest = 1800;
+    context.drawAll(state);
+    assert.equal(frame.scrollTop, 5 * 200 + 40 - 24);
+    assert.equal(state.at, null);
+
+    // A bar the music doesn't have is given up once the music is all there.
+    Object.assign(state, { at: 99 });
+    context.drawAll(state);
+    assert.equal(state.at, 99);
+    sheet.setAttribute("data-drawn", "all");
+    context.drawAll(state);
+    assert.equal(state.at, null);
+});

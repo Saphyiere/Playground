@@ -107,7 +107,7 @@ public class SheetLyricsTests
         var settings = host.Context.Services.GetRequiredService<PrimaSettings>();
 
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
-        view.WaitForElement(".piece-front-bar .mu-primary").Click();
+        view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])").Click();
         view.WaitForElement(".piece-tool[aria-label='Options']").Click();
         view.WaitForElement(".piece-options");
 

@@ -20,6 +20,10 @@ export function show(frame, strip, dotnet, choice) {
         pieces.set(frame, state);
         state.onScroll = () => queue(state);
         frame.addEventListener("scroll", state.onScroll, { passive: true });
+        // The music moved by hand before the line it was left at was drawn: it stays where it's been put.
+        state.onMoved = () => { state.at = null; };
+        frame.addEventListener("pointerdown", state.onMoved, { passive: true });
+        frame.addEventListener("wheel", state.onMoved, { passive: true });
         state.resized = new ResizeObserver(() => queue(state, true));
         state.resized.observe(frame);
     }
@@ -42,6 +46,8 @@ export function show(frame, strip, dotnet, choice) {
 export function forget(frame) {
     for (const state of [...pieces.values()].filter(s => s.frame === frame || !s.frame.isConnected)) {
         state.frame.removeEventListener("scroll", state.onScroll);
+        state.frame.removeEventListener("pointerdown", state.onMoved);
+        state.frame.removeEventListener("wheel", state.onMoved);
         state.resized.disconnect();
         state.painted?.disconnect();
         cancelAnimationFrame(state.queued);
@@ -79,12 +85,14 @@ function queue(state, all) {
 
 function drawAll(state) {
     // The piece opens where it was left: once its bars are drawn, the line of the bar that was first on the screen goes back
-    // to the top of the frame.
+    // to the top of the frame. A long piece's lines come a part at a time (the sheet says so: data-drawn="part"): that line
+    // is waited for, and so is enough music under it for the frame to scroll that far, until they're all there.
     const { sheet, list } = drawn(state);
     if (state.at != null && list.length > 0) {
         const bar = list.find(b => b.n === state.at);
-        if (bar) state.frame.scrollTop = Math.max(0, sheet.offsetTop + bar.top - 24);
-        state.at = null;
+        const top = bar ? Math.max(0, sheet.offsetTop + bar.top - 24) : 0;
+        if (bar) state.frame.scrollTop = top;
+        if ((bar && Math.abs(state.frame.scrollTop - top) < 2) || sheet.getAttribute("data-drawn") !== "part") state.at = null;
     }
     drawMarks(state);
     drawStrip(state);
