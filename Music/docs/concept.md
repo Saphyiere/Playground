@@ -217,7 +217,8 @@ a PDF plays out; this is what came of it.
   kind, any other list's by composer, and a long list starts with a key for each group, or, past twelve composers, for each
   letter their surnames start with; the pieces without a composer are a group of their own there, with a key of their own, and
   aren't counted as a composer. PDFs are left to their own list where near your level is concerned, since a PDF's level is only
-  about where its collection sits, or what its MIDI reads at.
+  about where its collection sits, or what its MIDI reads at. A title is shown whole in the lists, on as many lines as it takes
+  (a sonata's movements differ only at their ends, and an upload's file name can run long), and in a piece's own bar upright.
 - **Hearing a piece first**: ▶ beside each piece plays its opening, about half a minute from its first note (a pickup's
   included; rests it starts with, and a drum part's bars before the piano comes in, aren't played through), at the tempo it
   starts at (else the one it goes at most, else 80 a minute): on the piano, on Prima's own channel as Listen plays, when one is

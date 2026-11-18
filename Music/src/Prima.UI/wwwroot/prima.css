@@ -3515,6 +3515,14 @@ a.mu-btn {
     white-space: nowrap;
 }
 
+/* In the Library's lists a title is shown whole, on as many lines as it takes: titles differ at their ends (a sonata's
+   movements), and a file name with no spaces in it breaks where it must. */
+.piece-item .piece-title {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .piece-meta {
     grid-area: meta;
     font-size: 13px;
@@ -4235,7 +4243,7 @@ html[data-full] .piece .summary {
     display: none;
 }
 
-/* Portrait: the page as large as it goes, under a slim bar with the title in it. */
+/* Portrait: the page as large as it goes, under a slim bar with the title in it, whole. */
 @media (orientation: portrait) {
     .piece .reading-head {
         display: none;
@@ -4245,9 +4253,7 @@ html[data-full] .piece .summary {
         display: block;
         flex: 1 1 100%;
         margin: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
         font-family: var(--mu-name);
         font-size: 17px;
         line-height: 22px;
