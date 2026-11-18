@@ -63,6 +63,122 @@ public class PlanEditsTests
     }
 
     [Fact]
+    public void DoNext_LeavingPullUpsOnSetThree_KeepsTwoSetsAndTheRestOfTheQueue()
+    {
+        var plan = PlanEdits.Copy([Entry(PullUps, 0, 3), Entry(Dips, 1, 3), Entry(Skulls, 2, 4), Entry(PullUps, 3, 2)]);
+        var held = Set(1, PullUps, 3);
+        held.StoppedAt = null;
+        List<WorkoutSet> sets = [Set(1, PullUps, 1), Set(1, PullUps, 2), held];
+
+        var changed = PlanEdits.DoNext(plan, 3, [plan[0]], sets, NoHistory);
+
+        Assert.Equal([1, 3, 2, 4], changed.Select(e => e.Line));
+        Assert.Equal(2, changed[0].PlannedSets);
+        Assert.Equal([1, 2], sets.Select(s => s.Order));
+        Assert.Equal(new PlanStep([Skulls], [3], 1, 4), WorkoutPlan.Next(changed, sets, NoHistory));
+        for (var i = 0; i < 4; i++) sets.Add(Set(3, Skulls, 3 + i));
+        Assert.Equal(new PlanStep([Dips], [2], 1, 3), WorkoutPlan.Next(changed, sets, NoHistory));
+        for (var i = 0; i < 3; i++) sets.Add(Set(2, Dips, 7 + i));
+        Assert.Equal(new PlanStep([PullUps], [4], 1, 2), WorkoutPlan.Next(changed, sets, NoHistory));
+    }
+
+    [Fact]
+    public void DoNext_BetweenSetsFinishesOnlyTheExerciseBeingContinued()
+    {
+        var plan = ChestDay();
+        var blocks = WorkoutPlan.Blocks(plan);
+        List<WorkoutSet> sets = [Set(1, Bench, 1), Set(1, Bench, 2)];
+        var active = WorkoutPlan.ActiveBlock(blocks, sets, WorkoutPlan.NextBlock(plan, sets, NoHistory));
+        Assert.Equal(1, Assert.Single(active!).Line);
+
+        var changed = PlanEdits.DoNext(plan, 2, active, sets, NoHistory);
+
+        Assert.Equal(2, changed[0].PlannedSets);
+        Assert.Null(WorkoutPlan.ActiveBlock(WorkoutPlan.Blocks(changed), sets, WorkoutPlan.NextBlock(changed, sets, NoHistory)));
+        var reordered = PlanEdits.DoNext(changed, 3, null, sets, NoHistory);
+        Assert.Equal([1, 3, 2, 4, 5], reordered.Select(e => e.Line));
+        Assert.Equal(3, reordered[2].PlannedSets);
+    }
+
+    [Fact]
+    public void AdjustCount_FewerUsesHistoryImmediatelyAndFinishesAHeldRoundAtTwo()
+    {
+        var plan = PlanEdits.Copy([Entry(PullUps, 0, superset: 1), Entry(Dips, 1, superset: 1), Entry(Skulls, 2, 3)]);
+        var blocks = WorkoutPlan.Blocks(plan);
+        Dictionary<long, int> history = new() { [PullUps] = 3, [Dips] = 2 };
+        List<WorkoutSet> sets = [Set(1, PullUps, 1), Set(2, Dips, 2), Set(1, PullUps, 3), Set(2, Dips, 4)];
+        var warmUp = Set(1, PullUps, 5);
+        warmUp.WarmUp = true;
+        sets.Add(warmUp);
+        foreach (var entry in blocks[0])
+        {
+            var held = Set(entry.Line, entry.ExerciseId, sets.Count + 1);
+            held.StoppedAt = null;
+            sets.Add(held);
+        }
+
+        var changed = PlanEdits.AdjustCount(plan, blocks[0], sets, history, more: false);
+
+        Assert.Equal(2, changed[0].PlannedSets);
+        Assert.Equal([1, 2, 3, 4, 5], sets.Select(s => s.Order));
+        Assert.True(WorkoutPlan.Progress(WorkoutPlan.Blocks(changed)[0], sets, history).Complete);
+        Assert.Equal(new PlanStep([Skulls], [3], 1, 3), WorkoutPlan.Next(changed, sets, history));
+        var again = PlanEdits.AdjustCount(changed, WorkoutPlan.Blocks(changed)[0], sets, history, more: false);
+        Assert.Equal(2, again[0].PlannedSets);
+    }
+
+    [Fact]
+    public void FinishBlock_LeavingTheFirstSetKeepsZeroLoggedSetsAndTheNextSlot()
+    {
+        var plan = ChestDay();
+        var held = Set(1, Bench, 1);
+        held.StoppedAt = null;
+        List<WorkoutSet> sets = [held];
+
+        var changed = PlanEdits.FinishBlock(plan, [plan[0]], sets, done: 0);
+
+        Assert.Empty(sets);
+        Assert.Equal(0, changed[0].PlannedSets);
+        Assert.Equal(new PlanStep([Incline], [2], 1, 3), WorkoutPlan.Next(changed, sets, NoHistory));
+    }
+
+    [Fact]
+    public void AdjustCount_OpenEndedExerciseCanEndAtTwoWithoutFirstAddingATarget()
+    {
+        var plan = PlanEdits.Copy([Entry(PullUps, 0), Entry(Dips, 1)]);
+        var block = WorkoutPlan.Blocks(plan)[0];
+        List<WorkoutSet> sets = [];
+        Assert.Null(WorkoutPlan.Progress(block, sets, NoHistory).EditableCount);
+        sets.AddRange([Set(1, PullUps, 1), Set(1, PullUps, 2)]);
+
+        Assert.Null(WorkoutPlan.Progress(block, sets, NoHistory, openEnded: true).Target);
+        Assert.Equal(3, WorkoutPlan.Progress(block, sets, NoHistory).EditableCount);
+        var changed = PlanEdits.AdjustCount(plan, block, sets, NoHistory, more: false);
+
+        Assert.Equal(2, changed[0].PlannedSets);
+        Assert.Equal(new PlanStep([Dips], [2], 1, null), WorkoutPlan.Next(changed, sets, NoHistory, openEnded: true));
+    }
+
+    [Fact]
+    public void ExchangeExercises_UpcomingSlotsTradeLinesWithoutChangingCurrentWorkOrSupersetPartners()
+    {
+        var plan = PlanEdits.Copy([Entry(PullUps, 0, 3), Entry(Dips, 1, 2), Entry(Fly, 2, 3), Entry(Skulls, 3, 4)]);
+        var held = Set(1, PullUps, 3);
+        held.StoppedAt = null;
+        List<WorkoutSet> sets = [Set(1, PullUps, 1), Set(1, PullUps, 2), held];
+
+        var exchanged = PlanEdits.ExchangeExercises(plan, 2, 4);
+
+        Assert.Equal([(1, PullUps, 3, false), (4, Skulls, 4, false), (3, Fly, 3, false), (2, Dips, 2, false)], Lines(exchanged));
+        Assert.True(WorkoutPlan.Progress([exchanged[0]], sets, NoHistory).Running);
+        Assert.Equal(new PlanStep([Skulls], [4], 1, 4), WorkoutPlan.After(exchanged, sets, NoHistory, 0));
+
+        var paired = PlanEdits.Join(plan, 2, 3);
+        var memberChanged = PlanEdits.ExchangeExercises(paired, 2, 4);
+        Assert.Equal([(1, PullUps, 3, false), (4, Skulls, 2, true), (3, Fly, null, true), (2, Dips, 4, false)], Lines(memberChanged));
+    }
+
+    [Fact]
     public void Count_SetsALinesSets_AndASupersetsRoundsFromAnyOfItsLines()
     {
         var plan = ChestDay();

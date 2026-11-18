@@ -54,6 +54,47 @@ public static class PlanEdits
         return Build(blocks);
     }
 
+    /// <summary>Exchanges two upcoming exercises. A superset keeps its other members and its round count.</summary>
+    public static List<TemplateExercise> ExchangeExercises(IReadOnlyList<TemplateExercise> plan, int line, int otherLine)
+    {
+        var blocks = Parse(plan);
+        if (Find(blocks, line) is not { } one || Find(blocks, otherLine) is not { } other) return Build(blocks);
+        if (one.Lines.Count == 1 && other.Lines.Count == 1) (one.Count, other.Count) = (other.Count, one.Count);
+
+        var i = one.Lines.FindIndex(e => e.Line == line);
+        var j = other.Lines.FindIndex(e => e.Line == otherLine);
+        (one.Lines[i], other.Lines[j]) = (other.Lines[j], one.Lines[i]);
+        return Build(blocks);
+    }
+
+    /// <summary>Finishes a block with its completed working sets, discarding only its unfinished set or round.</summary>
+    public static List<TemplateExercise> FinishBlock(IReadOnlyList<TemplateExercise> plan, IReadOnlyList<TemplateExercise> block, List<WorkoutSet> sets, int done)
+    {
+        sets.RemoveAll(s => s.StoppedAt is null && block.Any(e => e.Line == s.Line));
+        return Count(plan, block[0].Line, done);
+    }
+
+    /// <summary>Puts a chosen block first among those still to do, finishing the exercise the user is leaving.</summary>
+    public static List<TemplateExercise> DoNext(List<TemplateExercise> plan, int line, IReadOnlyList<TemplateExercise>? current, List<WorkoutSet> sets, IReadOnlyDictionary<long, int> history, bool openEnded = false)
+    {
+        var chosen = WorkoutPlan.Blocks(plan).Find(b => b.Exists(e => e.Line == line));
+        if (chosen is null || WorkoutPlan.Progress(chosen, sets, history, openEnded).Complete || current?.Any(e => e.Line == line) == true) return plan;
+        if (current is not null) plan = FinishBlock(plan, current, sets, WorkoutPlan.Progress(current, sets, history, openEnded).Done);
+
+        var next = WorkoutPlan.Next(plan, sets, history, openEnded);
+        return next is null || next.Lines.Contains(line) ? plan : MoveBefore(plan, line, next.Lines[0]);
+    }
+
+    /// <summary>Changes today's set or round count by one, starting from the number shown in the editor.</summary>
+    public static List<TemplateExercise> AdjustCount(List<TemplateExercise> plan, IReadOnlyList<TemplateExercise> block, List<WorkoutSet> sets, IReadOnlyDictionary<long, int> history, bool more)
+    {
+        var progress = WorkoutPlan.Progress(block, sets, history);
+        var line = block[0].Line;
+        if (more) return Count(plan, line, (progress.EditableCount ?? progress.Done) + 1);
+        if (progress.EditableCount is not int count || count <= progress.Done) return plan;
+        return count - 1 == progress.Done ? FinishBlock(plan, block, sets, progress.Done) : Count(plan, line, count - 1);
+    }
+
     /// <summary>Sets a line's sets (its superset's rounds); empty means as many as last time.</summary>
     public static List<TemplateExercise> Count(IReadOnlyList<TemplateExercise> plan, int line, int? count)
     {

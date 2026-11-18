@@ -224,8 +224,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     }
 
     /// <summary>
-    /// Moves on from an exercise that has no count (nothing planned, nothing to go on from last time): it's done with the sets
-    /// it has, and what's after it starts.
+    /// Finishes the current exercise between sets and starts the next one in order.
     /// </summary>
     public void MoveOn()
     {
@@ -239,8 +238,7 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
 
     /// <summary>
     /// Starts an exercise picked from the list now. A line of it still to do is the one done; with none, it gets a line. Either way
-    /// it goes ahead of everything else still to do, so the plan carries on after it; an exercise I was on that has no count is done
-    /// with the sets it has.
+    /// the current exercise finishes with the sets already done and the plan carries on after the chosen one.
     /// </summary>
     public void StartPicked(Exercise exercise)
     {
@@ -454,27 +452,57 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         if (at >= 0 && at + direction >= 0 && at + direction < free.Count) state.Plan = PlanEdits.Exchange(state.Plan, line, free[at + direction][0].Line);
     });
 
-    /// <summary>
-    /// Does a line's block next: ahead of everything else still to do, right after a set that's running. An exercise I was on that
-    /// has no count is done with the sets it has.
-    /// </summary>
-    public void DoNext(int line) => Edit(line, names => $"{names} is next", (state, _) => state.Plan = ToFront(state, state.Plan, line));
-
-    /// <summary>One more set (or round) for a line's block: one more than planned, or than it has when that's more.</summary>
-    public void MoreSets(int line) => Edit(line, names => $"More sets of {names}", (state, block) =>
+    /// <summary>Finishes the current exercise with its completed sets. The next exercise waits for Start.</summary>
+    public void FinishExercise(int line)
     {
-        var auto = block.Max(e => state.SetsLastTime.GetValueOrDefault(e.ExerciseId));
-        state.Plan = PlanEdits.Count(state.Plan, line, (block[0].PlannedSets ?? Math.Max(state.Progress(block).Done, auto)) + 1);
-    });
+        if (Current?.ActiveBlock?.Exists(e => e.Line == line) != true) return;
+        Edit(line, names => $"Finished {names}", (state, block) => state.Plan = PlanEdits.FinishBlock(state.Plan, block, state.Sets, state.Progress(block).Done));
+    }
 
-    /// <summary>One set (or round) fewer for a line's block, never fewer than it has done; under one, as many as last time.</summary>
-    public void FewerSets(int line) => Edit(line, names => $"Fewer sets of {names}", (state, block) =>
+    /// <summary>Finishes the current exercise and makes the chosen block next.</summary>
+    public void DoNext(int line) => Edit(line, names => $"{names} is next", (state, _) =>
+        state.Plan = PlanEdits.DoNext(state.Plan, line, state.ActiveBlock, state.Sets, state.SetsLastTime, state.OpenEnded));
+
+    /// <summary>Adjusts the count shown in the live editor, including a target suggested by workout history.</summary>
+    public void AdjustSets(int line, bool more) => Edit(line, names => $"{(more ? "More" : "Fewer")} sets of {names}", (state, block) =>
+        state.Plan = PlanEdits.AdjustCount(state.Plan, block, state.Sets, state.SetsLastTime, more));
+
+    /// <summary>Changes the active exercise by moving on, or changes an upcoming slot. Returns the chosen line.</summary>
+    public int ChangeExercise(int line, Exercise exercise, int pickedLine = 0)
     {
-        if (block[0].PlannedSets is not int count) return;
+        if (Current is not { } state || state.BlockOf(line) is not { } block || state.Progress(block).Complete) return line;
 
-        var done = state.Progress(block).Done;
-        state.Plan = PlanEdits.Count(state.Plan, line, count == 1 && done == 0 ? null : Math.Max(Math.Max(done, 1), count - 1));
-    });
+        var active = state.ActiveBlock;
+        var switching = active?.Exists(e => e.Line == line) == true;
+        var scheduled = state.StillToDo().Where(b => active is null || b[0].Line != active[0].Line)
+            .SelectMany(b => b).FirstOrDefault(e => e.Line != line && e.ExerciseId == exercise.Id && (pickedLine == 0 || e.Line == pickedLine));
+        if (switching)
+        {
+            if (scheduled is not null)
+            {
+                DoNext(scheduled.Line);
+                return scheduled.Line;
+            }
+
+            var newLine = state.NewLine();
+            Edit($"Finished {state.Names(block)}. {exercise.Name} is next", s =>
+            {
+                s.Exercises.TryAdd(exercise.Id, exercise);
+                var plan = PlanEdits.Add(s.Plan, exercise.Id, newLine);
+                s.Plan = PlanEdits.DoNext(plan, newLine, active, s.Sets, s.SetsLastTime, s.OpenEnded);
+            });
+            return newLine;
+        }
+
+        if (scheduled is null)
+        {
+            SwapLine(line, exercise, doneToo: false);
+            return line;
+        }
+
+        Edit($"Exchanged {NameOn(line)} and {exercise.Name}", s => s.Plan = PlanEdits.ExchangeExercises(s.Plan, line, scheduled.Line));
+        return scheduled.Line;
+    }
 
     /// <summary>
     /// Puts another exercise on a line, today only. With sets done on it: either they were the new exercise as well
@@ -592,25 +620,6 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
         state.Plan = wholeBlock ? PlanEdits.RemoveBlock(state.Plan, line) : PlanEdits.Remove(state.Plan, line);
         state.Sets.RemoveAll(s => gone.Contains(s.Line));
     });
-
-    /// <summary>
-    /// The sets a line had left go to another line instead, e.g. one that already has the exercise it was being swapped for: that
-    /// one gets them on top of its own, and this one is done with the sets it has, or leaves when it has none.
-    /// </summary>
-    public void GiveSetsTo(int line, int toLine)
-    {
-        if (Current?.BlockOf(toLine) is not { } to) return;
-
-        Edit(line, _ => $"{NameOn(line)} gave its sets to {NameOn(toLine)}", (state, block) =>
-        {
-            var progress = state.Progress(block);
-            var left = progress.Target is int target ? Math.Max(1, target - progress.Done) : 1;
-
-            // A line with no count already takes as many sets as I do.
-            if (state.Progress(to) is { Target: int toTarget, Done: var toDone }) state.Plan = PlanEdits.Count(state.Plan, toLine, Math.Max(toTarget, toDone) + left);
-            state.Plan = progress.Started ? PlanEdits.Count(state.Plan, line, progress.Done) : PlanEdits.RemoveBlock(state.Plan, line);
-        });
-    }
 
     /// <summary>Adds an exercise after everything else in today's workout. Returns its line.</summary>
     public int AddLine(Exercise exercise)
@@ -864,19 +873,8 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     private void StartLine(WorkoutState state, List<TemplateExercise> plan, int line)
     {
         Resume();
-        SavePlan(state, ToFront(state, plan, line));
+        SavePlan(state, PlanEdits.DoNext(plan, line, state.ActiveBlock, state.Sets, state.SetsLastTime, state.OpenEnded));
         StartSets(state.StepOf(state.BlockOf(line)!));
-    }
-
-    // A plan with a line's block ahead of everything else still to do, right after a block with a set running. The exercise I was
-    // on, when it has sets and no count, is done with the sets it has: I went on to something else.
-    private static List<TemplateExercise> ToFront(WorkoutState state, List<TemplateExercise> plan, int line)
-    {
-        if (state.NextBlock is int at && state.Blocks()[at] is var on && !on.Any(e => e.Line == line) && state.Progress(on) is { Target: null, Running: false, Done: > 0 and var done })
-            plan = PlanEdits.Count(plan, on[0].Line, done);
-
-        var first = WorkoutPlan.Blocks(plan).Find(b => !b.Any(e => e.Line == line) && WorkoutPlan.Progress(b, state.Sets, state.SetsLastTime, state.OpenEnded) is { Complete: false, Running: false });
-        return PlanEdits.MoveBefore(plan, line, first?[0].Line ?? 0);
     }
 
     // A round that's running takes the lines that joined its superset in, on the same clock.
@@ -964,16 +962,17 @@ public sealed class WorkoutFlow(WorkoutStore store, AppSettings settings, WatchL
     // Saves what's different from how the workout was: its lines when they changed, and each set that's gone, new or changed.
     private void Persist(WorkoutState state, Change before)
     {
-        if (!ReferenceEquals(before.Plan, state.Plan)) Save(store.SaveSessionPlanAsync(state.Session, state.Plan));
-        var were = new HashSet<WorkoutSet>();
+        var plan = ReferenceEquals(before.Plan, state.Plan) ? null : state.Plan;
+        List<WorkoutSet> removed = [], updated = [];
+        var current = state.Sets.ToHashSet();
         foreach (var (set, was) in before.Sets)
         {
-            were.Add(set);
-            if (!state.Sets.Contains(set)) Save(store.DeleteSetAsync(set));
-            else if (!Same(set, was)) Save(store.UpdateSetAsync(set));
+            if (!current.Remove(set)) removed.Add(set);
+            else if (!Same(set, was)) updated.Add(set);
         }
 
-        foreach (var set in state.Sets.Where(s => !were.Contains(s))) Save(store.InsertSetAsync(state.Session, set));
+        if (plan is not null || removed.Count + updated.Count + current.Count > 0)
+            Save(store.SaveEditAsync(state.Session, plan, removed, updated, [.. state.Sets.Where(current.Contains)]));
     }
 
     // Replaces today's plan outside the edit screen (Another set, Move on, an exercise picked to start), and saves it.

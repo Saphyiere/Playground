@@ -66,25 +66,18 @@ else if (State.Next is { } next)
     }
 
     @* Other ways on sit above the big button, which stays in the same place on every screen. *@
-    @if (State.OpenEnded)
-    {
-        <div class="grid-2">
-            <button type="button" class="btn tall" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
-            <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
-        </div>
-    }
-    else if (State is { CanMoveOn: true, MoveOn: { } moveOn })
+    @if (State is { CanMoveOn: true, MoveOn: { } moveOn })
     {
         <button type="button" class="btn tall" @onclick="MoveOnAsync"><FitLabel Text="@($"Move on to {State.Names(moveOn.ExerciseIds)}")" Short="Move on" /></button>
     }
-    else if (State.CanMoveOn)
+    else if (!State.OpenEnded && State.CanMoveOn)
     {
         <div class="grid-2">
             <a class="btn tall" href="workout/edit?add=true">Add more</a>
             <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
         </div>
     }
-    else if (!goingOn && !takenApart && LastBlock is { } again)
+    else if (!State.OpenEnded && !goingOn && !takenApart && LastBlock is { } again)
     {
         <button type="button" class="btn tall" @onclick="StartAnotherAsync">
             @if (again.Count == 1)
@@ -96,6 +89,13 @@ else if (State.Next is { } next)
                 @("Another round")
             }
         </button>
+    }
+    @if (State.OpenEnded)
+    {
+        <div class="grid-2">
+            <button type="button" class="btn tall" @onclick="@(() => Navigation.Open("workout/exercise"))">Different exercise</button>
+            <button type="button" class="btn tall" @onclick="FinishAsync">@FinishText</button>
+        </div>
     }
     @* The big button names what it starts when the name fits; the names are in full under Next either way. *@
     <button type="button" class="btn-primary go" @onclick="() => Start(next)">
@@ -187,7 +187,7 @@ else
         return OnStarted.InvokeAsync();
     }
 
-    // Done with an exercise that has no count: what's after it starts.
+    // Finish this exercise with the completed sets and start the following block.
     private Task MoveOnAsync()
     {
         Flow.MoveOn();

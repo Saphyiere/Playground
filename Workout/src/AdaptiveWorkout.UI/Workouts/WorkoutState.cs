@@ -80,13 +80,13 @@ public sealed class WorkoutState
     /// <summary>Where <see cref="Next"/> is in the plan: its block's index in <see cref="Blocks"/>; null when there's none.</summary>
     public int? NextBlock { get; private set; }
 
-    /// <summary>
-    /// When the next step goes on with an exercise that has no count (nothing planned, nothing to go on from last time), I may be
-    /// done with it: this is the step after moving on, or null when moving on means finishing.
-    /// </summary>
+    /// <summary>The exercise being performed, including the rest between its sets. An upcoming exercise is separate.</summary>
+    public List<TemplateExercise>? ActiveBlock { get; private set; }
+
+    /// <summary>The next step available when finishing the current exercise early.</summary>
     public PlanStep? MoveOn { get; private set; }
 
-    /// <summary>True when <see cref="Next"/> goes on with an exercise that has sets and no count, so the screen also offers to move on.</summary>
+    /// <summary>True between sets of the current exercise, when the screen can offer to move on.</summary>
     public bool CanMoveOn { get; private set; }
 
     /// <summary>The plan in order, one block per exercise or superset.</summary>
@@ -125,7 +125,8 @@ public sealed class WorkoutState
         var blocks = Blocks();
         NextBlock = WorkoutPlan.NextBlock(Plan, Sets, setsLastTime, OpenEnded);
         Next = NextBlock is int at ? StepOf(blocks[at]) : null;
-        CanMoveOn = NextBlock is int on && Progress(blocks[on]) is { Target: null, Done: > 0 };
+        ActiveBlock = WorkoutPlan.ActiveBlock(blocks, Sets, NextBlock);
+        CanMoveOn = ToLog is not null && ActiveBlock is not null && !Progress(ActiveBlock).Running;
         MoveOn = CanMoveOn ? WorkoutPlan.After(Plan, Sets, setsLastTime, NextBlock!.Value, OpenEnded) : null;
     }
 

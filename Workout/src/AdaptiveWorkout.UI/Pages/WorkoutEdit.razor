@@ -273,6 +273,7 @@
         var doneSets = sets.Count(s => s.StoppedAt is not null);
         var single = block.Count == 1;
         var progress = state.Progress(block);
+        var active = state.ActiveBlock?.Exists(e => e.Line == entry.Line) == true;
         if (ask is { } question && question.Line == entry.Line && !openHead)
         {
             return question.Kind switch
@@ -282,9 +283,6 @@
                             Note="@($"{question.Exercise!.Name} takes what's left. Or {(doneSets == 1 ? "was that set" : "were those sets")} {question.Exercise.Name} as well?")"
                             First="Only what's left" Second="@(doneSets == 1 ? "That set too" : "Those sets too")" FirstIsUsual="true" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
                 </div>,
-                AskKind.AlreadyThere => @<div class="line-edit appear">
-                    <AskBox Question="@($"{question.Exercise!.Name} is already in today's workout.")" First="Its own line" Second="More sets of it" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
-                </div>,
                 _ => @<div class="line-edit appear">
                     <AskBox Question="@($"Remove {exercise.Name} and its {doneSets} {(doneSets == 1 ? "set" : "sets")}?")" First="Keep it" Second="Remove" OnFirst="@(() => Answer(false))" OnSecond="@(() => Answer(true))" />
                 </div>,
@@ -293,11 +291,22 @@
 
         if (panel != Panel.None)
         {
-            var label = panel switch { Panel.Swap => $"Swap {exercise.Name} for", Panel.Superset => $"Superset {exercise.Name} with", _ => "This set was really" };
+            var label = panel switch
+            {
+                Panel.Change => active ? "Switch to exercise" : $"Change {exercise.Name} to",
+                Panel.Swap => $"Replace {exercise.Name} with",
+                Panel.Superset => $"Superset {exercise.Name} with",
+                _ => "This set was really",
+            };
             var others = panel == Panel.Superset ? state.StillToDo().Where(b => b != block && !b.Any(e => e.Line == entry.Line) && !state.Progress(b).Running).ToList() : [];
-            var todays = panel == Panel.Wrong ? state.Plan.Where(e => e.ExerciseId != entry.ExerciseId).Select(e => state.Exercises[e.ExerciseId]).DistinctBy(e => e.Id).ToList() : [];
+            var todays = panel switch
+            {
+                Panel.Change => state.StillToDo().Where(b => b[0].Line != state.ActiveBlock?[0].Line).SelectMany(b => b).Where(e => e.Line != entry.Line).ToList(),
+                Panel.Wrong => state.Plan.Where(e => e.ExerciseId != entry.ExerciseId).DistinctBy(e => e.ExerciseId).ToList(),
+                _ => [],
+            };
             return @<div class="line-edit appear">
-                <ExercisePick Choices="choices!" OnPick="Picked" Id="pick-name" Label="@label" NewAction="@(panel switch { Panel.Swap => "Swap it in", Panel.Superset => "Superset it", _ => "Move the set" })"
+                <ExercisePick Choices="choices!" OnPick="@(e => Picked(e))" Id="pick-name" Label="@label" NewAction="@(panel switch { Panel.Change => "Choose exercise", Panel.Swap => "Replace exercise", Panel.Superset => "Superset it", _ => "Move the set" })"
                               Exclude="@InToday()" Leave="@([entry.ExerciseId])" Note="@(panel == Panel.Superset ? null : InTodayNote)">
                     <BeforeTyping>
                         @if (others.Count > 0)
@@ -325,10 +334,11 @@
                                 <div class="ledger">
                                     @foreach (var other in todays)
                                     {
-                                        <button type="button" class="row" @onclick="@(() => Picked(other))">
+                                        var otherBlock = state.BlockOf(other.Line)!;
+                                        <button type="button" class="row" @onclick="@(() => Picked(state.Exercises[other.ExerciseId], other.Line))">
                                             <span class="row-text">
-                                                <span class="name">@other.Name</span>
-                                                <span class="note">in today's workout</span>
+                                                <span class="name">@state.Exercises[other.ExerciseId].Name</span>
+                                                <span class="note">@(otherBlock.Count > 1 ? state.Names(otherBlock) : $"Exercise {other.Order + 1}")</span>
                                             </span>
                                             <Icon Name="forward" />
                                         </button>
@@ -346,6 +356,17 @@
         var canGoFirst = single && !place.Done && !place.First && !progress.Running;
         RenderFragment log = @<button type="button" class="btn-ghost start" @onclick="@(() => Log(entry.Line))"><Icon Name="plus" Size="16" />Log a set I did</button>;
         return @<div class="line-edit appear">
+            @if (active)
+            {
+                <div class="grid-2">
+                    <button type="button" class="btn tall" @onclick="@(() => Flow.FinishExercise(entry.Line))">@(single ? "Finish exercise" : "Finish superset")</button>
+                    <button type="button" class="btn tall" @onclick="@(() => Show(Panel.Change))">Switch to…</button>
+                </div>
+            }
+            @if (single)
+            {
+                @SetCount(block, progress)
+            }
             @if (sets.Count > 0)
             {
                 <SetList Sets="sets" Exercises="state.Exercises" Bare="true" Open="openSet" Held="@(state.Session.PausedAt ?? opened)" OnSave="Flow.SaveSet" OnDelete="DeleteSet">
@@ -355,17 +376,19 @@
                 </SetList>
                 @log
             }
-            @if (single)
-            {
-                <CountStepper Count="entry.PlannedSets" Note="@CountNote(block, progress)" CanFewer="@CanFewer(entry.PlannedSets, progress)"
-                              OnFewer="@(() => Fewer(entry.Line))" OnMore="@(() => More(entry.Line))" />
-            }
-            <div class="@(canGoFirst ? "grid-2" : "grid-3")">
+            <div class="@(canGoFirst || (active && single) ? "grid-2" : "grid-3")">
                 @if (canGoFirst)
                 {
                     <button type="button" class="btn" @onclick="@(() => Next(entry.Line))">Do this next</button>
                 }
-                <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))">Swap…</button>
+                @if (!active)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Show(place.Done ? Panel.Swap : Panel.Change))">@(place.Done ? "Correct exercise…" : "Change…")</button>
+                }
+                else if (!single)
+                {
+                    <button type="button" class="btn" @onclick="@(() => Show(Panel.Swap))">Replace in superset…</button>
+                }
                 @if (single)
                 {
                     <button type="button" class="btn" @onclick="@(() => Show(Panel.Superset))">Superset…</button>
@@ -407,8 +430,11 @@
 
         var canGoFirst = !place.Done && !place.First && !progress.Running;
         return @<div class="line-edit appear">
-            <CountStepper Count="first.PlannedSets" Rounds="true" Note="@CountNote(block, progress)" CanFewer="@CanFewer(first.PlannedSets, progress)"
-                          OnFewer="@(() => Fewer(first.Line))" OnMore="@(() => More(first.Line))" />
+            @if (state.ActiveBlock?.Exists(e => e.Line == first.Line) == true)
+            {
+                <button type="button" class="btn tall" @onclick="@(() => Flow.FinishExercise(first.Line))">Finish superset</button>
+            }
+            @SetCount(block, progress)
             <div class="@(canGoFirst ? "grid-3" : "grid-2")">
                 @if (canGoFirst)
                 {
@@ -444,13 +470,18 @@
 
     private string CountNote(List<TemplateExercise> block, BlockProgress progress)
     {
-        var auto = block.Max(e => state!.SetsLastTime.GetValueOrDefault(e.ExerciseId));
-        if (block[0].PlannedSets is not int count) return auto > 0 && !state!.OpenEnded ? $"No count: as many as last time ({auto})" : "No count: until you move on";
+        if (block[0].PlannedSets is not int count) return progress.Target is null ? "Open until you move on" : $"Suggested count · {progress.Done} done";
         if (progress.Done > 0) return count > progress.Done ? $"{progress.Done} done, {count - progress.Done} to go" : $"{progress.Done} done, none to go";
         return block.Count > 1 ? "Each round is one set of each exercise" : "Then the big button moves on";
     }
 
-    private static bool CanFewer(int? count, BlockProgress progress) => count is int planned && (planned - 1 >= Math.Max(progress.Done, 1) || (progress.Done == 0 && planned == 1));
+    private RenderFragment SetCount(List<TemplateExercise> block, BlockProgress progress)
+    {
+        var count = WorkoutPlan.Progress(block, state!.Sets, state.SetsLastTime).EditableCount;
+        var line = block[0].Line;
+        return @<CountStepper Count="count" Rounds="@(block.Count > 1)" Note="@CountNote(block, progress)" CanFewer="@(count > progress.Done)"
+                              OnFewer="@(() => Flow.AdjustSets(line, more: false))" OnMore="@(() => Flow.AdjustSets(line, more: true))" />;
+    }
 
     // The exercises on today's lines: a picker lists them apart, or says so beside them.
     private HashSet<long> InToday() => [.. state!.Plan.Select(e => e.ExerciseId)];
@@ -487,10 +518,6 @@
     private void Move(int line, int direction) => Flow.MoveLine(line, direction);
 
     private void Next(int line) => Flow.DoNext(line);
-
-    private void More(int line) => Flow.MoreSets(line);
-
-    private void Fewer(int line) => Flow.FewerSets(line);
 
     private void Split(int line)
     {
@@ -549,17 +576,17 @@
     }
 
     // An exercise picked in an open line's picker: to swap in, to pair with, or as what a set really was.
-    private void Picked(Exercise exercise)
+    private void Picked(Exercise exercise, int pickedLine = 0)
     {
         choices!.Add(exercise);
         var line = open;
-        var block = state!.BlockOf(line)!;
         switch (panel)
         {
-            case Panel.Swap when block.Count == 1 && state.Plan.Find(e => e.ExerciseId == exercise.Id && e.Line != line) is { } there:
-                Asking(new Ask(AskKind.AlreadyThere, line, exercise, Other: there.Line));
+            case Panel.Change:
+                open = Flow.ChangeExercise(line, exercise, pickedLine);
+                Close();
                 break;
-            case Panel.Swap when state.SetsOf(line).Exists(s => s.StoppedAt is not null):
+            case Panel.Swap when state!.SetsOf(line).Exists(s => s.StoppedAt is not null):
                 Asking(new Ask(AskKind.SwapScope, line, exercise));
                 break;
             case Panel.Swap:
@@ -572,7 +599,7 @@
             case Panel.Wrong when wrongSet is { } set:
                 Flow.MoveSet(set, exercise);
                 Close();
-                if (state.BlockOf(open) is null) open = 0;
+                if (state!.BlockOf(open) is null) open = 0;
                 break;
         }
     }
@@ -634,23 +661,13 @@
             case AskKind.RoundsDone:
                 open = 0;
                 break;
-            case AskKind.AlreadyThere when question.Line == 0 && !yes:
+            case AskKind.AlreadyThere when !yes:
                 Flow.AddLine(question.Exercise!);
                 break;
-            case AskKind.AlreadyThere when question.Line == 0:
-                // A line with no count already takes as many sets as I do.
-                if (state!.BlockOf(question.Other) is { } has && state.Progress(has).Target is not null) Flow.MoreSets(question.Other);
-                (open, openHead) = (question.Other, state.BlockOf(question.Other) is { Count: > 1 });
-                break;
-            case AskKind.AlreadyThere when yes:
-                Flow.GiveSetsTo(question.Line, question.Other);
-                (open, openHead) = (question.Other, state!.BlockOf(question.Other)!.Count > 1);
-                break;
-            case AskKind.AlreadyThere when state!.SetsOf(question.Line).Exists(s => s.StoppedAt is not null):
-                ask = new Ask(AskKind.SwapScope, question.Line, question.Exercise);
-                break;
             case AskKind.AlreadyThere:
-                Flow.SwapLine(question.Line, question.Exercise!, doneToo: false);
+                // A line with no count already takes as many sets as I do.
+                if (state!.BlockOf(question.Other) is { } has && state.Progress(has).Target is not null) Flow.AdjustSets(question.Other, more: true);
+                (open, openHead) = (question.Other, state.BlockOf(question.Other) is { Count: > 1 });
                 break;
         }
     }
@@ -667,7 +684,7 @@
     // Where a block is in the list: among the done ones, or first of those still to do, and whether its arrows can move it.
     private sealed record Place(bool Done = false, bool First = false, bool CanUp = false, bool CanDown = false);
 
-    private enum Panel { None, Swap, Superset, Wrong }
+    private enum Panel { None, Change, Swap, Superset, Wrong }
 
     private enum Adding { None, Exercise, Session }
 

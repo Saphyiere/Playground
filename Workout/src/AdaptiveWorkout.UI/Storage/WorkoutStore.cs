@@ -280,14 +280,19 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         (await c.QueryAsync<(long SessionId, long ExerciseId, int Sets)>("SELECT SessionId, ExerciseId, COUNT(*) FROM WorkoutSet WHERE WarmUp = 0 GROUP BY SessionId, ExerciseId")).AsList());
 
     /// <summary>Saves a new set and fills in its Id. The session may still be waiting to be saved; its Id is read when this runs.</summary>
-    public Task InsertSetAsync(WorkoutSession session, WorkoutSet set) => RunAsync(async c =>
+    public Task InsertSetAsync(WorkoutSession session, WorkoutSet set) => RunAsync(c => InsertSetAsync(c, session, set, null));
+
+    private static async Task InsertSetAsync(SqliteConnection c, WorkoutSession session, WorkoutSet set, SqliteTransaction? transaction)
     {
         set.SessionId = session.Id;
-        set.Id = await c.ExecuteScalarAsync<long>("""INSERT INTO WorkoutSet (SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft, WarmUp, PausedSeconds, Line) VALUES (@SessionId, @ExerciseId, @Order, @StartedAt, @StoppedAt, @Weight, @WeightUnit, @Reps, @DurationSeconds, @HitGoal, @RepsLeft, @WarmUp, @PausedSeconds, @Line); SELECT last_insert_rowid();""", set);
-    });
+        set.Id = await c.ExecuteScalarAsync<long>("""INSERT INTO WorkoutSet (SessionId, ExerciseId, "Order", StartedAt, StoppedAt, Weight, WeightUnit, Reps, DurationSeconds, HitGoal, RepsLeft, WarmUp, PausedSeconds, Line) VALUES (@SessionId, @ExerciseId, @Order, @StartedAt, @StoppedAt, @Weight, @WeightUnit, @Reps, @DurationSeconds, @HitGoal, @RepsLeft, @WarmUp, @PausedSeconds, @Line); SELECT last_insert_rowid();""", set, transaction);
+    }
+
+    private const string DeleteSetSql = "DELETE FROM WorkoutSet WHERE Id = @Id";
+    private const string UpdateSetSql = """UPDATE WorkoutSet SET ExerciseId = @ExerciseId, "Order" = @Order, Line = @Line, StartedAt = @StartedAt, StoppedAt = @StoppedAt, Weight = @Weight, WeightUnit = @WeightUnit, Reps = @Reps, DurationSeconds = @DurationSeconds, HitGoal = @HitGoal, RepsLeft = @RepsLeft, WarmUp = @WarmUp, PausedSeconds = @PausedSeconds WHERE Id = @Id""";
 
     /// <summary>Removes a set, e.g. one started on an exercise that was changed before it was done. Its Id is read when this runs.</summary>
-    public Task DeleteSetAsync(WorkoutSet set) => RunAsync(c => c.ExecuteAsync("DELETE FROM WorkoutSet WHERE Id = @Id", set));
+    public Task DeleteSetAsync(WorkoutSet set) => RunAsync(c => c.ExecuteAsync(DeleteSetSql, set));
 
     /// <summary>
     /// A workout's own plan: its lines, copied from its session when it started and changed as it went, each with the number its
@@ -297,17 +302,26 @@ public sealed partial class WorkoutStore(string databasePath) : ISettingStore
         (await c.QueryAsync<TemplateExercise>("""SELECT ExerciseId, "Order", PlannedSets, SupersetGroup, Line FROM SessionExercise WHERE SessionId = @sessionId ORDER BY "Order" """, new { sessionId })).AsList());
 
     /// <summary>Replaces a workout's own plan. The session may still be waiting to be saved; its Id is read when this runs.</summary>
-    public Task SaveSessionPlanAsync(WorkoutSession session, IReadOnlyList<TemplateExercise> plan) => RunAsync(async c =>
+    public Task SaveSessionPlanAsync(WorkoutSession session, IReadOnlyList<TemplateExercise> plan) => SaveEditAsync(session, plan, [], [], []);
+
+    /// <summary>Commits a live edit or its undo together, so reopening sees the matching plan and set history.</summary>
+    public Task SaveEditAsync(WorkoutSession session, IReadOnlyList<TemplateExercise>? plan, List<WorkoutSet> removed, List<WorkoutSet> updated, List<WorkoutSet> added) => RunAsync(async c =>
     {
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
-        await c.ExecuteAsync("DELETE FROM SessionExercise WHERE SessionId = @Id", session, transaction);
-        await c.ExecuteAsync("""INSERT INTO SessionExercise (SessionId, ExerciseId, "Order", PlannedSets, SupersetGroup, Line) VALUES (@SessionId, @ExerciseId, @Order, @PlannedSets, @SupersetGroup, @Line)""", plan.Select(e => new { SessionId = session.Id, e.ExerciseId, e.Order, e.PlannedSets, e.SupersetGroup, e.Line }), transaction);
+        if (plan is not null)
+        {
+            await c.ExecuteAsync("DELETE FROM SessionExercise WHERE SessionId = @Id", session, transaction);
+            await c.ExecuteAsync("""INSERT INTO SessionExercise (SessionId, ExerciseId, "Order", PlannedSets, SupersetGroup, Line) VALUES (@SessionId, @ExerciseId, @Order, @PlannedSets, @SupersetGroup, @Line)""", plan.Select(e => new { SessionId = session.Id, e.ExerciseId, e.Order, e.PlannedSets, e.SupersetGroup, e.Line }), transaction);
+        }
+
+        if (removed.Count > 0) await c.ExecuteAsync(DeleteSetSql, removed, transaction);
+        if (updated.Count > 0) await c.ExecuteAsync(UpdateSetSql, updated, transaction);
+        foreach (var set in added) await InsertSetAsync(c, session, set, transaction);
         await transaction.CommitAsync();
     });
 
     /// <summary>Saves a set as it is now: its numbers and times, and, when the workout was changed, its exercise, line and place.</summary>
-    public Task UpdateSetAsync(WorkoutSet set) => RunAsync(c =>
-        c.ExecuteAsync("""UPDATE WorkoutSet SET ExerciseId = @ExerciseId, "Order" = @Order, Line = @Line, StartedAt = @StartedAt, StoppedAt = @StoppedAt, Weight = @Weight, WeightUnit = @WeightUnit, Reps = @Reps, DurationSeconds = @DurationSeconds, HitGoal = @HitGoal, RepsLeft = @RepsLeft, WarmUp = @WarmUp, PausedSeconds = @PausedSeconds WHERE Id = @Id""", set));
+    public Task UpdateSetAsync(WorkoutSet set) => RunAsync(c => c.ExecuteAsync(UpdateSetSql, set));
 
     public Task AddFoodAsync(int calories, DateTimeOffset at) => RunAsync(c => c.ExecuteAsync("INSERT INTO FoodEntry (At, Calories) VALUES (@at, @calories)", new { at, calories }));
 

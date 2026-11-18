@@ -226,8 +226,8 @@ Today's workout is its lines in the order they're done: each line is an exercise
 
 1. A line is done after its count: the sets the session gives it, or the ones set on the edit screen.
 2. Without a count, if I've done the exercise before, it's done after as many sets as last time.
-3. Without either it goes on: the big button offers another set, with a second button to **move on to the next exercise** (which is then done with the sets it has), or **Add more** and **Finish workout** when it's the last one.
-4. So the order on the edit screen is the order things happen, and nothing is hidden from it: a line I put off waits where I put it and comes up when its turn does. What I'm not doing today is removed, on the edit screen.
+3. Between sets I can **move on to the next exercise** at any count. If I leave after two of three, those two are my finished exercise. While a set is running, **Skip set and move on** drops the unfinished attempt and leaves the next exercise ready to start. In a superset this applies to the whole round.
+4. The remaining exercises follow their order in the editor. I can use the arrows to postpone an exercise, or add a fresh line to do the same exercise again later.
 5. Once a line is done, a second button offers **Another set of rows** (or **Another round**) for when I'm doing more than planned; it's one more than the line had.
 
 A warm-up set says where I am in the plan without being one of the exercise's sets: after it, the same set is still next.
@@ -268,16 +268,16 @@ Machines are taken all the time, and some days go another way entirely, so a wor
 Tapping a line opens it:
 
 - **Its sets**, one a row. Tapping one changes its weight, reps, Hit goal, Left in the tank or Warm-up, or deletes it after asking once. **It was another exercise…** puts the set on another of today's lines, or on a line of its own for an exercise today doesn't have. **Log a set I did** writes in one done off the clock, from the numbers it would have started with; it has no time of its own, and says **logged**.
-- **Sets**: − and + set the line's count, never under what's done. **Auto** is as many as last time.
-- **Do this next** puts it ahead of everything else still to do (the bench is taken, so incline first). The line I was on waits right after; one with no count is done with the sets it has.
-- **Swap…** puts another exercise on the line, keeping its spot, count and superset. With sets already done on it, it asks: **Only what's left** (the done sets stay what they were, on a line of their own, and the new exercise takes the sets left) or **That set too**. A running set carries on as the new exercise.
+- **Sets** and **Rounds** show the planned count or the count suggested from previous workouts. With a target of three, one tap on minus changes it to two. The minimum is the number completed. Reaching that minimum drops an unfinished set or round. An exercise with no target or history shows **Auto** until I start it, then shows the set I'm on or about to start.
+- **Finish exercise** keeps my completed sets and leaves the next exercise ready. **Switch to…** finishes the exercise and lets me choose which one comes next. **Do this next** on another line does the same. The other pending exercises keep their order.
+- **Change…** on an upcoming exercise replaces it in that slot. Choosing another scheduled exercise exchanges the two, keeping their line identities and any superset partners. **Replace in superset…** changes a member of the active superset while its partners carry on. The editor also lets me correct an exercise recorded under the wrong name.
 - **Superset…** pairs the line with another one still to do, or with an exercise today doesn't have. It counts from the next round, and joins a round that's running, on the same clock. Said after rounds were done, it asks whether the other went with them: **Add it** writes its sets in beside those rounds, at their times, to be put right; **From now on** leaves them.
 - **Remove** takes the line out of today, asking first when it has sets done, which go with it.
 - A superset's heading opens its **Rounds**, **Do this next**, **Split** (each exercise alone, for the rounds it had; a running round goes on as a set of the first) and **Remove**. One of its exercises has **Take out** in Superset's place: it comes right after, alone.
 
 Under the list, **Add exercise** adds a line after the others and **Add a session** adds a whole other session's exercises (an ab session after the bike): **After the others**, or **Replace what's left**, which keeps what's started and lets go of the rest.
 
-**Nothing doubles by accident.** An exercise picked that today already has asks once: **Its own line**, or **More sets of it**, which adds to the line it has (swapping incline for the dumbbell press I already did gives that press the sets incline had, and incline goes). When it does get a line of its own, that line has its own sets, and can be removed without touching the other.
+To repeat an exercise later, use **Add exercise** and **Its own line**. The new entry counts its sets independently. **More sets of it** lets me deliberately extend an existing entry.
 
 **What's done stays done.** Deleting a set from a line that was done, or saying it was another exercise, leaves the line done with the sets it has left, rather than bringing it back as something to do; with no set left, the line goes. A line still to do keeps its count.
 

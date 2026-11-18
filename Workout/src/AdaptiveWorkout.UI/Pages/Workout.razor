@@ -160,6 +160,7 @@
                 </section>
 
                 <div class="push-down">
+                    <button type="button" class="btn tall" @onclick="@(() => Flow.FinishExercise(first.Line))">@(round ? "Skip round and move on" : "Skip set and move on")</button>
                     <button type="button" class="btn-primary stop" @onclick="Flow.StopSet">Stop</button>
                 </div>
             </div>
@@ -245,6 +246,12 @@
                 </div>
             </div>
         }
+        else if (state.Plan.Count > 0)
+        {
+            <div class="push-down">
+                <NextStepButton State="state" OnStarted="() => { }" OnFinish="FinishAsync" />
+            </div>
+        }
     </div>
 }
 
@@ -258,7 +265,7 @@
         Flow.Changed += OnFlowChanged;
         state = Flow.Current ?? await Flow.LoadAsync();
         if (state is null) await Navigation.HomeAsync();
-        else if (state is { Sets.Count: 0, WarmingUp: false, CoolingDown: false }) Navigation.Replace("workout/exercise");
+        else if (state is { Sets.Count: 0, Plan.Count: 0, WarmingUp: false, CoolingDown: false }) Navigation.Replace("workout/exercise");
     }
 
     private static string Unit(WeightUnit unit) => unit == WeightUnit.Kilograms ? "kg" : "lb";

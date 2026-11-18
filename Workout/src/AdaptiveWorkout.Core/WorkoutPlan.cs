@@ -28,6 +28,9 @@ public readonly record struct BlockProgress(int Done, int? Target, bool Running,
 {
     /// <summary>Nothing of it is left to do.</summary>
     public bool Complete => !Running && Target is int target && Done >= target;
+
+    /// <summary>The count shown while editing. With no target, a started exercise shows its current or next set.</summary>
+    public int? EditableCount => Target is int count ? Math.Max(count, Running ? Done + 1 : Done) : Started ? Done + 1 : null;
 }
 
 /// <summary>
@@ -91,6 +94,14 @@ public static class WorkoutPlan
         return null;
     }
 
+    /// <summary>The running block, or the block being continued after its last stopped set. A fresh upcoming slot is separate.</summary>
+    public static List<TemplateExercise>? ActiveBlock(List<List<TemplateExercise>> blocks, IReadOnlyList<WorkoutSet> sets, int? nextBlock)
+    {
+        if (sets.FirstOrDefault(s => s.StoppedAt is null) is { } running) return blocks.Find(b => b.Exists(e => e.Line == running.Line));
+        if (sets.Count == 0 || nextBlock is not int next) return null;
+        return blocks[next].Exists(e => e.Line == sets[^1].Line) ? blocks[next] : null;
+    }
+
     /// <summary>
     /// The next step, or null when nothing in the plan is left: the first block in order with sets still to do, on the set (or
     /// round) after those done. A superset's round is one step and counts as one set of each of its exercises.
@@ -98,7 +109,7 @@ public static class WorkoutPlan
     public static PlanStep? Next(IReadOnlyList<TemplateExercise> plan, IReadOnlyList<WorkoutSet> sets, IReadOnlyDictionary<long, int> setsLastTime, bool openEnded = false) =>
         NextBlock(plan, sets, setsLastTime, openEnded) is int at ? Step(Blocks(plan)[at], sets, setsLastTime) : null;
 
-    /// <summary>The step after a block, for moving on from one that has no count: the first block after it with sets still to do.</summary>
+    /// <summary>The first block after this one with sets still to do.</summary>
     public static PlanStep? After(IReadOnlyList<TemplateExercise> plan, IReadOnlyList<WorkoutSet> sets, IReadOnlyDictionary<long, int> setsLastTime, int block, bool openEnded = false) =>
         NextBlock(plan, sets, setsLastTime, openEnded, block) is int at ? Step(Blocks(plan)[at], sets, setsLastTime) : null;
 
