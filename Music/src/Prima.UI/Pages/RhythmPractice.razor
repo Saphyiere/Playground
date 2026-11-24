@@ -13,12 +13,12 @@
 
 <PageTitle>Rhythm · Prima</PageTitle>
 
-<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")"><KeyboardLamp /></PageHead>
+<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide"><KeyboardLamp /></PageHead>
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
-<p class="page-note">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
+<p class="page-note full-hide">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
 
-<section class="reading-bar" aria-label="Where you are">
+<section class="reading-bar play-bar piece-bar" aria-label="Where you are">
     @if (session is { Phase: Phase.CountIn })
     {
         <CountIn Session="session" />
@@ -31,12 +31,10 @@
         <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
     }
+    <PlayTools Metronome="true" Running="@(session?.Phase is Phase.CountIn or Phase.Playing)" />
+    <span class="play-bar-break" aria-hidden="true"></span>
     @* Loop: lit, the next try starts by itself a few seconds after each one's result, set after set, until it's turned off or you leave. *@
-    <div class="play-mode play-loop drill-loop">
-        <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(loop ? "true" : "false")" aria-label="@(loop ? "Loop: on. The next try starts by itself" : "Loop: off. Each try waits for you")" @onclick="() => SetLoop(!loop)">
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
-        </button>
-    </div>
+    <LoopKey On="loop" Changed="SetLoop" OnLabel="Loop: on. The next try starts by itself" OffLabel="Loop: off. Each try waits for you" Class="drill-loop" />
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
     {
         <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(score is null)" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>

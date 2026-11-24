@@ -54,7 +54,11 @@ public class ExerciseFamilyUiTests
         again.WaitForAssertion(() => Assert.Equal("Octaves", again.Find("[data-variation=interval] .exercise-option").TextContent));
         Assert.Equal("G major", again.Find(".exercise-key").TextContent);
         Assert.Equal([67, 79], Opening(again));
-        // The lesson its idea is from, and what it trains, are under its words.
+        // The lesson its idea is from, and what it trains, are among its words: the play bar's Options shows them in the music's place.
+        Assert.Empty(again.FindAll(".exercise-words"));
+        await Tap(again, ".play-bar [aria-label='Options']");
+        again.WaitForElement(".piece-options.exercise-words");
+        Assert.Contains("piece-frame-hidden", again.Find(".piece-frame").ClassList);
         Assert.StartsWith("https://www.youtube.com/watch?v=8QI_InPpq0s", again.Find(".exercise-lesson a").GetAttribute("href"));
         Assert.Equal("Trains arm and wrist, double notes.", again.Find(".exercise-trains").TextContent);
     }
@@ -95,6 +99,8 @@ public class ExerciseFamilyUiTests
         var plain = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, "five"));
         plain.WaitForAssertion(() => Assert.Equal([60], Opening(plain)));
         Assert.Empty(plain.FindAll("[data-variation]"));
+        await Tap(plain, ".play-bar [aria-label='Options']");
+        plain.WaitForElement(".exercise-words");
         Assert.Empty(plain.FindAll(".exercise-lesson"));
         Assert.Equal("Trains finger strength, evenness.", plain.Find(".exercise-trains").TextContent);
     }

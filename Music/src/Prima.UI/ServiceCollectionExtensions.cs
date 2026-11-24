@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IFiles, NoFiles>();
         services.TryAddSingleton<ILibraryBundle, NoBundle>();
         services.TryAddSingleton<ISpeaker, NoSpeaker>();
+        services.TryAddSingleton<ISystemBars, NoSystemBars>();
         services.AddSingleton<Library.Openings>();
         // Asking Claude: the key in the host's secure storage (in memory without one), the file a key arrives in, and each call
         // kept in Prima's data file with the piece it was for.
@@ -63,6 +64,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Library.LibraryPrep>();
         services.AddScoped<Library.LibraryPlace>();
         services.AddScoped<Library.RepertoireBook>();
+        services.AddScoped<Practice.FullScreen>();
         return services;
     }
 }

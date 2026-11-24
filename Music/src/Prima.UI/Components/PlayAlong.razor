@@ -10,7 +10,10 @@
 @using Prima.Core.Scoring
 
 @*
-    The play bar, the same on every screen that plays music to a tempo, so they all work and feel alike. In time: a count-in, the
+    The play bar, the same on every screen that plays music to a tempo, so they all work and feel alike: the one engine they all
+    use, the toolbar over the music. Its keys are in the same places on every screen: the screen's own figures first, then its
+    tools (PlayTools: What's this, Options, the metronome's settings, full screen, each where the screen has it), then the run's:
+    the metronome, the tempo, the mode, Loop, Start and Listen. A screen says which it has; it doesn't draw them. In time: a count-in, the
     click that never waits, the cursor moving with the beat, each note marked as it's played, and the timing summed up after.
     Wait for me: no click; the cursor waits at each note or chord until its keys are played, a chord's together (played a key at
     a time, it's marked so and says "together"), a wrong key is marked where it was, and the pace is your own. Settings can take
@@ -20,17 +23,22 @@
     nothing is judged, so you can hear how it goes or play along.
 *@
 
-<section class="reading-bar play-bar @BarClass" aria-label="Playing">
+<section class="reading-bar play-bar piece-bar @BarClass" aria-label="Playing">
     @if (session is { Phase: Phase.CountIn })
     {
         <CountIn Session="session" />
     }
     @Readouts
+    @if (ShowTools)
+    {
+        <PlayTools Extra="Tools" OnExplain="OnExplain" Explaining="Explaining" OnOptions="OnOptions" OptionsOpen="OptionsOpen" Metronome="HasMetronome" OnClickChanged="ClickChanged"
+                   ShowFullScreen="ShowFullScreen" OnFullScreen="OnFullScreen" Running="Running" />
+    }
     @* In portrait a piece's bar puts its run's controls on a row of their own, under its figures and keys. *@
     <span class="play-bar-break" aria-hidden="true"></span>
     @if (Running || moving)
     {
-        @if (Mode == PlayMode.InTime || listening || Metronome)
+        @if (Mode == PlayMode.InTime || listening || HasMetronome)
         {
             <div class="mu-readout"><span class="mu-readout-label">@(listening ? "Listening" : "Tempo")</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
@@ -90,7 +98,7 @@
                 </div>
             }
         </div>;
-        @if (Metronome)
+        @if (HasMetronome)
         {
             <button type="button" class="play-metronome" data-piano="off" aria-pressed="@On(ticking is not null)" aria-label="@(ticking is null ? "Start the metronome" : "Pause the metronome")" @onclick="ToggleMetronome">
                 @if (ticking is null)
@@ -117,7 +125,7 @@
                 <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for me</button>
             </div>
         }
-        @if (!Metronome && Mode == PlayMode.InTime)
+        @if (!HasMetronome && Mode == PlayMode.InTime)
         {
             @tempoPick
         }
@@ -125,11 +133,7 @@
         {
             @* Loop: lit, a run goes round and round until Stop, the music's bars that go round (an exercise's without its close)
                again and again, each time round a pass. Kept for the screen, as the mode is. *@
-            <div class="play-mode play-loop">
-                <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@On(Looping)" aria-label="@(Looping ? "Loop: on. It goes round until you stop it" : "Loop: off. It plays once through")" @onclick="() => SetLoop(!Looping)">
-                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
-                </button>
-            </div>
+            <LoopKey On="Looping" Changed="SetLoop" OnLabel="Loop: on. It goes round until you stop it" OffLabel="Loop: off. It plays once through" />
         }
         @if (ShowStart)
         {
@@ -233,11 +237,36 @@
     public bool Looping { get; private set; }
 
     /// <summary>
-    /// A metronome on the bar (a piece's): its key, before the tempo, starts and stops a click at the tempo, accented on each bar's
-    /// first beat by the music's metre where it starts, with nothing judged, to play to as you like. The tempo shows then in either
-    /// mode. A run, leaving, or Prima put away stops it.
+    /// The metronome, on every bar unless a screen has no use for one (a piece's Play): its key, before the tempo, starts and stops
+    /// a click at the tempo, accented on each bar's first beat by the music's metre where it starts, with nothing judged, to play
+    /// to as you like; its settings among the tools. The tempo shows then in either mode. A run, leaving, or Prima put away stops it.
     /// </summary>
-    [Parameter] public bool Metronome { get; set; }
+    [Parameter] public bool Metronome { get; set; } = true;
+
+    // The metronome where there's music for it to go by (a screen that starts its runs with music of its own has none).
+    private bool HasMetronome => Metronome && Music is not null;
+
+    /// <summary>The tools at the bar's start (<see cref="PlayTools"/>): off only for a bar that's a slim strip (a piece's Play).</summary>
+    [Parameter] public bool ShowTools { get; set; } = true;
+
+    /// <summary>A screen's own keys, first among the tools (a piece's page turns and print).</summary>
+    [Parameter] public RenderFragment? Tools { get; set; }
+
+    /// <summary>What's this, for a screen whose music explains its symbols when tapped, and whether it's on.</summary>
+    [Parameter] public EventCallback OnExplain { get; set; }
+
+    [Parameter] public bool Explaining { get; set; }
+
+    /// <summary>Options, for a screen with options to show in place of the music, and whether they show.</summary>
+    [Parameter] public EventCallback OnOptions { get; set; }
+
+    [Parameter] public bool OptionsOpen { get; set; }
+
+    /// <summary>Full screen's key, on every bar unless a screen has none.</summary>
+    [Parameter] public bool ShowFullScreen { get; set; } = true;
+
+    /// <summary>For a screen that does more as it goes in and out of full screen (a piece's Practice), asked by the key.</summary>
+    [Parameter] public EventCallback OnFullScreen { get; set; }
 
     /// <summary>The music's own tempo, in the tempo's beats a minute: beside the tempo once it's been changed, a tap going back to it.</summary>
     [Parameter] public double? OriginalTempo { get; set; }
@@ -362,6 +391,12 @@
     }
 
     private Task StartPressed() => Keyboard.Name is null ? StartNeeds() : OnStart.HasDelegate ? OnStart.InvokeAsync() : Start();
+
+    // The click's settings changed among the tools: a metronome going starts again with them.
+    private void ClickChanged()
+    {
+        if (ticking is not null) Tick();
+    }
 
     private void ToggleMetronome()
     {

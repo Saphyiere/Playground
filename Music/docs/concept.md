@@ -118,10 +118,18 @@ can be turned off in Settings.
 
 ### Playing to a tempo
 
-Every screen that plays music to a tempo has the same play bar: the screen's own figures, then the mode, the tempo and Start
-(the piano's C♯4). Sight-read, a Library piece, an exercise, a routine's exercise, Scales, Arpeggios and Finger independence
-all play this way: it's the one engine for music played to a tempo, so what it can do (the modes, Listen, Loop) is the same
-wherever it is.
+Every screen that plays music to a tempo has the same play bar, the engine's toolbar over the music, with its keys in the same
+places everywhere: the screen's own figures first (a piece's level, a drill's target), then its **tools** (a screen's own,
+like a piece's page turns and its print; then What's this, Options, the metronome's settings and **full screen**, each where
+the screen has it), and at the bar's end the run's: the **metronome** (its play key, then the tempo, and the music's own
+tempo to go back to once it's been changed), the mode, Loop, Start (the piano's C♯4) and Listen. Sight-read, a Library piece,
+an exercise, a routine's exercise, Scales, Arpeggios and Finger independence all play this way: it's the one engine for music
+played to a tempo, so what it can do (the modes, the metronome, full screen, Listen, Loop) is the same wherever it is, and a
+screen only says which of its keys it has. The reading drills, Rhythm, Listen and play back and Endless notes run their own
+sets, and their bars are laid out the same: their figures, the same tools, then what to play now, Loop and Start at the end;
+their music is printed at the size every sheet has. **Full screen** leaves the bar and the music alone on any of these
+screens: the rail and the screen's head go (its choices and words too), and the tablet's own bars; the key again, or leaving
+the screen, brings them back. A piece's Practice goes full screen by itself.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and a summary after (see [The summary](#the-summary) and
@@ -1067,12 +1075,13 @@ another as one piece of music: from the key showing on through the list and roun
 without its close so one runs into the next, its signature where it starts and its name over its first note, and the last
 key's close to end on. The play bar's **Loop** (see [Playing to a tempo](#playing-to-a-tempo)) takes an exercise round and
 round without its close, or the whole run through the keys round again. It opens as you last played it, at the tempo you
-left it. Under its words are what it trains and, for one whose idea is from a lesson, a link to the lesson at that
-exercise's place in it; then what's been done of it: how many times and on how many days, when last, and the fastest clean
-run In time. **In my routine** keeps it
-in the list's My routine. The row under that leads to the next in its section, or, when the exercise was opened from My
-routine, to the routine's next. In landscape the music and the words sit side by side, so both show at the piano; in portrait
-one is under the other.
+left it, and its page is laid out as a piece's is: what you do in a line, its choices, the play bar, and the music in a piece's
+paper frame, drawn the way a piece's is, taking the rest of the screen and all that scrolls. Its words are the bar's
+**Options**, shown in the music's place as a piece's options are: how, what to notice, what it trains and, for one whose idea
+is from a lesson, a link to the lesson at that exercise's place in it; then what's been done of it (how many times and on how
+many days, when last, and the fastest clean run In time), **In my routine**, which keeps it in the list's My routine, and a
+row that leads to the next in its section, or, when the exercise was opened from My routine, to the routine's next. One to
+read or to do away from the keys is its words.
 
 A **family** is a main exercise and the side ones a few choices make of it. Under its key and hands its page has a row for
 each **variation**: two or three options are keys to press, more are stepped through with − and + as the key is. What's

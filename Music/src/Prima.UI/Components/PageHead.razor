@@ -1,6 +1,6 @@
 @* A screen's heading: a printed line above (the day, or what the screen is for) and its name. Whatever's passed inside sits at
    the other end, like a status lamp or a button. *@
-<header class="page-head">
+<header class="page-head @Class">
     <div>
         @if (Kicker is not null)
         {
@@ -15,6 +15,9 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Kicker { get; set; }
+
+    /// <summary>A class of its own: full-hide, for a head that full screen takes away.</summary>
+    [Parameter] public string? Class { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

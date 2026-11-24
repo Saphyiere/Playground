@@ -1793,6 +1793,15 @@ a {
     white-space: nowrap;
 }
 
+/* On a drill's bar, as on every bar, its own run keys (Loop, what to play now, Start) are at the end, after the tools. */
+.piece-bar .play-bar-break + .drill-loop {
+    margin-left: auto;
+}
+
+.piece-bar .drill-prompt + .drill-loop {
+    margin-left: 0;
+}
+
 .play-mode-option {
     padding: 8px 14px;
     border: 0;
@@ -4509,11 +4518,13 @@ html[data-full] .bar-strip {
 }
 
 /* Full screen: the piece alone, the rail and the head gone (the tablet's own bars too, by the host), the music filling what
-   the bar and a run's summary leave. */
+   the bar and a run's summary leave. The same on every screen that plays music: what a screen has around the bar and the music
+   (its head, its choices, its words) is marked full-hide. */
 html[data-full] .shell > .mu-nav,
 html[data-full] .piece .reading-head,
-html[data-full] .piece-about {
-    display: none;
+html[data-full] .piece-about,
+html[data-full] .full-hide {
+    display: none !important;
 }
 
 html[data-full] .shell-main {
@@ -6216,15 +6227,6 @@ html[data-full] .piece .summary {
     gap: 16px;
 }
 
-/* An exercise's play bar shares its row with the words in landscape, so it's the narrowest bar there is. Where its keys don't
-   fit on one row (Vinyl's wider type, at the smaller tablet's width), the last of them go onto a second, at the bar's end,
-   rather than spill out over the words. */
-.exercise-music .play-bar {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    row-gap: 12px;
-}
-
 .exercise-words {
     max-width: 640px;
     display: flex;
@@ -6249,36 +6251,40 @@ html[data-full] .piece .summary {
     color: var(--ink-muted);
 }
 
-@media (orientation: landscape) {
-    .exercise-played {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-        grid-template-rows: auto auto 1fr;
-        grid-template-areas: "choice choice" "music does" "music words";
-        align-items: start;
-        gap: 20px 32px;
-    }
+/* A screen on the engine (an exercise, a technique drill, a routine's activity) fits the screen as a piece does: its own rows and
+   the play bar, then the music in a piece's paper frame, which takes the rest and is all that scrolls; an exercise's words, the
+   bar's Options, in the music's place; a run's summary under the music, scrolling in its own space. */
+.practice-page {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
 
-    .exercise-played.exercise-fixed {
-        grid-template-rows: auto 1fr;
-        grid-template-areas: "music does" "music words";
-    }
+.practice-page > * {
+    flex: none;
+}
 
-    .exercise-played .exercise-choice {
-        grid-area: choice;
-    }
+.practice-page > .piece-stage {
+    flex: 1 1 0;
+    min-height: 240px;
+}
 
-    .exercise-played .exercise-music {
-        grid-area: music;
-    }
+.practice-page .piece-frame {
+    height: 100%;
+    min-height: 0;
+}
 
-    .exercise-played .exercise-does {
-        grid-area: does;
-    }
+.practice-page > .summary,
+.practice-page > .summary-words,
+.practice-page > .summary-figures {
+    max-height: 40%;
+    overflow-y: auto;
+}
 
-    .exercise-played .exercise-words {
-        grid-area: words;
-    }
+.exercise-played .exercise-words {
+    max-width: none;
 }
 
 /* ——— Practice and Play ——— */

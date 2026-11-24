@@ -28,21 +28,62 @@ else
         history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
     }
 
-    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name"><KeyboardLamp /></PageHead>
+    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name" Class="full-hide"><KeyboardLamp /></PageHead>
 
-    @* What you do, in a line. One that's played then has what to play (its key, or all its keys one after another, the hands,
-       and for a family a row for each of its variations), the play bar every screen with a tempo shares, with its Loop, its
-       sheet, and the run's summary; in landscape the words sit beside the music, so both show at the piano. The words are how,
-       what to notice, what it trains and the lesson its idea is from, what's been done of it, the switch that keeps it in My
-       routine, and what comes next. *@
-    <div @key="Id" class="exercise @(exercise.Kind == ExerciseKind.Played ? "exercise-played" : "") @(choosing ? "" : "exercise-fixed")">
-        <p class="exercise-does">@exercise.Does</p>
-
-        @if (exercise.Kind == ExerciseKind.Played)
+    // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
+    // done of it, the switch that keeps it in My routine, and what comes next.
+    RenderFragment about = @<text>
+        <h2 class="section-title">How</h2>
+        <ol class="exercise-steps">
+            @foreach (var step in exercise.How)
+            {
+                <li>@step</li>
+            }
+        </ol>
+        <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Why" : "Notice")</h2>
+        <p class="exercise-notice">@exercise.Notice</p>
+        @if (ExerciseFocus.Of(exercise.Id) is { Count: > 0 } trains)
         {
+            <p class="control-note exercise-trains">Trains @string.Join(", ", trains.Select(f => f.Name.ToLowerInvariant())).</p>
+        }
+        @if (ExerciseFamilies.LessonOf(exercise.Id) is { } lesson)
+        {
+            <p class="control-note exercise-lesson">The idea is from a lesson by @lesson.By, <a href="@lesson.Url" target="_blank" rel="noopener">“@lesson.Title”</a> The words and the notes here are Prima's.</p>
+        }
+        @if (exercise.Kind != ExerciseKind.Way)
+        {
+            <div class="control-row">
+                @if (exercise.Kind == ExerciseKind.Away)
+                {
+                    <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(was?.Last == Today)" @onclick="MarkDone">@(was?.Last == Today ? "Done today" : "Done")</button>
+                }
+                <button type="button" class="mu-toggle" aria-pressed="@On(routine.Contains(Id))" @onclick="ToggleRoutine"><span class="mu-led"></span>In my routine</button>
+            </div>
+            <p class="control-note">@history</p>
+        }
+        @if (next is not null && !playing)
+        {
+            <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}{(From == "routine" ? "?from=routine" : "")}")">
+                <span class="piece-title">@next.Name</span>
+                <span class="piece-meta">@(From == "routine" ? "Next in my routine" : "Next in this section")</span>
+                <span class="piece-level" aria-hidden="true">›</span>
+            </a>
+        }
+    </text>;
+
+    @* One that's played is on the engine, as a piece is: what you do in a line, what to play (its key, or all its keys one after
+       another, the hands, and for a family a row for each of its variations), the play bar every screen with music shares (its
+       metronome, Options and full screen among its tools, its Loop among the run's keys), and the music in the paper frame a
+       piece's is in, taking the rest of the screen and all that scrolls. Its words are its options: the bar's Options shows them
+       in place of the music, as a piece's options are. In full screen only the bar and the music are left. One to read, or to do
+       away from the keys, is its words. *@
+    @if (exercise.Kind == ExerciseKind.Played)
+    {
+        <div @key="Id" class="exercise exercise-played practice-page">
+            <p class="exercise-does full-hide">@exercise.Does</p>
             @if (choosing)
             {
-                <section class="exercise-choice" aria-label="What to play">
+                <section class="exercise-choice full-hide" aria-label="What to play">
                     @if (keys.Count > 1)
                     {
                         <div class="control-row">
@@ -92,61 +133,41 @@ else
                 </section>
             }
 
-            <div class="exercise-music">
-                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped" />
+            <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped"
+                       OriginalTempo="exercise.Tempo" OnOptions="ToggleWords" OptionsOpen="wordsOpen" />
 
-                <div class="sheet-frame">
-                    <Sheet @ref="sheet" Mei="@mei" />
+            <div class="piece-stage">
+                <div class="piece-frame sheet-frame piece-frame-scroll @(wordsOpen ? "piece-frame-hidden" : "")" data-follow="">
+                    <Sheet @ref="sheet" Mei="@mei" Layout="scroll" Class="piece-sheet" />
                 </div>
-
-                @if (outcome is not null)
+                @if (wordsOpen)
                 {
-                    <section class="summary" aria-label="How it went">
-                        <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" />
+                    <section class="piece-options exercise-words" aria-label="How to do it">
+                        @about
+                        <div class="control-row">
+                            <button type="button" class="mu-btn" @onclick="ToggleWords">Back to the music</button>
+                        </div>
                     </section>
                 }
             </div>
-        }
 
-        <section class="exercise-words" aria-label="How to do it">
-            <h2 class="section-title">How</h2>
-            <ol class="exercise-steps">
-                @foreach (var step in exercise.How)
-                {
-                    <li>@step</li>
-                }
-            </ol>
-            <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Why" : "Notice")</h2>
-            <p class="exercise-notice">@exercise.Notice</p>
-            @if (ExerciseFocus.Of(exercise.Id) is { Count: > 0 } trains)
+            @if (outcome is not null)
             {
-                <p class="control-note exercise-trains">Trains @string.Join(", ", trains.Select(f => f.Name.ToLowerInvariant())).</p>
+                <section class="summary" aria-label="How it went">
+                    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" />
+                </section>
             }
-            @if (ExerciseFamilies.LessonOf(exercise.Id) is { } lesson)
-            {
-                <p class="control-note exercise-lesson">The idea is from a lesson by @lesson.By, <a href="@lesson.Url" target="_blank" rel="noopener">“@lesson.Title”</a> The words and the notes here are Prima's.</p>
-            }
-            @if (exercise.Kind != ExerciseKind.Way)
-            {
-                <div class="control-row">
-                    @if (exercise.Kind == ExerciseKind.Away)
-                    {
-                        <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(was?.Last == Today)" @onclick="MarkDone">@(was?.Last == Today ? "Done today" : "Done")</button>
-                    }
-                    <button type="button" class="mu-toggle" aria-pressed="@On(routine.Contains(Id))" @onclick="ToggleRoutine"><span class="mu-led"></span>In my routine</button>
-                </div>
-                <p class="control-note">@history</p>
-            }
-            @if (next is not null && !playing)
-            {
-                <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}{(From == "routine" ? "?from=routine" : "")}")">
-                    <span class="piece-title">@next.Name</span>
-                    <span class="piece-meta">@(From == "routine" ? "Next in my routine" : "Next in this section")</span>
-                    <span class="piece-level" aria-hidden="true">›</span>
-                </a>
-            }
-        </section>
-    </div>
+        </div>
+    }
+    else
+    {
+        <div @key="Id" class="exercise">
+            <p class="exercise-does">@exercise.Does</p>
+            <section class="exercise-words" aria-label="How to do it">
+                @about
+            </section>
+        </div>
+    }
 }
 
 @code {
@@ -173,6 +194,8 @@ else
     private PlayMusic? music;
     private Sheet? sheet;
     private bool playing;
+    // Its words, shown in place of the music by the bar's Options, as a piece's options are.
+    private bool wordsOpen;
     private PlayOutcome? outcome;
     private DoneRecord? was;
     private List<string> routine = [];
@@ -275,8 +298,10 @@ else
 
     private void Starting()
     {
-        (playing, outcome) = (true, null);
+        (playing, outcome, wordsOpen) = (true, null, false);
     }
+
+    private void ToggleWords() => wordsOpen = !wordsOpen;
 
     private void PracticeStarting() => routineSession?.Start();
 

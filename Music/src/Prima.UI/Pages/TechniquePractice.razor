@@ -12,12 +12,14 @@
 
 <PageTitle>@Title · Prima</PageTitle>
 
-<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")"><KeyboardLamp /></PageHead>
+<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")" Class="full-hide"><KeyboardLamp /></PageHead>
 
 @* What to play is yours to choose, whatever your reading level: the key (easier to harder, in the exams' order) or all the
-   keys one after another, the form, the octaves, the hands. Today's is the day's plan. The play bar has Loop, as an exercise's
-   does. *@
-<section class="control-rows technique-choice" aria-label="What to play">
+   keys one after another, the form, the octaves, the hands. Today's is the day's plan. Then the play bar every screen with
+   music shares, and the music in a piece's paper frame, taking the rest of the screen, as an exercise's page does; in full
+   screen only the two. *@
+<div class="practice-page">
+<section class="control-rows technique-choice full-hide" aria-label="What to play">
     <div class="control-row">
         @if (Key == "independence")
         {
@@ -78,11 +80,11 @@
 
 @if (through)
 {
-    <p class="page-note">Every key one after another, from @choice.Key.Name, at the tempo showing. It's practice for the notes: it isn't measured for evenness, and no key's tempo moves.</p>
+    <p class="page-note full-hide">Every key one after another, from @choice.Key.Name, at the tempo showing. It's practice for the notes: it isn't measured for evenness, and no key's tempo moves.</p>
 }
 else if (FirstRun)
 {
-    <p class="page-note">First, play it once in Wait for me, at your own speed and without the click. The In time runs then start a little slower than that, which is how speed is built.</p>
+    <p class="page-note full-hide">First, play it once in Wait for me, at your own speed and without the click. The In time runs then start a little slower than that, which is how speed is built.</p>
 }
 @if (!playing && (runs >= 3 || (From == "today" && Key == "scales")))
 {
@@ -90,7 +92,7 @@ else if (FirstRun)
        again), and the arpeggio back to the day once it's had its three runs; from anywhere else, three runs lead back to the
        drills. With all five played the way on is the orange key, and another set is offered beside it. *@
     var set = runs >= TechniqueState.RunsPerSet;
-    <div class="control-row">
+    <div class="control-row full-hide">
         @if (From == "today" && Key == "scales")
         {
             <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : null)" href="drills/arpeggios?from=today">Next: the arpeggio</a>
@@ -106,8 +108,10 @@ else if (FirstRun)
     </div>
 }
 
-<div class="sheet-frame">
-    <Sheet @ref="sheet" Mei="@mei" Scale="0.9" />
+<div class="piece-stage">
+    <div class="piece-frame sheet-frame piece-frame-scroll" data-follow="">
+        <Sheet @ref="sheet" Mei="@mei" Layout="scroll" Class="piece-sheet" />
+    </div>
 </div>
 
 @if (result is not null)
@@ -137,6 +141,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"Your own speed came to about {bpm:0} beats a minute, so In time starts at {state.Tempo:0}." : "Wait for me is practice for the notes: it doesn't count for evenness or move the tempo.")</li>
     </PlaySummary>
 }
+</div>
 
 @code {
     private static readonly (int Pattern, string Name)[] Patterns = [(1, "Five fingers"), (2, "Trill 3–4"), (3, "Trill 4–5")];

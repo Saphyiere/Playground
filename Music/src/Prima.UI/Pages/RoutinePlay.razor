@@ -6,7 +6,7 @@
 @using Prima.UI.Routines
 
 <PageTitle>Routine practice · Prima</PageTitle>
-<PageHead Title="@(session?.Item?.Title is { } title ? RoutineWords.American(title) : "Routine practice")" Kicker="From your piece"><KeyboardLamp /></PageHead>
+<PageHead Title="@(session?.Item?.Title is { } title ? RoutineWords.American(title) : "Routine practice")" Kicker="From your piece" Class="full-hide"><KeyboardLamp /></PageHead>
 
 @if (session is not null)
 {
@@ -18,21 +18,25 @@
 }
 else if (music is not null && session?.Item is { } item)
 {
-    <p class="exercise-does">@RoutineWords.American(item.Purpose)</p>
-    @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
-    @if (item.TargetId == "rhythm") { <p class="section-note">Tap this rhythm on any key. The pitch is not judged.</p> }
+    <div class="practice-page">
+    <p class="exercise-does full-hide">@RoutineWords.American(item.Purpose)</p>
+    @if (sourceWarning is not null) { <p class="section-note full-hide" role="status">@sourceWarning</p> }
+    @if (item.TargetId == "rhythm") { <p class="section-note full-hide">Tap this rhythm on any key. The pitch is not judged.</p> }
     <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
                Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
                StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" ShowLoop="@(item.TargetId != "rhythm")" LoopChanged="Looped" />
-    <div class="sheet-frame"><Sheet @ref="sheet" Mei="@(loop ? looped ??= MeiReader.WithRepeat(mei) : mei)" /></div>
+    <div class="piece-stage">
+        <div class="piece-frame sheet-frame piece-frame-scroll" data-follow=""><Sheet @ref="sheet" Mei="@(loop ? looped ??= MeiReader.WithRepeat(mei) : mei)" Layout="scroll" Class="piece-sheet" /></div>
+    </div>
     @if (outcome is not null)
     {
         <section class="summary" aria-label="How it went"><PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" /></section>
     }
     @if (sourcePiece is not null)
     {
-        <div class="control-row"><a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(sourcePiece)}{(sourceBar is { } bar ? $"?bar={bar}" : "")}")">Return to the piece</a></div>
+        <div class="control-row full-hide"><a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(sourcePiece)}{(sourceBar is { } bar ? $"?bar={bar}" : "")}")">Return to the piece</a></div>
     }
+    </div>
 }
 else
 {

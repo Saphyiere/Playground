@@ -10,21 +10,23 @@
 
 <PageTitle>Endless notes · Prima</PageTitle>
 
-<PageHead Title="Endless notes" Kicker="Reading · faster and faster"><KeyboardLamp /></PageHead>
+<PageHead Title="Endless notes" Kicker="Reading · faster and faster" Class="full-hide"><KeyboardLamp /></PageHead>
 
 @if (running && stream is not null)
 {
-    <section class="reading-bar" aria-label="How it's going">
+    <section class="reading-bar play-bar piece-bar" aria-label="How it's going">
         <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Last</span><span class="mu-readout-value">@Seconds(stream.LastMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Last ten</span><span class="mu-readout-value">@Seconds(stream.RecentMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
+        <PlayTools Metronome="false" />
+        <span class="play-bar-break" aria-hidden="true"></span>
         @* Not the piano's go key: every key is an answer here. *@
         <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
     </section>
     <div class="sheet-frame">
-        <Sheet @ref="sheet" Mei="@mei" Scale="1.7" OnPainted="Shown" />
+        <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
     </div>
     <p class="drill-feedback wrong" aria-live="polite">@feedback</p>
 }

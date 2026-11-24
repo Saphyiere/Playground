@@ -1,0 +1,23 @@
+@*
+    Loop, the same key on every bar that has it (the play bar's, a drill's): a lit segment with its arrows. What going round means
+    is the screen's (the music round and round, sets one after another); the key, its look and its place are the same.
+*@
+<div class="play-mode play-loop @Class">
+    <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(On ? "true" : "false")" aria-label="@(On ? OnLabel : OffLabel)" @onclick="() => Changed.InvokeAsync(!On)">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
+    </button>
+</div>
+
+@code {
+    [Parameter] public bool On { get; set; }
+
+    /// <summary>Asked with what it's to be: the screen sets it.</summary>
+    [Parameter] public EventCallback<bool> Changed { get; set; }
+
+    /// <summary>What it says to a screen reader, lit and not: what going round does on this screen.</summary>
+    [Parameter] public string OnLabel { get; set; } = "Loop: on";
+
+    [Parameter] public string OffLabel { get; set; } = "Loop: off";
+
+    [Parameter] public string? Class { get; set; }
+}

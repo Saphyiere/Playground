@@ -13,7 +13,7 @@
 
 <PageTitle>@(info?.Name ?? "Drill") · Prima</PageTitle>
 
-<PageHead Title="@(info?.Name ?? "Drill")" Kicker="@Kicker()"><KeyboardLamp /></PageHead>
+<PageHead Title="@(info?.Name ?? "Drill")" Kicker="@Kicker()" Class="full-hide"><KeyboardLamp /></PageHead>
 <RoutineBar Session="routineSession" BeforeLeaving="PauseRoutine" OnResume="ResumeRoutine" />
 
 @if (info is null)
@@ -26,7 +26,7 @@ else if (items.Count == 0)
 }
 else if (index < items.Count)
 {
-    <section class="reading-bar drill-bar" aria-label="Where you are">
+    <section class="reading-bar play-bar piece-bar drill-bar" aria-label="Where you are">
         <div class="mu-readout"><span class="mu-readout-label">Item</span><span class="mu-readout-value">@(index + 1) of @items.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@results.Count(r => r.Right)</span></div>
         @if (info.Top > 1)
@@ -45,15 +45,13 @@ else if (index < items.Count)
         {
             <div class="mu-readout @(lastShare < 0.8 ? "miss" : "")"><span class="mu-readout-label">Last set</span><span class="mu-readout-value">@($"{lastShare * 100:0}%")</span></div>
         }
-        <div class="play-mode play-loop drill-loop">
-            <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(loop ? "true" : "false")" aria-label="@(loop ? "Loop: on. Sets come one after another until you leave" : "Loop: off. A set ends at its summary")" @onclick="() => SetLoop(!loop)">
-                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
-            </button>
-        </div>
+        <PlayTools Metronome="false" />
+        <span class="play-bar-break" aria-hidden="true"></span>
         <p class="drill-prompt">@items[index].Item.Prompt</p>
+        <LoopKey On="loop" Changed="SetLoop" OnLabel="Loop: on. Sets come one after another until you leave" OffLabel="Loop: off. A set ends at its summary" Class="drill-loop" />
     </section>
     <div class="sheet-frame">
-        <Sheet @ref="sheet" Mei="@mei" Scale="@(items[index].Item.Answer.Count > 1 ? 1.25 : 1.7)" OnPainted="Shown" />
+        <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
     </div>
     <p class="drill-feedback @(feedbackRight ? "right" : "wrong")" aria-live="polite">@feedback</p>
 }

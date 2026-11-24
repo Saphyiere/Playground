@@ -15,7 +15,7 @@
 <PageTitle>Sight-read · Prima</PageTitle>
 
 <div class="reading @(stage == Stage.Choose ? "" : "reading-on")">
-    <header class="reading-head">
+    <header class="reading-head full-hide">
         <div>
             <p class="page-kicker">@Kicker()</p>
             <h1 class="page-title">@(passage?.Description ?? (Spot == 1 ? "One spot" : "Sight-read"))</h1>
