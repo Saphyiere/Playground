@@ -73,7 +73,7 @@ public class RoutineUiTests
     {
         await using var host = new ComponentHost();
         var view = host.Context.Render<ExerciseList>();
-        view.WaitForElement(".exercise-filters[aria-busy='false']");
+        view.WaitForElement(".lib-list[aria-busy='false']");
         var action = view.WaitForElement("[data-action='ask-routine']");
         Assert.Equal("routine/ask", action.GetAttribute("href"));
         Assert.Equal("off", action.GetAttribute("data-piano"));
@@ -155,7 +155,8 @@ public class RoutineUiTests
     [InlineData("drills/scales?execution=run", "Routines")]
     [InlineData("routine/play/run", "Routines")]
     [InlineData("exercises/octave-jump", "Exercises")]
-    [InlineData("drills/playback", "Drills")]
+    [InlineData("drills/playback", "Exercises")]
+    [InlineData("drills", "Exercises")]
     public async Task TheRoutinesKeyIsLitDuringAnExerciseOrDrillOpenedFromARoutine(string address, string lit)
     {
         await using var host = new ComponentHost();

@@ -46,7 +46,7 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 The rail down the left edge, in both looks: at its head You, a round key in the look's colour with the first letter of your name
 (a figure without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't; under Practice,
-Today, Drills, Sight-read, Exercises and Routines; under Collection, the Library and the Repertoire; and Settings alone at
+Today, Sight-read, Exercises (the drills among them) and Routines; under Collection, the Library and the Repertoire; and Settings alone at
 the foot. In Vinyl
 Practice and Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its start. The
 tools are a tab of Settings (Tools, below), whose key is lit on them.
@@ -176,19 +176,16 @@ the screen, brings them back. A piece's Practice goes full screen by itself.
   is as good as until stopped. Listen still plays the music once, as written. Loop is kept for each screen, like the mode. A
   piece has its own loop, on the bars you choose (see [Library](#library)).
 
-### Drills
-
-Short, focused practice, each a few minutes. Reading drills: Notes, Endless notes, Ledger lines, Intervals and shapes, Chords,
-Key signatures, Rhythm, Keyboard geography, and Listen and play back. Technique drills: Scales, Arpeggios, and Finger
-independence. Each is described under [Drills](#drills-1) below.
-
 ### Exercises
 
-Technique to work through, at the piano and away from it: fifteen sections, from how you sit to the pedal, each exercise
-with what you do, how, and what to notice. They come as two lists, the ones **to play** and the ones **to read**, which can
-be searched, narrowed to what they train, and show when each was last done; an exercise opens on a page of its own, with its
-music if it's played. Ten of them are **families**: a main exercise that a few choices vary. Described under
-[Exercises](#exercises-1) below.
+The drills and the exercises as one catalogue, laid out as the Library is: its lists down the left, and what's chosen beside
+them as cards, each with a picture of how its notes move. The **drills** are a type of their own, first in the list: short
+and focused, a few minutes each, new every time, moving you on a step as you get them right. Reading drills: Notes, Endless
+notes, Ledger lines, Intervals and shapes, Chords, Key signatures, Rhythm, Keyboard geography, and Listen and play back.
+Technique drills: Scales, Arpeggios, and Finger independence. Each is described under [Drills](#drills) below. The rest is
+technique to work through, at the piano and away from it, from how you sit to the pedal: each exercise with what you do,
+how, and what to notice, on a page of its own, with its music if it's played. Ten of them are **families**: a main exercise
+that a few choices vary. Described under [Exercises](#exercises-1) below.
 
 ### Library
 
@@ -702,7 +699,7 @@ and switch between them. **Ask for routine** in its head asks for another (Exerc
   so switching back finds today's done activities still done.
 
 The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity,
-an exercise or a drill opened from a routine among them (Exercises and Drills are lit when they're opened from there). Routines
+an exercise or a drill opened from a routine among them (Exercises is lit when they're opened from there). Routines
 Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
 Claude's words are respelled, never the goal you typed or a piece's title.
 
@@ -1033,13 +1030,15 @@ tempo moves, and it's kept as a run of the drill. It's remembered for each drill
 
 ## Exercises
 
-Where a drill measures a few things closely, the exercises are a catalogue to work through: 74 entries in 15 sections, from the
-owner's own list of technique work for an adult beginner, from the research in `exercises.md`, and from a lesson the owner
-likes, a concert pianist's ten daily exercises (`exercises/the_ten_daily_exercises.md`). The words are Prima's; the patterns
-are the common stock of piano teaching, and Prima writes each one's notes itself, in the key and for the hands you choose.
+Where a drill measures a few things closely, the exercises are a catalogue to work through, and the drills are a type of it:
+83 entries, the twelve drills and 71 exercises in 15 sections, from the owner's own list of technique work for an adult
+beginner, from the research in `exercises.md`, and from a lesson the owner likes, a concert pianist's ten daily exercises
+(`exercises/the_ten_daily_exercises.md`). The words are Prima's; the patterns are the common stock of piano teaching, and
+Prima writes each one's notes itself, in the key and for the hands you choose.
 
-| Section | What's in it |
+| Type | What's in it |
 | --- | --- |
+| Drills | Every drill (see [Drills](#drills)): the nine reading drills, and Scales, Arpeggios and Finger independence, which are in their own sections too |
 | Sitting and hand shape | Bench height and distance, sitting balanced, the hand's own shape, shoulders down, a tension check, filming yourself from the side |
 | Warm-ups away from the keys | Arm swings and shoulder rolls, wrist circles and doorknob turns, shaking out, fan and close, finger taps on a table, gentle forearm stretches, an arm drop onto the knee |
 | Arm weight and rotation | Dropping onto one note, rocking between thumb and little finger, smaller turns between fingers a third apart, wrist circles on a held note, and holding one key while the forearm turns to play the next |
@@ -1060,8 +1059,8 @@ There are four kinds. One **played at the piano** (47 of them) shows its music w
 screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards. Its notes, timing and held notes
 are judged as a passage's are, and so, where its music marks them, are the touch (slurs and staccato), loud and soft, and the
 pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) has nothing for Prima to follow: you do it and
-press Done, once a day. A **way to practice** is a few lines to read. And the three technique **drills** are listed in the
-sections they belong to, their rows opening the drill.
+press Done, once a day. A **way to practice** is a few lines to read. And a **drill** opens the drill: all twelve are the
+Drills type, and the three technique drills are in the sections they belong to as well.
 
 An exercise's page has what you do in a line, how in a few steps, and what to notice. Every one that's played offers its
 keys with − and +, easier to harder in the exams' order, and the hands it's written for: right, left, together. Most have
@@ -1079,7 +1078,7 @@ left it, and its page is laid out as a piece's is: what you do in a line, its ch
 paper frame, drawn the way a piece's is, taking the rest of the screen and all that scrolls. Its words are the bar's
 **Options**, shown in the music's place as a piece's options are: how, what to notice, what it trains and, for one whose idea
 is from a lesson, a link to the lesson at that exercise's place in it; then what's been done of it (how many times and on how
-many days, when last, and the fastest clean run In time), **In my routine**, which keeps it in the list's My routine, and a
+many days, when last, and the fastest clean run In time), **In my routine**, which keeps it in the catalogue's My routine, and a
 row that leads to the next in its section, or, when the exercise was opened from My routine, to the routine's next. One to
 read or to do away from the keys is its words.
 
@@ -1109,23 +1108,32 @@ are from the lesson, each linked from its page; the names, the words and the not
 held fingers are the kind of work `exercises.md` found hands get overworked by, so their words say to keep them quiet and
 short, and the scale in octaves is marked Later.
 
-Each exercise to play also has a **focus**, one to three of twelve: finger strength, finger independence, evenness, the
-thumb, arm and wrist, rotation, double notes, chords and landing, touch, loud and soft, hands together, pedal. A section
+Each exercise to play also has a **focus**, one to three of thirteen: reading (the reading drills'), finger strength, finger
+independence, evenness, the thumb, arm and wrist, rotation, double notes, chords and landing, touch, loud and soft, hands
+together, pedal. A section
 says what the notes are; a focus says what playing them is for, across the sections.
 
-They come as **two lists**, so the ones you play aren't among the ones you read. **To play**, which the tab opens on, has the
-50 played at the piano, the three drills among them; **To read** has the other 24, to read and do: how you sit, the warm-ups,
-the pedal by itself, and the ways to practice. Each shows its sections with a line on what they're for, and each exercise as
-a row: its name, what you do, when it was last done (Today, a date, or Not tried), and tags for Routine, Drill, Variations
-(a family), Start here (played, and for the first weeks) and Later (for when the basics are easy). Beside the two are **My routine**, your own list
-of both kinds in the catalogue's order, without the sections' headings, where one to read is tagged so; and two picks of the
-ones to play, **Start here** and **Not tried**. The search looks in an exercise's name, its section, what it trains and all
-its words, so "jump", "thumb" or "pedal" finds whatever mentions it in the list showing, and a key under it says how many the
-other of the two lists has and goes there. Beside the search, **Trains anything** narrows the list to one focus, with a line
-on it. The list showing and the focus are kept in the address, so coming back from an exercise comes back to them.
+The catalogue is laid out as the Library is. Down the left: **My routine**, your own list, when it has any; three picks of the
+ones to play, **Start here** (the first weeks', which the tab opens on), **Not tried yet** and **Played lately** (the last
+month's, the latest first); then the catalogue itself, listed by **Types**, **Trains** or **Levels** as the Library lists by
+composers, kinds or levels. Types are the Drills first, then the sections to play by short names (Arm and wrist, Five
+fingers, Scales, Broken chords, Chords, Jumps, Thumb under, Trills, Double notes, Two hands, Touch, Pedal), and under **To
+read** the three with nothing to play (Sitting, Warm-ups, Ways to practice); Trains lists the focuses, Reading first; Levels
+are First weeks, Beginner and Later. What's chosen shows beside the lists as **cards** under its name and a line on it: a
+type's in its own order, the rest by type, a family among its type's others. A card has the exercise's **shape**, its name,
+its tags (Drill, Variations for a family, Routine, To read, and Later for when the basics are easy) and when it was last done
+(Today, a date, or Not tried). The shape is how the notes move, drawn small, so what an exercise is shows before a word is
+read: each note a bar at its pitch and time, the right hand's in the look's accent and the left's in ink, with a faint line
+at each C. It's the exercise's own opening in C, in its first hands, two bars (four where two hold few notes): a scale is a
+ramp, a trill a zigzag, a chord a stack, a jump two blocks far apart. A drill's, new every time, is what a set of it is like;
+one to read shows its type. The search, in the head beside **Ask for routine**, looks in an exercise's name, its section, what
+it trains and all its words, across the catalogue, so "jump", "thumb" or "pedal" finds whatever mentions it. What's shown is
+kept in the address, so coming back from an exercise comes back to it. The Drills screen's old address opens the catalogue
+at the drills, and a drill's Done goes back there.
 
 What it doesn't do yet: the exercises are fixed patterns, not adapted to how the last run went; they aren't a step of the
-daily plan; a routine Claude builds plays a family's main exercise, not a variation of it; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
+daily plan; a routine Claude builds plays a family's main exercise, not a variation of it; My routine is one list, not several of your
+own to keep and star; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
 notes arrive, the time to travel, how far a miss missed) aren't taken. What MIDI can't carry isn't judged at all: the arm's
 weight, the forearm's turn, a loose wrist and the fingering are yours to feel, and the exercises that depend on them say so.
 

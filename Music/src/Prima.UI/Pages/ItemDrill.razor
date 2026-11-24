@@ -18,7 +18,7 @@
 
 @if (info is null)
 {
-    <p class="page-note">There's no drill here. <a href="drills">Back to the drills</a>.</p>
+    <p class="page-note">There's no drill here. <a href="exercises?type=drills">Back to the drills</a>.</p>
 }
 else if (items.Count == 0)
 {
@@ -80,7 +80,7 @@ else
     }
     <div class="control-row">
         <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="NewSet">Another set</button>
-        <a class="mu-btn" href="@(From == "today" ? "" : "drills")">Done</a>
+        <a class="mu-btn" href="@(From == "today" ? "" : "exercises?type=drills")">Done</a>
     </div>
 }
 

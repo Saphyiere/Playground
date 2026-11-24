@@ -106,28 +106,51 @@ public class ExerciseFamilyUiTests
     }
 
     [Fact]
-    public async Task TheListMarksFamiliesAndNarrowsToWhatAnExerciseTrains()
+    public async Task TheCatalogueListsByTypeTrainsAndLevelAsTheLibraryDoesWithACardForEach()
     {
         await using var host = new ComponentHost();
         var navigation = host.Context.Services.GetRequiredService<NavigationManager>();
         var list = host.Context.Render<ExerciseList>();
-        list.WaitForElement(".exercise-filters[aria-busy='false']");
-        // Every family is in the list to play, in its section, marked as one that varies.
-        var varied = list.FindAll(".piece-row").Where(r => r.QuerySelectorAll(".piece-tag").Any(t => t.TextContent == "Variations")).Select(r => r.QuerySelector(".piece-title")!.TextContent).ToList();
-        Assert.Equal(ExerciseFamilies.All.Select(e => e.Name).Order(), varied.Order());
-        Assert.Contains("Double notes", list.FindAll(".section-title").Select(h => h.TextContent));
-        Assert.Equal(["Trains anything", .. ExerciseFocus.All.Select(f => f.Name)], list.FindAll(".exercise-focus option").Select(o => o.TextContent));
+        list.WaitForElement(".lib-list[aria-busy='false']");
 
-        // Choosing a focus puts it in the address, as the list showing is.
-        await list.InvokeAsync(() => list.Find(".exercise-focus").ChangeAsync(new ChangeEventArgs { Value = "wrist" }));
-        Assert.EndsWith("exercises?trains=wrist", navigation.Uri);
-        navigation.NavigateTo("exercises?show=new&trains=wrist");
-        var narrowed = host.Context.Render<ExerciseList>();
-        narrowed.WaitForElement(".exercise-filters[aria-busy='false']");
-        Assert.Equal(["Drop onto one note", "Wrist circles on a held note", "Bounced double notes", "Scale in octaves", "Two-note slurs: down, then up", "Two-note slurs up the scale"], narrowed.FindAll(".piece-title").Select(t => t.TextContent));
-        Assert.StartsWith("Arm and wrist.", narrowed.Find(".exercise-focus-note").TextContent);
-        // The lists' keys keep the focus.
-        await narrowed.InvokeAsync(() => narrowed.Find(".exercise-filters .mu-toggle").ClickAsync(new MouseEventArgs()));
-        Assert.EndsWith("exercises?trains=wrist", navigation.Uri);
+        // It opens on the ones to start with, as cards, each with its shape, its name and when it was done.
+        Assert.Equal("Start here", list.Find(".lib-main-head .col-head").TextContent);
+        var first = list.Find(".ex-card");
+        Assert.NotEmpty(first.QuerySelectorAll("svg.ex-shape rect"));
+        Assert.Equal("Not tried", first.QuerySelector(".exercise-done")!.TextContent);
+
+        // The catalogue's types down the left, as the Library's composers: the drills first, then the rest to play, then to read.
+        var types = list.FindAll(".lib-list .col-item span:first-child").Select(s => s.TextContent).ToList();
+        Assert.Equal(["Start here", "Not tried yet", "Played lately", "Drills", "Arm and wrist", "Five fingers", "Scales", "Broken chords", "Chords", "Jumps", "Thumb under", "Trills", "Double notes", "Two hands", "Touch", "Pedal", "Sitting", "Warm-ups", "Ways to practice"], types);
+
+        // The drills are a type of their own: every drill, the reading drills and Scales, Arpeggios and Finger independence.
+        navigation.NavigateTo("exercises?type=drills");
+        var drills = host.Context.Render<ExerciseList>();
+        drills.WaitForElement(".lib-list[aria-busy='false']");
+        Assert.Equal(Exercises.All.Where(e => e.Kind == ExerciseKind.Drill).Select(e => e.Name), drills.FindAll(".ex-card-name").Select(n => n.TextContent));
+        Assert.Contains("Notes", drills.FindAll(".ex-card-name").Select(n => n.TextContent));
+        Assert.Equal("drills/notes", drills.FindAll(".ex-card").First(c => c.QuerySelector(".ex-card-name")!.TextContent == "Notes").GetAttribute("href"));
+        Assert.All(drills.FindAll(".ex-card"), card => Assert.Contains("Drill", card.QuerySelectorAll(".piece-tag").Select(t => t.TextContent)));
+
+        // A family is tagged as one that varies.
+        navigation.NavigateTo("exercises?type=double");
+        var doubles = host.Context.Render<ExerciseList>();
+        doubles.WaitForElement(".lib-list[aria-busy='false']");
+        Assert.Equal(["Thirds, three up and back", "Bounced double notes", "Scale in octaves"], doubles.FindAll(".ex-card-name").Select(n => n.TextContent));
+        Assert.All(doubles.FindAll(".ex-card"), card => Assert.Contains("Variations", card.QuerySelectorAll(".piece-tag").Select(t => t.TextContent)));
+
+        // Listed by what they train, as the Library's by kinds: the focus chosen, and the list beside it kept that way.
+        navigation.NavigateTo("exercises?trains=wrist");
+        var wrist = host.Context.Render<ExerciseList>();
+        wrist.WaitForElement(".lib-list[aria-busy='false']");
+        Assert.Equal("true", wrist.Find(".col-by a[aria-current]").TextContent == "Trains" ? "true" : "false");
+        Assert.Equal(["Drop onto one note", "Wrist circles on a held note", "Bounced double notes", "Scale in octaves", "Two-note slurs: down, then up", "Two-note slurs up the scale"], wrist.FindAll(".ex-card-name").Select(t => t.TextContent));
+        Assert.StartsWith("Arm and wrist", wrist.Find(".lib-main-head .col-head").TextContent);
+        Assert.Equal(ExerciseFocus.All.Select(f => f.Name), wrist.FindAll(".lib-list .col-item span:first-child").Select(s => s.TextContent).Skip(3));
+
+        // The search looks across them all.
+        await wrist.InvokeAsync(() => wrist.Find(".head-search").InputAsync(new ChangeEventArgs { Value = "pedal" }));
+        wrist.WaitForAssertion(() => Assert.Equal("Found for “pedal”", wrist.Find(".lib-main-head .col-head").TextContent));
+        Assert.Contains("Change the pedal on each chord", wrist.FindAll(".ex-card-name").Select(t => t.TextContent));
     }
 }

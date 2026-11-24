@@ -90,6 +90,7 @@ public static class Exercises
 
     public static IReadOnlyList<ExerciseSection> Sections { get; } =
     [
+        new("drills", "Drills", "New every time: Prima makes the next one, and moves you on a step as you get them right."),
         new("setup", "Sitting and hand shape", "Before any notes. Worth a look every week, and again whenever something feels tight."),
         new("warm", "Warm-ups away from the keys", "A minute or two to get loose. Gentle, and never into pain."),
         new("arm", "Arm weight and rotation", "The arm plays the note and the forearm's turn helps each finger. Prima hears the notes; the movement is yours to feel."),
@@ -109,6 +110,18 @@ public static class Exercises
 
     public static IReadOnlyList<Exercise> All { get; } =
     [
+        // ——— Drills: Prima's own, new every time. The reading drills are here alone; Scales, Arpeggios and Finger independence
+        // are in their sections too, and the Drills category lists every drill. ———
+        Drill("notes", "drills", "Notes", "A note on the staff: play its key. Spaced review, landmarks first.", "drills/notes"),
+        Drill("endless", "drills", "Endless notes", "One note after another until you stop: read them faster and faster, sharps and flats too.", "drills/endless"),
+        Drill("ledger", "drills", "Ledger lines", "Walk out from the staff and back, then single notes out there: one ledger line, two, three.", "drills/ledger"),
+        Drill("intervals", "drills", "Intervals and shapes", "A figure from a named note: play it by its distances.", "drills/intervals"),
+        Drill("chords", "drills", "Chords", "A stack of notes: play it at once.", "drills/chords"),
+        Drill("keys", "drills", "Key signatures", "A signature: play its tonic, then a phrase with its sharps or flats.", "drills/keys"),
+        Drill("rhythm", "drills", "Rhythm", "A bar of beat, then the rhythm on any key; the click fades.", "drills/rhythm"),
+        Drill("geography", "drills", "Keyboard geography", "A note or a leap: play it without looking down.", "drills/geography"),
+        Drill("playback", "drills", "Listen and play back", "Hear a phrase on the piano, play it back, then see it written.", "drills/playback"),
+
         // ——— Sitting and hand shape ———
         Away("bench", "setup", "Bench height and distance", "Set the bench so your forearms are level with the keys and your elbows hang a little in front of you.",
             ["Sit on the front half of the bench, opposite the middle of the keyboard.", "Rest your hands on the keys: forearms about level, elbows just ahead of your ribs and free to swing.", "Lean from the hips to touch the lowest key and the highest. If you can't, move the bench back."],

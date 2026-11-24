@@ -1,169 +1,260 @@
 @page "/exercises"
 @inject PrimaStore Store
 @inject NavigationManager Nav
-@inject Prima.UI.Routines.RoutineService Routines
 @using Prima.Core.Generation
 
-<PageTitle>Exercises · Prima</PageTitle>
+<PageTitle>@(Heading().Title) · Exercises · Prima</PageTitle>
 
-<PageHead Title="Exercises" Kicker="Technique, a little at a time">
-    <div class="control-row">
-        <a class="mu-btn mu-primary" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
-        <KeyboardLamp />
-    </div>
-</PageHead>
+@* The exercises and the drills as one catalogue, laid out as the Library is: its lists down the left (the ones to start with, not
+   tried yet, played lately and My routine, then every type, what each trains, or each level), and what's chosen beside them as
+   cards. A card shows what an exercise is before a word is read, its shape (how its notes move), with its name, a tag or two
+   and when it was last done; it opens the exercise, or the drill. The drills are a type of their own: new every time, each
+   moving you on a step as you get it right. The search looks in every name and word, across them all. *@
+<div class="lib ex-lib">
+    <header class="page-head">
+        <div>
+            <p class="page-kicker">@($"{Exercises.All.Count} exercises · {Exercises.All.Count(e => e.Kind == ExerciseKind.Drill)} drills")</p>
+            <h1 class="page-title">Exercises</h1>
+        </div>
+        <div class="head-tools">
+            <input class="text-field head-search" type="search" placeholder="Find one: trill, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
+            <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
+        </div>
+    </header>
 
-@* The exercises in two lists: the ones to play at the piano, which it opens on, and the ones to read and do (how you sit, the
-   warm-ups, the ways to practice). Each is by section, as rows: an exercise's name, what you do, when it was last done, and its
-   tags. A row opens the exercise, or the drill Prima already has for it. My routine is your own list, of both kinds and without
-   the sections, and an exercise opened from it leads on to the routine's next. Start here and Not tried are picks of the ones
-   to play. The search narrows the list showing, and says when the other of the two lists has what it's after; and the ones to
-   play can be narrowed to what they train (finger strength, the thumb, the wrist and so on), across the sections. *@
-<div class="control-row library-filters exercise-filters" aria-busy="@(!ready ? "true" : "false")">
-    @foreach (var (key, label) in Views)
-    {
-        <button type="button" class="mu-toggle" aria-pressed="@(view == key ? "true" : "false")" @onclick="() => See(key, Trains)"><span class="mu-led"></span>@label</button>
-    }
-    <input class="text-field text-field-short" type="search" placeholder="Jump, thumb, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
-    <select class="text-field text-field-short exercise-focus" aria-label="What it trains" value="@(Trains ?? "")" @onchange="e => See(view, e.Value?.ToString())">
-        <option value="">Trains anything</option>
-        @foreach (var focus in ExerciseFocus.All)
-        {
-            <option value="@focus.Key">@focus.Name</option>
-        }
-    </select>
-</div>
-@if (ExerciseFocus.All.FirstOrDefault(f => f.Key == Trains) is { } narrowed)
-{
-    <p class="section-note exercise-focus-note">@narrowed.Name. @narrowed.About</p>
-}
-
-@if (view == "routine")
-{
-    <section class="settings-section" aria-label="Personalised routine">
-        @if (activeRoutine is not null)
-        {
-            <a class="piece-row" data-piano="off" data-action="open-active-routine" href="routine">
-                <span class="piece-title">@Prima.UI.Routines.RoutineWords.American(activeRoutine.Title)</span>
-                <span class="piece-meta">@Prima.UI.Routines.RoutineWords.American(activeRoutine.Summary)</span>
-                <span class="piece-tags"><span class="piece-tag">@activeRoutine.Items.Sum(i => i.Recipe.Minutes) min</span><span class="piece-tag">Today’s default</span></span>
-            </a>
-        }
-        <a class="mu-btn" data-piano="off" href="routines">Your routines and requests</a>
-        @if (routine.Count > 0) { <h2 class="section-title">Saved exercises</h2> }
-    </section>
-}
-
-@{
-    var shown = Exercises.All.Where(Shown).ToList();
-    var bySection = Exercises.Sections.Select(s => (Section: (ExerciseSection?)s, Rows: shown.Where(e => e.Section == s.Key).ToList()));
-    List<(ExerciseSection? Section, List<Exercise> Rows)> groups = view == "routine" ? [(null, shown)] : [.. bySection];
-    // What the search finds in the other of the two lists, of what the list is narrowed to.
-    var elsewhere = view is "play" or "read" && search is { Length: > 0 } ? Exercises.All.Count(e => e.ToPlay != (view == "play") && Exercises.Matches(e, search) && (string.IsNullOrEmpty(Trains) || ExerciseFocus.Trains(e.Id, Trains))) : 0;
-}
-@if (elsewhere > 0)
-{
-    <div class="control-row">
-        <button type="button" class="mu-btn" @onclick="@(() => See(view == "play" ? "read" : "play", Trains))">@elsewhere to @(view == "play" ? "read" : "play") @(elsewhere == 1 ? "matches" : "match") “@search”</button>
-    </div>
-}
-@if (view == "routine" && routine.Count == 0)
-{
-    <p class="section-note">Nothing in your routine yet. Open an exercise and turn on In my routine to keep it here.</p>
-}
-else if (shown.Count == 0)
-{
-    <p class="page-note">Nothing here@(search is { Length: > 0 } ? $" for “{search}”" : "").</p>
-}
-
-@foreach (var (section, rows) in groups.Where(g => g.Rows.Count > 0))
-{
-    <section class="settings-section" aria-label="@(section?.Name ?? "My routine")">
-        @if (section is not null)
-        {
-            <h2 class="section-title">@section.Name</h2>
-            <p class="section-note">@section.About</p>
-        }
-        <ul class="piece-list exercise-list">
-            @foreach (var exercise in rows)
+    <div class="lib-cols">
+        <nav class="lib-col lib-list" aria-label="The exercises' lists" aria-busy="@(ready ? "false" : "true")">
+            @if (routine.Count > 0)
             {
-                var was = Done(exercise);
-                <li>
-                    <a class="piece-row" href="@(exercise.Route ?? $"exercises/{exercise.Id}{(view == "routine" ? "?from=routine" : "")}")">
-                        <span class="piece-title">@exercise.Name</span>
-                        <span class="piece-meta">@exercise.Does</span>
-                        @if (exercise.Kind != ExerciseKind.Way)
-                        {
-                            <span class="exercise-done @(was is null ? "" : was.Last == Today ? "today" : "before")">@(was is null ? "Not tried" : was.Last == Today ? "Today" : was.Last.ToString("d MMM", CultureInfo.InvariantCulture))</span>
-                        }
-                        <span class="piece-tags">
-                            @if (view != "routine" && routine.Contains(exercise.Id)) { <span class="piece-tag exercise-tag-routine">Routine</span> }
-                            @if (view == "routine" && !exercise.ToPlay) { <span class="piece-tag">To read</span> }
-                            @if (exercise.Kind == ExerciseKind.Drill) { <span class="piece-tag">Drill</span> }
-                            @if (ExerciseFamilies.Of(exercise.Id) is not null) { <span class="piece-tag">Variations</span> }
-                            @if (exercise.Kind == ExerciseKind.Played && exercise.Level == ExerciseLevel.Start) { <span class="piece-tag">Start here</span> }
-                            @if (exercise.Level == ExerciseLevel.Intermediate) { <span class="piece-tag">Later</span> }
-                            @if (was is { Days: > 1 }) { <span class="piece-tag">@was.Days days</span> }
-                        </span>
-                    </a>
-                </li>
+                <a class="col-item shelf-own" href="@Address(show: "routine")" aria-current="@Current(show: "routine")"><span>My routine</span><span class="n">@routine.Count</span></a>
             }
-        </ul>
-    </section>
-}
+            @foreach (var (key, label) in Picks)
+            {
+                <a class="col-item" href="@Address(show: key)" aria-current="@Current(show: key)"><span>@label</span><span class="n">@Picked(key).Count()</span></a>
+            }
+            <p class="col-title">Catalogue · @Exercises.All.Count</p>
+            <p class="col-by">
+                @foreach (var (key, label) in Lists)
+                {
+                    <a href="@Address(by: key)" aria-current="@(ListShown == key ? "true" : null)" @onclick="@(() => See(by: key))" @onclick:preventDefault>@label</a>
+                }
+            </p>
+            @if (ListShown == "trains")
+            {
+                @foreach (var focus in ExerciseFocus.All)
+                {
+                    <a class="col-item" href="@Address(by: "trains", trains: focus.Key)" aria-current="@(Trains == focus.Key && Search is null ? "true" : null)"><span>@focus.Name</span><span class="n">@Exercises.All.Count(e => ExerciseFocus.Trains(e.Id, focus.Key))</span></a>
+                }
+            }
+            else if (ListShown == "levels")
+            {
+                @foreach (var (level, name) in Levels)
+                {
+                    <a class="col-item" href="@Address(by: "levels", level: LevelKey(level))" aria-current="@(Level == LevelKey(level) && Search is null ? "true" : null)"><span>@name</span><span class="n">@Exercises.All.Count(e => e.ToPlay && e.Level == level)</span></a>
+                }
+            }
+            else
+            {
+                @foreach (var section in Exercises.Sections.Where(s => ToPlay(s)))
+                {
+                    <a class="col-item" href="@Address(type: section.Key)" aria-current="@(Type == section.Key && Search is null ? "true" : null)"><span>@Short(section)</span><span class="n">@InType(section.Key).Count()</span></a>
+                }
+                <p class="col-title">To read · @Exercises.All.Count(e => !e.ToPlay)</p>
+                @foreach (var section in Exercises.Sections.Where(s => !ToPlay(s)))
+                {
+                    <a class="col-item" href="@Address(type: section.Key)" aria-current="@(Type == section.Key && Search is null ? "true" : null)"><span>@Short(section)</span><span class="n">@InType(section.Key).Count()</span></a>
+                }
+            }
+        </nav>
+
+        <div class="lib-main">
+            @{
+                var (title, about) = Heading();
+                var shown = Shown().ToList();
+            }
+            <div class="lib-main-head">
+                <div>
+                    <h2 class="col-head">@title</h2>
+                    <p class="col-sub">@(shown.Count == 1 ? "1" : $"{shown.Count}") · @about</p>
+                </div>
+            </div>
+            <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")">
+                @if (shown.Count == 0)
+                {
+                    <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : Show == "routine" ? "Nothing in your routine yet. Open an exercise and turn on In my routine in its Options." : "Nothing here.")</p>
+                }
+                <div class="ex-cards">
+                    @foreach (var exercise in shown)
+                    {
+                        var was = Done(exercise);
+                        <a class="ex-card" href="@(exercise.Route ?? $"exercises/{exercise.Id}{(Show == "routine" ? "?from=routine" : "")}")" data-exercise="@exercise.Id">
+                            @if (exercise.ToPlay)
+                            {
+                                <ExerciseShape Exercise="exercise" Label="@($"How {exercise.Name} goes")" />
+                            }
+                            else
+                            {
+                                <span class="ex-shape ex-shape-read" aria-hidden="true">@Short(Exercises.Sections.First(s => s.Key == exercise.Section))</span>
+                            }
+                            <span class="ex-card-name">@exercise.Name</span>
+                            <span class="ex-card-meta">
+                                <span class="ex-card-tags">
+                                    @foreach (var tag in Tags(exercise))
+                                    {
+                                        <span class="piece-tag">@tag</span>
+                                    }
+                                </span>
+                                @if (exercise.Kind != ExerciseKind.Way)
+                                {
+                                    <span class="exercise-done @(was is null ? "" : was.Last == Today ? "today" : "before")">@(was is null ? "Not tried" : was.Last == Today ? "Today" : was.Last.ToString("d MMM", CultureInfo.InvariantCulture))</span>
+                                }
+                            </span>
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    // The lists: the two kinds of exercise, then your own, and two picks of the ones to play.
-    private static readonly (string Key, string Label)[] Views = [("play", "To play"), ("read", "To read"), ("routine", "My routine"), ("start", "Start here"), ("new", "Not tried")];
+    // The lists at the top of the left column, before the catalogue's: picks of the ones to play.
+    private static readonly (string Key, string Label)[] Picks = [("start", "Start here"), ("new", "Not tried yet"), ("lately", "Played lately")];
 
-    /// <summary>The list showing ("read", "routine", "start", "new"; the ones to play otherwise). It's in the address, so coming back from an exercise comes back to it.</summary>
+    // What the catalogue is listed by, as the Library lists by composers, kinds or levels.
+    private static readonly (string Key, string Label)[] Lists = [("types", "Types"), ("trains", "Trains"), ("levels", "Levels")];
+
+    private static readonly (ExerciseLevel Level, string Name)[] Levels = [(ExerciseLevel.Start, "First weeks"), (ExerciseLevel.Beginner, "Beginner"), (ExerciseLevel.Intermediate, "Later")];
+
+    /// <summary>A pick shown ("start", "new", "lately", "routine"): the ones to start with when nothing else is chosen.</summary>
     [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
 
-    /// <summary>What the list is narrowed to (a focus's key, "strength", "wrist"), in the address too.</summary>
+    /// <summary>A type shown, by its section's key ("drills", "broken").</summary>
+    [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+
+    /// <summary>What they train, by a focus's key ("strength", "wrist").</summary>
     [SupplyParameterFromQuery(Name = "trains")] public string? Trains { get; set; }
 
-    // The kind a drill's attempts are kept under, by its route.
-    private static readonly Dictionary<string, string> DrillKinds = new() { ["drills/scales"] = "scale", ["drills/arpeggios"] = "arpeggio", ["drills/independence"] = "independence" };
+    /// <summary>A level: "start", "beginner" or "later".</summary>
+    [SupplyParameterFromQuery(Name = "level")] public string? Level { get; set; }
+
+    /// <summary>What the left column lists: "types", "trains" or "levels".</summary>
+    [SupplyParameterFromQuery(Name = "by")] public string? By { get; set; }
 
     private List<DoneRecord> done = [];
     private HashSet<string> routine = [];
-    private string view = "play";
     private string? search;
-    private Prima.UI.Routines.RoutineDefinition? activeRoutine;
     private bool ready;
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
 
+    // The words looked for, when there are any.
+    private string? Search => string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+    private string ListShown => By is "trains" or "levels" ? By : Trains is not null ? "trains" : Level is not null ? "levels" : "types";
+
     protected override async Task OnInitializedAsync()
     {
-        done = await Store.GetDoneAsync("exercise", [.. DrillKinds.Values]);
+        done = await Store.GetDoneAsync("exercise", [.. Exercises.All.Where(e => e.Route is not null).Select(e => KindOf(e.Route!))]);
         routine = [.. await Store.GetTrackAsync<List<string>>("exercise-routine") ?? []];
-        activeRoutine = await Routines.ActiveAsync();
         ready = true;
     }
 
-    protected override void OnParametersSet() => view = Views.Any(v => v.Key == Show) ? Show! : "play";
-
-    // Changes the list showing and what it's narrowed to, in place of the ones in the address, so the way back still leaves the exercises.
-    private void See(string list, string? trains)
+    // Each drill's attempts are kept under its own kind: the route's last part, but a scale's and an arpeggio's by one of them.
+    private static string KindOf(string route) => route.Split('/')[^1] switch
     {
-        var query = string.Join('&', new[] { list == "play" ? null : $"show={list}", string.IsNullOrEmpty(trains) ? null : $"trains={Uri.EscapeDataString(trains)}" }.Where(p => p is not null));
-        Nav.NavigateTo(query.Length == 0 ? "exercises" : $"exercises?{query}", replace: true);
-    }
-
-    // When an exercise was done: its own attempts, or for a drill every scale, arpeggio or pattern played in it.
-    private DoneRecord? Done(Exercise exercise)
-    {
-        var kind = exercise.Route is { } route ? DrillKinds[route] : "exercise";
-        return done.FirstOrDefault(d => d.Kind == kind && (exercise.Route is not null || d.SetId == exercise.Id));
-    }
-
-    private bool Shown(Exercise exercise) => Exercises.Matches(exercise, search) && (string.IsNullOrEmpty(Trains) || ExerciseFocus.Trains(exercise.Id, Trains)) && view switch
-    {
-        "read" => !exercise.ToPlay,
-        "routine" => routine.Contains(exercise.Id),
-        "start" => exercise.Kind == ExerciseKind.Played && exercise.Level == ExerciseLevel.Start,
-        "new" => exercise.ToPlay && Done(exercise) is null,
-        _ => exercise.ToPlay,
+        "scales" => "scale",
+        "arpeggios" => "arpeggio",
+        var key => key,
     };
+
+    private static bool ToPlay(ExerciseSection section) => Exercises.All.Any(e => e.Section == section.Key && e.ToPlay);
+
+    // A type's name in the list: its section's, to its first comma or "and" where it's long ("Broken chords and left-hand patterns").
+    private static string Short(ExerciseSection section) => section.Key switch
+    {
+        "arm" => "Arm and wrist",
+        "five" => "Five fingers",
+        "broken" => "Broken chords",
+        "chords" => "Chords",
+        "hands" => "Two hands",
+        "touch" => "Touch",
+        "setup" => "Sitting",
+        "warm" => "Warm-ups",
+        "ways" => "Ways to practice",
+        _ => section.Name,
+    };
+
+    // A type's exercises: the drills every drill, wherever its section is; any other its section's.
+    private static IEnumerable<Exercise> InType(string type) => type == "drills" ? Exercises.All.Where(e => e.Kind == ExerciseKind.Drill) : Exercises.All.Where(e => e.Section == type);
+
+    private static string LevelKey(ExerciseLevel level) => level switch { ExerciseLevel.Start => "start", ExerciseLevel.Intermediate => "later", _ => "beginner" };
+
+    private IEnumerable<Exercise> Picked(string pick) => pick switch
+    {
+        "routine" => Exercises.All.Where(e => routine.Contains(e.Id)),
+        "new" => Exercises.All.Where(e => e.ToPlay && Done(e) is null),
+        "lately" => Exercises.All.Select(e => (Exercise: e, Done: Done(e))).Where(x => x.Done is { } d && d.Last >= Today.AddDays(-30)).OrderByDescending(x => x.Done!.Last).Select(x => x.Exercise),
+        _ => Exercises.All.Where(e => e.ToPlay && e.Level == ExerciseLevel.Start),
+    };
+
+    // What's shown beside the lists: what was searched for, or the type, focus or level chosen, or a pick. A pick or a type keeps
+    // its own order; the rest go by type, as the catalogue lists the types, a family with its type's others.
+    private IEnumerable<Exercise> Shown() =>
+        Search is { } words ? ByType(Exercises.All.Where(e => Exercises.Matches(e, words)))
+        : Type is { } type ? InType(type)
+        : Trains is { } trains ? ByType(Exercises.All.Where(e => ExerciseFocus.Trains(e.Id, trains)))
+        : Level is { } level ? ByType(Exercises.All.Where(e => e.ToPlay && LevelKey(e.Level) == level))
+        : Show is "lately" ? Picked("lately")
+        : ByType(Picked(Show ?? "start"));
+
+    private static IEnumerable<Exercise> ByType(IEnumerable<Exercise> exercises) =>
+        exercises.Select((e, i) => (e, i)).OrderBy(x => Exercises.Sections.ToList().FindIndex(s => s.Key == x.e.Section)).ThenBy(x => x.i).Select(x => x.e);
+
+    private (string Title, string About) Heading() =>
+        Search is { } words ? ($"Found for “{words}”", "in every name and word")
+        : Type is { } type && Exercises.Sections.FirstOrDefault(s => s.Key == type) is { } section ? (Short(section), section.About)
+        : Trains is { } trains && ExerciseFocus.All.FirstOrDefault(f => f.Key == trains) is { } focus ? (focus.Name, focus.About)
+        : Level is { } level ? (Levels.First(l => LevelKey(l.Level) == level).Name, level == "start" ? "The ones for the first weeks" : level == "later" ? "For when the basics are easy" : "The heart of it")
+        : (Show ?? "start") switch
+        {
+            "routine" => ("My routine", "the ones you've kept here"),
+            "new" => ("Not tried yet", "to play, not played yet"),
+            "lately" => ("Played lately", "the last month's, the latest first"),
+            _ => ("Start here", "the ones for the first weeks"),
+        };
+
+    // Its tags: a drill, a family with variations, in My routine, the first weeks' or for later, and one to read.
+    private IEnumerable<string> Tags(Exercise exercise)
+    {
+        if (exercise.Kind == ExerciseKind.Drill) yield return "Drill";
+        if (ExerciseFamilies.Of(exercise.Id) is not null) yield return "Variations";
+        if (routine.Contains(exercise.Id) && Show != "routine") yield return "Routine";
+        if (!exercise.ToPlay) yield return "To read";
+        else if (exercise.Level == ExerciseLevel.Intermediate) yield return "Later";
+    }
+
+    // When an exercise was done: its own attempts, or a drill's under its kind.
+    private DoneRecord? Done(Exercise exercise) => exercise.Route is { } route
+        ? done.FirstOrDefault(d => d.Kind == KindOf(route))
+        : done.FirstOrDefault(d => d.Kind == "exercise" && d.SetId == exercise.Id);
+
+    private string? Current(string show) => Search is null && Type is null && Trains is null && Level is null && (Show ?? "start") == show ? "true" : null;
+
+    // The address of a list: a pick, a type, a focus or a level, with the left column's listing kept.
+    private string Address(string? show = null, string? type = null, string? trains = null, string? level = null, string? by = null)
+    {
+        var listed = by ?? (By is "trains" or "levels" ? By : null);
+        var parts = new[] { show is null or "start" ? null : $"show={show}", type is null ? null : $"type={Uri.EscapeDataString(type)}", trains is null ? null : $"trains={Uri.EscapeDataString(trains)}", level is null ? null : $"level={level}", listed is null or "types" ? null : $"by={listed}" };
+        var query = string.Join('&', parts.Where(p => p is not null));
+        // Listing by something else keeps what's shown beside it.
+        if (by is not null && show is null && type is null && trains is null && level is null)
+        {
+            query = string.Join('&', new[] { Show is null ? null : $"show={Show}", Type is null ? null : $"type={Uri.EscapeDataString(Type)}", Trains is null ? null : $"trains={Uri.EscapeDataString(Trains)}", Level is null ? null : $"level={Level}", by == "types" ? null : $"by={by}" }.Where(p => p is not null));
+        }
+        return query.Length == 0 ? "exercises" : $"exercises?{query}";
+    }
+
+    // The left column listed another way, in place of the address shown, so the way back still leaves the exercises.
+    private void See(string by) => Nav.NavigateTo(Address(by: by), replace: true);
 }

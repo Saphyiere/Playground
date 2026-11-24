@@ -6147,6 +6147,126 @@ html[data-full] .piece .summary {
     -webkit-line-clamp: 2;
 }
 
+/* The exercises' catalogue: the Library's columns, and what's chosen beside them as cards. A card shows an exercise's shape (how
+   its notes move: each note a bar at its pitch and time, the right hand in the accent, the left in ink, a faint line at each
+   C), its name, a tag or two and when it was last done. */
+.ex-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 14px;
+    padding: 14px 0 4px;
+}
+
+.ex-card {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 10px 12px;
+    border-radius: var(--radius-cap);
+    background: var(--card);
+    color: var(--on-card);
+    box-shadow: var(--shadow-cap);
+    text-decoration: none;
+}
+
+[data-theme="vinyl"] .ex-card {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.ex-shape {
+    display: block;
+    width: 100%;
+    aspect-ratio: 2 / 1;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--on-card) 5%, transparent);
+}
+
+[data-theme="vinyl"] .ex-shape {
+    border-radius: 0;
+}
+
+.ex-shape-right {
+    fill: var(--accent);
+}
+
+[data-theme="vinyl"] .ex-shape-right {
+    fill: var(--accent-2);
+}
+
+.ex-shape-left {
+    fill: var(--on-card);
+}
+
+.ex-shape-c {
+    stroke: var(--on-card);
+    stroke-opacity: 0.14;
+    stroke-width: 1;
+}
+
+/* One to read has no notes: its card shows its type. */
+.ex-shape-read {
+    display: grid;
+    place-items: center;
+    font-family: var(--mu-print);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.ex-card-name {
+    font-family: var(--mu-name);
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 700;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+[data-theme="vinyl"] .ex-card-name {
+    font-size: 21px;
+    line-height: 22px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.ex-card-meta {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.ex-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ex-card .piece-tag {
+    padding: 0 5px;
+    font-size: 9px;
+    color: inherit;
+}
+
+.ex-card .exercise-done,
+.ex-card .exercise-done.before,
+.ex-card .exercise-done.today {
+    margin: 0;
+    color: inherit;
+    white-space: nowrap;
+}
+
+.ex-card .exercise-done:not(.today) {
+    opacity: 0.75;
+}
+
 .exercise-done {
     grid-area: level;
     justify-self: end;

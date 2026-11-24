@@ -25,9 +25,10 @@ public class RailTests
         var rail = host.Context.Render<Layout.Rail>();
 
         Assert.Equal(["Practice", "Collection"], rail.FindAll(".mu-nav-group .mu-studio-only").Select(g => g.TextContent));
-        Assert.Equal(["Today", "Drills", "Sight-read", "Exercises", "Routines", "Library", "Repertoire", "Settings"],
+        // The drills are among the exercises (24 November 2026): no key of their own.
+        Assert.Equal(["Today", "Sight-read", "Exercises", "Routines", "Library", "Repertoire", "Settings"],
             rail.FindAll(".mu-nav-item").Select(k => k.QuerySelectorAll("span").Last().TextContent));
-        Assert.Equal(["A1", "A2", "A3", "A4", "A5", "B1", "B2", ""], rail.FindAll(".mu-nav-item .mu-nav-code").Select(c => c.TextContent));
+        Assert.Equal(["A1", "A2", "A3", "A4", "B1", "B2", ""], rail.FindAll(".mu-nav-item .mu-nav-code").Select(c => c.TextContent));
         Assert.Equal("repertoire", rail.FindAll(".mu-nav-item").Single(k => k.TextContent.EndsWith("Repertoire", StringComparison.Ordinal)).GetAttribute("href"));
         var nav = rail.Find("nav.rail");
         Assert.Equal("Settings", nav.LastElementChild!.TextContent.Trim());

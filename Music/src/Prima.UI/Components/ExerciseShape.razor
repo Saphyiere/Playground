@@ -1,0 +1,55 @@
+@using Prima.Core.Generation
+
+@*
+    An exercise's shape on its card: each note a bar at its pitch and time, the right hand's in the accent, the left's in ink, and
+    a faint line at each C so the octaves show. A picture of how it moves, not music to read: that's on its page.
+*@
+@if (bars.Count > 0)
+{
+    <svg class="ex-shape" viewBox="0 0 @Width @Height" role="img" aria-label="@Label">
+        @foreach (var y in octaves)
+        {
+            <line class="ex-shape-c" x1="0" x2="@Width" y1="@F(y)" y2="@F(y)" />
+        }
+        @foreach (var bar in bars)
+        {
+            <rect class="@(bar.Hand == 1 ? "ex-shape-right" : "ex-shape-left")" x="@F(bar.X)" y="@F(bar.Y)" width="@F(bar.W)" height="@F(bar.H)" rx="2" />
+        }
+    </svg>
+}
+else
+{
+    <span class="ex-shape ex-shape-none" aria-hidden="true"></span>
+}
+
+@code {
+    private const double Width = 240, Height = 120, Pad = 8;
+
+    [Parameter, EditorRequired] public Exercise Exercise { get; set; } = default!;
+
+    /// <summary>What it says to a screen reader.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    private List<(double X, double Y, double W, double H, int Hand)> bars = [];
+    private List<double> octaves = [];
+
+    private static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+    protected override void OnParametersSet()
+    {
+        var notes = ExerciseShapes.Of(Exercise);
+        if (notes.Count == 0)
+        {
+            (bars, octaves) = ([], []);
+            return;
+        }
+        var (low, high) = (notes.Min(n => n.Midi) - 2, notes.Max(n => n.Midi) + 2);
+        var (from, to) = (notes.Min(n => n.Start), notes.Max(n => n.Start + n.Length));
+        var row = (Height - 2 * Pad) / Math.Max(12, high - low);
+        var tall = Math.Clamp(row * 1.6, 3.5, 8);
+        var span = Math.Max(to - from, 0.001);
+        double Y(int midi) => Height - Pad - (midi - low) * row;
+        bars = [.. notes.Select(n => (Pad + (n.Start - from) / span * (Width - 2 * Pad), Y(n.Midi) - tall / 2, Math.Max(3, n.Length / span * (Width - 2 * Pad) - 2), tall, n.Hand))];
+        octaves = [.. Enumerable.Range(0, 11).Select(o => o * 12).Where(m => m > low && m < high).Select(Y)];
+    }
+}

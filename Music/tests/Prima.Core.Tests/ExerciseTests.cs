@@ -367,6 +367,32 @@ public class ExerciseTests
         Assert.Equal(["thirds", "bounce", "octave-scale"], Exercises.All.Where(e => e.Section == "double").Select(e => e.Id));
     }
 
+    // Its card in the catalogue shows its shape, how its notes move: every one to play has one, from its own music in C, in time
+    // order and on the piano; a drill's is what a set of it is like. One to read has none.
+    [Fact]
+    public void Every_exercise_and_drill_to_play_has_a_shape_for_its_card()
+    {
+        foreach (var exercise in Exercises.All)
+        {
+            var shape = ExerciseShapes.Of(exercise);
+            if (!exercise.ToPlay)
+            {
+                Assert.Empty(shape);
+                continue;
+            }
+            // A held note is a shape too: wrist circles on one is a long bar or two.
+            Assert.True(shape.Count >= 1, $"{exercise.Id} has no notes in its shape.");
+            Assert.All(shape, n => Assert.True(n.Midi is >= 21 and <= 108 && n.Length > 0 && n.Start >= 0 && n.Hand is 1 or 2, exercise.Id));
+            Assert.Same(shape, ExerciseShapes.Of(exercise));
+        }
+        // One for both hands has both in its shape; the left hand alone, the left's.
+        Assert.Equal([1, 2], ExerciseShapes.Of(Exercises.Find("passed")!).Select(n => n.Hand).Distinct().Order());
+        Assert.Equal([2], ExerciseShapes.Of(Exercises.Find("alberti")!).Select(n => n.Hand).Distinct());
+        // A scale's is a ramp up: its first notes climb.
+        var scale = ExerciseShapes.Of(Exercises.Find("scales")!).Where(n => n.Hand == 1).OrderBy(n => n.Start).Take(8).Select(n => n.Midi).ToList();
+        Assert.Equal(scale.Order(), scale);
+    }
+
     [Fact]
     public void The_pedal_exercise_is_right_when_the_pedal_changes_as_its_words_say()
     {

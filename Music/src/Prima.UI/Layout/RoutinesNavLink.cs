@@ -48,12 +48,17 @@ public sealed class SettingsNavLink : NavLink
 }
 
 /// <summary>
-/// A rail key for a kind of practice (Drills, Exercises), lit on its screens but for one opened from a routine, which lights the
+/// A rail key for a kind of practice (Exercises), lit on its screens but for one opened from a routine, which lights the
 /// Routines key instead: one key is lit at a time.
 /// </summary>
 public sealed class PracticeNavLink : NavLink
 {
     [Inject] private NavigationManager Nav { get; set; } = default!;
 
-    protected override bool ShouldMatch(string uriAbsolute) => base.ShouldMatch(uriAbsolute) && !RoutinesNavLink.FromARoutine(Nav, uriAbsolute);
+    /// <summary>Another place it's lit under too: the Exercises' key is lit on a drill's page, the drills being among them.</summary>
+    [Parameter] public string? AlsoUnder { get; set; }
+
+    protected override bool ShouldMatch(string uriAbsolute) =>
+        (base.ShouldMatch(uriAbsolute) || AlsoUnder is { } under && Nav.ToBaseRelativePath(uriAbsolute).Split('?', '#')[0] is var path && (path == under || path.StartsWith(under + "/", StringComparison.Ordinal)))
+        && !RoutinesNavLink.FromARoutine(Nav, uriAbsolute);
 }

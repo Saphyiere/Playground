@@ -12,6 +12,7 @@ public static class ExerciseFocus
 {
     public static IReadOnlyList<Focus> All { get; } =
     [
+        new("reading", "Reading", "From the staff to the keys at once: notes, shapes, chords, keys and rhythms, by eye and by ear."),
         new("strength", "Finger strength", "Quick, sure fingers. What grows is control more than muscle, so stay light."),
         new("independence", "Finger independence", "One finger holds or moves while its neighbours do something else."),
         new("even", "Evenness", "Every note the same length and the same loudness."),
@@ -28,6 +29,16 @@ public static class ExerciseFocus
 
     private static readonly Dictionary<string, string[]> ByExercise = new()
     {
+        // Drills
+        ["notes"] = ["reading"],
+        ["endless"] = ["reading"],
+        ["ledger"] = ["reading"],
+        ["intervals"] = ["reading"],
+        ["chords"] = ["reading", "chords"],
+        ["keys"] = ["reading"],
+        ["rhythm"] = ["reading"],
+        ["geography"] = ["reading", "chords"],
+        ["playback"] = ["reading"],
         // Arm weight and rotation
         ["drop"] = ["wrist"],
         ["doorknob"] = ["rotation"],

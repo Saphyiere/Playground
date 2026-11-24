@@ -12,8 +12,17 @@ const variation = process.argv[4];
 const hands = process.argv[5];
 const page = await open({ width: 1557, height: 973, dpr: 1 });
 console.log(await page.get('keys/connect'));
+// Every exercise to play, type by type as the catalogue lists them: each card that opens an exercise (a drill's opens drills/,
+// and one to read has no shape to play).
 await page.go('exercises');
-let ids = await page.evaluate(`[...document.querySelectorAll('a.piece-row')].map(a => a.getAttribute('href')).filter(h => h.startsWith('exercises/')).map(h => h.slice(10))`);
+const types = await page.evaluate(`[...document.querySelectorAll('.lib-list a.col-item')].map(a => a.getAttribute('href')).filter(h => h.includes('type='))`);
+let ids = [];
+for (const type of types) {
+  await page.go(type);
+  await page.until(`document.querySelector('.lib-list[aria-busy=false]')`);
+  for (const id of await page.evaluate(`[...document.querySelectorAll('a.ex-card:not(:has(.ex-shape-read))')].map(a => a.getAttribute('href')).filter(h => h.startsWith('exercises/')).map(h => h.slice(10))`))
+    if (!ids.includes(id)) ids.push(id);
+}
 if (only) ids = ids.filter(i => i === only);
 console.log(`${ids.length} exercises`);
 
