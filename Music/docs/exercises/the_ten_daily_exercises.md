@@ -107,8 +107,9 @@ words carry what that research found: quietly, briefly, an octave only if it's a
 A family is one entry in the catalogue. Its page has the key, the hands and the tempo as every exercise has, and under them
 one row for each **variation**: a name and two to six options, one of them the usual. What's chosen is kept with the key and
 hands, so the exercise opens as it was last played. The main exercise is every variation at its usual; a side exercise is
-any other combination. Anything that takes an exercise and writes its music for a key and hands (the routines Claude builds,
-a loop, a run through the keys) gets the main exercise without knowing it's a family.
+any other combination. Anything that takes an exercise and writes its music for a key and hands (the routines Claude builds)
+gets the main exercise without knowing it's a family. Its own page plays what's chosen, round the play bar's Loop and
+through the keys too.
 
 | His | Prima's family | Section | Choices beyond key, hands and tempo | Trains |
 | --- | --- | --- | --- | --- |
@@ -173,8 +174,15 @@ feel.
 - **One finger holds** is a bar to each finger, the moving notes in eighths; one finger alone can be chosen, which he doesn't
   do but which is where the work is (the third and fourth).
 - **Hold and turn** has a second reach, a finger further (thumb to third finger and so on), from his “all the combinations”.
-- **Keys.** The bounce and the scale in octaves are in the twelve major keys; the others in every major and minor key; the
-  thumb exercise is in C, as it was, until the exercise screen's key change says what another key means for it.
+- **Keys.** The bounce and the scale in octaves are in the twelve major keys; the others in every major and minor key. The
+  thumb passes under only in the keys where it lands on white keys, and where it lands depends on how many fingers it passes
+  under: the scale's fourth or fifth note under three or four (ten keys: C, A minor, G, D, E minor, D minor, A, G minor, E,
+  C minor), its third or sixth under two or five (six: C, A minor, G, F, E minor, B minor). Changing how many moves the key
+  to C if the one showing isn't among the new ones.
+- **Round a loop and through the keys** each family goes straight on without its close, the bar of the held note it ends
+  on, as every exercise does. Two differ: the scale in octaves has no bar that's only its close (its last octave is held to
+  the end of its bar), so all of it goes round; and the bounce's last bar is on the step it started from, which round a loop
+  is the next time round's first, so that bar goes with the close.
 
 ## For the owner to settle
 

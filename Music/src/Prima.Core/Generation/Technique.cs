@@ -77,6 +77,9 @@ public static class Technique
     /// <summary>A major scale's fingering over one octave going up, tonic to tonic: the right hand's, then the left's.</summary>
     public static (int[] Right, int[] Left) MajorFingers(Key key) => Major[Math.Clamp(key.Fifths, -7, 7)];
 
+    /// <summary>A key's scale fingering over one octave going up, tonic to tonic, a minor key's as its harmonic scale has it: the right hand's, then the left's.</summary>
+    public static (int[] Right, int[] Left) Fingers(Key key) => (key.Minor ? Minor : Major)[Math.Clamp(key.Fifths, -7, 7)];
+
     /// <summary>The order keys come in, by the boards' ladder: C, G, F, D and their minors first, then a sharp or flat more each.</summary>
     public static IReadOnlyList<Key> Order { get; } =
     [

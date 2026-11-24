@@ -163,6 +163,8 @@ internal sealed class TestPiano(bool plugged = false, bool takesNotes = false) :
     }
 
     public void Play(int midi, long atNs) => Received?.Invoke(new MidiEvent(MidiKind.NoteOn, 1, midi, 80, atNs));
+
+    public void Release(int midi, long atNs) => Received?.Invoke(new MidiEvent(MidiKind.NoteOff, 1, midi, 0, atNs));
 }
 
 /// <summary>A clock that says the time a test sets.</summary>

@@ -32,6 +32,12 @@ else
         {
             <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
         }
+        @* Loop: lit, a phrase is heard, played back and shown, and the next follows by itself, until it's turned off or you leave. *@
+        <div class="play-mode play-loop drill-loop">
+            <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(loop ? "true" : "false")" aria-label="@(loop ? "Loop: on. Phrases follow one another by themselves" : "Loop: off. Each step waits for you")" @onclick="() => SetLoop(!loop)">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
+            </button>
+        </div>
         @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
         {
             <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Advance">@ButtonName()</button>
@@ -57,10 +63,41 @@ else
     private PlaySession? session;
     private PassageResult? result;
     private Sheet? sheet;
+    // Loop: heard, played back and shown, a phrase is followed by the next by itself, until it's turned off; what's waiting to.
+    private bool loop;
+    private CancellationTokenSource? onward;
+    private bool disposed;
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
 
-    protected override async Task OnInitializedAsync() => track = await Store.GetTrackAsync<DrillTrack>("drill:playback") ?? DrillTrack.Start;
+    protected override async Task OnInitializedAsync()
+    {
+        track = await Store.GetTrackAsync<DrillTrack>("drill:playback") ?? DrillTrack.Start;
+        loop = (await Store.GetSettingsAsync()).GetValueOrDefault(PlayAlong.LoopKeyOf("playback")) == "on";
+    }
+
+    private async Task SetLoop(bool on)
+    {
+        loop = on;
+        onward?.Cancel();
+        await Store.SetSettingAsync(PlayAlong.LoopKeyOf("playback"), on ? "on" : "off");
+    }
+
+    // Round the loop, a step follows by itself: playing it back straight after hearing it, and the next phrase a few seconds
+    // after this one is shown with its marks.
+    private async Task GoOn(int afterMs)
+    {
+        onward?.Cancel();
+        var waiting = onward = new CancellationTokenSource();
+        try { await Task.Delay(afterMs, waiting.Token); }
+        catch (TaskCanceledException) { return; }
+        if (!loop || disposed || session?.Phase is Phase.CountIn or Phase.Playing) return;
+
+        // The phrase shown goes on to the next one: the answer to it is for when each step waits.
+        if (stage == Stage.Shown) stage = Stage.Answer;
+        Advance();
+        StateHasChanged();
+    }
 
     private string StageName() => stage switch { Stage.Listen => "Listen", Stage.PlayBack => "Your turn", Stage.Shown => "Written", Stage.Answer => "Your answer", _ => "Ready" };
 
@@ -81,6 +118,7 @@ else
 
     private void Advance()
     {
+        onward?.Cancel();
         switch (stage)
         {
             case Stage.Ready or Stage.Answer:
@@ -133,6 +171,11 @@ else
             await Store.SaveTrackAsync("drill:playback", track);
             var measures = new { inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, keptGoing = result.KeptGoing };
             await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "playback", null, null, track.Step, Tempo, (long)passage.Seed, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.InTimeAccuracy, result.Clean, null));
+            if (loop) _ = InvokeAsync(() => GoOn(5000));
+        }
+        else if (stage == Stage.Listen)
+        {
+            if (loop) _ = InvokeAsync(() => GoOn(600));
         }
         else if (stage == Stage.Answer)
         {
@@ -145,6 +188,8 @@ else
 
     public void Dispose()
     {
+        disposed = true;
+        onward?.Cancel();
         session?.Dispose();
     }
 }

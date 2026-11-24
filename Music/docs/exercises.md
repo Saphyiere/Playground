@@ -27,6 +27,13 @@ names, words and notes and a link back to the lesson. Octaves, double notes and 
 out, are among them at the owner's wish, worded with the caution the evidence below asks for. The study and the design are
 in [the ten daily exercises](exercises/the_ten_daily_exercises.md).
 
+**Every exercise loops and changes key (24 November 2026).** Each played exercise now has keys (most all 22, the rest the
+twelve majors, the twelve starting notes or the keys where the thumb lands on white ones), **Through the keys** plays them
+one after another as one piece of music, and the play bar's **Loop** takes an exercise round and round without its close;
+a family does both as its variations are chosen. The technique drills and a routine's exercises loop the same way, and the
+reading drills run their sets together. The "transposition rule" this report names as an ingredient (through the keys, as
+Pischna prints every exercise) is that run. See [concept.md](concept.md#exercises-1).
+
 The notes behind it, with every source, are beside it, one file for each line of research:
 [the exercise books and exam lists](exercises/exercise_canon_and_taxonomy.md),
 [what makes technique practice work and keeps it safe](exercises/evidence_on_technique_practice.md),

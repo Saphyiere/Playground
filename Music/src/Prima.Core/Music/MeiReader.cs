@@ -179,6 +179,21 @@ public static class MeiReader
     }
 
     /// <summary>
+    /// The MEI with repeat signs round all of it, before its first bar and after its last: how music kept as MEI (a routine's
+    /// exercise) is printed when it's played round and round. Everything else in it is left as it is.
+    /// </summary>
+    public static string WithRepeat(string mei)
+    {
+        var document = XDocument.Parse(mei);
+        var measures = document.Descendants(Mei + "measure").ToList();
+        if (measures.Count == 0) return mei;
+
+        measures[0].SetAttributeValue("left", "rptstart");
+        measures[^1].SetAttributeValue("right", "rptend");
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
+    /// <summary>
     /// The MEI without its bare tempo numbers: tempo changes a score keeps for playback (MuseScore's hidden ones, for its
     /// ritardandos), which Verovio would print on the music as numbers. A tempo with words or a note in it is printed, and stays.
     /// </summary>

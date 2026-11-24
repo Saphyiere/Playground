@@ -69,7 +69,8 @@ public class ExerciseFamilyUiTests
         Assert.Equal(["where"], page.FindAll("[data-variation]").Select(r => r.GetAttribute("data-variation")));
         Assert.Equal(["In one place", "Up the scale"], page.FindAll("[data-variation=where] .mu-toggle").Select(b => b.TextContent));
 
-        await Tap(page, ".exercise-choice .mu-toggle:nth-of-type(3)");
+        // Together, the third of the hands (the key's row has a key of its own now, Through the keys).
+        await page.InvokeAsync(() => page.FindAll(".exercise-choice .mu-toggle").Single(b => b.TextContent == "Together").ClickAsync(new MouseEventArgs()));
         page.WaitForAssertion(() => Assert.Equal(["where", "motion"], page.FindAll("[data-variation]").Select(r => r.GetAttribute("data-variation"))));
         Assert.Equal([48, 52, 60, 64], Opening(page));
         await Tap(page, "[data-variation=motion] .mu-toggle:nth-of-type(2)");

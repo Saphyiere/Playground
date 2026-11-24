@@ -5,9 +5,9 @@ namespace Prima.Core.Music;
 
 /// <summary>
 /// Writes a score as MEI for Verovio to engrave: the grand staff (or one rhythm line), every note, chord, rest and bar with its id,
-/// beams by the beat, tuplets, ties, accidentals as a printed score shows them (the key signature's and those earlier in the bar
-/// aren't repeated), notes under an octave line where they're printed with the octave they sound in, and the line over them, and
-/// the printed marks. No XML declaration: Verovio reads the text as it is.
+/// its repeat signs and endings, beams by the beat, tuplets, ties, accidentals as a printed score shows them (the key signature's
+/// and those earlier in the bar aren't repeated), notes under an octave line where they're printed with the octave they sound in,
+/// and the line over them, and the printed marks. No XML declaration: Verovio reads the text as it is.
 /// </summary>
 public static class MeiWriter
 {
@@ -55,9 +55,22 @@ public static class MeiWriter
             var staffOf = score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.SelectMany(e => Ids(e).Select(id => (id, v.Staff))))).ToDictionary(p => p.id, p => p.Staff);
             var barOf = score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.SelectMany(Ids)).Select(id => (id, b.Number))).ToDictionary(p => p.id, p => p.Number);
             var signatures = score.WithSignatures().ToList();
+            // The ending the bars being written are under ("1", "2", "1, 2"), as MeiReader reads it back; none: "".
+            var ending = "";
             for (var i = 0; i < signatures.Count; i++)
             {
                 var (bar, key, meter) = signatures[i];
+                var under = string.Join(", ", bar.Endings);
+                if (under != ending)
+                {
+                    if (ending.Length > 0) xml.WriteEndElement();
+                    if (under.Length > 0)
+                    {
+                        xml.WriteStartElement("ending", Ns);
+                        xml.WriteAttributeString("n", under);
+                    }
+                    ending = under;
+                }
                 if (i > 0 && (bar.NewKey is not null || bar.NewMeter is not null))
                 {
                     xml.WriteStartElement("scoreDef", Ns);
@@ -70,7 +83,10 @@ public static class MeiWriter
                 xml.WriteAttributeString("n", bar.Number.ToString(CultureInfo.InvariantCulture));
                 xml.WriteAttributeString("id", XmlNs, bar.Id);
                 if (length < meter.BarTicks) xml.WriteAttributeString("metcon", "false");
+                // Its bar lines: a repeat's signs where it has them, as MeiReader reads them back; the closing line on the last bar.
+                if (bar.RepeatStart && score.ShowMeter) xml.WriteAttributeString("left", "rptstart");
                 if (!score.ShowMeter) xml.WriteAttributeString("right", "invis");
+                else if (bar.RepeatEnd) xml.WriteAttributeString("right", "rptend");
                 else if (i == signatures.Count - 1) xml.WriteAttributeString("right", "end");
                 foreach (var staff in bar.Voices.Select(v => v.Staff).Distinct().Order())
                 {
@@ -122,6 +138,7 @@ public static class MeiWriter
                 }
                 xml.WriteEndElement();
             }
+            if (ending.Length > 0) xml.WriteEndElement();
 
             xml.WriteEndElement();
             xml.WriteEndElement();
@@ -338,8 +355,10 @@ public static class MeiWriter
         var place = (printed.Step, printed.Octave);
         var current = accidentals.TryGetValue(place, out var alter) ? alter : key.AlterOf(tone.Pitch.Step);
         accidentals[place] = tone.Pitch.Alter;
+        // One that isn't printed is said as it sounds, and there a double sharp is "ss": "x" is only its printed sign, and Verovio
+        // drops an "x" here with a warning (a second F double sharp in a bar of G sharp minor).
         if (tone.Pitch.Alter != current && !tone.TiedFromPrevious) xml.WriteAttributeString("accid", Accid(tone.Pitch.Alter));
-        else if (tone.Pitch.Alter != 0) xml.WriteAttributeString("accid.ges", Accid(tone.Pitch.Alter));
+        else if (tone.Pitch.Alter != 0) xml.WriteAttributeString("accid.ges", tone.Pitch.Alter == 2 ? "ss" : Accid(tone.Pitch.Alter));
 
         if (tone.TieToNext || tone.TiedFromPrevious) xml.WriteAttributeString("tie", tone.TieToNext && tone.TiedFromPrevious ? "m" : tone.TieToNext ? "i" : "t");
         xml.WriteEndElement();

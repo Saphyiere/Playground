@@ -50,7 +50,14 @@ public static class ExerciseMusic
         return key.Minor && ((degree % 7) + 7) % 7 == 6 ? pitch with { Alter = pitch.Alter + 1 } : pitch;
     }
 
-    private static Stroke Triad(Key key, int octave, int[] degrees, int[] fingers, int length) => Chord(degrees.Select(d => InChord(key, d, octave)), fingers, length);
+    // A chord of the key's notes; with `natural`, as the scale has them, a minor key's seventh not raised.
+    private static Stroke Triad(Key key, int octave, int[] degrees, int[] fingers, int length, bool natural = false) =>
+        Chord(degrees.Select(d => natural ? key.Degree(d, octave) : InChord(key, d, octave)), fingers, length);
+
+    // Where a line that climbs more than an octave starts, so it stays near its staff in every key: the right hand from the
+    // tonic at or above middle C up to F sharp, and below it from G; the left hand from the C below middle C up to E flat, and
+    // an octave lower from E. In C the hands are an octave apart, as before.
+    private static (int Right, int Left) Low(Key key) => (key.TonicPitchClass <= 6 ? 4 : 3, key.TonicPitchClass <= 3 ? 3 : 2);
 
     // The hands chosen: the other's line is left out.
     private static (IReadOnlyList<Stroke> Right, IReadOnlyList<Stroke> Left) Chosen(HandUse hands, IReadOnlyList<Stroke> right, IReadOnlyList<Stroke> left) =>
@@ -185,7 +192,7 @@ public static class ExerciseMusic
 
     /// <summary>
     /// Hanon's first exercise (1873) over one octave, in eighths: a figure that skips a note and walks on, a step higher each bar,
-    /// then its mirror back down.
+    /// then its mirror back down. In any major key, on the key's own notes with the same fingers.
     /// </summary>
     public static Score Hanon(Key key, HandUse hands)
     {
@@ -196,27 +203,35 @@ public static class ExerciseMusic
             .. Enumerable.Range(0, 7).SelectMany(bar => up.Select((d, i) => Note(key.Degree(11 - bar - d, octave), falling[i], E))),
             Note(key.Degree(0, octave), last, W),
         ];
-        var (r, l) = Chosen(hands, Hand(4, RightFive, [5, 4, 3, 2, 1, 2, 3, 4], 1), Hand(3, LeftFive, [1, 2, 3, 4, 5, 4, 3, 2], 5));
+        var low = Low(key);
+        var (r, l) = Chosen(hands, Hand(low.Right, RightFive, [5, 4, 3, 2, 1, 2, 3, 4], 1), Hand(low.Left, LeftFive, [1, 2, 3, 4, 5, 4, 3, 2], 5));
         return Lay(key, Four, r, l);
     }
 
     // ——— Scales ———
 
-    /// <summary>A major scale in contrary motion over an octave, in eighths: the right hand up and back, the left down and back, an octave apart.</summary>
+    /// <summary>
+    /// A scale in contrary motion over an octave, in eighths: the right hand up and back, the left down and back, an octave apart.
+    /// A major key's scale, or a minor key's harmonic one, its seventh raised, each hand with the scale's own fingering.
+    /// </summary>
     public static Score ContraryScale(Key key, HandUse hands)
     {
-        var (rightUp, leftUp) = Technique.MajorFingers(key);
+        var (rightUp, leftUp) = Technique.Fingers(key);
         // Going down from its tonic, the left hand takes its fingering backwards.
         var steps = Enumerable.Range(0, 8).Concat(Enumerable.Range(0, 7).Reverse()).ToList();
-        var right = steps.Select((d, i) => Note(key.Degree(d, 4), rightUp[d], i == steps.Count - 1 ? Q : E)).ToList();
-        var left = steps.Select((d, i) => Note(key.Degree(-d, 3), leftUp[7 - d], i == steps.Count - 1 ? Q : E)).ToList();
+        var right = steps.Select((d, i) => Note(InChord(key, d, 4), rightUp[d], i == steps.Count - 1 ? Q : E)).ToList();
+        var left = steps.Select((d, i) => Note(InChord(key, -d, 3), leftUp[7 - d], i == steps.Count - 1 ? Q : E)).ToList();
         return Lay(key, Four, right, left);
     }
 
-    /// <summary>The chromatic scale from C over an octave and back, in eighths: the third finger on every black key.</summary>
+    /// <summary>
+    /// The chromatic scale over an octave and back, in eighths, from the key's tonic (from C in C): the third finger on every black
+    /// key. It's written without a key signature, every sharp or flat on its note, spelled the way the key leans.
+    /// </summary>
     public static Score Chromatic(Key key, HandUse hands)
     {
-        // The thumb on white keys, but the second finger on the upper of two whites side by side (right hand: F and C; left: E and B).
+        // The thumb on white keys, but the second finger on one of two whites side by side: the right hand's F and C (its thumb is
+        // on the white key below, unless the scale starts or ends there), the left's E and B (its thumb takes the white key above).
         static int Finger(int midi, bool rightHand, bool first) => (midi % 12) switch
         {
             1 or 3 or 6 or 8 or 10 => 3,
@@ -229,8 +244,9 @@ public static class ExerciseMusic
             var keys = Enumerable.Range(0, 13).Concat(Enumerable.Range(0, 12).Reverse()).Select(k => from + k).ToList();
             return [.. keys.Select((midi, i) => Note(key.Spell(midi), Finger(midi, rightHand, i is 0 or 24), i == keys.Count - 1 ? W : E))];
         }
-        var (r, l) = Chosen(hands, Hand(60, true), Hand(48, false));
-        return Lay(key, Four, r, l);
+        var low = Low(key);
+        var (r, l) = Chosen(hands, Hand(key.Degree(0, low.Right).Midi, true), Hand(key.Degree(0, low.Left).Midi, false));
+        return Lay(new Key(0), Four, r, l);
     }
 
     // ——— Broken chords and left-hand patterns ———
@@ -271,18 +287,24 @@ public static class ExerciseMusic
 
     // ——— Chords and cadences ———
 
-    /// <summary>Solid chords, each a quarter and a quarter's rest, the last one held: <paramref name="chords"/> as scale degrees with each hand's fingers.</summary>
-    private static Score Solid(Key key, HandUse hands, IReadOnlyList<(int[] Degrees, int[] Right, int[] Left)> chords)
+    /// <summary>
+    /// Solid chords, each a quarter and a quarter's rest, the last one held: <paramref name="chords"/> as scale degrees with each
+    /// hand's fingers. With <paramref name="natural"/>, a minor key's chords are of its scale as it stands.
+    /// </summary>
+    private static Score Solid(Key key, HandUse hands, IReadOnlyList<(int[] Degrees, int[] Right, int[] Left)> chords, bool natural = false)
     {
         List<Stroke> Hand(int octave, Func<(int[] Degrees, int[] Right, int[] Left), int[]> fingers) =>
-            [.. chords.Take(chords.Count - 1).SelectMany(c => new[] { Triad(key, octave, c.Degrees, fingers(c), Q), Rest(Q) }), Triad(key, octave, chords[^1].Degrees, fingers(chords[^1]), W)];
+            [.. chords.Take(chords.Count - 1).SelectMany(c => new[] { Triad(key, octave, c.Degrees, fingers(c), Q, natural), Rest(Q) }), Triad(key, octave, chords[^1].Degrees, fingers(chords[^1]), W, natural)];
         var (r, l) = Chosen(hands, Hand(4, c => c.Right), Hand(3, c => c.Left));
         return Lay(key, Four, r, l);
     }
 
-    /// <summary>One shape up the scale and back: a triad on each note, hand and fingers unchanged.</summary>
+    /// <summary>
+    /// One shape up the scale and back: a triad on each note, hand and fingers unchanged. In a minor key the chords are of the
+    /// scale as its signature has it, so only the signature's own black keys come into the shape.
+    /// </summary>
     public static Score TriadWalk(Key key, HandUse hands) =>
-        Solid(key, hands, [.. Enumerable.Range(0, 8).Concat(Enumerable.Range(0, 7).Reverse()).Select(d => (new[] { d, d + 2, d + 4 }, new[] { 1, 3, 5 }, new[] { 5, 3, 1 }))]);
+        Solid(key, hands, [.. Enumerable.Range(0, 8).Concat(Enumerable.Range(0, 7).Reverse()).Select(d => (new[] { d, d + 2, d + 4 }, new[] { 1, 3, 5 }, new[] { 5, 3, 1 }))], natural: true);
 
     /// <summary>The tonic chord up through its inversions to the octave, and back.</summary>
     public static Score Inversions(Key key, HandUse hands)

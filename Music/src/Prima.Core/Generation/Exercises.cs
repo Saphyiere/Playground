@@ -26,12 +26,17 @@ public enum ExerciseLevel
     Intermediate,
 }
 
-/// <summary>The keys an exercise can be played in: C only, every major key, or every major and minor key.</summary>
+/// <summary>
+/// The keys an exercise can be played in. Every one that's played has more than one: every major key (one that is major by its
+/// nature, or starts from each of the twelve notes), every major and minor key, or the keys that keep the thumb on white keys.
+/// </summary>
 public enum ExerciseKeys
 {
-    One,
     Majors,
     All,
+
+    /// <summary>The keys whose tonic, fourth and fifth notes are white: where the thumb lands passing under three or four fingers.</summary>
+    WhiteThumb,
 }
 
 /// <summary>A section of the exercises: its key, its name, and a line on what's in it.</summary>
@@ -54,8 +59,20 @@ public sealed record Exercise(string Id, string Section, string Name, ExerciseLe
 
     public double Tempo { get; init; } = 60;
 
+    /// <summary>
+    /// How many of its last bars are its close: the held note or chord it ends on. Round a loop, and from one key to the next in
+    /// a run through the keys, the close is left out, so the pattern goes straight on. None: all of it goes round.
+    /// </summary>
+    public int Close { get; init; } = 1;
+
+    /// <summary>What a key is called for it, where that isn't the key's own name: the chromatic scale's "From C".</summary>
+    public Func<Key, string>? KeyLabel { get; init; }
+
     /// <summary>Whether it's one to play at the piano, with its own music or a drill's, and not one to read and do.</summary>
     public bool ToPlay => Kind is ExerciseKind.Played or ExerciseKind.Drill;
+
+    /// <summary>A key's name as this exercise has it.</summary>
+    public string KeyName(Key key) => KeyLabel?.Invoke(key) ?? key.Name;
 }
 
 /// <summary>
@@ -139,19 +156,19 @@ public static class Exercises
         Played("drop", "arm", "Drop onto one note", ExerciseLevel.Start, "Let the arm's weight play a note, then let go of all but the little that holds the key.",
             ["From just above the key, let the arm fall onto the finger shown, wrist loose.", "Once the note sounds, ease off until you're only just holding the key down.", "A whole bar on each note. Breathe out as you land."],
             "The sound comes from how fast the key goes down, not from pressing once it's there. Prima hears the note; the letting go is yours to feel.",
-            ExerciseMusic.Drop, ExerciseKeys.One, Either),
+            ExerciseMusic.Drop, ExerciseKeys.All, Either, close: 0),
         Played("doorknob", "arm", "Doorknob: thumb to little finger", ExerciseLevel.Start, "Rock between the thumb and the little finger by turning the forearm.",
             ["Keep the fingers quiet and let the forearm turn, as it does on a doorknob.", "Big, slow turns in the quarter notes; smaller ones in the eighths.", "Stay close to the keys."],
             "The two notes equally loud. In time the turn shrinks until it barely shows.",
-            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 5)), ExerciseKeys.Majors, Either),
+            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 5)), ExerciseKeys.All, Either),
         Played("small-turns", "arm", "Smaller turns", ExerciseLevel.Beginner, "The same turn between fingers a third apart: 1 and 3, 2 and 4, 3 and 5.",
             ["A bar on each pair.", "The turn is small now: the forearm still does it, and the fingers ride on it.", "Light and even."],
             "The 3 and 5 pair is the hard one. Let the arm lean towards the little finger instead of the finger reaching.",
-            ExerciseMusic.SmallTurns, ExerciseKeys.Majors, Either),
+            ExerciseMusic.SmallTurns, ExerciseKeys.All, Either),
         Played("wrist-circles", "arm", "Wrist circles on a held note", ExerciseLevel.Start, "Hold a key down and circle the wrist, to feel that it's free.",
             ["Play the note and hold it for its two bars.", "While it's held, draw a slow circle with the wrist: one way, then the other.", "Keep the key down with only the weight it needs."],
             "The fingertip stays put while everything behind it moves.",
-            ExerciseMusic.Held, ExerciseKeys.One, Either),
+            ExerciseMusic.Held, ExerciseKeys.All, Either, close: 0),
 
         // ——— Five-finger patterns ———
         Played("five", "five", "Five-finger pattern", ExerciseLevel.Start, "Five notes up and back, a finger to a key, in every key.",
@@ -173,22 +190,22 @@ public static class Exercises
         Played("five-chord", "five", "The pattern, then its chord", ExerciseLevel.Start, "Five notes up and back, then three of them as the chord: one at a time, then together.",
             ["The chord is the first, third and fifth notes of the pattern.", "Play it broken, then let all three keys go down as one."],
             "Three notes landing at the same instant.",
-            ExerciseMusic.FiveAndChord, ExerciseKeys.All, Any, 72),
+            ExerciseMusic.FiveAndChord, ExerciseKeys.All, Any, 72, close: 0),
         Played("hanon", "five", "Hanon's first pattern, quietly", ExerciseLevel.Intermediate, "The best-known finger pattern, used the modern way: quiet, slow, with the arm helping.",
-            ["Each hand alone. Ignore the old instruction to lift the fingers high: stay close to the keys.", "Give each run one thing to watch: a loose thumb, or the wrist gliding sideways so the forearm lines up behind each finger.", "Five minutes at most, and stop at the first ache."],
+            ["Each hand alone. Ignore the old instruction to lift the fingers high: stay close to the keys.", "Give each run one thing to watch: a loose thumb, or the wrist gliding sideways so the forearm lines up behind each finger.", "In another key the fingers stay the same, and only the black keys change.", "Five minutes at most, and stop at the first ache."],
             "No study shows this pattern does more for playing than scales do. Its use is as plain notes to practice a movement on.",
-            ExerciseMusic.Hanon, ExerciseKeys.One, Any),
+            ExerciseMusic.Hanon, ExerciseKeys.Majors, Any),
 
         // ——— Scales ———
         Drill("scales", "scales", "Scales", "Every major and minor scale with its fingering, one to four octaves, with evenness measured after each run.", "drills/scales"),
-        Played("contrary", "scales", "Scale in contrary motion", ExerciseLevel.Beginner, "A major scale with the hands moving apart and back, an octave each.",
-            ["Thumbs start on the tonic, an octave apart.", "Each hand keeps the scale's own fingering, so the thumbs don't always pass together.", "Slowly: both hands reach their far notes at the same moment."],
+        Played("contrary", "scales", "Scale in contrary motion", ExerciseLevel.Beginner, "A scale with the hands moving apart and back, an octave each.",
+            ["Thumbs start on the tonic, an octave apart.", "Each hand keeps the scale's own fingering, so the thumbs don't always pass together.", "Slowly: both hands reach their far notes at the same moment.", "A minor key's is its harmonic scale, with the seventh note raised."],
             "In C the same fingers play together all the way. In other keys they don't, which is the test.",
-            ExerciseMusic.ContraryScale, ExerciseKeys.Majors, Both),
+            ExerciseMusic.ContraryScale, ExerciseKeys.All, Both, close: 0),
         Played("chromatic", "scales", "Chromatic scale", ExerciseLevel.Beginner, "Every key in turn, black and white, up an octave and back.",
-            ["The third finger takes every black key, the thumb most white ones.", "Where two white keys sit side by side, the second finger takes one of them.", "The hand moves in for the black keys and out for the white: let it."],
+            ["The third finger takes every black key, the thumb most white ones.", "Where two white keys sit side by side, the second finger takes one of them.", "The hand moves in for the black keys and out for the white: let it.", "The key's + and − start it from another note. The fingers go by the keys' colours, so they change with it."],
             "Even gaps, despite the thumb's short reach.",
-            ExerciseMusic.Chromatic, ExerciseKeys.One, Any),
+            ExerciseMusic.Chromatic, ExerciseKeys.Majors, Any, keyLabel: key => $"From {key.Name.Split(' ')[0]}"),
 
         // ——— Broken chords and left-hand patterns ———
         Drill("arpeggios", "broken", "Arpeggios", "A chord's notes one at a time over one to four octaves, with a close look at the thumb's crossings.", "drills/arpeggios"),
@@ -209,7 +226,7 @@ public static class Exercises
         Played("triad-walk", "chords", "One shape up the scale", ExerciseLevel.Start, "A three-note chord on each note of the scale, the hand keeping its shape.",
             ["Fingers 1, 3 and 5 every time (5, 3 and 1 in the left hand).", "Play, let go, move in the rest, and be over the next chord before its beat.", "In C the shape never changes. In other keys, see which chords pick up a black key."],
             "All three notes at once, and on the beat.",
-            ExerciseMusic.TriadWalk, ExerciseKeys.Majors, Any),
+            ExerciseMusic.TriadWalk, ExerciseKeys.All, Any),
         Played("inversions", "chords", "Up through the inversions", ExerciseLevel.Beginner, "The key's chord with each of its notes at the bottom in turn, up to the octave and back.",
             ["Root position, first inversion, second inversion, then root position an octave higher.", "The fingering changes with the shape: follow the numbers.", "Move in the rests."],
             "The same three note names every time, in a new order.",
@@ -231,11 +248,11 @@ public static class Exercises
         Played("octave-jump", "jumps", "Octave jump: get there, then play", ExerciseLevel.Start, "One finger from a note to the same note an octave away, with less time to travel on each line.",
             ["Play, let go, and move at once: be resting on the next key well before its beat.", "Look at the key you're going to, not the one you're leaving.", "If you land on the wrong key, hold it and see where you are. Don't slide to the right one."],
             "Arriving early and waiting. A fast move and a calm landing, not a throw.",
-            ExerciseMusic.OctaveJump, ExerciseKeys.Majors, Either),
+            ExerciseMusic.OctaveJump, ExerciseKeys.All, Either),
         Played("jump-ladder", "jumps", "Further each time", ExerciseLevel.Beginner, "From a home note to a third, a fifth, an octave and a tenth away, and home between each.",
             ["The same finger throughout.", "Move in the rests, and be over the key early.", "Then try it glancing only at the far key."],
             "Which distance starts to go wrong, and whether you fall short or go past.",
-            ExerciseMusic.JumpLadder, ExerciseKeys.Majors, Either),
+            ExerciseMusic.JumpLadder, ExerciseKeys.All, Either),
         Played("chord-jump", "jumps", "Chord jump, an octave away", ExerciseLevel.Beginner, "A chord, and the same chord an octave away, with less time to travel on each line.",
             ["The hand keeps its shape in the air.", "Land silently on all three keys first, then play them.", "Light: a jump played loudly is a less accurate one."],
             "All three notes landing together, on the beat.",
@@ -247,22 +264,22 @@ public static class Exercises
         Played("waltz", "jumps", "Bass note, then chord", ExerciseLevel.Beginner, "A waltz's left hand: a low note on the first beat, its chord on the next two.",
             ["The little finger takes the bass note, then the hand moves up to the chord.", "Leave the bass note early enough to be over the chord in time.", "Chords alone first if the jump keeps missing."],
             "The bass note fuller, the chords lighter.",
-            ExerciseMusic.Waltz, ExerciseKeys.All, LeftOnly),
+            ExerciseMusic.Waltz, ExerciseKeys.All, LeftOnly, close: 2),
 
         // ——— Trills ———
         Drill("independence", "trills", "Finger independence", "Five-finger patterns, then trills on fingers 3–4 and 4–5, with evenness measured after each run.", "drills/independence"),
         Played("trill-2-3", "trills", "Slow trill, fingers 2 and 3", ExerciseLevel.Start, "Two neighbouring notes back and forth: a bar of quarter notes, then eighths, then sixteenths.",
             ["A small turn of the forearm does most of it; the fingers stay close to the keys.", "Keep the sixteenths as even as the quarter notes.", "Slow the click down if they aren't."],
             "Even, before quick.",
-            (key, hands) => ExerciseMusic.Rock(key, hands, (2, 3), quick: true), ExerciseKeys.Majors, Either),
+            (key, hands) => ExerciseMusic.Rock(key, hands, (2, 3), quick: true), ExerciseKeys.All, Either),
         Played("trill-1-2", "trills", "Slow trill, thumb and second finger", ExerciseLevel.Beginner, "The same, between the thumb and the finger beside it.",
             ["A bar of quarter notes, then eighths, then sixteenths.", "Keep the sixteenths as even as the quarter notes."],
             "The thumb plays from its base joint, not by the hand rocking.",
-            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 2), quick: true), ExerciseKeys.Majors, Either),
+            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 2), quick: true), ExerciseKeys.All, Either),
         Played("trill-1-3", "trills", "Slow trill, thumb and third finger", ExerciseLevel.Beginner, "The same, a third apart.",
             ["A bar of quarter notes, then eighths, then sixteenths.", "The turn of the forearm is wider here: let it be."],
             "Both notes equally loud.",
-            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 3), quick: true), ExerciseKeys.Majors, Either),
+            (key, hands) => ExerciseMusic.Rock(key, hands, (1, 3), quick: true), ExerciseKeys.All, Either),
 
         // ——— Hands doing different things ———
         Played("hold-move", "hands", "One hand holds, the other moves", ExerciseLevel.Start, "A long note in one hand under five moving notes in the other, then the other way round.",
@@ -280,7 +297,7 @@ public static class Exercises
         Played("two-three", "hands", "Two against three", ExerciseLevel.Intermediate, "Three even notes in the right hand against two in the left.",
             ["Tap it on your knees first: together, right, left, right.", "The words “nice cup of tea” have the rhythm.", "Then on the keys, slowly."],
             "The hands together on every beat, and the left hand's second note falling between the right hand's second and third.",
-            ExerciseMusic.TwoAgainstThree, ExerciseKeys.Majors, Both, 50),
+            ExerciseMusic.TwoAgainstThree, ExerciseKeys.All, Both, 50),
 
         // ——— Touch, loud and soft ———
         Played("slurs", "touch", "Two-note slurs: down, then up", ExerciseLevel.Start, "Pairs of joined notes: the first with the arm's weight, the second lighter and let go.",
@@ -294,7 +311,7 @@ public static class Exercises
         Played("soft-loud", "touch", "One note, soft to loud", ExerciseLevel.Start, "The same key at five strengths: soft, medium, loud, medium, soft.",
             ["A bar at each.", "Louder comes from a faster key, not from pressing harder at the bottom.", "Soft is the hard one: find the slowest key that still sounds."],
             "Prima judges loud and soft against your own range, which Keyboard check in Tools measures.",
-            ExerciseMusic.SoftToLoud, ExerciseKeys.One, Either),
+            ExerciseMusic.SoftToLoud, ExerciseKeys.All, Either),
         Played("swell", "touch", "Growing and fading", ExerciseLevel.Beginner, "The pattern growing louder to its top note and fading back.",
             ["Start soft enough to leave room to grow.", "Each note a little more than the last, then a little less."],
             "A steady rise and fall, with no sudden step at the top.",
@@ -307,7 +324,7 @@ public static class Exercises
         Played("pedal-changes", "pedal", "Change the pedal on each chord", ExerciseLevel.Beginner, "Four chords joined by the pedal, with a clean change at each.",
             ["Play the new chord, and as it sounds let the pedal up.", "Press it again at once, while the chord is still held.", "The foot follows the hands: up as they play, never before."],
             "No blur from the chord before, and no gap. Prima says when the pedal came late or stayed down.",
-            ExerciseMusic.PedalChanges, ExerciseKeys.All, Either),
+            ExerciseMusic.PedalChanges, ExerciseKeys.All, Either, close: 0),
 
         // ——— Ways to practice anything ———
         Way("slow", "Slow enough to be right", "A tempo at which it comes out right the first time.",
@@ -352,9 +369,38 @@ public static class Exercises
     public static IReadOnlyList<Key> KeysOf(Exercise exercise) => exercise.Keys switch
     {
         ExerciseKeys.All => Technique.Order,
-        ExerciseKeys.Majors => [.. Technique.Order.Where(k => !k.Minor)],
-        _ => [new Key(0)],
+        ExerciseKeys.WhiteThumb => WhiteAt(0, 3, 4),
+        _ => [.. Technique.Order.Where(k => !k.Minor)],
     };
+
+    /// <summary>The keys, easiest first, whose notes on these steps of the scale (0 is the tonic) are all white keys.</summary>
+    public static IReadOnlyList<Key> WhiteAt(params int[] steps) => [.. Technique.Order.Where(k => steps.All(d => k.Degree(d, 4).Alter == 0))];
+
+    /// <summary>The bars of an exercise's music that go round a loop, by their place in it: all but its close.</summary>
+    public static IReadOnlyList<int> Round(Exercise exercise, Score score) => [.. Enumerable.Range(0, Math.Max(1, score.Bars.Count - exercise.Close))];
+
+    /// <summary>
+    /// An exercise through its keys as one piece of music: from <paramref name="from"/> on through the keys it offers and round
+    /// to the one before it, each key's music without its close, so one runs into the next, with the new key's signature where
+    /// it starts and its name over its first note. The last key's close ends it. Given <paramref name="music"/>, that writes
+    /// each key's music in place of the exercise's own, and <paramref name="keys"/> are the keys in place of its own: those of
+    /// one of a family's variations, say.
+    /// </summary>
+    public static Score Through(Exercise exercise, Key from, HandUse hands, Func<Key, HandUse, Score>? music = null, IReadOnlyList<Key>? keys = null)
+    {
+        keys ??= KeysOf(exercise);
+        var at = Math.Max(0, keys.ToList().IndexOf(from));
+        List<Key> order = [.. keys.Skip(at), .. keys.Take(at)];
+        return Score.Join([.. order.Select((key, i) =>
+        {
+            var whole = (music ?? exercise.Music!)(key, hands);
+            var part = i == order.Count - 1 || exercise.Close == 0 ? whole : whole.Excerpt(1, Math.Max(1, whole.Bars.Count - exercise.Close));
+            // The key's name goes over the first thing played in it, in whichever hand that is.
+            var first = part.Bars.SelectMany(b => b.Voices.OrderBy(v => v.Staff).SelectMany(v => v.Events.OfType<Notes>().Select(n => (b.Number, Note: n))))
+                .OrderBy(x => x.Number).ThenBy(x => x.Note.Start).First().Note;
+            return part with { Marks = [.. part.Marks, new Mark(MarkKind.Text, first.Tones.Count == 1 ? first.Tones[0].Id : first.Id, Text: exercise.KeyName(key))] };
+        })]);
+    }
 
     /// <summary>Whether every word of a search is somewhere in an exercise's name, its section's, what it trains, or its words.</summary>
     public static bool Matches(Exercise exercise, string? search)
@@ -369,6 +415,7 @@ public static class Exercises
 
     private static Exercise Drill(string id, string section, string name, string does, string route) => new(id, section, name, ExerciseLevel.Beginner, ExerciseKind.Drill, does, [], "") { Route = route };
 
-    private static Exercise Played(string id, string section, string name, ExerciseLevel level, string does, string[] how, string notice, Func<Key, HandUse, Score> music, ExerciseKeys keys, HandUse[] hands, double tempo = 60) =>
-        new(id, section, name, level, ExerciseKind.Played, does, how, notice) { Music = music, Keys = keys, Hands = hands, Tempo = tempo };
+    private static Exercise Played(string id, string section, string name, ExerciseLevel level, string does, string[] how, string notice, Func<Key, HandUse, Score> music, ExerciseKeys keys, HandUse[] hands, double tempo = 60,
+        int close = 1, Func<Key, string>? keyLabel = null) =>
+        new(id, section, name, level, ExerciseKind.Played, does, how, notice) { Music = music, Keys = keys, Hands = hands, Tempo = tempo, Close = close, KeyLabel = keyLabel };
 }

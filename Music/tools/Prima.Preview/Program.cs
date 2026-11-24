@@ -217,6 +217,9 @@ app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? s
         {
             var wait = (note.OnNs - clock.NowNs) / 1e6;
             if (wait > 0) await Task.Delay(TimeSpan.FromMilliseconds(wait));
+            // The run stopped, or another begun (a looped run is half an hour of notes): its player stops with it, and plays
+            // nothing into whatever comes next.
+            if (registry.Current != session || session.Phase is not (Phase.CountIn or Phase.Playing)) return;
             keys.PlayAt(note.Midi, note.Velocity, note.OnNs, note.OffNs);
         }
     });
@@ -253,7 +256,7 @@ app.MapGet("/exercises/forms/{id}", (string id) =>
 
     var family = ExerciseFamilies.Of(exercise.Id);
     var forms = from variation in family?.Every().Select(v => (FamilyChoice?)v) ?? [null]
-                from key in Exercises.KeysOf(exercise)
+                from key in variation is null ? Exercises.KeysOf(exercise) : family!.KeysOf(exercise, variation)
                 from hands in exercise.Hands
                 let score = variation is null ? exercise.Music(key, hands) : family!.Music(key, hands, variation)
                 select new { key = key.Name, key.Fifths, key.Minor, hands = hands.ToString(), variation = variation?.ToString(), heads = score.Bars.Sum(b => b.Voices.Sum(v => v.Events.OfType<Notes>().Sum(n => n.Tones.Count))), mei = MeiWriter.Write(score) };

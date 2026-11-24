@@ -35,8 +35,17 @@ public sealed record FamilyChoice(IReadOnlyDictionary<string, string> Chosen)
 /// </summary>
 public sealed record ExerciseFamily(IReadOnlyList<Variation> Variations, Func<Key, HandUse, FamilyChoice, Score> Music)
 {
+    /// <summary>
+    /// The keys for what's chosen, where they depend on it: the thumb passing under keeps to the keys where it lands on white
+    /// ones, and where it lands depends on how many fingers it passes under. Null: the exercise's own keys, whatever is chosen.
+    /// </summary>
+    public Func<FamilyChoice, IReadOnlyList<Key>>? Keys { get; init; }
+
     /// <summary>The main exercise: every variation at its usual.</summary>
     public FamilyChoice Usual => new(Variations.ToDictionary(v => v.Key, v => v.UsualKey));
+
+    /// <summary>The keys the family's exercise is played in with this chosen, easiest first.</summary>
+    public IReadOnlyList<Key> KeysOf(Exercise exercise, FamilyChoice variant) => Keys?.Invoke(variant) ?? Exercises.KeysOf(exercise);
 
     /// <summary>A kept choice, as far as it still names this family's variations and their options; the usual for the rest.</summary>
     public FamilyChoice Read(string? kept)
@@ -107,9 +116,12 @@ public static class ExerciseFamilies
             "Up a few fingers, the thumb passes under to the next note, and back: under two, three, four or five fingers.",
             ["The thumb starts moving as soon as it has played, and stays loose.", "Two ways to do it, on different days: let the arm carry the hand along, as in a scale; or keep the hand still, so the thumb does the travelling.", "Under two is the short pass. Under five is a long way for the thumb: slowly, and not if it pulls.", "Left hand: the same, going down from its thumb."],
             "No bump on the thumb's note, round and round as evenly as a scale.",
-            ExerciseKeys.One, Either, 60, 173,
+            ExerciseKeys.WhiteThumb, Either, 60, 173,
             [new("under", "Under", [new("2", "2 fingers"), new("3", "3 fingers"), new("4", "4 fingers"), new("5", "5 fingers")]) { Usual = "3" }],
-            (key, hands, v) => FamilyMusic.ThumbUnder(key, hands, int.Parse(v["under"]))),
+            (key, hands, v) => FamilyMusic.ThumbUnder(key, hands, int.Parse(v["under"])),
+            // Under three or four fingers the thumb lands on the scale's fourth or fifth note (the right hand's going up, the
+            // left's coming down); under two or five, on its third or sixth.
+            keysFor: v => v["under"] is "3" or "4" ? Exercises.WhiteAt(0, 3, 4) : Exercises.WhiteAt(0, 2, 5)),
 
         Family("thirds", "double", "Thirds, three up and back", ExerciseLevel.Beginner,
             "Two notes at once, a third apart and joined: three neighbouring thirds up and back, round and round.",
@@ -131,7 +143,9 @@ public static class ExerciseFamilies
                 new("interval", "Interval", [new("third", "Thirds"), new("fourth", "Fourths"), new("fifth", "Fifths"), new("sixth", "Sixths"), new("octave", "Octaves")]) { Usual = "sixth" },
                 new("quick", "Quick notes", [new("1", "One"), new("2", "Two"), new("3", "Three"), new("4", "Four")]) { Usual = "2" },
             ],
-            (key, hands, v) => FamilyMusic.Bounce(key, hands, Enum.Parse<DoubleNote>(v["interval"], ignoreCase: true), int.Parse(v["quick"]))),
+            (key, hands, v) => FamilyMusic.Bounce(key, hands, Enum.Parse<DoubleNote>(v["interval"], ignoreCase: true), int.Parse(v["quick"])),
+            // Its last bounce is on the step it started from: round a loop that's the next time round's first, so it goes with the close.
+            close: 2),
 
         Family("octave-scale", "double", "Scale in octaves", ExerciseLevel.Intermediate,
             "A major scale with each hand playing octaves, up and back, from a loose wrist.",
@@ -139,7 +153,9 @@ public static class ExerciseFamilies
             "Both keys of every octave sounding together. Speed comes last.",
             ExerciseKeys.Majors, Any, 60, 365,
             [new("octaves", "Octaves", [new("1", "One octave"), new("2", "Two octaves")])],
-            (key, hands, v) => FamilyMusic.OctaveScale(key, hands, int.Parse(v["octaves"]))),
+            (key, hands, v) => FamilyMusic.OctaveScale(key, hands, int.Parse(v["octaves"])),
+            // Its last octave is held only to the end of its bar: there's no bar that's only the close, and all of it goes round.
+            close: 0),
 
         Family("trill-bursts", "trills", "Trill bursts up the scale", ExerciseLevel.Beginner,
             "Four quick notes between two fingers and a stop, then the same a step higher: up an octave and back.",
@@ -190,12 +206,14 @@ public static class ExerciseFamilies
     public static (string Family, string Choice)? Formerly(string exerciseId) => exerciseId == "thumb-four" ? ("thumb-three", "under=4") : null;
 
     // A family from the pianist's lesson: its exercise, whose own music is the family's usual form, its variations, and the
-    // lesson at the place the idea is shown, in seconds.
-    private static (Exercise, ExerciseFamily, ExerciseLesson) Family(string id, string section, string name, ExerciseLevel level, string does, string[] how, string notice, ExerciseKeys keys, HandUse[] hands, double tempo, int at, Variation[] variations, Func<Key, HandUse, FamilyChoice, Score> music)
+    // lesson at the place the idea is shown, in seconds. Its close is how many of its last bars only end it, whatever is chosen
+    // (Exercise.Close); keysFor gives what's chosen keys of its own.
+    private static (Exercise, ExerciseFamily, ExerciseLesson) Family(string id, string section, string name, ExerciseLevel level, string does, string[] how, string notice, ExerciseKeys keys, HandUse[] hands, double tempo, int at, Variation[] variations, Func<Key, HandUse, FamilyChoice, Score> music,
+        int close = 1, Func<FamilyChoice, IReadOnlyList<Key>>? keysFor = null)
     {
-        var family = new ExerciseFamily(variations, music);
+        var family = new ExerciseFamily(variations, music) { Keys = keysFor };
         var usual = family.Usual;
-        var exercise = new Exercise(id, section, name, level, ExerciseKind.Played, does, how, notice) { Music = (key, with) => music(key, with, usual), Keys = keys, Hands = hands, Tempo = tempo };
+        var exercise = new Exercise(id, section, name, level, ExerciseKind.Played, does, how, notice) { Music = (key, with) => music(key, with, usual), Keys = keys, Hands = hands, Tempo = tempo, Close = close };
         return (exercise, family, new ExerciseLesson("Peterson Piano Academy", "I'm a concert pianist. I play these 10 exercises EVERY day.", $"https://www.youtube.com/watch?v=8QI_InPpq0s&t={at}s"));
     }
 }

@@ -23,8 +23,8 @@ else if (music is not null && session?.Item is { } item)
     @if (item.TargetId == "rhythm") { <p class="section-note">Tap this rhythm on any key. The pitch is not judged.</p> }
     <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
                Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
-               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" />
-    <div class="sheet-frame"><Sheet @ref="sheet" Mei="@mei" /></div>
+               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" ShowLoop="@(item.TargetId != "rhythm")" LoopChanged="Looped" />
+    <div class="sheet-frame"><Sheet @ref="sheet" Mei="@(loop ? looped ??= MeiReader.WithRepeat(mei) : mei)" /></div>
     @if (outcome is not null)
     {
         <section class="summary" aria-label="How it went"><PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" /></section>
@@ -47,6 +47,9 @@ else
     private PlayMusic? music;
     private PlayOutcome? outcome;
     private string mei = "";
+    // The play bar's Loop: the exercise goes round, printed with the repeat's signs round all of it.
+    private bool loop;
+    private string? looped;
     private string? sourcePiece;
     private int? sourceBar;
     private string? sourceWarning;
@@ -66,7 +69,7 @@ else
                 problem = session.Problem ?? "This activity opens in another practice screen. Return to the routine and choose it again.";
                 return;
             }
-            mei = session.Execution!.Item.Mei;
+            (mei, looped) = (session.Execution!.Item.Mei, null);
             var score = MeiReader.Read(mei);
             music = new PlayMusic(score, score.Expected());
             tempo = session.Item.Tempo;
@@ -98,6 +101,7 @@ else
     }
 
     private void Starting() => outcome = null;
+    private void Looped(bool on) => loop = on;
     private void PracticeStarting() => session!.Start();
     private void SetTempo(double value) => tempo = Math.Clamp(value, 20, 160);
 
@@ -110,12 +114,14 @@ else
         object measures = how.InTime is { } result
             ? new { inTime = result.InTimeAccuracy, right = result.Right, wrong = result.Wrong, missed = result.Missed, extra = result.Extra, holds = result.HoldsJudged, letGoEarly = result.LetGoEarly, stopped = how.Stopped }
             : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, stopped = how.Stopped };
-        var origin = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
-        var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - origin) / 1e6 }));
+        // The keys kept with it: those played, or round a loop its last pass's, not half an hour's.
+        var keysKept = how.Loop is null ? how.Played : how.Judged;
+        var origin = keysKept.Count == 0 ? 0 : keysKept[0].OnNs;
+        var played = JsonSerializer.Serialize(keysKept.Select(p => new[] { p.Midi, (p.OnNs - origin) / 1e6 }));
         var settings = JsonSerializer.Serialize(new { hands = item.Hands.ToString(), item.Fifths, item.Minor, sourceRevision = session.Execution!.Item.SourceRevision, template = item.TargetId });
         var attempt = new AttemptRecord(0, DateTimeOffset.Now, session.Day, "routine-generated", how.Mode == PlayMode.InTime ? "in time" : "wait", item.Id, null,
-            how.Mode == PlayMode.InTime ? tempo : null, null, settings, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null);
-        try { await session.RecordAsync(attempt, how.Stopped ? 0 : 1); }
+            how.Mode == PlayMode.InTime ? tempo : null, null, settings, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && how.TimesThrough > 0, null);
+        try { await session.RecordAsync(attempt, how.TimesThrough); }
         catch (Exception error) { problem = error.Message; }
     }
 

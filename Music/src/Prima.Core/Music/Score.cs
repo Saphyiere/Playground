@@ -304,6 +304,65 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     }
 
     /// <summary>
+    /// The same music with repeat signs round bars <paramref name="first"/> to <paramref name="last"/> (indexes into
+    /// <see cref="Bars"/>): what a stretch played round and round is printed as.
+    /// </summary>
+    public Score WithRepeat(int first, int last) =>
+        this with { Bars = [.. Bars.Select((bar, i) => i == first || i == last ? bar with { RepeatStart = bar.RepeatStart || i == first, RepeatEnd = bar.RepeatEnd || i == last } : bar)] };
+
+    /// <summary>
+    /// Scores one after another as one: their bars numbered on from 1, a new key or metre starting where a part's differs from
+    /// the one before, and every id given its part's place ("k2r0" for the third part's "r0"; the first part's are kept), its
+    /// marks with it, so no two things share one. A part's own repeat signs stay where they are. A part is written from the
+    /// staves' own clefs (treble over bass): where the part before left a staff in the other one, its own clef comes back at
+    /// the end of that part's last bar, before the bar line, as a clef change is printed.
+    /// </summary>
+    public static Score Join(IReadOnlyList<Score> parts)
+    {
+        var bars = new List<Bar>();
+        var marks = new List<Mark>();
+        var (key, meter) = (parts[0].Key, parts[0].Meter);
+        // The clef each staff has been left in.
+        var clefs = new Dictionary<int, Clef>();
+        static Clef Own(int staff) => staff == 1 ? Clef.Treble : Clef.Bass;
+        for (var p = 0; p < parts.Count; p++)
+        {
+            var part = p;
+            string Id(string id) => part == 0 ? id : $"k{part}{id}";
+            var opening = true;
+            foreach (var (bar, barKey, barMeter) in parts[p].WithSignatures())
+            {
+                List<Voice> voices = [.. bar.Voices.Select(v => v with
+                {
+                    Events = [.. v.Events.Select(e => e switch
+                    {
+                        Notes n => n with { Id = Id(n.Id), Tones = [.. n.Tones.Select(t => t with { Id = Id(t.Id) })] },
+                        Rest r => r with { Id = Id(r.Id) },
+                        _ => e,
+                    })],
+                })];
+                if (opening && bars.Count > 0 && !parts[p].RhythmOnly)
+                {
+                    // The staves this part needs back in their own clef: those left in the other one, unless it opens with a clef itself.
+                    var back = voices.Where(v => v.Layer == 1 && clefs.GetValueOrDefault(v.Staff, Own(v.Staff)) != Own(v.Staff) && v.Events.FirstOrDefault() is not ClefChange { Start: 0 }).Select(v => v.Staff).ToHashSet();
+                    if (back.Count > 0)
+                    {
+                        bars[^1] = bars[^1] with { Voices = [.. bars[^1].Voices.Select(v => v.Layer == 1 && back.Contains(v.Staff) ? v with { Events = [.. v.Events, new ClefChange(v.Events.Sum(e => e.Length), Own(v.Staff))] } : v)] };
+                        foreach (var staff in back) clefs[staff] = Own(staff);
+                    }
+                }
+                foreach (var (staff, change) in voices.SelectMany(v => v.Events.OfType<ClefChange>().Select(c => (v.Staff, c)))) clefs[staff] = change.Clef;
+                opening = false;
+                // The signature is what's printed: a minor key after its relative major changes nothing on the staff.
+                bars.Add(bar with { Number = bars.Count + 1, Voices = voices, NewKey = barKey.Fifths != key.Fifths ? barKey : null, NewMeter = barMeter != meter ? barMeter : null });
+                (key, meter) = (barKey, barMeter);
+            }
+            marks.AddRange(parts[p].Marks.Select(m => m with { StartId = Id(m.StartId), EndId = m.EndId is null ? null : Id(m.EndId) }));
+        }
+        return parts[0] with { Bars = bars, Marks = marks, FileMarks = [] };
+    }
+
+    /// <summary>
     /// The notes to play through bars in an order (<see cref="PlayOrder"/>'s, or a loop's): each bar's notes timed on from the bar
     /// before, so the music's own ticks hold until the first jump; a note played again has its pass after its id ("n12~2").
     /// </summary>

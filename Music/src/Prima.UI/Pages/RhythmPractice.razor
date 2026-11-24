@@ -31,6 +31,12 @@
         <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
     }
+    @* Loop: lit, the next try starts by itself a few seconds after each one's result, set after set, until it's turned off or you leave. *@
+    <div class="play-mode play-loop drill-loop">
+        <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(loop ? "true" : "false")" aria-label="@(loop ? "Loop: on. The next try starts by itself" : "Loop: off. Each try waits for you")" @onclick="() => SetLoop(!loop)">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
+        </button>
+    </div>
     @if (session?.Phase is not (Phase.CountIn or Phase.Playing))
     {
         <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(score is null)" @onclick="Next">@(tryIndex >= Tries ? "Another set" : result is null ? "Start" : "Next try")</button>
@@ -85,6 +91,10 @@
     private readonly List<double> accuracies = [];
     private RhythmState? before;
     private DateTime started;
+    // Loop: the next try starts by itself a few seconds after a try's result, until it's turned off; what's waiting to start it.
+    private bool loop;
+    private CancellationTokenSource? onward;
+    private bool disposed;
 
     private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
@@ -108,8 +118,29 @@
         if (!await routineSession.LoadAsync(ExecutionId, "drill", "rhythm")) return;
         state = await Store.GetTrackAsync<RhythmState>("rhythm") ?? RhythmState.Start;
         if (routineSession.Item is { } requested) state = state with { Level = requested.Step };
+        loop = (await Store.GetSettingsAsync()).GetValueOrDefault(PlayAlong.LoopKeyOf("rhythm")) == "on";
         started = DateTime.Now;
         NewRhythm();
+    }
+
+    private async Task SetLoop(bool on)
+    {
+        loop = on;
+        onward?.Cancel();
+        await Store.SetSettingAsync(PlayAlong.LoopKeyOf("rhythm"), on ? "on" : "off");
+    }
+
+    // Round the loop: a few seconds for the result to be read, then the next try (after a set's last, the next set's first).
+    private async Task GoOn()
+    {
+        onward?.Cancel();
+        var waiting = onward = new CancellationTokenSource();
+        try { await Task.Delay(4000, waiting.Token); }
+        catch (TaskCanceledException) { return; }
+        if (!loop || disposed || session?.Phase is Phase.CountIn or Phase.Playing) return;
+
+        if (tryIndex >= Tries) await Next();
+        await Next();
     }
 
     private void NewRhythm()
@@ -120,6 +151,7 @@
 
     private async Task Next()
     {
+        onward?.Cancel();
         if (tryIndex >= Tries)
         {
             (tryIndex, result) = (0, null);
@@ -193,6 +225,7 @@
             started = DateTime.Now;
         }
         StateHasChanged();
+        if (loop && !interrupted) _ = InvokeAsync(GoOn);
     }
 
     private async Task StopRoutine()
@@ -227,6 +260,8 @@
 
     public void Dispose()
     {
+        disposed = true;
+        onward?.Cancel();
         session?.Dispose();
     }
 }

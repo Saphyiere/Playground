@@ -277,7 +277,7 @@ public class WorksTests
     [Fact]
     public void ASetWithOnePieceHereIsThatPieceUnderItsOwnName()
     {
-        var work = Assert.Single(Works.Of([Edition("allemande", "Allemande", "English Suites"), .. Pathetique]).Where(w => w.Kind == "Dances"));
+        var work = Assert.Single(Works.Of([Edition("allemande", "Allemande", "English Suites"), .. Pathetique]), w => w.Kind == "Dances");
 
         Assert.Equal("Allemande", work.Title);
         Assert.Equal("Allemande", Assert.Single(work.Parts).Name);

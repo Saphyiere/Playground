@@ -30,10 +30,11 @@ else
 
     <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name"><KeyboardLamp /></PageHead>
 
-    @* What you do, in a line. One that's played then has what to play (its key and hands, and for a family a row for each of its
-       variations), the play bar every screen with a tempo shares, its sheet, and the run's summary; in landscape the words sit
-       beside the music, so both show at the piano. The words are how, what to notice, what it trains and the lesson its idea is
-       from, what's been done of it, the switch that keeps it in My routine, and what comes next. *@
+    @* What you do, in a line. One that's played then has what to play (its key, or all its keys one after another, the hands,
+       and for a family a row for each of its variations), the play bar every screen with a tempo shares, with its Loop, its
+       sheet, and the run's summary; in landscape the words sit beside the music, so both show at the piano. The words are how,
+       what to notice, what it trains and the lesson its idea is from, what's been done of it, the switch that keeps it in My
+       routine, and what comes next. *@
     <div @key="Id" class="exercise @(exercise.Kind == ExerciseKind.Played ? "exercise-played" : "") @(choosing ? "" : "exercise-fixed")">
         <p class="exercise-does">@exercise.Does</p>
 
@@ -47,8 +48,11 @@ else
                         <div class="control-row">
                             <span class="control-label">Key</span>
                             <button type="button" class="mu-btn" aria-label="An easier key" disabled="@(playing || keys.IndexOf(key) == 0)" @onclick="() => Choose(keys[keys.IndexOf(key) - 1], hands)">−</button>
-                            <span class="control-value exercise-key">@key.Name</span>
+                            <span class="control-value exercise-key">@exercise.KeyName(key)</span>
                             <button type="button" class="mu-btn" aria-label="A harder key" disabled="@(playing || keys.IndexOf(key) == keys.Count - 1)" @onclick="() => Choose(keys[keys.IndexOf(key) + 1], hands)">+</button>
+                            @* Through the keys: all of them one after another as one piece of music, from the key showing on
+                               through the list and round to the one before it, each running into the next. *@
+                            <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All {keys.Count}, from {exercise.KeyName(key)}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
                         </div>
                     }
                     @if (exercise.Hands.Count > 1)
@@ -89,7 +93,7 @@ else
             }
 
             <div class="exercise-music">
-                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" />
+                <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped" />
 
                 <div class="sheet-frame">
                     <Sheet @ref="sheet" Mei="@mei" />
@@ -160,6 +164,10 @@ else
     private List<Key> keys = [];
     private Key key;
     private HandUse hands;
+    // All its keys one after another, from the key showing, as one piece of music.
+    private bool through;
+    // The play bar's Loop: the music goes round, and is printed with the repeat's signs.
+    private bool loop;
     private double tempo = 60;
     private string mei = "";
     private PlayMusic? music;
@@ -190,54 +198,79 @@ else
         await Recount();
         if (exercise.Kind != ExerciseKind.Played) return;
 
-        // As it was last played, where that's still one of its keys and hands; else its first key and its first hand.
-        keys = [.. Exercises.KeysOf(exercise)];
+        // A family's variations as last chosen; opened by the id of an exercise that's now one of its variations, as that was. A
+        // routine asks for a key, hands and a tempo and no variation, so it gets the main exercise.
         var last = await Store.GetTrackAsync<ExerciseChoice>($"exercise:{Id}");
+        family = ExerciseFamilies.Of(exercise.Id);
+        variant = family?.Read((routineSession.Item is null ? last?.Variation : null) ?? ExerciseFamilies.Formerly(Id)?.Choice);
+        // As it was last played, where that's still one of its keys and hands; else its first key and its first hand.
+        keys = Keys();
         key = last is not null && keys.Contains(new Key(last.Fifths, last.Minor)) ? new Key(last.Fifths, last.Minor) : keys[0];
         hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
         tempo = last?.Tempo ?? exercise.Tempo;
-        // A family's variations as last chosen; opened by the id of an exercise that's now one of its variations, as that was. A
-        // routine asks for a key, hands and a tempo and no variation, so it gets the main exercise.
-        family = ExerciseFamilies.Of(exercise.Id);
-        variant = family?.Read((routineSession.Item is null ? last?.Variation : null) ?? ExerciseFamilies.Formerly(Id)?.Choice);
-        if (routineSession.Item is { } requested) (key, hands, tempo) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo);
+        through = last?.Through == true;
+        // A routine's activity is the one key it was planned in.
+        if (routineSession.Item is { } requested) (key, hands, tempo, through) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo, false);
         Build();
     }
 
     private async Task Recount() => was = (await Store.GetDoneAsync("exercise")).FirstOrDefault(d => d.SetId == Id);
 
+    // The keys it's played in: the exercise's, or those of what's chosen of a family's variations where they have their own.
+    private List<Key> Keys() => [.. family is not null && variant is not null ? family.KeysOf(exercise!, variant) : Exercises.KeysOf(exercise!)];
+
     // The music for a key and hands: a family's as its variations are chosen, any other's as it is.
     private Score Written(Key inKey, HandUse with) => family is not null && variant is not null ? family.Music(inKey, with, variant) : exercise!.Music!(inKey, with);
 
-    // What's kept of how it was last played.
-    private ExerciseChoice Kept => new(key.Fifths, key.Minor, hands, tempo) { Variation = variant?.ToString() };
-
+    // The music: the exercise in its key, or through all its keys; looped, with repeat signs round the bars that go round (all
+    // but the close). The play bar plays those again and again when its Loop is on, and the music once through when it's off.
     private void Build()
     {
-        var score = Written(key, hands);
+        var score = through ? Exercises.Through(exercise!, key, hands, Written, keys) : Written(key, hands);
+        var round = Exercises.Round(exercise!, score);
+        if (loop) score = score.WithRepeat(round[0], round[^1]);
         mei = MeiWriter.Write(score, tempo);
-        music = new PlayMusic(score, score.Expected());
+        music = new PlayMusic(score, score.Expected()) { Round = round };
         outcome = null;
     }
+
+    // What's kept of how it was last played. A routine's activity leaves that as it was.
+    private Task Keep() => routineSession?.IsRoutine == true ? Task.CompletedTask : Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo) { Variation = variant?.ToString(), Through = through });
 
     private async Task Choose(Key toKey, HandUse toHands)
     {
         (key, hands) = (toKey, toHands);
         Build();
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", Kept);
+        await Keep();
     }
 
-    // One of a family's variations set to another of its options.
+    // One of a family's variations set to another of its options. Where what's chosen has keys of its own (the thumb's notes
+    // kept white), a key it doesn't have gives way to its first.
     private Task Vary(string variation, string option)
     {
         variant = variant!.With(variation, option);
-        return Choose(key, hands);
+        keys = Keys();
+        return Choose(keys.Contains(key) ? key : keys[0], hands);
+    }
+
+    private async Task GoThrough(bool on)
+    {
+        through = on;
+        Build();
+        await Keep();
+    }
+
+    // The play bar's Loop, as it's read when the bar opens and as it's turned on or off: the repeat's signs go on or come off.
+    private void Looped(bool on)
+    {
+        loop = on;
+        if (exercise?.Kind == ExerciseKind.Played && music is not null && !playing) Build();
     }
 
     private async Task SetTempo(double bpm)
     {
         tempo = Math.Clamp(bpm, 20, 240);
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", Kept);
+        await Keep();
     }
 
     private void Starting()
@@ -260,12 +293,19 @@ else
         object measures = how.InTime is { } r
             ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, stopped = how.Stopped }
             : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, stopped = how.Stopped };
-        var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
-        var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
-        var chosen = variant is null ? JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() }) : JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString(), variation = variant.ToString() });
+        // The keys kept with it: those played, or round a loop its last pass's, not half an hour's.
+        var keysKept = how.Loop is null ? how.Played : how.Judged;
+        var firstNs = keysKept.Count == 0 ? 0 : keysKept[0].OnNs;
+        var played = JsonSerializer.Serialize(keysKept.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
+        // How it was played: its key (the one it started from, through the keys), the hands, what was chosen of a family's
+        // variations, and round a loop its passes.
+        var chosen = new Dictionary<string, object> { ["key"] = key.Name, ["hands"] = hands.ToString() };
+        if (variant is not null) chosen["variation"] = variant.ToString();
+        if (through) chosen["through"] = true;
+        if (how.Loop is not null) chosen["passes"] = how.Passes.Count;
         var inTime = how.Mode == PlayMode.InTime;
-        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, chosen, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null);
-        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, how.Stopped ? 0 : 1);
+        var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, JsonSerializer.Serialize(chosen), played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && how.TimesThrough > 0, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, how.TimesThrough);
         else
         {
             await Store.AddAttemptAsync(attempt);

@@ -484,6 +484,78 @@ public class MusicTests
     }
 
     [Fact]
+    public void Repeat_signs_and_endings_are_written_as_they_are_read()
+    {
+        var read = MeiReader.Read(Repeats);
+
+        var again = MeiReader.Read(MeiWriter.Write(read));
+
+        Assert.Equal(read.Bars.Select(b => (b.RepeatStart, b.RepeatEnd, string.Join(",", b.Endings))), again.Bars.Select(b => (b.RepeatStart, b.RepeatEnd, string.Join(",", b.Endings))));
+        Assert.Equal(read.PlayOrder(), again.PlayOrder());
+        // Signs put round a stretch are a repeat of it.
+        var plain = read with { Bars = [.. read.Bars.Select(b => b with { RepeatStart = false, RepeatEnd = false, Endings = [] })] };
+        Assert.Equal([0, 1, 2, 3, 1, 2, 3, 4, 5], MeiReader.Read(MeiWriter.Write(plain.WithRepeat(1, 3))).PlayOrder());
+    }
+
+    // G sharp minor's raised seventh is F double sharp. Printed once in a bar, the next one isn't printed again and is said as
+    // it sounds: "ss". Written "x" there, Verovio dropped it with a warning.
+    [Fact]
+    public void A_double_sharp_said_again_in_its_bar_is_written_as_it_sounds()
+    {
+        static Notes N(string id, int start) => new(id, start, Ticks.Half, [new Tone(id, new Spelled(Step.F, 2, 4))]);
+        var score = new Score(new Key(5, true), new Meter(4, 4), [new Bar(1, [new Voice(1, [N("a", 0), N("b", Ticks.Half)])])]);
+
+        var mei = MeiWriter.Write(score);
+
+        Assert.Contains("xml:id=\"a\" pname=\"f\" oct=\"4\" dur=\"2\" accid=\"x\"", mei);
+        Assert.Contains("xml:id=\"b\" pname=\"f\" oct=\"4\" dur=\"2\" accid.ges=\"ss\"", mei);
+        Assert.Equal([67, 67], MeiReader.Read(mei).Expected().Select(n => n.Midi));
+    }
+
+    [Fact]
+    public void Scores_joined_are_one_piece_with_each_parts_key_and_its_own_ids()
+    {
+        static Score Part(Key key) => new(key, new Meter(4, 4), [new Bar(1, [new Voice(1, [new Notes("a", 0, Ticks.Whole, [new Tone("a", key.Degree(0, 4))])])])]) { Marks = [new Mark(MarkKind.Dynamic, "a", Text: "p")] };
+
+        var joined = Score.Join([Part(new Key(0)), Part(new Key(0, true)), Part(new Key(2))]);
+
+        Assert.Equal([1, 2, 3], joined.Bars.Select(b => b.Number));
+        // A minor after C major prints no new signature; D major does.
+        Assert.Equal(new Key?[] { null, null, new Key(2) }, joined.Bars.Select(b => b.NewKey));
+        Assert.Equal(["a", "k1a", "k2a"], joined.Marks.Select(m => m.StartId));
+        Assert.Equal([60, 69, 62], joined.Expected().Select(n => n.Midi));
+        Assert.Equal([0L, 1920, 3840], MeiReader.Read(MeiWriter.Write(joined)).Expected().Select(n => n.Tick));
+    }
+
+    [Fact]
+    public void A_part_joined_after_one_that_changed_clef_starts_in_the_staffs_own()
+    {
+        // A part is written from treble over bass. One that leaves the upper staff in the bass clef would have the next read in
+        // it: the staff's own clef comes back at the end of its last bar, before the bar line, unless the next part opens with a
+        // clef of its own.
+        static Voice Line(params Event[] events) => new(1, [.. events]);
+        static Score Part(params Event[] events) => new(new Key(0), new Meter(4, 4), [new Bar(1, [Line(events), new Voice(2, [new Rest("x", 0, Ticks.Whole)])])]);
+        var low = Part(new ClefChange(0, Clef.Bass), new Notes("a", 0, Ticks.Whole, [new Tone("a", P(Step.C, 3))]));
+        var high = Part(new Notes("a", 0, Ticks.Whole, [new Tone("a", P(Step.C, 5))]));
+
+        var joined = Score.Join([low, high, high, low, low]);
+        List<Clef?> Opening() => [.. joined.Bars.Select(b => (b.Voices.First(v => v.Staff == 1).Events[0] as ClefChange)?.Clef)];
+        List<(int Start, Clef Clef)?> Closing() => [.. joined.Bars.Select(b => b.Voices.First(v => v.Staff == 1).Events[^1] is ClefChange c ? (c.Start, c.Clef) : ((int, Clef)?)null)];
+
+        // After the low part the treble clef comes back once, at the end of that part's bar; a part that opens with its own
+        // clef keeps it, and says it each time.
+        Assert.Equal([Clef.Bass, null, null, Clef.Bass, Clef.Bass], Opening());
+        Assert.Equal([(Ticks.Whole, Clef.Treble), null, null, null, null], Closing());
+        // The lower staff never left its own clef: nothing is added to it.
+        Assert.All(joined.Bars, b => Assert.IsType<Rest>(Assert.Single(b.Voices.First(v => v.Staff == 2).Events)));
+        // Read back, the clef is where it was put: after the bar's note.
+        var read = MeiReader.Read(MeiWriter.Write(joined));
+        Assert.Equal((Ticks.Whole, Clef.Treble), read.Bars[0].Voices.First(v => v.Staff == 1).Events[^1] is ClefChange back ? (back.Start, back.Clef) : default);
+        // The clef changes take no time, and it reads back as the same notes.
+        Assert.Equal([48, 72, 72, 48, 48], MeiReader.Read(MeiWriter.Write(joined)).Expected().Select(n => n.Midi));
+    }
+
+    [Fact]
     public void A_loop_with_no_repeat_in_it_is_its_bars_in_order()
     {
         var score = MeiReader.Read(MeiWriter.Write(new Score(new Key(0), new Meter(4, 4), [.. Enumerable.Range(1, 6).Select(n =>

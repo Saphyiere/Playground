@@ -198,6 +198,53 @@ public class ExerciseFamilyTests
         }
     }
 
+    [Theory]
+    [MemberData(nameof(Families))]
+    public void Whatever_is_chosen_a_family_goes_round_a_loop_and_through_its_keys(string id)
+    {
+        var exercise = ExerciseFamilies.All.First(e => e.Id == id);
+        var family = ExerciseFamilies.Of(id)!;
+        // The main exercise's keys are those of every variation at its usual.
+        Assert.Equal(Exercises.KeysOf(exercise), family.KeysOf(exercise, family.Usual));
+        foreach (var variant in family.Every())
+        {
+            var keys = family.KeysOf(exercise, variant);
+            Assert.True(keys.Count >= 6 && keys[0] == C, $"{id} ({variant}) has {keys.Count} keys.");
+            foreach (var hands in exercise.Hands)
+            {
+                var where = $"{id} ({variant}), {hands}";
+                foreach (var key in keys)
+                {
+                    var score = family.Music(key, hands, variant);
+                    // The close is the same bars whatever is chosen, and the one it ends on only holds: nothing in it is struck
+                    // after its downbeat.
+                    Assert.True(score.Bars.Count > exercise.Close, $"{where} in {key.Name} is all close.");
+                    if (exercise.Close > 0) Assert.All(score.Bars[^1].Voices.SelectMany(v => v.Events.OfType<Notes>()), n => Assert.True(n.Start == 0, $"{where} in {key.Name}: its last bar isn't only its close."));
+                }
+                ExerciseTests.GoesRound(exercise, family.Music(C, hands, variant));
+                ExerciseTests.GoesThroughItsKeys(exercise, hands, (k, h) => family.Music(k, h, variant), keys, $"{where} through the keys");
+            }
+        }
+    }
+
+    [Fact]
+    public void A_loop_takes_a_family_round_where_its_pattern_starts_again()
+    {
+        // The bounce's ninth bar is on the step it started from: round a loop that's the next time round's first bar, so it's
+        // left with the close, and no step is played twice running.
+        var bounce = Exercises.Find("bounce")!;
+        var bounced = bounce.Music!(C, HandUse.Right);
+        Assert.Equal(Enumerable.Range(0, 8), Exercises.Round(bounce, bounced));
+        Assert.Equal(bounced.Performed([0]).Select(n => n.Midi), bounced.Performed([8]).Select(n => n.Midi));
+        Assert.NotEqual(bounced.Performed([0]).Select(n => n.Midi), bounced.Performed([7]).Select(n => n.Midi));
+
+        // The scale in octaves holds its last octave only to the end of its bar: all of it goes round.
+        var octaves = Exercises.Find("octave-scale")!;
+        Assert.Equal([0, 1], Exercises.Round(octaves, octaves.Music!(C, HandUse.Right)));
+        // The others go round without the bar of the held note they end on.
+        Assert.All(ExerciseFamilies.All.Where(e => e.Id is not ("bounce" or "octave-scale")), e => Assert.Equal(1, e.Close));
+    }
+
     [Fact]
     public void A_kept_choice_is_read_as_far_as_it_still_means_something()
     {

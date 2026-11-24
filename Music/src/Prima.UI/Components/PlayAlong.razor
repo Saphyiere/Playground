@@ -121,6 +121,16 @@
         {
             @tempoPick
         }
+        @if (ShowLoop)
+        {
+            @* Loop: lit, a run goes round and round until Stop, the music's bars that go round (an exercise's without its close)
+               again and again, each time round a pass. Kept for the screen, as the mode is. *@
+            <div class="play-mode play-loop">
+                <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@On(Looping)" aria-label="@(Looping ? "Loop: on. It goes round until you stop it" : "Loop: off. It plays once through")" @onclick="() => SetLoop(!Looping)">
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
+                </button>
+            </div>
+        }
         @if (ShowStart)
         {
             @* The key looks off when there's nothing it can start (no music yet, a set all played), and with no piano plugged in,
@@ -209,6 +219,20 @@
     [Parameter] public bool Again { get; set; }
 
     /// <summary>
+    /// Loop on the bar. Lit, a run doesn't end: the music's bars that go round (<see cref="PlayMusic.Round"/>: an exercise's
+    /// without its close, or all of them) are played again and again until Stop, In time without a break and with no count-in
+    /// after the first, each time round a pass the bar counts and scores. Listen still plays the music once. Kept for each
+    /// screen, like the mode. A screen with a loop of its own (a piece's, on its bars) leaves this off.
+    /// </summary>
+    [Parameter] public bool ShowLoop { get; set; }
+
+    /// <summary>Loop as it's read when the bar opens, and each time it's turned on or off: for a screen that prints the repeat's signs.</summary>
+    [Parameter] public EventCallback<bool> LoopChanged { get; set; }
+
+    /// <summary>Whether Loop is on.</summary>
+    public bool Looping { get; private set; }
+
+    /// <summary>
     /// A metronome on the bar (a piece's): its key, before the tempo, starts and stops a click at the tempo, accented on each bar's
     /// first beat by the music's metre where it starts, with nothing judged, to play to as you like. The tempo shows then in either
     /// mode. A run, leaving, or Prima put away stops it.
@@ -285,6 +309,9 @@
     /// <summary>Where a screen's mode is kept, by the screen's name: a screen that sets the mode before the bar is made keeps it there.</summary>
     public static string ModeKeyOf(string name) => $"Play.Mode.{name}";
 
+    /// <summary>Where a screen's Loop is kept, by the screen's name ("on" when it's lit).</summary>
+    public static string LoopKeyOf(string name) => $"Play.Loop.{name}";
+
     // The screen's own mode, as kept, and what was last asked for in its place.
     private PlayMode? kept;
     private PlayMode? asked;
@@ -307,9 +334,21 @@
         Keyboard.Received += Heard;
         Keyboard.Changed += Plugged;
         Lifecycle.Pausing += Hush;
-        kept = (await Store.GetSettingsAsync()).GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
+        var stored = await Store.GetSettingsAsync();
+        kept = stored.GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
         (asked, Mode) = (Ask, Ask ?? kept.Value);
         await ModeChanged.InvokeAsync(Mode);
+        Looping = ShowLoop && stored.GetValueOrDefault(LoopKeyOf(Name)) == "on";
+        if (Looping) await LoopChanged.InvokeAsync(true);
+    }
+
+    private async Task SetLoop(bool on)
+    {
+        if (Running) return;
+
+        Looping = on;
+        await Store.SetSettingAsync(LoopKeyOf(Name), on ? "on" : "off");
+        await LoopChanged.InvokeAsync(on);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -441,6 +480,10 @@
         await OnStarting.InvokeAsync();
         if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return false;
         if (!listen) await OnPracticeStarting.InvokeAsync();
+        // Loop on the bar: the music's round, as many times as fill half an hour (until stopped, for anyone's purposes). A
+        // screen with a loop of its own has made it already, Listen plays the music as it's written, and a rhythm tapped on
+        // any key isn't scored a pass at a time, so it isn't looped.
+        if (Looping && !listen && !RhythmOnly && music.LoopBars is null) music = music.Looped(music.TimesRound(Tempo));
 
         // A run stopped to start again (back a bar) leaves nothing ticking.
         session?.Dispose();
@@ -614,7 +657,15 @@
         var (timeAt, heardAt) = Judged(run, music);
         var played = run.Played.Select(p => p with { OnNs = heardAt(p.OnNs), OffNs = heardAt(p.OffNs) }).ToList();
         var damper = run.Damper.Select(d => (heardAt(d.DownNs), heardAt(d.UpNs))).ToList();
-        var result = due.Count == 0 ? null : PassageScorer.Score(due, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, played, Settings.TimingOffsetMs, music.Ornamented, damper,
+        // Round a loop, how many times round were played to their end: when one was, the run's result is the last one's (below),
+        // and the whole run, which can be a great many notes, isn't scored for nothing.
+        var whole = 0;
+        if (loop is not null && due.Count > 0)
+        {
+            var (reached, lastOfFirst) = (due.Max(n => n.Tick), music.Notes.Where(n => n.Tick < passFrom + passTicks).Max(n => n.Tick));
+            whole = reached < lastOfFirst ? 0 : (int)((reached - lastOfFirst) / passTicks) + 1;
+        }
+        var result = due.Count == 0 || whole > 0 ? null : PassageScorer.Score(due, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats, played, Settings.TimingOffsetMs, music.Ornamented, damper,
             Markings.Of(music.Score, due), range, music.Rolled);
         if (RhythmOnly && due.Count > 0)
         {
@@ -629,17 +680,22 @@
         // count. Any the run hadn't scored yet are now, any it scored after the last key was played go, and the run's result is
         // the last pass's, which is how the loop stood when it was left. Stopped in its first time round, the result is what was
         // played of that.
+        IReadOnlyList<PlayedNote> resultKeys = run.Played;
         if (loop is not null && due.Count > 0)
         {
-            var (reached, lastOfFirst) = (due.Max(n => n.Tick), music.Notes.Where(n => n.Tick < passFrom + passTicks).Max(n => n.Tick));
-            var whole = reached < lastOfFirst ? 0 : (int)((reached - lastOfFirst) / passTicks) + 1;
             passes.RemoveRange(Math.Min(whole, passes.Count), Math.Max(0, passes.Count - whole));
             while (passes.Count < whole)
             {
                 var pass = Pass(music, run, passes.Count, expression: false);
                 passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes) });
             }
-            if (whole > 0) result = Pass(music, run, whole - 1, expression: true);
+            if (whole > 0)
+            {
+                result = Pass(music, run, whole - 1, expression: true);
+                // That pass's own keys, as they came: from half a window before its first note to half a window before the next's.
+                var (opens, closes) = PassKeys(music, run, whole - 1);
+                resultKeys = [.. run.Played.Where(p => p.OnNs >= opens && p.OnNs < closes)];
+            }
         }
         List<SheetMark> marks = [.. (result?.Notes ?? []).Select(n => n.Outcome switch
         {
@@ -649,9 +705,19 @@
             _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
         })];
         if (result is not null && sheet is not null) await sheet.ShowMarks(marks);
-        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from), Loop = loop, Passes = [.. passes], Marks = marks };
+        last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from), Loop = loop, Passes = [.. passes], Marks = marks, Judged = resultKeys };
         StateHasChanged();
         await OnFinished.InvokeAsync(last);
+    }
+
+    // When a time round a loop's own keys come, on the system clock: from half a window before its first note to half a window
+    // before the next time round's first, so the next one's first keys aren't extra in it.
+    private (double Opens, double Closes) PassKeys(PlayMusic music, PlaySession run, int index)
+    {
+        var (from, beatNs, start) = (music.FromTick / (double)music.BeatTicks, 60e9 / Tempo, passFrom + index * passTicks);
+        var first = music.Notes.Where(n => n.Tick >= start && n.Tick < start + passTicks).Min(n => n.Tick);
+        var half = Grading.WindowNs(beatNs) / 2 - Settings.TimingOffsetMs * 1e6;
+        return (run.TimeAt(first / (double)music.BeatTicks - from) - half, run.TimeAt((first + passTicks) / (double)music.BeatTicks - from) - half);
     }
 
     // One time round a loop scored by itself: its notes against the keys played for them, those still down too. Its keys start
@@ -750,7 +816,7 @@
             await sheet.ShowMarks(marks);
         }
         var result = lastPass is { } start ? judge.Stretch(start, start + passTicks) : judge.Result();
-        last = new PlayOutcome(PlayMode.WaitForMe, null, result, [.. heard], stopped, bar) { Loop = loop, Passes = [.. passes], Marks = marks };
+        last = new PlayOutcome(PlayMode.WaitForMe, null, result, [.. heard], stopped, bar) { Loop = loop, Passes = [.. passes], Marks = marks, Judged = [.. heard] };
         StateHasChanged();
         try { await OnFinished.InvokeAsync(last); completion?.TrySetResult(); }
         catch (Exception error) { completion?.TrySetException(error); throw; }

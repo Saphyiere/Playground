@@ -34,6 +34,35 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// <summary>A loop: the run is its first this-many bars again and again, each time round a pass. Null when it isn't one.</summary>
     public int? LoopBars { get; init; }
 
+    /// <summary>
+    /// The bars that go round when the play bar's Loop is on, by their place in the score, in order: an exercise's without its
+    /// close, so the pattern goes straight on. Null: every bar.
+    /// </summary>
+    public IReadOnlyList<int>? Round { get; init; }
+
+    /// <summary>
+    /// The run round and round: its round (<see cref="Round"/>) <paramref name="times"/> over, each time a pass, with the notes it
+    /// asked for (one hand's, say) each time round. What the play bar's Loop plays.
+    /// </summary>
+    public PlayMusic Looped(int times)
+    {
+        var round = Round ?? [.. Enumerable.Range(0, Score.Bars.Count)];
+        IReadOnlyList<int> order = [.. Enumerable.Repeat(round, Math.Max(1, times)).SelectMany(r => r)];
+        var asked = Notes.Select(n => n.WrittenId).ToHashSet();
+        return this with { Notes = [.. Score.Performed(order).Where(n => asked.Contains(n.WrittenId))], Order = order, LoopBars = round.Count, PianoPart = null };
+    }
+
+    /// <summary>
+    /// How many times round fill half an hour at a tempo (the first metre's beats a minute): as good as until stopped, without
+    /// a run so long that its path and its notes weigh on the tablet (some twelve hundred bars at most).
+    /// </summary>
+    public int TimesRound(double tempo)
+    {
+        var round = Round ?? [.. Enumerable.Range(0, Score.Bars.Count)];
+        var beats = Score.BarTimes(round).Sum(b => b.Length) / (double)BeatTicks;
+        return (int)Math.Clamp(Math.Ceiling(30 * tempo / Math.Max(1, beats)), 2, Math.Max(2, 1200 / Math.Max(1, round.Count)));
+    }
+
     public int BeatTicks => Score.Meter.BeatTicks;
 
     /// <summary>The opening pickup's length: Verovio's times count from the very start, a pickup's notes included.</summary>
@@ -96,6 +125,18 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
 
     /// <summary>The marks it left on the music, as they show once it's over (round a loop, its last pass's).</summary>
     public IReadOnlyList<SheetMark> Marks { get; init; } = [];
+
+    /// <summary>
+    /// The keys the result is of: all that were played, or round a loop In time those of its last pass played to its end, for a
+    /// screen with a measure of its own to take from them (a scale's evenness).
+    /// </summary>
+    public IReadOnlyList<PlayedNote> Judged { get; init; } = [];
+
+    /// <summary>
+    /// How many times the music was played to its end: once for a run that wasn't stopped, and round a loop, which only Stop
+    /// ends, its passes. What a run counts as, and whether its result is of the music whole.
+    /// </summary>
+    public int TimesThrough => Loop is null ? Stopped ? 0 : 1 : Passes.Count;
 }
 
 /// <summary>What went wrong in each bar of a run or a pass that had something wrong.</summary>
@@ -122,11 +163,13 @@ public static class Trouble
 }
 
 /// <summary>
-/// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo, and for a family
-/// what's chosen of its variations ("interval=sixth;quick=2"). The exercises pinned as My routine are kept together, as their
-/// ids ("exercise-routine").
+/// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo, for a family
+/// what's chosen of its variations ("interval=sixth;quick=2"), and whether it went through all its keys from that one. The
+/// exercises pinned as My routine are kept together, as their ids ("exercise-routine").
 /// </summary>
 public sealed record ExerciseChoice(int Fifths, bool Minor, HandUse Hands, double Tempo)
 {
     public string? Variation { get; init; }
+
+    public bool Through { get; init; }
 }

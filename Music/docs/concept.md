@@ -119,7 +119,9 @@ can be turned off in Settings.
 ### Playing to a tempo
 
 Every screen that plays music to a tempo has the same play bar: the screen's own figures, then the mode, the tempo and Start
-(the piano's C♯4). Sight-read, a Library piece, Scales, Arpeggios and Finger independence all play this way.
+(the piano's C♯4). Sight-read, a Library piece, an exercise, a routine's exercise, Scales, Arpeggios and Finger independence
+all play this way: it's the one engine for music played to a tempo, so what it can do (the modes, Listen, Loop) is the same
+wherever it is.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and a summary after (see [The summary](#the-summary) and
@@ -157,6 +159,14 @@ Every screen that plays music to a tempo has the same play bar: the screen's own
   **Marks as you play**, each on or off, for playing with only the click and the page. With the cursor off the music still
   scrolls with the run. With the marks off every note is still judged, and the marks show when the run ends, to go back
   over. Wait for me always shows where it's waiting, and "together" over a chord that needs it.
+- **Loop**, on the bar of an exercise, a technique drill and a routine's exercise, beside the mode: lit, a run doesn't end.
+  The music goes round and round until Stop, In time without a break and with no count-in after the first, and it's printed
+  with repeat signs round the bars that go round. An exercise goes round without its close (the long note or chord it ends
+  on), so the pattern runs straight on into itself; a scale, an arpeggio or a routine's exercise goes round whole. Each time
+  round is a **pass**, counted in the bar and scored by itself as a piece's loop is, and a stopped run is its last pass
+  played to its end, with every pass in its summary. A loop is as many times round as fill half an hour at the tempo, which
+  is as good as until stopped. Listen still plays the music once, as written. Loop is kept for each screen, like the mode. A
+  piece has its own loop, on the bars you choose (see [Library](#library)).
 
 ### Drills
 
@@ -973,7 +983,16 @@ keys as red heads beside it, named. The next item takes the marks off; one askin
 name the same notes: "Off: note 2, E5 for F5", "The shape was right, from the wrong first note: …", and for a chord "Not quite:
 F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4 extra". A set's summary lists the single notes
 and chords you missed. The drills with steps show the step beside the item count, with − and + to choose it: a new set starts at
-the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back.
+the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
+signature alone and asks for its tonic; the signature with no sharps or flats is a bare staff, so its prompt says so ("Play
+the tonic of this key: major (no sharps or flats)"), where a bare staff with nothing said looked like music that hadn't
+drawn.
+
+**Loop** is on every drill's bar, kept for each drill. On the drills read from a staff it runs the sets together: a set
+is kept as it ends (its attempt, the ladder's step) and the next begins at once, with how the last set went in the bar, and no
+stop at a summary; turned off, the set being played ends at its summary as before. Rhythm starts its next try by itself a
+few seconds after each one's result, set after set; Listen and play back goes from hearing a phrase straight to playing it
+back, and on to the next phrase a few seconds after showing it. Endless notes has no end to begin with.
 
 Notes come back on a spacing schedule: a note answered right but slowly counts as not yet learned, and comes back sooner than a
 fast one. Confusable notes are mixed. After each technique run the music is marked as Sight-read's summary is: green right;
@@ -995,6 +1014,14 @@ evenness or the tempo. A set is five runs. After three, the way on shows under t
 Today, from there); with all five played Run goes off, the way on is the orange key, and **Another set** is beside it. From
 Today the day's Technique step is the scale and then the arpeggio: the scale's screen has **Next: the arpeggio** from the
 start, and the step is done with the arpeggio's third run, not the scale's.
+
+A technique drill's bar has **Loop** (see [Playing to a tempo](#playing-to-a-tempo)): the scale, arpeggio or pattern goes
+round whole, each time round a run of the set, and the evenness shown when it's stopped is the last pass's, from that pass's
+own keys. Looping isn't held to five runs: it goes until Stop. Beside the key is **Through the keys**: every key one after
+another as one piece of music, from the key showing on through the list and round to the one before it, each named over
+its first note with its signature where it starts, in the form, octaves and hands chosen, at the tempo showing. A run
+through the keys is practice for the notes, summed up as an exercise's run is: it isn't measured for evenness, no key's
+tempo moves, and it's kept as a run of the drill. It's remembered for each drill, and can be looped too.
 
 ## Exercises
 
@@ -1028,18 +1055,29 @@ pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) h
 press Done, once a day. A **way to practice** is a few lines to read. And the three technique **drills** are listed in the
 sections they belong to, their rows opening the drill.
 
-An exercise's page has what you do in a line, how in a few steps, and what to notice. One that's played offers its keys with −
-and +, easier to harder in the exams' order (every major and minor key, the major keys, or C alone, as suits it), and the hands
-it's written for: right, left, together. It opens as you last played it, at the tempo you left it. Under its words are what
-it trains and, for one whose idea is from a lesson, a link to the lesson at that exercise's place in it; then what's been done
-of it: how many times and on how many days, when last, and the fastest clean run In time. **In my routine** keeps it
+An exercise's page has what you do in a line, how in a few steps, and what to notice. Every one that's played offers its
+keys with − and +, easier to harder in the exams' order, and the hands it's written for: right, left, together. Most have
+every major and minor key. One that's major by its nature (major then minor, the four kinds of chord, the four-chord loop,
+Hanon's pattern, the bounced double notes, the scale in octaves) has the twelve major keys; the chromatic scale starts from
+each of the twelve notes ("From E♭") and is written without a signature; and the thumb passes under only in the keys where
+it lands on white keys: ten of them under three or four fingers, six under two or five. A minor key's contrary-motion scale
+is the harmonic one, and one shape up a minor scale keeps to the scale as its signature has it. A line that climbs more than
+an octave starts where it stays near its staff in every key. **Through the keys**, beside the key, plays them all one after
+another as one piece of music: from the key showing on through the list and round to the one before it, each key's music
+without its close so one runs into the next, its signature where it starts and its name over its first note, and the last
+key's close to end on. The play bar's **Loop** (see [Playing to a tempo](#playing-to-a-tempo)) takes an exercise round and
+round without its close, or the whole run through the keys round again. It opens as you last played it, at the tempo you
+left it. Under its words are what it trains and, for one whose idea is from a lesson, a link to the lesson at that
+exercise's place in it; then what's been done of it: how many times and on how many days, when last, and the fastest clean
+run In time. **In my routine** keeps it
 in the list's My routine. The row under that leads to the next in its section, or, when the exercise was opened from My
 routine, to the routine's next. In landscape the music and the words sit side by side, so both show at the piano; in portrait
 one is under the other.
 
 A **family** is a main exercise and the side ones a few choices make of it. Under its key and hands its page has a row for
 each **variation**: two or three options are keys to press, more are stepped through with − and + as the key is. What's
-chosen is kept with the key and hands, and the main exercise is every variation at its usual.
+chosen is kept with the key and hands, and the main exercise is every variation at its usual. Loop and Through the keys
+play it as it's chosen.
 
 | Family | Its variations |
 | --- | --- |

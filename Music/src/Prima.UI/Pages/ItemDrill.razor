@@ -26,7 +26,7 @@ else if (items.Count == 0)
 }
 else if (index < items.Count)
 {
-    <section class="reading-bar" aria-label="Where you are">
+    <section class="reading-bar drill-bar" aria-label="Where you are">
         <div class="mu-readout"><span class="mu-readout-label">Item</span><span class="mu-readout-value">@(index + 1) of @items.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@results.Count(r => r.Right)</span></div>
         @if (info.Top > 1)
@@ -40,6 +40,16 @@ else if (index < items.Count)
                 </span>
             </div>
         }
+        @* Loop: lit, the sets come one after another until you leave, each kept as it ends, with no stop at its summary. *@
+        @if (sets > 0)
+        {
+            <div class="mu-readout @(lastShare < 0.8 ? "miss" : "")"><span class="mu-readout-label">Last set</span><span class="mu-readout-value">@($"{lastShare * 100:0}%")</span></div>
+        }
+        <div class="play-mode play-loop drill-loop">
+            <button type="button" role="switch" class="play-mode-option" data-piano="off" aria-checked="@(loop ? "true" : "false")" aria-label="@(loop ? "Loop: on. Sets come one after another until you leave" : "Loop: off. A set ends at its summary")" @onclick="() => SetLoop(!loop)">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 7V6a2.5 2.5 0 0 1 2.5-2.5H12M10 1.5l2 2-2 2M13 9v1a2.5 2.5 0 0 1-2.5 2.5H4M6 14.5l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>Loop
+            </button>
+        </div>
         <p class="drill-prompt">@items[index].Item.Prompt</p>
     </section>
     <div class="sheet-frame">
@@ -109,6 +119,10 @@ else
     private double fastMs;
     private int forgotTheKey;
     private DateTime started;
+    // Loop: the sets come one after another, with the sets done since it was opened and how the last went.
+    private bool loop;
+    private int sets;
+    private double lastShare;
 
     private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
 
@@ -126,7 +140,14 @@ else
 
         track = await Store.GetTrackAsync<DrillTrack>($"drill:{Key}") ?? DrillTrack.Start;
         if (routineSession.Item is { } requested) track = track with { Step = requested.Step };
+        (loop, sets) = ((await Store.GetSettingsAsync()).GetValueOrDefault(PlayAlong.LoopKeyOf($"drill-{Key}")) == "on", 0);
         await NewSet();
+    }
+
+    private async Task SetLoop(bool on)
+    {
+        loop = on;
+        await Store.SetSettingAsync(PlayAlong.LoopKeyOf($"drill-{Key}"), on ? "on" : "off");
     }
 
     private string Kicker() => info is null ? "Drills" : info.Top > 1 ? $"{info.Group} · step {track.Step} of {info.Top}" : info.Group;
@@ -321,8 +342,13 @@ else
         // Left while the answer showed: the set stops there, unsaved.
         if (disposed) return;
         index++;
-        if (index >= items.Count) await FinishSet();
-        await ShowItem();
+        if (index >= items.Count)
+        {
+            await FinishSet();
+            // Round a loop the next set starts at once, at the step the ladder has moved to; the set just played is kept all the same.
+            if (loop && !disposed) await NewSet();
+        }
+        else await ShowItem();
         StateHasChanged();
     }
 
@@ -339,6 +365,7 @@ else
     {
         Registry.DrillAnswer = null;
         var share = Share;
+        (sets, lastShare) = (sets + 1, share);
         if (info!.Top > 1 && routineSession?.IsRoutine != true)
         {
             var (step, last) = DrillLadder.After(track.Step, track.LastShare, share, info.Top);

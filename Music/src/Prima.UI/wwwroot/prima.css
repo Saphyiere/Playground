@@ -1769,6 +1769,30 @@ a {
     margin-left: 0;
 }
 
+/* Loop, beside the mode: the same lit segment, by itself, with its arrows. After the mode it sits with it at the bar's end;
+   on a bar without the mode (a routine's activity) it takes the mode's place there. */
+.play-mode ~ .play-loop {
+    margin-left: 0;
+}
+
+.play-loop .play-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* A drill's Loop sits with its figures; the prompt keeps the bar's end, and is what gives way when the bar is full: its
+   words take a second line before a figure's do. */
+.reading-bar .drill-loop {
+    margin-left: 0;
+}
+
+.drill-bar .mu-readout,
+.drill-bar .drill-loop {
+    flex: none;
+    white-space: nowrap;
+}
+
 .play-mode-option {
     padding: 8px 14px;
     border: 0;
@@ -6190,6 +6214,15 @@ html[data-full] .piece .summary {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+/* An exercise's play bar shares its row with the words in landscape, so it's the narrowest bar there is. Where its keys don't
+   fit on one row (Vinyl's wider type, at the smaller tablet's width), the last of them go onto a second, at the bar's end,
+   rather than spill out over the words. */
+.exercise-music .play-bar {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 12px;
 }
 
 .exercise-words {

@@ -107,11 +107,16 @@ public static class Drills
         return Chord(pitches, key);
     }
 
-    /// <summary>A key signature on its own, to name the tonic in a mode by playing it.</summary>
+    /// <summary>
+    /// A key signature on its own, to name the tonic in a mode by playing it. The signature with no sharps or flats leaves the
+    /// staff bare, so its prompt says that's the signature: an empty staff with nothing said looks like music that didn't draw.
+    /// </summary>
     public static DrillItem KeySignature(Key key)
     {
         var tonic = key.Degree(0, 4);
-        return new DrillItem(Item([new Rest("t-space", 0, Ticks.Whole) { Hidden = true }], [], key), [[tonic.Midi % 12 + 60]], $"Play the tonic of this key: {(key.Minor ? "minor" : "major")}");
+        var mode = key.Minor ? "minor" : "major";
+        var prompt = $"Play the tonic of this key: {mode}{(key.Fifths == 0 ? " (no sharps or flats)" : "")}";
+        return new DrillItem(Item([new Rest("t-space", 0, Ticks.Whole) { Hidden = true }], [], key), [[tonic.Midi % 12 + 60]], prompt);
     }
 
     /// <summary>A short phrase in a key, at a level, whose notes include ones the signature sharpens or flattens.</summary>

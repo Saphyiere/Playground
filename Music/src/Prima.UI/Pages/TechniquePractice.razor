@@ -14,8 +14,9 @@
 
 <PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")"><KeyboardLamp /></PageHead>
 
-@* What to play is yours to choose, whatever your reading level: the key (easier to harder, in the exams' order), the form, the
-   octaves, the hands. Today's is the day's plan. *@
+@* What to play is yours to choose, whatever your reading level: the key (easier to harder, in the exams' order) or all the
+   keys one after another, the form, the octaves, the hands. Today's is the day's plan. The play bar has Loop, as an exercise's
+   does. *@
 <section class="control-rows technique-choice" aria-label="What to play">
     <div class="control-row">
         @if (Key == "independence")
@@ -39,6 +40,9 @@
         {
             <button type="button" class="mu-btn" disabled="@playing" @onclick="() => Choose(today with { Hands = choice.Hands })">Today's</button>
         }
+        @* Through the keys: every key one after another as one piece of music, from the key showing on and round to the one
+           before it. Practice for the notes: it isn't measured for evenness and doesn't move a tempo. *@
+        <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All of them, from {choice.Key.Name}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
     </div>
     @if (Key != "independence")
     {
@@ -62,17 +66,21 @@
             <button type="button" class="mu-toggle" aria-pressed="@On(choice.Hands == h)" disabled="@playing" @onclick="() => Choose(choice with { Hands = h })"><span class="mu-led"></span>@HandName(h)</button>
         }
     </div>
-    <p class="control-note">Runs @runs of @TechniqueState.RunsPerSet. Stop if anything hurts.</p>
+    <p class="control-note">@(runs <= TechniqueState.RunsPerSet ? $"Runs {runs} of {TechniqueState.RunsPerSet}." : $"{runs} runs: a set is {TechniqueState.RunsPerSet}.") Stop if anything hurts.</p>
 </section>
 
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
-<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || runs < TechniqueState.RunsPerSet)" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
+<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || loop || through || runs < TechniqueState.RunsPerSet)" ShowLoop="true" LoopChanged="Looped" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun && !through ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
     <Readouts>
         <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
     </Readouts>
 </PlayAlong>
 
-@if (FirstRun)
+@if (through)
+{
+    <p class="page-note">Every key one after another, from @choice.Key.Name, at the tempo showing. It's practice for the notes: it isn't measured for evenness, and no key's tempo moves.</p>
+}
+else if (FirstRun)
 {
     <p class="page-note">First, play it once in Wait for me, at your own speed and without the click. The In time runs then start a little slower than that, which is how speed is built.</p>
 }
@@ -123,10 +131,10 @@
         }
     </ul>
 }
-else if (outcome?.Wait is not null)
+else if (outcome is { Wait: not null } or { InTime: not null })
 {
     <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")">
-        <li>@(comfortable is { } bpm ? $"Your own speed came to about {bpm:0} beats a minute, so In time starts at {state.Tempo:0}." : "Wait for me is practice for the notes: it doesn't count for evenness or move the tempo.")</li>
+        <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"Your own speed came to about {bpm:0} beats a minute, so In time starts at {state.Tempo:0}." : "Wait for me is practice for the notes: it doesn't count for evenness or move the tempo.")</li>
     </PlaySummary>
 }
 
@@ -149,6 +157,9 @@ else if (outcome?.Wait is not null)
     private TechniqueChoice choice = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueChoice today = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueItem? item;
+    // All the keys one after another, from the one chosen, as one piece of music; and the play bar's Loop.
+    private bool through;
+    private bool loop;
     private string mei = "";
     private PlayMusic? music;
     private TechniqueState state = TechniqueState.New;
@@ -207,8 +218,34 @@ else if (outcome?.Wait is not null)
         var pattern = (await Store.GetTrackAsync<DrillTrack>("drill:independence") ?? DrillTrack.Start).Step;
         today = TechniqueChoice.Today(Key, plan.ScaleKey, plan.ArpeggioKey, level, pattern, Today);
         choice = await Store.GetTrackAsync<TechniqueChoice>($"technique-choice:{Key}") ?? today;
+        through = routineSession.Item is null && (await Store.GetSettingsAsync()).GetValueOrDefault(ThroughKey) == "on";
         if (routineSession.Item is { } requested) choice = new(new Key(requested.Fifths, requested.Minor), Key == "arpeggios" ? ScaleKind.Arpeggio : requested.Minor ? ScaleKind.HarmonicMinor : ScaleKind.Major, 1, requested.Hands, requested.Step);
         await Build();
+    }
+
+    // Whether the drill goes through the keys, kept for each drill.
+    private string ThroughKey => $"Technique.Through.{Key}";
+
+    private async Task GoThrough(bool on)
+    {
+        through = on;
+        if (routineSession?.IsRoutine != true) await Store.SetSettingAsync(ThroughKey, on ? "on" : "off");
+        await Build();
+    }
+
+    // The play bar's Loop, as it's read when the bar opens and as it's turned on or off: the repeat's signs go on or come off.
+    private async Task Looped(bool on)
+    {
+        loop = on;
+        if (item is not null && !playing) await Build();
+    }
+
+    // The keys from the one chosen on, through the drill's keys and round to the one before it.
+    private List<Key> KeysFromHere()
+    {
+        var keys = Technique.Order.Where(k => Key != "independence" || !k.Minor).ToList();
+        var at = Math.Max(0, keys.IndexOf(Key == "independence" ? choice.Key with { Minor = false } : choice.Key));
+        return [.. keys.Skip(at), .. keys.Take(at)];
     }
 
     private async Task Choose(TechniqueChoice to)
@@ -218,11 +255,24 @@ else if (outcome?.Wait is not null)
         await Build();
     }
 
+    // The music: the scale, arpeggio or pattern chosen, or the same in every key one after another, each named over its first
+    // note; looped, all of it goes round, and is printed with the repeat's signs.
     private async Task Build()
     {
         item = choice.Item(Key);
-        mei = MeiWriter.Write(item.Score, 72);
-        music = new PlayMusic(item.Score, item.Score.Expected());
+        var score = item.Score;
+        if (through)
+        {
+            score = Score.Join([.. KeysFromHere().Select(k =>
+            {
+                var part = (choice with { Key = k }).Item(Key).Score;
+                var first = part.Bars[0].Voices.OrderBy(v => v.Staff).SelectMany(v => v.Events.OfType<Notes>()).MinBy(n => n.Start)!;
+                return part with { Marks = [.. part.Marks, new Mark(MarkKind.Text, first.Tones[0].Id, Text: k.Name)] };
+            })]);
+        }
+        if (loop) score = score.WithRepeat(0, score.Bars.Count - 1);
+        mei = MeiWriter.Write(score, 72);
+        music = new PlayMusic(score, score.Expected());
         state = await Store.GetTrackAsync<TechniqueState>(StateKey) ?? TechniqueState.New;
         if (routineSession?.Item is { } requested) state = state with { Tempo = requested.Tempo };
         (result, outcome, comfortable) = (null, null, null);
@@ -250,8 +300,19 @@ else if (outcome?.Wait is not null)
         if (item is null) return;
         if (how.InTime is null && how.Wait is not { Notes: > 0 }) return;
 
-        runs++;
-        if (how.Mode == PlayMode.WaitForMe)
+        // Round a loop, each time round played to its end is a run of the set; anything else is one.
+        runs += Math.Max(1, how.Passes.Count);
+        if (through)
+        {
+            // Through the keys is practice for the notes: kept as a run of the drill, with nothing for evenness and no tempo moved.
+            var (right, notes) = how.InTime is { } timed ? (timed.Right, timed.Expected) : (how.Wait!.RightFirstTime, how.Wait.Notes);
+            var kept = new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "independence" ? "independence" : Key == "arpeggios" ? "arpeggio" : "scale", choice.Hands.ToString(), $"{item.Id}, through the keys", level,
+                how.Mode == PlayMode.InTime ? Tempo : null, null, System.Text.Json.JsonSerializer.Serialize(new { key = choice.Key.Name, hands = choice.Hands.ToString(), through = true }), "[]", null,
+                System.Text.Json.JsonSerializer.Serialize(new { valid = false, through = true, right, notes, inTime = how.InTime?.InTimeAccuracy, passes = how.Passes.Count, stopped = how.Stopped, hands = choice.Hands.ToString() }), null, false, null);
+            if (routineSession?.Execution is not null) await routineSession.RecordAsync(kept, how.TimesThrough);
+            else await Store.AddAttemptAsync(kept);
+        }
+        else if (how.Mode == PlayMode.WaitForMe)
         {
             // The first time, your own pace in Wait for me is the comfortable speed: the gap from one moment of the music to the
             // next, as beats a minute. Hands together a moment is two keys, and the gap between those isn't the pace.
@@ -270,12 +331,13 @@ else if (outcome?.Wait is not null)
                     System.Text.Json.JsonSerializer.Serialize(new { key = choice.Key.Name, hands = choice.Hands.ToString() }), "[]", null,
                     System.Text.Json.JsonSerializer.Serialize(new { rightFirstTime = waited.RightFirstTime, notes = waited.Notes, wrongKeys = waited.WrongKeys, apart = waited.Apart, stopped = how.Stopped }),
                     waited.Notes == 0 ? null : waited.RightFirstTime / (double)waited.Notes, waited.Finished && waited.WrongKeys == 0 && waited.Apart == 0, null);
-                await routineSession.RecordAsync(attempt, how.Stopped ? 0 : 1);
+                await routineSession.RecordAsync(attempt, how.TimesThrough);
             }
         }
         else
         {
-            await Scored(item, how.Played);
+            // Round a loop, the evenness is the last pass's, from its own keys.
+            await Scored(item, how.Judged);
         }
         if (routineSession?.IsRoutine != true) await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
         started = DateTime.Now;
@@ -322,7 +384,7 @@ else if (outcome?.Wait is not null)
         };
         var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, Key == "independence" ? "independence" : Key == "arpeggios" ? "arpeggio" : "scale", choice.Hands.ToString(), run.Id, level, tempo, null,
             System.Text.Json.JsonSerializer.Serialize(new { key = choice.Key.Name, hands = choice.Hands.ToString() }), "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), result.Valid ? sd : null, result.Valid, null);
-        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, outcome?.Stopped == true ? 0 : 1);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, outcome?.TimesThrough ?? 1);
         else await Store.AddAttemptAsync(attempt);
     }
 

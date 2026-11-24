@@ -34,6 +34,8 @@ clock stops only while the activity is left or Prima is put away, and carries on
 up the bar says so and Next stands out, without stopping you. **Next**, or **Skip**, goes straight to the next activity not done
 yet, and back to the routine after the last. Where an activity has a play bar, a run played to its end starts again by itself
 until you press Stop: each run is kept, and the bar counts the runs and shows how the last went, up or down on the one before.
+The bar's **Loop** takes an exercise round and round without a break instead, each time round a pass (the same Loop every
+exercise and technique drill has).
 
 Each activity saves its own daily progress, and tomorrow starts fresh progress on the same routine. Completing practice does
 not require perfect accuracy. Feedback (**Too easy**, **About right**, **Too hard**) and comparable results can suggest changes,
@@ -381,7 +383,9 @@ and Finish practice is on its cover. Open the Library once first, so the piece i
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine. `/keys/dual?on=true`
 layers two voices on the simulated piano's keys, as the P-225's Dual does: each key and pedal then says its message on channels
 1 and 2. `/keys/answer` plays what a drill or a Wait for me run is waiting for (`right=false` for a wrong key), a chord's keys
-together, or with `apart=600` one at a time, that many ms apart.
+together, or with `apart=600` one at a time, that many ms apart. `/keys/perform` plays the In time run in progress: all at
+once, ending it, or with `live=true` each note as it's due, which is how a looped run is played (the player stops when the
+run does).
 
 Claude in the preview is a stand-in that never calls the API (`tools/Prima.Preview/PreviewClaude.cs`). `/claude/key` puts a key
 on (one ending `a1B2`) and `/claude/key?clear=true` takes it off; `/claude/file` leaves a `claude-key.txt` for Settings to find;
