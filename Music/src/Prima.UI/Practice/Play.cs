@@ -122,7 +122,11 @@ public static class Trouble
 }
 
 /// <summary>
-/// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo. The exercises
-/// pinned as My routine are kept together, as their ids ("exercise-routine").
+/// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo, and for a family
+/// what's chosen of its variations ("interval=sixth;quick=2"). The exercises pinned as My routine are kept together, as their
+/// ids ("exercise-routine").
 /// </summary>
-public sealed record ExerciseChoice(int Fifths, bool Minor, HandUse Hands, double Tempo);
+public sealed record ExerciseChoice(int Fifths, bool Minor, HandUse Hands, double Tempo)
+{
+    public string? Variation { get; init; }
+}

@@ -88,12 +88,14 @@ public static class MeiWriter
                     xml.WriteEndElement();
                 }
 
-                foreach (var tone in bar.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones.Select(t => (Tone: t, v.Staff)))).Where(p => p.Tone.Finger is not null))
+                // Fingers go above the treble staff and below the bass; where a staff has two lines, above for its upper line and below for its lower.
+                var layered = bar.Voices.GroupBy(v => v.Staff).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+                foreach (var tone in bar.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones.Select(t => (Tone: t, v.Staff, v.Layer)))).Where(p => p.Tone.Finger is not null))
                 {
                     xml.WriteStartElement("fing", Ns);
                     xml.WriteAttributeString("startid", "#" + tone.Tone.Id);
                     xml.WriteAttributeString("staff", tone.Staff.ToString(CultureInfo.InvariantCulture));
-                    xml.WriteAttributeString("place", tone.Staff == 1 ? "above" : "below");
+                    xml.WriteAttributeString("place", (layered.Contains(tone.Staff) ? tone.Layer == 1 : tone.Staff == 1) ? "above" : "below");
                     xml.WriteString(tone.Tone.Finger!.Value.ToString(CultureInfo.InvariantCulture));
                     xml.WriteEndElement();
                 }

@@ -14,7 +14,7 @@
 }
 else
 {
-    var choosing = keys.Count > 1 || exercise.Hands.Count > 1;
+    var choosing = keys.Count > 1 || exercise.Hands.Count > 1 || family is not null;
     // What comes after this one: the next in My routine when that's the list it was opened from, or else the next in its section.
     var after = Exercises.All.SkipWhile(e => e.Id != Id).Skip(1);
     var next = From == "routine" ? after.FirstOrDefault(e => routine.Contains(e.Id)) : after.FirstOrDefault(e => e.Section == exercise.Section);
@@ -30,9 +30,10 @@ else
 
     <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name"><KeyboardLamp /></PageHead>
 
-    @* What you do, in a line. One that's played then has what to play (its key and hands), the play bar every screen with a
-       tempo shares, its sheet, and the run's summary; in landscape the words sit beside the music, so both show at the piano.
-       The words are how, what to notice, what's been done of it, the switch that keeps it in My routine, and what comes next. *@
+    @* What you do, in a line. One that's played then has what to play (its key and hands, and for a family a row for each of its
+       variations), the play bar every screen with a tempo shares, its sheet, and the run's summary; in landscape the words sit
+       beside the music, so both show at the piano. The words are how, what to notice, what it trains and the lesson its idea is
+       from, what's been done of it, the switch that keeps it in My routine, and what comes next. *@
     <div @key="Id" class="exercise @(exercise.Kind == ExerciseKind.Played ? "exercise-played" : "") @(choosing ? "" : "exercise-fixed")">
         <p class="exercise-does">@exercise.Does</p>
 
@@ -59,6 +60,30 @@ else
                                 <button type="button" class="mu-toggle" aria-pressed="@On(hands == h)" disabled="@playing" @onclick="() => Choose(key, h)"><span class="mu-led"></span>@(h switch { HandUse.Right => "Right", HandUse.Left => "Left", _ => "Together" })</button>
                             }
                         </div>
+                    }
+                    @if (family is not null && variant is not null)
+                    {
+                        @* Two or three options are keys to press, like the hands; more are stepped through with − and +, like the key. *@
+                        @foreach (var variation in family.For(hands))
+                        {
+                            var at = variation.Options.ToList().FindIndex(o => o.Key == variant[variation.Key]);
+                            <div class="control-row" data-variation="@variation.Key">
+                                <span class="control-label">@variation.Name</span>
+                                @if (variation.Options.Count > 3)
+                                {
+                                    <button type="button" class="mu-btn" aria-label="@($"{variation.Name}: the one before")" disabled="@(playing || at == 0)" @onclick="() => Vary(variation.Key, variation.Options[at - 1].Key)">−</button>
+                                    <span class="control-value exercise-option">@variation.Options[at].Name</span>
+                                    <button type="button" class="mu-btn" aria-label="@($"{variation.Name}: the next")" disabled="@(playing || at == variation.Options.Count - 1)" @onclick="() => Vary(variation.Key, variation.Options[at + 1].Key)">+</button>
+                                }
+                                else
+                                {
+                                    @foreach (var option in variation.Options)
+                                    {
+                                        <button type="button" class="mu-toggle" aria-pressed="@On(at >= 0 && variation.Options[at] == option)" disabled="@playing" @onclick="() => Vary(variation.Key, option.Key)"><span class="mu-led"></span>@option.Name</button>
+                                    }
+                                }
+                            </div>
+                        }
                     }
                 </section>
             }
@@ -89,6 +114,14 @@ else
             </ol>
             <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Why" : "Notice")</h2>
             <p class="exercise-notice">@exercise.Notice</p>
+            @if (ExerciseFocus.Of(exercise.Id) is { Count: > 0 } trains)
+            {
+                <p class="control-note exercise-trains">Trains @string.Join(", ", trains.Select(f => f.Name.ToLowerInvariant())).</p>
+            }
+            @if (ExerciseFamilies.LessonOf(exercise.Id) is { } lesson)
+            {
+                <p class="control-note exercise-lesson">The idea is from a lesson by @lesson.By, <a href="@lesson.Url" target="_blank" rel="noopener">“@lesson.Title”</a> The words and the notes here are Prima's.</p>
+            }
             @if (exercise.Kind != ExerciseKind.Way)
             {
                 <div class="control-row">
@@ -122,6 +155,8 @@ else
     private PlayAlong? player;
 
     private Exercise? exercise;
+    private ExerciseFamily? family;
+    private FamilyChoice? variant;
     private List<Key> keys = [];
     private Key key;
     private HandUse hands;
@@ -143,7 +178,7 @@ else
     {
         if (exercise?.Id == Id && routineSession?.Execution?.Id == ExecutionId) return;
 
-        (exercise, music) = (null, null);
+        (exercise, family, variant, music) = (null, null, null, null);
         routineSession = new(Routines);
         if (!await routineSession.LoadAsync(ExecutionId, "exercise", Id)) return;
 
@@ -161,15 +196,25 @@ else
         key = last is not null && keys.Contains(new Key(last.Fifths, last.Minor)) ? new Key(last.Fifths, last.Minor) : keys[0];
         hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
         tempo = last?.Tempo ?? exercise.Tempo;
+        // A family's variations as last chosen; opened by the id of an exercise that's now one of its variations, as that was. A
+        // routine asks for a key, hands and a tempo and no variation, so it gets the main exercise.
+        family = ExerciseFamilies.Of(exercise.Id);
+        variant = family?.Read((routineSession.Item is null ? last?.Variation : null) ?? ExerciseFamilies.Formerly(Id)?.Choice);
         if (routineSession.Item is { } requested) (key, hands, tempo) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo);
         Build();
     }
 
     private async Task Recount() => was = (await Store.GetDoneAsync("exercise")).FirstOrDefault(d => d.SetId == Id);
 
+    // The music for a key and hands: a family's as its variations are chosen, any other's as it is.
+    private Score Written(Key inKey, HandUse with) => family is not null && variant is not null ? family.Music(inKey, with, variant) : exercise!.Music!(inKey, with);
+
+    // What's kept of how it was last played.
+    private ExerciseChoice Kept => new(key.Fifths, key.Minor, hands, tempo) { Variation = variant?.ToString() };
+
     private void Build()
     {
-        var score = exercise!.Music!(key, hands);
+        var score = Written(key, hands);
         mei = MeiWriter.Write(score, tempo);
         music = new PlayMusic(score, score.Expected());
         outcome = null;
@@ -179,13 +224,20 @@ else
     {
         (key, hands) = (toKey, toHands);
         Build();
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", Kept);
+    }
+
+    // One of a family's variations set to another of its options.
+    private Task Vary(string variation, string option)
+    {
+        variant = variant!.With(variation, option);
+        return Choose(key, hands);
     }
 
     private async Task SetTempo(double bpm)
     {
         tempo = Math.Clamp(bpm, 20, 240);
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo));
+        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"exercise:{Id}", Kept);
     }
 
     private void Starting()
@@ -210,7 +262,7 @@ else
             : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, stopped = how.Stopped };
         var firstNs = how.Played.Count == 0 ? 0 : how.Played[0].OnNs;
         var played = JsonSerializer.Serialize(how.Played.Select(p => new[] { p.Midi, (p.OnNs - firstNs) / 1e6 }));
-        var chosen = JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() });
+        var chosen = variant is null ? JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString() }) : JsonSerializer.Serialize(new { key = key.Name, hands = hands.ToString(), variation = variant.ToString() });
         var inTime = how.Mode == PlayMode.InTime;
         var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", inTime ? "in time" : "wait", Id, null, inTime ? tempo : null, null, chosen, played, null, JsonSerializer.Serialize(measures), notes == 0 ? null : right / (double)notes, clean && !how.Stopped, null);
         if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, how.Stopped ? 0 : 1);

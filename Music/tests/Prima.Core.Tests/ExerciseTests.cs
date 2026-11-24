@@ -43,10 +43,10 @@ public class ExerciseTests
                 var score = exercise.Music!(key, hands);
                 var where = $"{id} in {key.Name}, {hands}";
 
-                // Every voice fills its bars, one thing after another.
+                // Every voice fills its bars, one thing after another; a staff has a second line only for a key held under moving ones.
                 foreach (var (bar, _, meter) in score.WithSignatures())
                 {
-                    Assert.Equal([1, 2], bar.Voices.Select(v => v.Staff));
+                    Assert.Equal([1, 2], bar.Voices.Select(v => v.Staff).Distinct());
                     foreach (var voice in bar.Voices)
                     {
                         var at = 0;
@@ -70,7 +70,7 @@ public class ExerciseTests
                     Assert.True(keys.All(k => k is >= 28 and <= 96), $"{where}: {n.Id} is off the middle of the piano.");
                     Assert.True(keys.SequenceEqual(keys.Order()) && keys.Distinct().Count() == keys.Count && keys[^1] - keys[0] <= 12, $"{where}: {n.Id} isn't a chord one hand can take.");
                     Assert.All(n.Tones, t => Assert.True(t.Finger is null or (>= 1 and <= 5)));
-                    Assert.True(n.Tones.Count == 1 || n.Tones.Select(t => t.Finger).Distinct().Count() == n.Tones.Count, $"{where}: {n.Id} uses a finger twice.");
+                    Assert.True(n.Tones.Count(t => t.Finger is not null) == n.Tones.Where(t => t.Finger is not null).Select(t => t.Finger).Distinct().Count(), $"{where}: {n.Id} uses a finger twice.");
                 }
 
                 // Ids are the sheet's handles: no two things share one, and every mark is on something there.
@@ -170,7 +170,8 @@ public class ExerciseTests
     [Theory]
     [InlineData("jump", new[] { "octave-jump", "jump-ladder", "chord-jump", "cadence-far", "waltz" })]
     [InlineData("pedal chord", new[] { "pedal-changes" })]
-    [InlineData("THUMB under", new[] { "thumb-three", "thumb-four" })]
+    [InlineData("THUMB under", new[] { "arpeggio-groups", "thumb-three" })]
+    [InlineData("finger strength", new[] { "five", "long-short", "hanon", "independence", "trill-2-3", "trill-1-2", "trill-1-3", "arpeggio-groups", "thirds", "trill-bursts" })]
     [InlineData("xylophone", new string[0])]
     public void Search_finds_exercises_by_every_word(string search, string[] found)
     {
@@ -184,6 +185,20 @@ public class ExerciseTests
         Assert.Equal(12, Exercises.KeysOf(Exercises.Find("triad-walk")!).Count);
         Assert.DoesNotContain(Exercises.KeysOf(Exercises.Find("triad-walk")!), k => k.Minor);
         Assert.Equal(Technique.Order, Exercises.KeysOf(Exercises.Find("five")!));
+    }
+
+    [Fact]
+    public void An_exercise_that_became_part_of_a_family_is_still_found_by_its_id()
+    {
+        // The two thumb exercises are one family: it has the first one's id, and the second's still opens it, as it was.
+        Assert.Equal("thumb-three", Exercises.Find("thumb-four")!.Id);
+        Assert.Equal(("thumb-three", "under=4"), ExerciseFamilies.Formerly("thumb-four"));
+        Assert.Null(ExerciseFamilies.Formerly("thumb-three"));
+        Assert.Null(Exercises.Find("thumb-six"));
+        Assert.DoesNotContain(Exercises.All, e => e.Id == "thumb-four");
+        // Every family is in the catalogue, in a section, after the exercises that were there.
+        Assert.Equal(ExerciseFamilies.All.Select(e => e.Id), Exercises.All.Skip(Exercises.All.Count - ExerciseFamilies.All.Count).Select(e => e.Id));
+        Assert.Equal(["thirds", "bounce", "octave-scale"], Exercises.All.Where(e => e.Section == "double").Select(e => e.Id));
     }
 
     [Fact]

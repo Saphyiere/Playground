@@ -6091,6 +6091,20 @@ html[data-full] .piece .summary {
     }
 }
 
+/* What the list is narrowed to sits beside the search, and the two are narrow enough to share the lists' line on the tablet. */
+.control-row.exercise-filters .text-field-short {
+    flex-basis: 190px;
+}
+
+.library-filters .text-field.exercise-focus {
+    margin-left: 0;
+    flex-basis: 180px;
+}
+
+.exercise-focus-note {
+    margin: 0;
+}
+
 .exercise-list .piece-meta {
     white-space: normal;
     display: -webkit-box;
@@ -6153,10 +6167,22 @@ html[data-full] .piece .summary {
     min-width: 0;
 }
 
-/* The key's name keeps its place between − and + whichever key it is. */
+/* The key's name keeps its place between − and + whichever key it is, and so does a variation's option. */
 .exercise-key {
     min-width: 5.5em;
     text-align: center;
+}
+
+.exercise-option {
+    min-width: 5em;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* The lesson an exercise's idea is from: a link in the app's own ink, underlined. */
+.exercise-lesson a {
+    color: inherit;
+    text-decoration: underline;
 }
 
 .exercise-music {

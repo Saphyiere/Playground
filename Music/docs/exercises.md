@@ -20,12 +20,20 @@ coordination exercises from retained source notes. An accepted ordered routine r
 Tempo, drill-step, mode and preparation-rest changes are suggestions that require acceptance. This does not implement the
 special physical-landing measurements or voicing work proposed below. See [the usage notes](../README.md#personal-routines).
 
+**A lesson's exercises are in as families (23 November 2026).** The owner watched a concert pianist's ten daily exercises
+and asked for them. They were read from the video as a viewer reads it, written down in fresh words, and built as ten
+families: a main exercise each, varied by a few choices (the interval, the pair of fingers, the touch), with Prima's own
+names, words and notes and a link back to the lesson. Octaves, double notes and held-finger work, which this research left
+out, are among them at the owner's wish, worded with the caution the evidence below asks for. The study and the design are
+in [the ten daily exercises](exercises/the_ten_daily_exercises.md).
+
 The notes behind it, with every source, are beside it, one file for each line of research:
 [the exercise books and exam lists](exercises/exercise_canon_and_taxonomy.md),
 [what makes technique practice work and keeps it safe](exercises/evidence_on_technique_practice.md),
 [online teachers, practice apps and what may be taken from YouTube](exercises/online_teachers_apps_and_rights.md),
 [what MIDI can measure and how exercises adapt](exercises/midi_measurement_and_adaptation.md), and
-[jumps and chord changes](exercises/leaps_and_chord_drills.md), which has 32 drills described in words.
+[jumps and chord changes](exercises/leaps_and_chord_drills.md), which has 32 drills described in words. Later, from one
+lesson: [the ten daily exercises](exercises/the_ten_daily_exercises.md), and how they became families.
 
 Terms and copyright are described as their own texts state them. That's a reading for a personal app, not legal advice.
 

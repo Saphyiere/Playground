@@ -245,6 +245,28 @@ app.MapGet("/keys/answer", async (bool? right, int? apart, SessionRegistry regis
 });
 // The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
+// Every form of an exercise, for checking each one engraves: each key and choice of hands it offers and, for a family, each
+// combination of its variations, with the MEI and how many note heads it should draw.
+app.MapGet("/exercises/forms/{id}", (string id) =>
+{
+    if (Exercises.Find(id) is not { Music: not null } exercise) return Results.NotFound();
+
+    var family = ExerciseFamilies.Of(exercise.Id);
+    var forms = from variation in family?.Every().Select(v => (FamilyChoice?)v) ?? [null]
+                from key in Exercises.KeysOf(exercise)
+                from hands in exercise.Hands
+                let score = variation is null ? exercise.Music(key, hands) : family!.Music(key, hands, variation)
+                select new { key = key.Name, key.Fifths, key.Minor, hands = hands.ToString(), variation = variation?.ToString(), heads = score.Bars.Sum(b => b.Voices.Sum(v => v.Events.OfType<Notes>().Sum(n => n.Tones.Count))), mei = MeiWriter.Write(score) };
+    return Results.Json(forms);
+});
+// An exercise as it was last played, so its page opens that way: /seed/exercise/bounce?fifths=2&hands=Together&variation=interval=third;quick=4
+app.MapGet("/seed/exercise/{id}", async (string id, int? fifths, bool? minor, HandUse? hands, double? tempo, string? variation, PrimaStore store) =>
+{
+    if (Exercises.Find(id) is not { } exercise) return Results.NotFound();
+
+    await store.SaveTrackAsync($"exercise:{id}", new ExerciseChoice(fifths ?? 0, minor ?? false, hands ?? exercise.Hands[0], tempo ?? exercise.Tempo) { Variation = variation });
+    return Results.Text($"{id}: {new Key(fifths ?? 0, minor ?? false).Name}, {hands ?? exercise.Hands[0]}, {variation}");
+});
 app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 // What the tablet's speaker was given to play (a piece's opening without the piano), and how often it was stopped.
 app.MapGet("/speaker/played", (PreviewSpeaker speaker) => Results.Text($"stopped {speaker.Stops} times\n{string.Join('\n', speaker.Played.Select(p => $"{p.At:HH:mm:ss} {p.Bytes} bytes"))}"));

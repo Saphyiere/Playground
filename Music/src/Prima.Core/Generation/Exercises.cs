@@ -61,7 +61,8 @@ public sealed record Exercise(string Id, string Section, string Name, ExerciseLe
 /// <summary>
 /// The exercises (docs/exercises.md says where they come from): the owner's list of technique work for a beginner and the
 /// research on what's worth building, kept to what suits the first years and to patterns Prima can write itself. The words are
-/// Prima's own; the patterns are the common stock of piano teaching.
+/// Prima's own; the patterns are the common stock of piano teaching. The ones that can be varied by a few choices, the
+/// families, are in <see cref="ExerciseFamilies"/> and come last in their sections.
 /// </summary>
 public static class Exercises
 {
@@ -82,6 +83,7 @@ public static class Exercises
         new("jumps", "Jumps", "Get there early, land, and only then play. Slow first: the time to travel shrinks line by line."),
         new("thumb", "Thumb under", "The thumb passing under the hand, as it does in every scale."),
         new("trills", "Trills", "Two notes back and forth: even before quick."),
+        new("double", "Double notes", "Two keys at once in one hand: thirds, sixths, octaves, and the loose wrist that repeats them. Quietly, and not for long."),
         new("hands", "Hands doing different things", "One hand holds, or moves at another speed, or with another touch."),
         new("touch", "Touch, loud and soft", "Joined and detached, and how fast the key goes down. Prima judges these from each key's press and release."),
         new("pedal", "Pedal", "The right pedal, changed cleanly."),
@@ -247,16 +249,6 @@ public static class Exercises
             "The bass note fuller, the chords lighter.",
             ExerciseMusic.Waltz, ExerciseKeys.All, LeftOnly),
 
-        // ——— Thumb under ———
-        Played("thumb-three", "thumb", "Thumb under three fingers", ExerciseLevel.Beginner, "Up three fingers, the thumb passes under to the fourth note, and back.",
-            ["The thumb starts moving as soon as it has played, and stays loose.", "The wrist and elbow glide along so the hand arrives with it.", "Left hand: the same, going down from its thumb."],
-            "No bump on the thumb's note and no dip of the elbow.",
-            (key, hands) => ExerciseMusic.ThumbUnder(key, hands, 3), ExerciseKeys.One, Either),
-        Played("thumb-four", "thumb", "Thumb under four fingers", ExerciseLevel.Beginner, "The longer pass: under four fingers to the fifth note.",
-            ["As before, with further to go.", "Let the arm carry the hand along; the thumb shouldn't have to reach."],
-            "The same evenness as the shorter pass.",
-            (key, hands) => ExerciseMusic.ThumbUnder(key, hands, 4), ExerciseKeys.One, Either),
-
         // ——— Trills ———
         Drill("independence", "trills", "Finger independence", "Five-finger patterns, then trills on fingers 3–4 and 4–5, with evenness measured after each run.", "drills/independence"),
         Played("trill-2-3", "trills", "Slow trill, fingers 2 and 3", ExerciseLevel.Start, "Two neighbouring notes back and forth: a bar of quarter notes, then eighths, then sixteenths.",
@@ -348,9 +340,13 @@ public static class Exercises
         Way("stop", "When to stop", "The signs that mean rest, not push on.",
             ["Stop at once for pain (not just tiredness), tingling, numbness, or a finger curling by itself.", "Rest. See a doctor if it stays.", "Take a short break every twenty minutes or so anyway."],
             "“No pain, no gain” is a risk factor in the studies of pianists' injuries, not a method."),
+
+        // ——— The families: each in its section, after the ones above ———
+        .. ExerciseFamilies.All,
     ];
 
-    public static Exercise? Find(string id) => All.FirstOrDefault(e => e.Id == id);
+    /// <summary>An exercise by its id, or by the id of one that has since become part of a family.</summary>
+    public static Exercise? Find(string id) => All.FirstOrDefault(e => e.Id == id) ?? (ExerciseFamilies.Formerly(id) is { } now ? All.FirstOrDefault(e => e.Id == now.Family) : null);
 
     /// <summary>The keys an exercise offers, easiest first, in the boards' order.</summary>
     public static IReadOnlyList<Key> KeysOf(Exercise exercise) => exercise.Keys switch
@@ -360,10 +356,10 @@ public static class Exercises
         _ => [new Key(0)],
     };
 
-    /// <summary>Whether every word of a search is somewhere in an exercise's name, its section's, or its words.</summary>
+    /// <summary>Whether every word of a search is somewhere in an exercise's name, its section's, what it trains, or its words.</summary>
     public static bool Matches(Exercise exercise, string? search)
     {
-        var text = string.Join(' ', [exercise.Name, Sections.First(s => s.Key == exercise.Section).Name, exercise.Does, .. exercise.How, exercise.Notice]);
+        var text = string.Join(' ', [exercise.Name, Sections.First(s => s.Key == exercise.Section).Name, .. ExerciseFocus.Of(exercise.Id).Select(f => f.Name), exercise.Does, .. exercise.How, exercise.Notice]);
         return (search ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }
 

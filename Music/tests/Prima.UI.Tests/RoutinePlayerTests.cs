@@ -408,6 +408,26 @@ public class RoutinePlayerTests
         Assert.Contains("mu-primary", view.Find("[data-action='routine-next']").ClassList);
     }
 
+    [Fact]
+    public async Task AFamilyOpenedFromARoutineIsItsMainExerciseAndWhatWasChosenOutsideItIsKept()
+    {
+        await using var host = new PlayerHost();
+        var kept = new ExerciseChoice(0, false, HandUse.Right, 60) { Variation = "interval=octave;quick=4" };
+        await host.Store.SaveTrackAsync("exercise:bounce", kept);
+        var item = new RoutineItem { Id = "bounce", TargetId = "bounce", Title = "Bounce", Purpose = "A loose wrist", Hands = HandUse.Right, Tempo = 60, Mode = "time" };
+        var execution = await host.AddRoutineAsync(item);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo($"exercises/{item.TargetId}?execution={execution.Id}");
+        var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, item.TargetId));
+
+        // A routine asks for a key, hands and a tempo, and no variation: sixths, two quick notes, whatever was last chosen.
+        view.WaitForAssertion(() => Assert.Equal("Sixths", view.Find("[data-variation=interval] .exercise-option").TextContent));
+        Assert.Equal([64, 72, 64, 72], view.FindComponent<PlayAlong>().Instance.Music!.Notes.Take(4).Select(n => n.Midi));
+        // A variation chosen during it is played and not kept.
+        await view.InvokeAsync(() => view.Find("[data-variation=quick] button[aria-label='Quick notes: the next']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal("Three", view.Find("[data-variation=quick] .exercise-option").TextContent));
+        Assert.Equal(kept, await host.Store.GetTrackAsync<ExerciseChoice>("exercise:bounce"));
+    }
+
     private sealed class PlayerHost : IAsyncDisposable
     {
         private readonly string database = Path.Combine(Path.GetTempPath(), $"prima-routine-player-{Guid.NewGuid():N}.db");

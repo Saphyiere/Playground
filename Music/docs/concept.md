@@ -166,10 +166,11 @@ independence. Each is described under [Drills](#drills-1) below.
 
 ### Exercises
 
-Technique to work through, at the piano and away from it: fourteen sections, from how you sit to the pedal, each exercise
+Technique to work through, at the piano and away from it: fifteen sections, from how you sit to the pedal, each exercise
 with what you do, how, and what to notice. They come as two lists, the ones **to play** and the ones **to read**, which can
-be searched and show when each was last done; an exercise opens on a page of its own, with its music if it's played.
-Described under [Exercises](#exercises-1) below.
+be searched, narrowed to what they train, and show when each was last done; an exercise opens on a page of its own, with its
+music if it's played. Ten of them are **families**: a main exercise that a few choices vary. Described under
+[Exercises](#exercises-1) below.
 
 ### Library
 
@@ -997,29 +998,30 @@ start, and the step is done with the arpeggio's third run, not the scale's.
 
 ## Exercises
 
-Where a drill measures a few things closely, the exercises are a catalogue to work through: 66 entries in 14 sections, from the
-owner's own list of technique work for an adult beginner and from the research in `exercises.md`. The words are Prima's; the
-patterns are the common stock of piano teaching, and Prima writes each one's notes itself, in the key and for the hands you
-choose.
+Where a drill measures a few things closely, the exercises are a catalogue to work through: 74 entries in 15 sections, from the
+owner's own list of technique work for an adult beginner, from the research in `exercises.md`, and from a lesson the owner
+likes, a concert pianist's ten daily exercises (`exercises/the_ten_daily_exercises.md`). The words are Prima's; the patterns
+are the common stock of piano teaching, and Prima writes each one's notes itself, in the key and for the hands you choose.
 
 | Section | What's in it |
 | --- | --- |
 | Sitting and hand shape | Bench height and distance, sitting balanced, the hand's own shape, shoulders down, a tension check, filming yourself from the side |
 | Warm-ups away from the keys | Arm swings and shoulder rolls, wrist circles and doorknob turns, shaking out, fan and close, finger taps on a table, gentle forearm stretches, an arm drop onto the knee |
-| Arm weight and rotation | Dropping onto one note, rocking between thumb and little finger, smaller turns between fingers a third apart, wrist circles on a held note |
-| Five-finger patterns | The pattern in every key, major then minor, the hands in mirror, long–short, the pattern then its chord, and Hanon's first pattern played quietly |
-| Scales | The Scales drill, a scale in contrary motion, the chromatic scale |
-| Broken chords and left-hand patterns | The Arpeggios drill, a chord passed between the hands, broken chords through the inversions, an Alberti bass |
+| Arm weight and rotation | Dropping onto one note, rocking between thumb and little finger, smaller turns between fingers a third apart, wrist circles on a held note, and holding one key while the forearm turns to play the next |
+| Five-finger patterns | The pattern in every key, major then minor, the hands in mirror, long–short, the pattern then its chord, Hanon's first pattern played quietly, and one finger holding while the other four play |
+| Scales | The Scales drill, a scale in contrary motion, the chromatic scale, and a scale that parts in the middle |
+| Broken chords and left-hand patterns | The Arpeggios drill, a chord passed between the hands, broken chords through the inversions, an Alberti bass, and an arpeggio counted in fours |
 | Chords and cadences | One shape up the scale, up through the inversions, four kinds of chord on one note, I–IV–I–V–I with the hands close, four chords round and round |
 | Jumps | An octave with less time to travel on each line, further each time (a third, a fifth, an octave, a tenth), a chord an octave away, the cadence with each chord from its own bottom note, bass note then chord |
-| Thumb under | Under three fingers, and under four |
-| Trills | The Finger independence drill, and slow trills on fingers 2 and 3, 1 and 2, 1 and 3 |
+| Thumb under | The thumb passing under two, three, four or five fingers |
+| Trills | The Finger independence drill, slow trills on fingers 2 and 3, 1 and 2, 1 and 3, and trill bursts up the scale |
+| Double notes | Thirds, three up and back; double notes bounced from the wrist; a scale in octaves |
 | Hands doing different things | One hand holds while the other moves, two notes against one, smooth against detached, two against three |
-| Touch, loud and soft | Two-note slurs, five fingers detached, one note soft to loud, growing and fading |
+| Touch, loud and soft | Two-note slurs, in one place and up the scale, five fingers detached, one note soft to loud, growing and fading |
 | Pedal | The pedal by itself, and changed on each chord |
 | Ways to practice anything | Slow enough to be right, hands separately then together, small sections, fixing a mistake at once, the metronome ladder, mixing things up, sleeping on it, recording yourself, the hard bit first, when to stop |
 
-There are four kinds. One **played at the piano** (39 of them) shows its music with the fingering under the play bar every
+There are four kinds. One **played at the piano** (47 of them) shows its music with the fingering under the play bar every
 screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards. Its notes, timing and held notes
 are judged as a passage's are, and so, where its music marks them, are the touch (slurs and staccato), loud and soft, and the
 pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) has nothing for Prima to follow: you do it and
@@ -1028,24 +1030,55 @@ sections they belong to, their rows opening the drill.
 
 An exercise's page has what you do in a line, how in a few steps, and what to notice. One that's played offers its keys with −
 and +, easier to harder in the exams' order (every major and minor key, the major keys, or C alone, as suits it), and the hands
-it's written for: right, left, together. It opens as you last played it, at the tempo you left it. What's been done of it is
-under its words: how many times and on how many days, when last, and the fastest clean run In time. **In my routine** keeps it
+it's written for: right, left, together. It opens as you last played it, at the tempo you left it. Under its words are what
+it trains and, for one whose idea is from a lesson, a link to the lesson at that exercise's place in it; then what's been done
+of it: how many times and on how many days, when last, and the fastest clean run In time. **In my routine** keeps it
 in the list's My routine. The row under that leads to the next in its section, or, when the exercise was opened from My
 routine, to the routine's next. In landscape the music and the words sit side by side, so both show at the piano; in portrait
 one is under the other.
 
+A **family** is a main exercise and the side ones a few choices make of it. Under its key and hands its page has a row for
+each **variation**: two or three options are keys to press, more are stepped through with − and + as the key is. What's
+chosen is kept with the key and hands, and the main exercise is every variation at its usual.
+
+| Family | Its variations |
+| --- | --- |
+| Scale that parts in the middle (both hands up together, apart and back, on up, and the same coming home) | One octave each way, or two; joined or detached; as it comes, soft, loud, or growing and fading |
+| Arpeggio counted in fours (a lean on every fourth note, so it falls on a different finger each time) | In fours or in threes; two octaves or four |
+| Thumb under | Under 2, 3, 4 or 5 fingers |
+| Thirds, three up and back | In one place, or up the scale; with both hands, the same way or in mirror |
+| Bounced double notes (a few quick ones that bounce into a longer one, a step higher each bar) | Thirds, fourths, fifths, sixths or octaves; one to four quick notes |
+| Scale in octaves | One octave or two |
+| Trill bursts up the scale (four quick notes and a stop, a step higher each time) | Fingers 1 and 2, 2 and 3, 3 and 4, or 4 and 5 |
+| Hold one, turn to the next (a key held while the forearm turns to play its neighbour three times) | The next finger, or a finger further |
+| One finger holds, four play | Each finger in turn, or one of them |
+| Two-note slurs up the scale | Fingers 1 and 2, 2 and 3, 3 and 4, or 4 and 5 |
+
+With a pair of fingers, a hand alone uses the pair itself, and with both hands the left takes the opposite pair (5 and 4
+against the right's 1 and 2), on the same notes. The long forms travel: a line that goes far from its staff changes clef, or
+goes under an octave line, and a held key under moving ones is a second line on its staff, its fingers below it. Their ideas
+are from the lesson, each linked from its page; the names, the words and the notes are Prima's
+(`exercises/the_ten_daily_exercises.md` says what the lesson shows and where Prima's differ). Octaves, double notes and
+held fingers are the kind of work `exercises.md` found hands get overworked by, so their words say to keep them quiet and
+short, and the scale in octaves is marked Later.
+
+Each exercise to play also has a **focus**, one to three of twelve: finger strength, finger independence, evenness, the
+thumb, arm and wrist, rotation, double notes, chords and landing, touch, loud and soft, hands together, pedal. A section
+says what the notes are; a focus says what playing them is for, across the sections.
+
 They come as **two lists**, so the ones you play aren't among the ones you read. **To play**, which the tab opens on, has the
-42 played at the piano, the three drills among them; **To read** has the other 24, to read and do: how you sit, the warm-ups,
+50 played at the piano, the three drills among them; **To read** has the other 24, to read and do: how you sit, the warm-ups,
 the pedal by itself, and the ways to practice. Each shows its sections with a line on what they're for, and each exercise as
-a row: its name, what you do, when it was last done (Today, a date, or Not tried), and tags for Routine, Drill, Start here
-(played, and for the first weeks) and Later (for when the basics are easy). Beside the two are **My routine**, your own list
+a row: its name, what you do, when it was last done (Today, a date, or Not tried), and tags for Routine, Drill, Variations
+(a family), Start here (played, and for the first weeks) and Later (for when the basics are easy). Beside the two are **My routine**, your own list
 of both kinds in the catalogue's order, without the sections' headings, where one to read is tagged so; and two picks of the
-ones to play, **Start here** and **Not tried**. The search looks in an exercise's name, its section and all its words, so
-"jump", "thumb" or "pedal" finds whatever mentions it in the list showing, and a key under it says how many the other of the
-two lists has and goes there. The list showing is kept in the address, so coming back from an exercise comes back to it.
+ones to play, **Start here** and **Not tried**. The search looks in an exercise's name, its section, what it trains and all
+its words, so "jump", "thumb" or "pedal" finds whatever mentions it in the list showing, and a key under it says how many the
+other of the two lists has and goes there. Beside the search, **Trains anything** narrows the list to one focus, with a line
+on it. The list showing and the focus are kept in the address, so coming back from an exercise comes back to them.
 
 What it doesn't do yet: the exercises are fixed patterns, not adapted to how the last run went; they aren't a step of the
-daily plan; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
+daily plan; a routine Claude builds plays a family's main exercise, not a variation of it; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
 notes arrive, the time to travel, how far a miss missed) aren't taken. What MIDI can't carry isn't judged at all: the arm's
 weight, the forearm's turn, a loose wrist and the fingering are yours to feel, and the exercises that depend on them say so.
 
@@ -1147,8 +1180,10 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   gave it, the doubts by bar (in the piece and in its system), the MEI, the pages it covered, what it cost and how long it took
   (Read again's included), and when it was kept.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
-- **Exercises**: each one's runs are attempts under its id, with the key and hands (a Done away from the keys is one too); the
-  key, hands and tempo each was last played in; and the ones kept in My routine.
+- **Exercises**: each one's runs are attempts under its id, with the key and hands and, for a family, what was chosen of its
+  variations (a Done away from the keys is one too); the key, hands, tempo and variations each was last played in; and the
+  ones kept in My routine. An exercise that became a variation of a family (thumb under four fingers) is still opened by its
+  own id, and what's played that way stays under it.
 - **Streak**: the days practiced and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no
   images, and never the key), and the tokens and cost, so Settings can show the month's cost.
@@ -1254,8 +1289,10 @@ Only the devices can settle:
 
 Being researched: the Library's public-domain sources, importing PDFs, and page turns (`library.md`).
 
-Partly built from its research: the Exercises tab has a first set of technique exercises as fixed patterns; the landing
-measures and the adapting steps that `exercises.md` proposes for chord changes and jumps aren't built.
+Partly built from its research: the Exercises tab has a first set of technique exercises as fixed patterns, and the ten
+families from a lesson; the landing measures and the adapting steps that `exercises.md` proposes for chord changes and jumps
+aren't built. For the owner to settle from the lesson, by ear: the rhythm of the wrist bounce and the lengths in the trill
+bursts, which couldn't be read from the video (`exercises/the_ten_daily_exercises.md`).
 
 Open in the research: how best to step difficulty up, whether read-ahead and rhythm-only drills carry over to full reading in
 adults, whether spaced note review helps staff reading itself, and whether streaks help adult music learners keep going.
