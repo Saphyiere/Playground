@@ -298,4 +298,11 @@ public static class DrillScorer
         result.Notes.Count(n => n.Outcome == Outcome.Wrong && affected.Contains(n.Id) && n.Played is { } played && expected.First(e => e.Id == n.Id) is var written && played == written.Midi - SignatureAlter(written, key));
 
     private static int SignatureAlter(Music.ExpectedNote note, Music.Key key) => key.AlterOf(key.Spell(note.Midi).Step);
+
+    /// <summary>
+    /// "Forgot the key" in a figure played note by note: its notes the signature sharpens or flattens played as the plain letter
+    /// (F for F♯ in G major, B for B♭ in F). Any other key is a slip, a semitone away or not: G for F♯ isn't forgetting the sharp.
+    /// </summary>
+    public static int ForgotTheKey(Music.Key key, IReadOnlyList<int> target, IReadOnlyList<int> played) =>
+        target.Zip(played).Count(p => key.Spell(p.First) is var written && written.Alter != 0 && written.Alter == key.AlterOf(written.Step) && p.Second == p.First - written.Alter);
 }

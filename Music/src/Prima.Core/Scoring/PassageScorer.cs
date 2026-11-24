@@ -355,7 +355,10 @@ public static class PassageScorer
         }
 
         // Loudness: each dynamic's stretch at the median of its right notes, as a share of your soft-to-loud range, against the share
-        // its dynamic is played in; and marked louder or softer than the stretch before it, played so by 5 or more.
+        // its dynamic is played in; and marked louder or softer than the stretch before it, played so by 5 or more. A dynamic is
+        // heard where it holds as written: from its mark to the first crescendo or diminuendo after it, and not under one still
+        // going from before. Under a hairpin the notes are meant to grow or fade, and past one the level is where it went, so
+        // neither says how the dynamic was played: a p that swells from its first note (Growing and fading) isn't judged as a p.
         var (soft, loud) = range ?? (25, 105);
         var dynamics = new List<DynamicResult>();
         var hairpins = new List<HairpinResult>();
@@ -364,7 +367,8 @@ public static class PassageScorer
             (int Rank, double Median)? before = null;
             foreach (var stretch in markings.Dynamics)
             {
-                var inside = sounded.Keys.Where(i => expected[i].Tick >= stretch.From && expected[i].Tick < stretch.To).ToList();
+                var holds = markings.Hairpins.Where(h => h.From >= stretch.From && h.From < stretch.To).Select(h => h.From).DefaultIfEmpty(stretch.To).Min();
+                var inside = sounded.Keys.Where(i => expected[i].Tick >= stretch.From && expected[i].Tick < holds && !markings.Hairpins.Any(h => expected[i].Tick >= h.From && expected[i].Tick < h.To)).ToList();
                 if (inside.Count < 3) continue;
 
                 var median = Stats.Median([.. inside.Select(i => (double)sounded[i].Key.Velocity)]);

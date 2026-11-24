@@ -306,6 +306,24 @@ public class ScoringTests
     }
 
     [Fact]
+    public void ADynamicIsJudgedWhereItHoldsNotUnderACrescendoOrDiminuendo()
+    {
+        // p throughout, on a range of 20 to 100. Three notes at p, then a crescendo from the fourth to the end, played growing.
+        var growing = Marked(dynamics: [new("p", 0, 3840)], hairpins: [new(true, 1440, 3360)]);
+        int[] grew = [40, 41, 40, 50, 60, 70, 80, 90];
+        var played = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, grew[i])), markings: growing, range: (20, 100));
+        Assert.Equal((Loudness.Right, 1, 1), (Assert.Single(played.Dynamics).Outcome, played.Dynamics[0].FromBar, played.Dynamics[0].ToBar));
+        Assert.Equal(Swell.Right, Assert.Single(played.Hairpins).Outcome);
+
+        // A p that swells from its first note and fades back (Growing and fading's): only the swells are judged, not the p.
+        var swelling = Marked(dynamics: [new("p", 0, 3840)], hairpins: [new(true, 0, 1440), new(false, 1440, 3360)]);
+        int[] swelled = [40, 55, 70, 85, 70, 55, 45, 40];
+        var swell = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, swelled[i])), markings: swelling, range: (20, 100));
+        Assert.Empty(swell.Dynamics);
+        Assert.Equal([Swell.Right, Swell.Right], swell.Hairpins.Select(h => h.Outcome));
+    }
+
+    [Fact]
     public void AFixedTouchJudgesNoLoudness()
     {
         var result = Score(Scale(), Scale().Select((e, i) => Hit(e.Midi, i, i + 0.9, 64)), markings: Marked(dynamics: [new("p", 0, 3840)]));
@@ -395,6 +413,23 @@ public class ScoringTests
         var figure = DrillScorer.Figure([67, 71, 74], [new PlayedNote(65, shown + 700 * Ms, 0, 70), new PlayedNote(69, shown + 900 * Ms, 0, 70), new PlayedNote(72, shown + 1100 * Ms, 0, 70)], shown)!;
         Assert.True(figure.WrongFirstNote);
         Assert.Equal(0, figure.WrongIntervals);
+    }
+
+    [Fact]
+    public void InAFigureOnlyThePlainLetterIsForgettingTheKey()
+    {
+        // G major's scale up: F for F♯ is the sharp forgotten; G for F♯, or G♯ for G, is a slip.
+        int[] scale = [67, 69, 71, 72, 74, 76, 78, 79];
+        Assert.Equal(1, DrillScorer.ForgotTheKey(new Key(1), scale, [67, 69, 71, 72, 74, 76, 77, 79]));
+        Assert.Equal(0, DrillScorer.ForgotTheKey(new Key(1), scale, [67, 69, 71, 72, 74, 76, 79, 79]));
+        Assert.Equal(0, DrillScorer.ForgotTheKey(new Key(1), scale, [68, 69, 71, 72, 74, 76, 78, 79]));
+        // F major: B for B♭ is the flat forgotten, A for B♭ isn't; and a figure played short counts what was played.
+        int[] f = [65, 67, 69, 70, 72];
+        Assert.Equal(1, DrillScorer.ForgotTheKey(new Key(-1), f, [65, 67, 69, 71, 72]));
+        Assert.Equal(0, DrillScorer.ForgotTheKey(new Key(-1), f, [65, 67, 69, 69, 72]));
+        Assert.Equal(0, DrillScorer.ForgotTheKey(new Key(-1), f, [65, 67]));
+        // A note the signature doesn't alter, written with an accidental of its own (F natural in G major), isn't the key's.
+        Assert.Equal(0, DrillScorer.ForgotTheKey(new Key(1), [65], [64]));
     }
 
     [Fact]

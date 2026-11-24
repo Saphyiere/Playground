@@ -888,8 +888,11 @@ the next time it starts, as of when it happened.
     no harder than the notes within a beat of it, by 8 or more (velocity).
   - **Loudness**: each dynamic's stretch at the middle of how hard its keys were struck, as a share of your soft-to-loud range,
     against the share it's played in (*pp* to 25%, *p* 10 to 40%, *mp* 30 to 55%, *mf* 45 to 70%, *f* 60 to 90%, *ff* from 75%,
-    ours), and against the one before: marked louder or softer, it's played so by 5 or more. A crescendo or diminuendo: the line
-    through its notes rises or falls by 6 or more. A piano set to Fixed touch sends one velocity, so loudness isn't judged.
+    ours), and against the one before: marked louder or softer, it's played so by 5 or more. A dynamic is heard where it holds
+    as written: from its mark to the first crescendo or diminuendo after it, not under one going on from before; under a
+    hairpin the notes are meant to grow or fade, and past one the level is wherever it went, so a *p* that swells from its first
+    note isn't judged as a *p* at all. A crescendo or diminuendo: the line through its notes rises or falls by 6 or more. A
+    piano set to Fixed touch sends one velocity, so loudness isn't judged.
   - **Pedal**, where it's marked: pressed by half a beat after its mark, down for most of the stretch, and up (or changed) by a
     quarter of a beat after its release; down for over half a beat where none is marked is noted by bar.
 
@@ -972,7 +975,7 @@ success.
 | Ledger lines | A run of four or more notes stepping from the staff out past it, above or below, in the clefs Settings has you read: from a named note on the staff out, or from the far note, unnamed, back in; or one note out there, read by counting its lines. Play them | Each note right or wrong, and the time to play | Out to one ledger line, then two, then three, where half the runs go by thirds, line to line |
 | Intervals and shapes | A two- to five-note figure, first note given; play it | Each step right or wrong; a wrong interval apart from a wrong start | Steps, 3rds, 4ths and 5ths, 6ths to octaves; then mixed directions and moved shapes |
 | Chords | A stack of notes; play it at once | The notes against the target, how together they land, missing and extra notes | Two-note chords, triads and inversions, then four parts across the hands |
-| Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat | C and A minor, then one to five sharps and flats |
+| Key signatures | A signature, then a phrase using its sharps or flats | The tonic, and every note played without its sharp or flat: the plain letter (F for F♯ in G major; G for F♯ is a slip, not the key forgotten) | C and A minor, then one to five sharps and flats |
 | Rhythm | One to six bars of rhythm; tap a bar of beat, then the rhythm on any key. No line moves across the music while you tap: keeping the pulse is the point. Afterwards each note shows where its tap landed against the click, green on the beat, amber more than 10% of a beat off with an arrow, a ring wherever the tap was 5% or more off, outlined grey if missed; and each bar is summed up: one that ran early or late as a whole and by how much, the notes in it well off, where you came back on the beat | Early or late lean, steadiness, drift without the click, missed and extra taps | Quarters, eighths, dotted notes, sixteenths, syncopation, triplets; the click fades to a count-in, then silence |
 | Keyboard geography | A note or interval; play it without looking down | Wrong notes one or two keys away, and time to play | Within a hand position (C to G from middle C), then just out of it, then leaps of a sixth to a ninth either way, then anywhere an octave either side |
 | Listen and play back | Hear a short phrase on the piano, play it back, then see it written | Pitch and rhythm against the phrase | Five notes of a scale, then six to eight, then more keys; last, improvise an answer phrase (not scored) |

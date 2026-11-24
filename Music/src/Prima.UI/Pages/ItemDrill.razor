@@ -317,7 +317,7 @@ else
         {
             var figure = DrillScorer.Figure([.. item.Answer.Select(a => a[0])], notes, shownNs)!;
             answer = new Answer(figure.Right, figure.ResponseMs, "");
-            if (Key == "keys") forgotTheKey += notes.Zip(item.Answer).Count(p => p.First.Midi != p.Second[0] && Math.Abs(p.First.Midi - p.Second[0]) == 1 && entry.ItemKey.AlterOf(entry.ItemKey.Spell(p.Second[0]).Step) != 0);
+            if (Key == "keys") forgotTheKey += DrillScorer.ForgotTheKey(key, [.. item.Answer.Select(a => a[0])], [.. played.Select(p => p.Midi)]);
             var slips = new List<string>();
             foreach (var (n, i) in expected.Select((n, i) => (n, i)))
             {

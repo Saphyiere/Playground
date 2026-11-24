@@ -155,6 +155,9 @@
             (tryIndex, result) = (0, null);
             accuracies.Clear();
             NewRhythm();
+            // The new set starts clean: its rhythm can be the last one's music (at the first levels, often), which isn't drawn
+            // again, so the last try's marks would stay on it.
+            await (sheet?.ClearMarks() ?? Task.CompletedTask);
             return;
         }
 
