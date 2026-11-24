@@ -367,7 +367,9 @@ a PDF plays out; this is what came of it.
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
   with it; a note played twice keeps the mark of the latest time. Loop plays bars again and again until you stop: on the tab
   it loops that bar, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or
-  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. Each time
+  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. A repeat
+  printed inside the loop, both its signs in it, is played every time round as the piece plays it, its endings in turn; one
+  the loop cuts through isn't, and goes as it does the last time through. Each time
   round is a **pass**, scored by itself: the bar counts them, and as each begins shows how the one before went (In time the
   share right in time, Wait for me the notes right first time), with ↑ or ↓ on the one before, unless Practice is set to say
   nothing of it; nothing stops for it, unless a loop is set to wait after each pass (below). In time

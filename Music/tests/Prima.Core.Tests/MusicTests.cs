@@ -465,6 +465,34 @@ public class MusicTests
         Assert.Equal(expected, MeiReader.Read(Repeats).PlayOrder(from));
     }
 
+    // Round a loop, a repeat with both its signs inside is played each time round, its endings in turn; one the loop cuts through
+    // isn't, and goes as it does the last time through; from a first ending into the second, the bars are as written.
+    [Theory]
+    [InlineData(0, 5, new[] { 0, 1, 0, 1, 2, 3, 2, 4, 5 })]
+    [InlineData(0, 1, new[] { 0, 1, 0, 1 })]
+    [InlineData(0, 2, new[] { 0, 1, 0, 1, 2 })]
+    [InlineData(1, 2, new[] { 1, 2 })]
+    [InlineData(2, 3, new[] { 2, 3 })]
+    [InlineData(2, 4, new[] { 2, 3, 2, 4 })]
+    [InlineData(2, 5, new[] { 2, 3, 2, 4, 5 })]
+    [InlineData(3, 5, new[] { 3, 4, 5 })]
+    [InlineData(4, 5, new[] { 4, 5 })]
+    [InlineData(3, 3, new[] { 3 })]
+    public void A_loop_plays_the_repeats_inside_it(int first, int last, int[] expected)
+    {
+        Assert.Equal(expected, MeiReader.Read(Repeats).LoopOrder(first, last));
+    }
+
+    [Fact]
+    public void A_loop_with_no_repeat_in_it_is_its_bars_in_order()
+    {
+        var score = MeiReader.Read(MeiWriter.Write(new Score(new Key(0), new Meter(4, 4), [.. Enumerable.Range(1, 6).Select(n =>
+            new Bar(n, [new Voice(1, [new Notes($"n{n}", 0, Ticks.Whole, [new Tone($"n{n}", P(Step.C, 4))])])]))])));
+
+        Assert.Equal([2, 3, 4], score.LoopOrder(2, 4));
+        Assert.Equal([0, 1, 2, 3, 4, 5], score.LoopOrder(0, 5));
+    }
+
     // Bar 1 in 3/4 at ♩ = 120 (with "Moderato", which the file plays at a tempo no piece goes at), bar 2 slowing to ♩. = 40 from
     // its second beat, then 2/4 and "a tempo", whose 120 is only what the file plays it at, and a bar with no mark.
     private const string Tempos = """

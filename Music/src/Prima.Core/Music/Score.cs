@@ -282,6 +282,28 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
     }
 
     /// <summary>
+    /// One time round a loop of bars <paramref name="first"/> to <paramref name="last"/> (indexes into <see cref="Bars"/>): the
+    /// stretch of the piece's own order (<see cref="PlayOrder"/>) from a time bar <paramref name="first"/> is played to a time
+    /// bar <paramref name="last"/> is that never leaves the loop, the longest there is. So a repeat with both its signs inside
+    /// the loop is played, its endings in turn, as the piece plays it; one the loop cuts through isn't, and goes as it does the
+    /// last time through. Where no such stretch is (a loop from a first ending into the second), the bars as written.
+    /// </summary>
+    public IReadOnlyList<int> LoopOrder(int first, int last)
+    {
+        var played = PlayOrder();
+        var (from, count) = (-1, 0);
+        for (var i = 0; i < played.Count; i++)
+        {
+            if (played[i] != first) continue;
+            for (var j = i; j < played.Count && played[j] >= first && played[j] <= last; j++)
+            {
+                if (played[j] == last && j - i + 1 > count) (from, count) = (i, j - i + 1);
+            }
+        }
+        return from < 0 ? [.. Enumerable.Range(first, Math.Max(0, last - first + 1))] : [.. played.Skip(from).Take(count)];
+    }
+
+    /// <summary>
     /// The notes to play through bars in an order (<see cref="PlayOrder"/>'s, or a loop's): each bar's notes timed on from the bar
     /// before, so the music's own ticks hold until the first jump; a note played again has its pass after its id ("n12~2").
     /// </summary>

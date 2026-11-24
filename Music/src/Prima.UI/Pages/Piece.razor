@@ -1160,9 +1160,10 @@ else
     private int LastBar => score?.Bars[^1].Number ?? 1;
 
     // From a bar to the end, through the repeats as they're played; or in a loop, its bars again and again (fifty times: until
-    // stopped), each time round a pass the play bar scores. The run counts from that bar's downbeat, or from bar 1's for the
-    // opening pickup, which comes in the count-in's last beats. Bars are numbered in order, so a bar's index is its number on
-    // from the first's. Play along gives the piano the other hand's notes.
+    // stopped), each time round a pass the play bar scores, with any repeat printed inside the loop played each time round
+    // (Score.LoopOrder). The run counts from that bar's downbeat, or from bar 1's for the opening pickup, which comes in the
+    // count-in's last beats. Bars are numbered in order, so a bar's index is its number on from the first's. Play along gives
+    // the piano the other hand's notes.
     private void StartAt(int bar)
     {
         if (score is null || !barStarts.TryGetValue(bar, out var start)) return;
@@ -1170,7 +1171,7 @@ else
         from = bar;
         if (loopTo is { } to) loopTo = Math.Max(to, bar);
         var first = bar - FirstBar;
-        var loop = loopTo is { } last ? Enumerable.Range(first, last - bar + 1).ToList() : null;
+        var loop = loopTo is { } last ? score.LoopOrder(first, last - FirstBar) : null;
         var passes = stage == Stage.Practice && Settings.PassWaits ? 1 : 50;
         IReadOnlyList<int> order = loop is null ? score.PlayOrder(first) : [.. Enumerable.Repeat(loop, passes).SelectMany(r => r)];
         var notes = score.Performed(order);
