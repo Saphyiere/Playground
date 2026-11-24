@@ -1014,8 +1014,8 @@ F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4
 within 150 ms; when the first are right and the rest still to come, it's listened to until all of it is down, a key not in it
 comes, or nothing more for 0.6 s, and the words say "Not quite: played a key at a time. A chord's keys go down together.", the
 notes played late amber. A set's summary lists the single notes
-and chords you missed. The drills with steps show the step beside the item count, with − and + to choose it: a new set starts at
-the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
+and chords you missed. The drills with steps show the step over the bar, as an exercise shows its key, with − and + to choose it
+(the bar keeps the item, what's right and Loop): a new set starts at the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
 signature alone and asks for its tonic; the signature with no sharps or flats is a bare staff, so its prompt says so ("Play
 the tonic of this key: major (no sharps or flats)"), where a bare staff with nothing said looked like music that hadn't
 drawn.

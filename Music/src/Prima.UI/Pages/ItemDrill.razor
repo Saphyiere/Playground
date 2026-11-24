@@ -26,20 +26,22 @@ else if (items.Count == 0)
 }
 else if (index < items.Count)
 {
+    @* What to practice sits over the bar, as an exercise's key does: the step by hand, a new set at it, and the ladder moves on
+       from there. In full screen only the bar and the music are left. *@
+    @if (info.Top > 1)
+    {
+        <section class="exercise-choice drill-choice full-hide" aria-label="What to practice">
+            <div class="control-row">
+                <span class="control-label">Step</span>
+                <button type="button" class="mu-btn" aria-label="An easier step" disabled="@(track.Step <= 1)" @onclick="() => SetStep(track.Step - 1)">−</button>
+                <span class="control-value exercise-option">@track.Step of @info.Top</span>
+                <button type="button" class="mu-btn" aria-label="A harder step" disabled="@(track.Step >= info.Top)" @onclick="() => SetStep(track.Step + 1)">+</button>
+            </div>
+        </section>
+    }
     <section class="reading-bar play-bar piece-bar drill-bar" aria-label="Where you are">
         <div class="mu-readout"><span class="mu-readout-label">Item</span><span class="mu-readout-value">@(index + 1) of @items.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@results.Count(r => r.Right)</span></div>
-        @if (info.Top > 1)
-        {
-            @* The step by hand: a new set at it, and the ladder moves on from there. *@
-            <div class="mu-readout play-tempo"><span class="mu-readout-label">Step of @info.Top</span>
-                <span class="tempo-control">
-                    <button type="button" class="mu-btn" aria-label="An easier step" disabled="@(track.Step <= 1)" @onclick="() => SetStep(track.Step - 1)">−</button>
-                    <span class="tempo-figure">@track.Step</span>
-                    <button type="button" class="mu-btn" aria-label="A harder step" disabled="@(track.Step >= info.Top)" @onclick="() => SetStep(track.Step + 1)">+</button>
-                </span>
-            </div>
-        }
         @* Loop: lit, the sets come one after another until you leave, each kept as it ends, with no stop at its summary. *@
         @if (sets > 0)
         {

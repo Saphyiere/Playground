@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Prima.UI.Components;
 using Prima.UI.Pages;
@@ -44,5 +45,22 @@ public class ChordDrillTests
         foreach (var key in next.Order().SkipLast(1)) piano.Play(key, clock.NowNs);
         view.WaitForAssertion(() => Assert.EndsWith(" missing.", Feedback(view)), TimeSpan.FromSeconds(5));
         Assert.DoesNotContain("a key at a time", Feedback(view));
+    }
+
+    // A drill's step is chosen over its bar, as an exercise's key is; the bar keeps the item, what's right and Loop.
+    [Fact]
+    public async Task ADrillsStepIsChosenOverItsBarAsAnExercisesKeyIs()
+    {
+        await using var host = new ComponentHost(keyboard: new TestPiano(plugged: true));
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+        var view = host.Context.Render<ItemDrill>(p => p.Add(c => c.Key, "keys"));
+        view.WaitForAssertion(() => Assert.NotNull(registry.DrillAnswer));
+        Assert.Equal("1 of 6", view.Find(".drill-choice .control-value").TextContent.Trim());
+        Assert.Empty(view.FindAll(".drill-bar [aria-label='A harder step']"));
+        Assert.Equal(["Item", "Right"], view.FindAll(".drill-bar .mu-readout-label").Select(l => l.TextContent.Trim()));
+
+        await view.Find(".drill-choice [aria-label='A harder step']").ClickAsync(new MouseEventArgs());
+        view.WaitForAssertion(() => Assert.Equal("2 of 6", view.Find(".drill-choice .control-value").TextContent.Trim()));
+        Assert.Equal(2, (await host.Store.GetTrackAsync<DrillTrack>("drill:keys"))!.Step);
     }
 }
