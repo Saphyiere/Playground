@@ -18,7 +18,19 @@ public sealed class RoutineSession(RoutineService service)
     private bool started;
     private double baseline;
     public RoutineExecution? Execution { get; private set; }
-    public RoutineItem? Item => Execution?.Item.Recipe;
+
+    /// <summary>The activity open, in whichever routine.</summary>
+    public RoutineItem? Activity => Execution?.Item.Recipe;
+
+    /// <summary>
+    /// What the activity's recipe asks to be played (a key, hands, a mode, a tempo, a step), where that's what's played: in Claude's
+    /// routines. An exercise or a drill in a routine of your own asks for nothing: it's played as you last left it, and what's
+    /// changed playing it is kept as it would be anywhere.
+    /// </summary>
+    public RoutineItem? Item => Fixed ? Activity : null;
+
+    /// <summary>Whether the recipe is what's played and your own settings and progress are left as they were: Claude's routines.</summary>
+    public bool Fixed { get; private set; }
     public string? Problem { get; private set; }
     public DateOnly Day => Execution?.Day ?? DateOnly.FromDateTime(DateTime.Now);
     public bool IsRoutine { get; private set; }
@@ -35,12 +47,13 @@ public sealed class RoutineSession(RoutineService service)
         if (!IsRoutine) return true;
         if (Execution?.Id == id) return true;
         Execution = await service.GetExecutionAsync(id!);
-        if (Execution is null || kind is not null && Item?.Kind != kind || target is not null && Item?.TargetId != target)
+        if (Execution is null || kind is not null && Activity?.Kind != kind || target is not null && Activity?.TargetId != target)
         {
             Execution = null;
             Problem = "This routine activity is no longer available. Return to your routine to choose an activity.";
             return false;
         }
+        Fixed = await service.GetDefinitionAsync(Execution.Revision) is not { } routine || !OwnRoutines.AsLeft(routine, Execution.Item.Recipe);
         baseline = Execution.ActiveSeconds;
         clock.Restart();
         return true;

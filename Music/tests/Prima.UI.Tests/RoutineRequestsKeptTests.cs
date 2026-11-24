@@ -27,7 +27,7 @@ public class RoutineRequestsKeptTests
         }
 
         var view = host.Context.Render<RoutineLibrary>();
-        view.WaitForElement("[data-state='routine-following']");
+        view.WaitForElement("[data-routine-job]");
 
         Assert.Equal(30, view.FindAll("[data-routine]").Count);
         Assert.Equal([waiting.Id], view.FindAll("[data-routine-job]").Select(r => r.GetAttribute("data-routine-job")));

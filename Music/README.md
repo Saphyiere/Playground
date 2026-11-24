@@ -14,15 +14,21 @@ planning send the requested source information and practice summaries to the con
 
 ## Personal routines
 
-Open **Routines → Ask for routine** (or Exercises' or Today's) for general practice or help with a library piece. Choose the
-time available, optionally select bars and describe the difficulty, then generate a proposal. Review its order, durations,
-hands, tempos and music before using it. The accepted routine becomes Today’s default until changed; existing pinned exercises
-remain available separately.
+Make your own with **Routines → New routine** (or Exercises'): name it, then put exercises and drills in it with the **+** on
+any card in Exercises (or **Add to a routine** on an exercise's page). On its page **Edit** changes its name, each activity's
+minutes and place, or takes one out. In a routine of yours each exercise plays as you last left it, and what you change
+playing it is kept, as anywhere.
 
-**Routines**, under Practice in the rail, keeps every routine accepted and every request that isn't one yet, until it's
-dismissed: the one Today follows, requests being asked, ready to look over or not finished, and each routine kept, with
-**Follow** to make it Today's again. Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses
-nothing.
+Or open **Routines → Ask Claude for one** (or Today's **Ask for routine**) for general practice or help with a library piece.
+Choose the time available, optionally select bars and describe the difficulty, then generate a proposal. Review its order,
+durations, hands, tempos and music before using it. The accepted routine becomes Today’s default until changed. Claude's are
+kept as accepted; **Make it yours** copies one as a routine of your own.
+
+**Routines**, under Practice in the rail, keeps yours and Claude's: three starred on top as cards with how each is going (a lamp
+for each day of the last four weeks it was played, its clean runs, what's next and Start), the rest listed under them, and every
+request that isn't a routine yet, until it's dismissed. A routine's page has **On Today**, to make it the one Today follows.
+Each routine keeps its own progress for the day, so switching between a piece's routine and a technique routine loses nothing,
+and one not on Today can be practiced any day without changing Today.
 
 Suggestions use separate reading, rhythm and technique evidence. Sparse history stays provisional, and Wait for me results
 are kept separate from timed playing. The model chooses existing activities or recipes; Prima constructs and validates source
@@ -38,8 +44,8 @@ The bar's **Loop** takes an exercise round and round without a break instead, ea
 exercise and technique drill has).
 
 Each activity saves its own daily progress, and tomorrow starts fresh progress on the same routine. Completing practice does
-not require perfect accuracy. Feedback (**Too easy**, **About right**, **Too hard**) and comparable results can suggest changes,
-which are reviewed before acceptance; the app does not request a new model routine automatically.
+not require perfect accuracy. In Claude's routines, feedback (**Too easy**, **About right**, **Too hard**) and comparable
+results can suggest changes, which are reviewed before acceptance; the app does not request a new model routine automatically.
 
 Routine generation continues in Android’s foreground service when the screen is left or locked, with a completion notification
 when permitted. Only Cancel requests cancellation. If Android terminates execution, the saved request shows an interruption;

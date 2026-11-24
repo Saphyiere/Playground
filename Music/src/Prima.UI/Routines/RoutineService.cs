@@ -14,7 +14,11 @@ namespace Prima.UI.Routines;
 /// <summary>Owns routine preparation independently of a page. Requests run only after an explicit start.</summary>
 public sealed class RoutineService(PrimaStore store, IInferenceProvider provider, PrimaSettings settings, ILibraryBundle bundle)
 {
-    private readonly Task recovered = store.RecoverRoutineJobsAsync();
+    private readonly Task recovered = RecoverAsync(store);
+    private const string StarsTrack = "routine-stars";
+
+    /// <summary>How many routines can be starred, to keep them on top of the routines.</summary>
+    public const int MostStarred = 3;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> active = new();
     private readonly SemaphoreSlim lane = new(1);
     public event Action<RoutineGenerationJob>? Changed;
@@ -245,6 +249,86 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
 
     public async Task<RoutineDefinition?> ActiveAsync() { await recovered; return await store.GetActiveRoutineAsync(); }
 
+    // Requests left half asked when Prima last stopped; and the exercises once kept as My routine (a list of them, with nothing
+    // else to it), now a routine of your own by that name.
+    private static async Task RecoverAsync(PrimaStore store)
+    {
+        await store.RecoverRoutineJobsAsync();
+        if (await store.GetTrackAsync<List<string>>("exercise-routine") is not { Count: > 0 } kept) return;
+
+        var items = kept.Select(Exercises.Find).OfType<Exercise>().Where(OwnRoutines.CanHave).Select(OwnRoutines.Activity).ToList();
+        if (items.Count > 0) await store.SaveOwnRoutineAsync(Own("My routine", items));
+        await store.SaveTrackAsync<List<string>>("exercise-routine", []);
+    }
+
+    // A routine of your own as it's first made.
+    private static RoutineDefinition Own(string title, IReadOnlyList<PreparedRoutineItem> items)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), now, title.Trim(), "", new RoutineRequest(Minutes(items), ""),
+            new PracticeEvidenceSnapshot(now, []), null, RoutineDefinition.Yours, "", items);
+    }
+
+    private static int Minutes(IReadOnlyList<PreparedRoutineItem> items) => Math.Clamp(items.Sum(i => i.Recipe.Minutes), 1, 120);
+
+    /// <summary>A routine of your own, made under a name, with what's to be in it to start with.</summary>
+    public async Task<RoutineDefinition> MakeAsync(string title, IReadOnlyList<PreparedRoutineItem>? items = null)
+    {
+        await recovered;
+        var routine = Own(title, items ?? []);
+        await store.SaveOwnRoutineAsync(routine);
+        return routine;
+    }
+
+    /// <summary>A routine of yours as it now is: renamed, or its activities added, taken out, timed or put in another order.</summary>
+    public async Task<RoutineDefinition> SaveAsync(RoutineDefinition routine)
+    {
+        await recovered;
+        routine = routine with { Request = routine.Request with { Minutes = Minutes(routine.Items) } };
+        await store.SaveOwnRoutineAsync(routine);
+        return routine;
+    }
+
+    /// <summary>A copy of a routine as one of yours, to change as you like; one of Claude's stays as it was accepted.</summary>
+    public async Task<RoutineDefinition> CopyAsync(string revision)
+    {
+        var from = await GetDefinitionAsync(revision) ?? throw new InvalidOperationException("That routine isn't saved any more.");
+        return await MakeAsync(from.Title, [.. from.Items.Select(i => i with { Recipe = i.Recipe with { Id = Guid.NewGuid().ToString("N")[..12] } })]);
+    }
+
+    /// <summary>A routine of yours taken away, with its star; the runs played in it stay, as runs of their exercises.</summary>
+    public async Task DeleteAsync(string revision)
+    {
+        await recovered;
+        await store.DeleteOwnRoutineAsync(revision);
+        await StarAsync(revision, false);
+    }
+
+    /// <summary>The routines starred, by revision, in the order they were starred.</summary>
+    public async Task<IReadOnlyList<string>> StarredAsync() => await store.GetTrackAsync<List<string>>(StarsTrack) ?? [];
+
+    /// <summary>A routine starred, or its star taken off; false, and nothing changed, when three are starred already.</summary>
+    public async Task<bool> StarAsync(string revision, bool on)
+    {
+        var stars = (await StarredAsync()).ToList();
+        if (on == stars.Contains(revision)) return true;
+        if (on && stars.Count >= MostStarred) return false;
+
+        if (on) stars.Add(revision);
+        else stars.Remove(revision);
+        await store.SaveTrackAsync(StarsTrack, stars);
+        return true;
+    }
+
+    /// <summary>A routine's day: its progress on the day, made the first time it's opened that day, whether or not Today follows it.</summary>
+    public async Task<RoutineDay?> DayAsync(string revision, DateOnly? day = null) { await recovered; return await store.GetOrCreateRoutineDayAsync(day ?? DateOnly.FromDateTime(DateTime.Now), revision); }
+
+    /// <summary>Each routine activity's time on each day it was opened.</summary>
+    public Task<List<RoutineTime>> TimesAsync() => store.GetRoutineTimesAsync();
+
+    /// <summary>Every run played in a routine.</summary>
+    public Task<List<RoutineRun>> RunsAsync() => store.GetRoutineRunsAsync();
+
     /// <summary>Every routine accepted, newest first, the one followed among them.</summary>
     public async Task<IReadOnlyList<RoutineDefinition>> RoutinesAsync() { await recovered; return await store.GetRoutineDefinitionsAsync(); }
 
@@ -281,8 +365,9 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
     /// <summary>Local suggestions compare the same material, hand, key, mode and pace; accepting them is a separate action.</summary>
     public async Task<IReadOnlyList<RoutineAdjustment>> AdjustmentsAsync()
     {
+        // A routine of yours is played as you leave each exercise: there's nothing of its own to adjust.
         var definition = await ActiveAsync();
-        if (definition is null) return [];
+        if (definition is null || definition.Own) return [];
         var attempts = await store.GetAttemptsAsync(DateOnly.FromDateTime(DateTime.Now).AddDays(-30));
         var executions = await store.GetRoutineExecutionsAsync(definition.Revision);
         var catalog = RoutineCompiler.Input(definition.Request, definition.Evidence, definition.Source).Catalog;

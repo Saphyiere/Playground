@@ -216,11 +216,15 @@
         if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, interrupted ? 0 : 1);
         else await Store.AddAttemptAsync(attempt);
         tryIndex++;
-        if (tryIndex >= Tries && routineSession?.IsRoutine != true)
+        // A set's end moves the level on, but in one of Claude's routines; the day's step and minutes are Today's, outside a routine.
+        if (tryIndex >= Tries && routineSession?.Fixed != true)
         {
             before = state;
             state = state.After(accuracies.Average());
             await Store.SaveTrackAsync("rhythm", state);
+        }
+        if (tryIndex >= Tries && routineSession?.IsRoutine != true)
+        {
             await Store.MarkStepAsync(Today, StepKind.Rhythm);
             await Store.AddMinutesAsync(Today, (DateTime.Now - started).TotalMinutes);
             started = DateTime.Now;

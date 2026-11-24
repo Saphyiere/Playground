@@ -8,10 +8,11 @@ namespace Prima.UI.Tests;
 public class RoutineStoreTests
 {
     [Fact]
-    public async Task AcceptanceIsIdempotentAndNextDayStartsFreshWithoutChangingPins()
+    public async Task AcceptanceIsIdempotentAndNextDayStartsFreshWithoutChangingYourOwnRoutines()
     {
         await using var host = new ComponentHost();
-        await host.Store.SaveTrackAsync("exercise-routine", new[] { "octave-jump" });
+        var mine = Own("Leaps", "octave-jump");
+        await host.Store.SaveOwnRoutineAsync(mine);
         var job = ReadyJob();
         await host.Store.CreateRoutineJobAsync(job);
         Assert.Null(await host.Store.GetActiveRoutineAsync());
@@ -28,8 +29,71 @@ public class RoutineStoreTests
         Assert.Equal(RoutineItemState.Done, again.Items[0].State);
         Assert.NotEqual(first.Id, next.Id);
         Assert.All(next.Items, i => Assert.Equal(RoutineItemState.NotStarted, i.State));
-        Assert.Equal(new[] { "octave-jump" }, await host.Store.GetTrackAsync<string[]>("exercise-routine"));
+        Assert.Equal(mine.Items.Select(i => (i.Recipe.Id, i.Recipe.TargetId, i.Recipe.Minutes)), (await host.Store.GetRoutineDefinitionAsync(mine.Revision))!.Items.Select(i => (i.Recipe.Id, i.Recipe.TargetId, i.Recipe.Minutes)));
+        Assert.Equal(accepted.Revision, (await host.Store.GetActiveRoutineAsync())!.Revision);
     }
+
+    // A routine of yours changed (an activity added, one taken out, another moved): each day it was practiced keeps the progress of
+    // those still in it, in the new order, and one added starts not started. Claude's can't be changed, nor taken away.
+    [Fact]
+    public async Task ARoutineOfYoursChangedKeepsEachDaysProgressAndClaudesIsKeptAsAccepted()
+    {
+        await using var host = new ComponentHost();
+        var mine = Own("Leaps", "octave-jump", "jump-ladder", "chord-jump");
+        await host.Store.SaveOwnRoutineAsync(mine);
+        var day = (await host.Store.GetOrCreateRoutineDayAsync(new(2026, 11, 20), mine.Revision))!;
+        Assert.Equal(mine.Items.Select(i => i.Recipe.Id), day.Items.Select(i => i.ItemId));
+        var done = await host.Store.BeginRoutineExecutionAsync(day.Id, mine.Items[1].Recipe.Id);
+        await host.Store.CheckpointRoutineExecutionAsync(done.Id, 90);
+        await host.Store.CompleteRoutineExecutionAsync(done.Id);
+
+        var added = OwnRoutines.Activity(Exercises.Find("thirds")!);
+        var changed = mine with { Items = [mine.Items[1], mine.Items[2], added] };
+        await host.Store.SaveOwnRoutineAsync(changed);
+
+        var after = (await host.Store.GetRoutineDayAsync(day.Id))!;
+        Assert.Equal(changed.Items.Select(i => i.Recipe.Id), after.Items.Select(i => i.ItemId));
+        Assert.Equal([RoutineItemState.Done, RoutineItemState.NotStarted, RoutineItemState.NotStarted], after.Items.Select(i => i.State));
+        Assert.Equal(90, after.Items[0].ActiveSeconds);
+        Assert.Equal("thirds", (await host.Store.GetRoutineDefinitionAsync(mine.Revision))!.Items[2].Recipe.TargetId);
+
+        var job = ReadyJob();
+        await host.Store.CreateRoutineJobAsync(job);
+        var claudes = await host.Store.AcceptRoutineAsync(job.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Store.SaveOwnRoutineAsync(claudes with { Provider = RoutineDefinition.Yours, Title = "Mine now" }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Store.SaveOwnRoutineAsync(claudes with { Title = "Mine now" }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Store.DeleteOwnRoutineAsync(claudes.Revision));
+        Assert.Equal("Routine", (await host.Store.GetRoutineDefinitionAsync(claudes.Revision))!.Title);
+    }
+
+    // A routine of yours taken away goes with its days and Today's following it; the runs played in it stay, as runs of their
+    // exercises.
+    [Fact]
+    public async Task ARoutineOfYoursTakenAwayLeavesItsRunsAndTodayGoesBackToTheStandardPlan()
+    {
+        await using var host = new ComponentHost();
+        var mine = Own("Leaps", "octave-jump");
+        await host.Store.SaveOwnRoutineAsync(mine);
+        await host.Store.FollowRoutineAsync(mine.Revision);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var day = (await host.Store.GetOrCreateRoutineDayAsync(today))!;
+        var execution = await host.Store.BeginRoutineExecutionAsync(day.Id, mine.Items[0].Recipe.Id);
+        await host.Store.RecordRoutineAttemptAsync(execution.Id, "run", new AttemptRecord(0, DateTimeOffset.Now, today, "exercise", "in time", "octave-jump", null, 72, null, "{}", "[]", null, "{}", 1, true, null), 60);
+        Assert.Single(await host.Store.GetRoutineRunsAsync());
+
+        await host.Store.DeleteOwnRoutineAsync(mine.Revision);
+
+        Assert.Null(await host.Store.GetRoutineDefinitionAsync(mine.Revision));
+        Assert.Null(await host.Store.GetActiveRoutineAsync());
+        Assert.Empty(await host.Store.GetRoutineTimesAsync());
+        Assert.Empty(await host.Store.GetRoutineRunsAsync());
+        Assert.Equal(72, Assert.Single(await host.Store.GetAttemptsAsync(today, "exercise")).Tempo);
+    }
+
+    // A routine of your own, of these exercises.
+    internal static RoutineDefinition Own(string title, params string[] exercises) =>
+        new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, title, "", new(5, ""), new(DateTimeOffset.UtcNow, []), null,
+            RoutineDefinition.Yours, "", [.. exercises.Select(id => OwnRoutines.Activity(Exercises.Find(id)!))]);
 
     [Fact]
     public async Task AttemptsAndTimeAreCreditedOnceWhileKeepingTheirMaterialAndStartingDay()

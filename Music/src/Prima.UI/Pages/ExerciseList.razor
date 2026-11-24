@@ -1,15 +1,17 @@
 @page "/exercises"
 @inject PrimaStore Store
 @inject NavigationManager Nav
+@inject Prima.UI.Routines.RoutineService Routines
 @using Prima.Core.Generation
+@using Prima.UI.Routines
 
 <PageTitle>@(Heading().Title) · Exercises · Prima</PageTitle>
 
 @* The exercises and the drills as one catalogue, laid out as the Library is: its lists down the left (the ones to start with, not
-   tried yet, played lately and My routine, then every type, what each trains, or each level), and what's chosen beside them as
-   cards. A card shows what an exercise is before a word is read, its shape (how its notes move), with its name, a tag or two
-   and when it was last done; it opens the exercise, or the drill. The drills are a type of their own: new every time, each
-   moving you on a step as you get it right. The search looks in every name and word, across them all. *@
+   tried yet and played lately, then every type, what each trains, or each level), and what's chosen beside them as cards. A
+   card shows what an exercise is before a word is read, its shape (how its notes move), with its name, a tag or two and when
+   it was last done; it opens the exercise, or the drill, and its + puts it in one of your routines. The drills are a type of
+   their own: new every time, each moving you on a step as you get it right. The search looks in every name and word. *@
 <div class="lib ex-lib">
     <header class="page-head">
         <div>
@@ -18,16 +20,16 @@
         </div>
         <div class="head-tools">
             <input class="text-field head-search" type="search" placeholder="Find one: trill, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
-            <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
+            <a class="mu-btn" data-piano="off" data-action="new-routine" href="routines?new=1">New routine</a>
         </div>
     </header>
+    @if (note is not null)
+    {
+        <p class="control-note" role="status">@note</p>
+    }
 
     <div class="lib-cols">
         <nav class="lib-col lib-list" aria-label="The exercises' lists" aria-busy="@(ready ? "false" : "true")">
-            @if (routine.Count > 0)
-            {
-                <a class="col-item shelf-own" href="@Address(show: "routine")" aria-current="@Current(show: "routine")"><span>My routine</span><span class="n">@routine.Count</span></a>
-            }
             @foreach (var (key, label) in Picks)
             {
                 <a class="col-item" href="@Address(show: key)" aria-current="@Current(show: key)"><span>@label</span><span class="n">@Picked(key).Count()</span></a>
@@ -81,13 +83,14 @@
             <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")">
                 @if (shown.Count == 0)
                 {
-                    <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : Show == "routine" ? "Nothing in your routine yet. Open an exercise and turn on In my routine in its Options." : "Nothing here.")</p>
+                    <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : "Nothing here.")</p>
                 }
                 <div class="ex-cards">
                     @foreach (var exercise in shown)
                     {
                         var was = Done(exercise);
-                        <a class="ex-card" href="@(exercise.Route ?? $"exercises/{exercise.Id}{(Show == "routine" ? "?from=routine" : "")}")" data-exercise="@exercise.Id">
+                        <div class="ex-card-at">
+                        <a class="ex-card" href="@(exercise.Route ?? $"exercises/{exercise.Id}")" data-exercise="@exercise.Id">
                             @if (exercise.ToPlay)
                             {
                                 <ExerciseShape Exercise="exercise" Label="@($"How {exercise.Name} goes")" />
@@ -110,12 +113,21 @@
                                 }
                             </span>
                         </a>
+                        @if (OwnRoutines.CanHave(exercise))
+                        {
+                            <button type="button" class="ex-add" aria-pressed="@(InARoutine(exercise) ? "true" : "false")" aria-label="@($"Put {exercise.Name} in one of your routines")" @onclick="e => adding = (exercise, e.ClientX, e.ClientY)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                            </button>
+                        }
+                        </div>
                     }
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<RoutineMenu Exercise="adding?.Exercise" X="@(adding?.X ?? 0)" Y="@(adding?.Y ?? 0)" OnClose="() => adding = null" OnSaid="said => note = said" OnChanged="Mine" />
 
 @code {
     // The lists at the top of the left column, before the catalogue's: picks of the ones to play.
@@ -126,7 +138,7 @@
 
     private static readonly (ExerciseLevel Level, string Name)[] Levels = [(ExerciseLevel.Start, "First weeks"), (ExerciseLevel.Beginner, "Beginner"), (ExerciseLevel.Intermediate, "Later")];
 
-    /// <summary>A pick shown ("start", "new", "lately", "routine"): the ones to start with when nothing else is chosen.</summary>
+    /// <summary>A pick shown ("start", "new", "lately"): the ones to start with when nothing else is chosen.</summary>
     [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
 
     /// <summary>A type shown, by its section's key ("drills", "broken").</summary>
@@ -142,7 +154,10 @@
     [SupplyParameterFromQuery(Name = "by")] public string? By { get; set; }
 
     private List<DoneRecord> done = [];
-    private HashSet<string> routine = [];
+    // What's in your routines, each as its kind and id there; the exercise whose + was tapped, and where; and what was done.
+    private HashSet<(string Kind, string Target)> mine = [];
+    private (Exercise Exercise, double X, double Y)? adding;
+    private string? note;
     private string? search;
     private bool ready;
 
@@ -156,9 +171,13 @@
     protected override async Task OnInitializedAsync()
     {
         done = await Store.GetDoneAsync("exercise", [.. Exercises.All.Where(e => e.Route is not null).Select(e => KindOf(e.Route!))]);
-        routine = [.. await Store.GetTrackAsync<List<string>>("exercise-routine") ?? []];
+        Mine((await Routines.RoutinesAsync()).Where(r => r.Own).ToList());
         ready = true;
     }
+
+    private void Mine(IReadOnlyList<RoutineDefinition> own) => mine = [.. own.SelectMany(r => r.Items).Select(i => (i.Recipe.Kind, i.Recipe.TargetId))];
+
+    private bool InARoutine(Exercise exercise) => mine.Contains(OwnRoutines.Of(exercise));
 
     // Each drill's attempts are kept under its own kind: the route's last part, but a scale's and an arpeggio's by one of them.
     private static string KindOf(string route) => route.Split('/')[^1] switch
@@ -192,7 +211,6 @@
 
     private IEnumerable<Exercise> Picked(string pick) => pick switch
     {
-        "routine" => Exercises.All.Where(e => routine.Contains(e.Id)),
         "new" => Exercises.All.Where(e => e.ToPlay && Done(e) is null),
         "lately" => Exercises.All.Select(e => (Exercise: e, Done: Done(e))).Where(x => x.Done is { } d && d.Last >= Today.AddDays(-30)).OrderByDescending(x => x.Done!.Last).Select(x => x.Exercise),
         _ => Exercises.All.Where(e => e.ToPlay && e.Level == ExerciseLevel.Start),
@@ -218,18 +236,17 @@
         : Level is { } level ? (Levels.First(l => LevelKey(l.Level) == level).Name, level == "start" ? "The ones for the first weeks" : level == "later" ? "For when the basics are easy" : "The heart of it")
         : (Show ?? "start") switch
         {
-            "routine" => ("My routine", "the ones you've kept here"),
             "new" => ("Not tried yet", "to play, not played yet"),
             "lately" => ("Played lately", "the last month's, the latest first"),
             _ => ("Start here", "the ones for the first weeks"),
         };
 
-    // Its tags: a drill, a family with variations, in My routine, the first weeks' or for later, and one to read.
+    // Its tags: a drill, a family with variations, the first weeks' or for later, and one to read. Its + is lit while it's in a
+    // routine of yours.
     private IEnumerable<string> Tags(Exercise exercise)
     {
         if (exercise.Kind == ExerciseKind.Drill) yield return "Drill";
         if (ExerciseFamilies.Of(exercise.Id) is not null) yield return "Variations";
-        if (routine.Contains(exercise.Id) && Show != "routine") yield return "Routine";
         if (!exercise.ToPlay) yield return "To read";
         else if (exercise.Level == ExerciseLevel.Intermediate) yield return "Later";
     }

@@ -12,7 +12,7 @@
         {
             <p class="page-note" role="alert">@sessionProblem</p>
         }
-        else if (Session.Item is { } item)
+        else if (Session.Activity is { } item)
         {
             @* The time on the activity, played or not, counting down from its minutes; once it's up, Next stands out. Next and Skip go
                straight on to the next activity not done yet, and back to the routine after the last. *@
@@ -21,12 +21,12 @@
             <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {RoutineWords.American(next.Title)}")</button>
             <button type="button" class="mu-btn" data-piano="off" data-action="routine-skip" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
         }
-        <a class="mu-btn" data-piano="off" href="routine">Back to routine</a>
+        <a class="mu-btn" data-piano="off" href="@Back">Back to routine</a>
         @if (paused && OnResume.HasDelegate)
         {
             <button class="mu-btn mu-primary" type="button" data-piano="off" @onclick="Resume">Resume activity</button>
         }
-        @if (Session.Execution is { ActiveSeconds: > 0 } execution)
+        @if (Session is { Fixed: true, Execution: { ActiveSeconds: > 0 } execution })
         {
             @foreach (var (value, label) in new[] { ("easy", "Too easy"), ("right", "About right"), ("hard", "Too hard") })
             {
@@ -49,6 +49,9 @@
     private Prima.Core.Routines.RoutineItem? next;
     private string? nextFor;
     private Timer? ticker;
+
+    // The routine's own page.
+    private string Back => Session?.Execution is { } execution ? $"routines/{execution.Revision}" : "routine";
 
     protected override void OnInitialized()
     {
@@ -119,7 +122,7 @@
             await Pause();
             await Session.CompleteAsync(skipped);
             // On to the next activity not done yet; after the last, back to the routine.
-            Nav.NavigateTo(next is null ? "routine" : await Routines.OpenAsync(execution.DayId, next.Id));
+            Nav.NavigateTo(next is null ? Back : await Routines.OpenAsync(execution.DayId, next.Id));
         }
         catch (Exception error) { problem = error.Message; }
         finally { saving = false; }

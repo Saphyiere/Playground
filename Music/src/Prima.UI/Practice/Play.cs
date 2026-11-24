@@ -164,8 +164,8 @@ public static class Trouble
 
 /// <summary>
 /// What an exercise was last played as, kept for each one ("exercise:{id}"): its key, the hands and the tempo, for a family
-/// what's chosen of its variations ("interval=sixth;quick=2"), and whether it went through all its keys from that one. The
-/// exercises pinned as My routine are kept together, as their ids ("exercise-routine").
+/// what's chosen of its variations ("interval=sixth;quick=2"), and whether it went through all its keys from that one. Played
+/// in a routine of yours, it's this that's played, and kept.
 /// </summary>
 public sealed record ExerciseChoice(int Fifths, bool Minor, HandUse Hands, double Tempo)
 {

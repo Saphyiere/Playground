@@ -60,6 +60,31 @@ public class RoutinePlayerTests
         Assert.Equal(0, (await service.GetExecutionAsync(execution.Id))!.CompletedPasses);
     }
 
+    // In a routine of yours, an exercise is played as you last left it (its key, hands and tempo, with no mode asked for), and a
+    // change made playing it is kept, as anywhere: the routine is your practice, not a recipe.
+    [Fact]
+    public async Task AnExerciseInARoutineOfYoursIsPlayedAsYouLastLeftItAndKeepsWhatsChanged()
+    {
+        await using var host = new PlayerHost();
+        var service = host.Context.Services.GetRequiredService<RoutineService>();
+        var kept = new ExerciseChoice(2, false, HandUse.Left, 100);
+        await host.Store.SaveTrackAsync("exercise:octave-jump", kept);
+        var mine = await service.MakeAsync("Leaps", [OwnRoutines.Activity(Exercises.Find("octave-jump")!)]);
+        var day = await service.DayAsync(mine.Revision);
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo(await service.OpenAsync(day!.Id, mine.Items[0].Recipe.Id));
+        var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, "octave-jump"));
+        view.WaitForAssertion(() => Assert.Equal(100, view.FindComponent<PlayAlong>().Instance.Tempo));
+        var player = view.FindComponent<PlayAlong>().Instance;
+        Assert.Equal(2, player.Music!.Score.Key.Fifths);
+        Assert.All(player.Music.Notes, note => Assert.Equal(2, note.Staff));
+        Assert.Null(player.Ask);
+        Assert.Contains("Octave jump", view.Find("[data-routine-context]").TextContent);
+        Assert.Empty(view.FindAll("[data-feedback]"));
+
+        await view.InvokeAsync(() => player.TempoChanged.InvokeAsync(104));
+        Assert.Equal(kept with { Tempo = 104 }, await host.Store.GetTrackAsync<ExerciseChoice>("exercise:octave-jump"));
+    }
+
     [Fact]
     public async Task RhythmScoringAcceptsDifferentPitchesAtTheExpectedOnsets()
     {

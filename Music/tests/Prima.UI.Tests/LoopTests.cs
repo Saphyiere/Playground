@@ -264,6 +264,42 @@ public class LoopTests
     }
 
     [Fact]
+    public async Task A_looped_scale_says_how_many_times_it_went_round_and_that_its_evenness_is_the_last_pass()
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        // C major, one octave, the right hand, with a tempo: it opens In time, and looping.
+        var choice = new TechniqueChoice(new Prima.Core.Music.Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
+        await host.Store.SaveTrackAsync("technique-choice:scales", choice);
+        await host.Store.SaveTrackAsync($"technique:scales:{choice.Item("scales").Id}:{HandUse.Right}", Prima.Core.Practice.TechniqueState.New with { Tempo = 60 });
+        await host.Store.SetSettingAsync(PlayAlong.LoopKeyOf("scales"), "on");
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("drills/scales");
+        var view = host.Context.Render<TechniquePractice>();
+        var bar = view.FindComponent<PlayAlong>();
+        view.WaitForAssertion(() => Assert.True(bar.Instance.Looping && bar.Instance.Mode == PlayMode.InTime && bar.Instance.Music is not null));
+        var once = bar.Instance.Music!.Notes.Count;
+
+        // Twice round on the beat, and the third time's first note; then Stop.
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var run = host.Context.Services.GetRequiredService<SessionRegistry>().Current!;
+        foreach (var note in run.Expected.Take(2 * once + 1))
+        {
+            clock.NowNs = run.TimeAt(note.Beat);
+            piano.Play(note.Midi, clock.NowNs);
+            clock.NowNs += 300_000_000;
+            piano.Release(note.Midi, clock.NowNs);
+        }
+        await view.InvokeAsync(bar.Instance.Stop);
+
+        // The evenness is there, and before it the line every screen's summary gives a loop.
+        view.WaitForAssertion(() => Assert.NotEmpty(view.FindAll(".summary-words li")));
+        var words = view.FindAll(".summary-words li").Select(li => li.TextContent).ToList();
+        Assert.StartsWith("2 passes of ", words[0]);
+        Assert.EndsWith("The rest is the last pass.", words[0]);
+        Assert.Contains(words, w => w.StartsWith("Right hand"));
+    }
+
+    [Fact]
     public async Task Round_a_loop_a_drills_sets_follow_one_another()
     {
         var (piano, clock) = (new TestPiano(plugged: true), new SetClock());

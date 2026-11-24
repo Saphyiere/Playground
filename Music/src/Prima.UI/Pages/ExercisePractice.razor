@@ -15,9 +15,8 @@
 else
 {
     var choosing = keys.Count > 1 || exercise.Hands.Count > 1 || family is not null;
-    // What comes after this one: the next in My routine when that's the list it was opened from, or else the next in its section.
-    var after = Exercises.All.SkipWhile(e => e.Id != Id).Skip(1);
-    var next = From == "routine" ? after.FirstOrDefault(e => routine.Contains(e.Id)) : after.FirstOrDefault(e => e.Section == exercise.Section);
+    // What comes after this one in its section. In a routine, the routine's bar has its next.
+    var next = routineSession?.IsRoutine == true ? null : Exercises.All.SkipWhile(e => e.Id != Id).Skip(1).FirstOrDefault(e => e.Section == exercise.Section);
     var history = "Not tried yet.";
     if (was is not null)
     {
@@ -31,7 +30,7 @@ else
     <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name" Class="full-hide"><KeyboardLamp /></PageHead>
 
     // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
-    // done of it, the switch that keeps it in My routine, and what comes next.
+    // done of it, the key that puts it in one of your routines, and what comes next.
     RenderFragment about = @<text>
         <h2 class="section-title">How</h2>
         <ol class="exercise-steps">
@@ -57,15 +56,18 @@ else
                 {
                     <button type="button" class="mu-btn mu-primary" data-piano="go" disabled="@(was?.Last == Today)" @onclick="MarkDone">@(was?.Last == Today ? "Done today" : "Done")</button>
                 }
-                <button type="button" class="mu-toggle" aria-pressed="@On(routine.Contains(Id))" @onclick="ToggleRoutine"><span class="mu-led"></span>In my routine</button>
+                @if (Prima.UI.Routines.OwnRoutines.CanHave(exercise))
+                {
+                    <button type="button" class="mu-btn" data-action="add-to-routine" @onclick="() => adding = true">Add to a routine</button>
+                }
             </div>
             <p class="control-note">@history</p>
         }
         @if (next is not null && !playing)
         {
-            <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}{(From == "routine" ? "?from=routine" : "")}")">
+            <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}")">
                 <span class="piece-title">@next.Name</span>
-                <span class="piece-meta">@(From == "routine" ? "Next in my routine" : "Next in this section")</span>
+                <span class="piece-meta">Next in this section</span>
                 <span class="piece-level" aria-hidden="true">›</span>
             </a>
         }
@@ -77,6 +79,14 @@ else
        piece's is in, taking the rest of the screen and all that scrolls. Its words are its options: the bar's Options shows them
        in place of the music, as a piece's options are. In full screen only the bar and the music are left. One to read, or to do
        away from the keys, is its words. *@
+    @if (adding)
+    {
+        <RoutineMenu Exercise="exercise" OnClose="() => adding = false" OnSaid="said => routineNote = said" />
+    }
+    @if (routineNote is not null)
+    {
+        <p class="control-note full-hide" role="status">@routineNote</p>
+    }
     @if (exercise.Kind == ExerciseKind.Played)
     {
         <div @key="Id" class="exercise exercise-played practice-page">
@@ -173,8 +183,6 @@ else
 @code {
     [Parameter] public string Id { get; set; } = "";
 
-    /// <summary>"routine" when it was opened from My routine: what comes next is then the routine's next.</summary>
-    [SupplyParameterFromQuery(Name = "from")] public string? From { get; set; }
     [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
     private RoutineSession? routineSession;
     private PlayAlong? player;
@@ -198,7 +206,9 @@ else
     private bool wordsOpen;
     private PlayOutcome? outcome;
     private DoneRecord? was;
-    private List<string> routine = [];
+    // The menu of your routines, to put it in one, and what was done there.
+    private bool adding;
+    private string? routineNote;
     private DateTime started;
 
     private DateOnly Today => routineSession?.Day ?? DateOnly.FromDateTime(DateTime.Now);
@@ -216,13 +226,13 @@ else
         exercise = Exercises.Find(Id);
         if (exercise is null) return;
 
-        (outcome, playing, music, started) = (null, false, null, DateTime.Now);
-        routine = await Store.GetTrackAsync<List<string>>("exercise-routine") ?? [];
+        (outcome, playing, music, started, adding, routineNote) = (null, false, null, DateTime.Now, false, null);
         await Recount();
         if (exercise.Kind != ExerciseKind.Played) return;
 
-        // A family's variations as last chosen; opened by the id of an exercise that's now one of its variations, as that was. A
-        // routine asks for a key, hands and a tempo and no variation, so it gets the main exercise.
+        // A family's variations as last chosen; opened by the id of an exercise that's now one of its variations, as that was. One
+        // of Claude's routines asks for a key, hands and a tempo and no variation, so it gets the main exercise; in a routine of
+        // yours it's as you last left it.
         var last = await Store.GetTrackAsync<ExerciseChoice>($"exercise:{Id}");
         family = ExerciseFamilies.Of(exercise.Id);
         variant = family?.Read((routineSession.Item is null ? last?.Variation : null) ?? ExerciseFamilies.Formerly(Id)?.Choice);
@@ -232,7 +242,7 @@ else
         hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
         tempo = last?.Tempo ?? exercise.Tempo;
         through = last?.Through == true;
-        // A routine's activity is the one key it was planned in.
+        // An activity of one of Claude's routines is the one key it was planned in.
         if (routineSession.Item is { } requested) (key, hands, tempo, through) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo, false);
         Build();
     }
@@ -257,8 +267,9 @@ else
         outcome = null;
     }
 
-    // What's kept of how it was last played. A routine's activity leaves that as it was.
-    private Task Keep() => routineSession?.IsRoutine == true ? Task.CompletedTask : Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo) { Variation = variant?.ToString(), Through = through });
+    // What's kept of how it was last played: an activity of one of Claude's routines, played as its recipe says, leaves that as it
+    // was; one of a routine of yours is the exercise as you left it, and keeps what's changed.
+    private Task Keep() => routineSession?.Fixed == true ? Task.CompletedTask : Store.SaveTrackAsync($"exercise:{Id}", new ExerciseChoice(key.Fifths, key.Minor, hands, tempo) { Variation = variant?.ToString(), Through = through });
 
     private async Task Choose(Key toKey, HandUse toHands)
     {
@@ -340,16 +351,12 @@ else
         await Recount();
     }
 
-    // One with nothing for Prima to follow is done when you say so.
+    // One with nothing for Prima to follow is done when you say so; in a routine, as a run of its activity.
     private async Task MarkDone()
     {
-        await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", "done", Id, null, null, null, null, "[]", null, "{}", null, true, null));
+        var done = new AttemptRecord(0, DateTimeOffset.Now, Today, "exercise", "done", Id, null, null, null, null, "[]", null, "{}", null, true, null);
+        if (routineSession?.Execution is not null) await routineSession.RecordAsync(done, 1);
+        else await Store.AddAttemptAsync(done);
         await Recount();
-    }
-
-    private async Task ToggleRoutine()
-    {
-        routine = routine.Contains(Id) ? [.. routine.Where(id => id != Id)] : [.. routine, Id];
-        await Store.SaveTrackAsync("exercise-routine", routine);
     }
 }

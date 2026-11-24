@@ -130,12 +130,66 @@ public sealed partial class PrimaStore
         return definition;
     });
 
+    /// <summary>
+    /// Keeps a routine of your own as it now is: made, renamed, or its activities added, taken out, timed or put in another order.
+    /// Each day it was practiced keeps the progress of the activities still in it, in the new order; one added starts not started.
+    /// </summary>
+    public Task SaveOwnRoutineAsync(RoutineDefinition routine) => RunAsync(async c =>
+    {
+        var before = ReadRoutine<RoutineDefinition>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineDefinition WHERE Revision=@Revision", new { routine.Revision }));
+        if (!routine.Own || before is { Own: false }) throw new InvalidOperationException("Only a routine of your own can be changed: Claude's are kept as they were accepted.");
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        await c.ExecuteAsync("INSERT INTO RoutineDefinition(Revision,Accepted,Data) VALUES(@Revision,@accepted,@data) ON CONFLICT(Revision) DO UPDATE SET Data=excluded.Data",
+            new { routine.Revision, accepted = Iso(routine.Accepted), data = RoutineJson(routine) }, transaction);
+        foreach (var data in await c.QueryAsync<string>("SELECT Data FROM RoutineDay WHERE Revision=@Revision", new { routine.Revision }, transaction))
+        {
+            var day = ReadRoutine<RoutineDay>(data)!;
+            var had = day.Items.ToDictionary(i => i.ItemId);
+            day = day with { Items = [.. routine.Items.Select(i => had.GetValueOrDefault(i.Recipe.Id) ?? new RoutineItemProgress(i.Recipe.Id))] };
+            await c.ExecuteAsync("UPDATE RoutineDay SET Data=@data WHERE Id=@Id", new { day.Id, data = RoutineJson(day) }, transaction);
+        }
+        await transaction.CommitAsync();
+    });
+
+    /// <summary>
+    /// A routine of your own taken away, and Today's plan the standard one if it followed it. Its days go with it; the runs played in
+    /// them stay, as runs of their exercises.
+    /// </summary>
+    public Task DeleteOwnRoutineAsync(string revision) => RunAsync(async c =>
+    {
+        var routine = ReadRoutine<RoutineDefinition>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineDefinition WHERE Revision=@revision", new { revision }));
+        if (routine is null) return;
+        if (!routine.Own) throw new InvalidOperationException("Only a routine of your own can be taken away.");
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        await c.ExecuteAsync("DELETE FROM RoutineAttempt WHERE Execution IN (SELECT e.Id FROM RoutineExecution e JOIN RoutineDay d ON d.Id=e.DayId WHERE d.Revision=@revision)", new { revision }, transaction);
+        await c.ExecuteAsync("DELETE FROM RoutineExecution WHERE DayId IN (SELECT Id FROM RoutineDay WHERE Revision=@revision)", new { revision }, transaction);
+        await c.ExecuteAsync("DELETE FROM RoutineDay WHERE Revision=@revision", new { revision }, transaction);
+        await c.ExecuteAsync("DELETE FROM RoutineDefinition WHERE Revision=@revision", new { revision }, transaction);
+        await c.ExecuteAsync("DELETE FROM Setting WHERE Key=@key AND Value=@revision", new { key = ActiveRoutineKey, revision }, transaction);
+        await transaction.CommitAsync();
+    });
+
+    /// <summary>Each routine activity's time on each day it was opened, for how the routines are going.</summary>
+    public Task<List<RoutineTime>> GetRoutineTimesAsync() => RunAsync(async c =>
+        (await c.QueryAsync<(string Revision, string Day, string Data)>("SELECT d.Revision, d.Day, e.Data FROM RoutineExecution e JOIN RoutineDay d ON d.Id = e.DayId"))
+            .Select(r => (r.Revision, Day: DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), Execution: ReadRoutine<RoutineExecution>(r.Data)!))
+            .Select(r => new RoutineTime(r.Revision, r.Execution.ItemId, r.Day, r.Execution.ActiveSeconds, r.Execution.State)).ToList());
+
+    /// <summary>Every run played in a routine: its routine and activity, the day, whether it was clean, and its tempo In time.</summary>
+    public Task<List<RoutineRun>> GetRoutineRunsAsync() => RunAsync(async c =>
+        (await c.QueryAsync<(string Revision, string ItemId, string Day, string At, long Clean, double? Tempo)>(
+            "SELECT d.Revision, e.ItemId, d.Day, a.At, a.Clean, a.Tempo FROM RoutineAttempt r JOIN RoutineExecution e ON e.Id = r.Execution JOIN RoutineDay d ON d.Id = e.DayId JOIN Attempt a ON a.Id = r.Attempt"))
+            .Select(r => new RoutineRun(r.Revision, r.ItemId, DateOnly.Parse(r.Day, CultureInfo.InvariantCulture), DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), r.Clean != 0, r.Tempo)).ToList());
+
     public Task<RoutineDay?> GetRoutineDayAsync(string id) => RunAsync(async c =>
         ReadRoutine<RoutineDay>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineDay WHERE Id=@id", new { id })));
 
-    public Task<RoutineDay?> GetOrCreateRoutineDayAsync(DateOnly day) => RunAsync(async c =>
+    /// <summary>A routine's day: the one Today follows, or another named by its revision, made the first time it's opened that day.</summary>
+    public Task<RoutineDay?> GetOrCreateRoutineDayAsync(DateOnly day, string? revision = null) => RunAsync(async c =>
     {
-        var definition = ReadRoutine<RoutineDefinition>(await c.QuerySingleOrDefaultAsync<string>("SELECT d.Data FROM RoutineDefinition d JOIN Setting s ON s.Value=d.Revision WHERE s.Key=@key", new { key = ActiveRoutineKey }));
+        var definition = ReadRoutine<RoutineDefinition>(revision is null
+            ? await c.QuerySingleOrDefaultAsync<string>("SELECT d.Data FROM RoutineDefinition d JOIN Setting s ON s.Value=d.Revision WHERE s.Key=@key", new { key = ActiveRoutineKey })
+            : await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineDefinition WHERE Revision=@revision", new { revision }));
         if (definition is null) return null;
         var existing = await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineDay WHERE Revision=@Revision AND Day=@day", new { definition.Revision, day = Iso(day) });
         if (existing is not null) return ReadRoutine<RoutineDay>(existing);
@@ -168,7 +222,8 @@ public sealed partial class PrimaStore
         var definition = ReadRoutine<RoutineDefinition>(await c.QuerySingleAsync<string>("SELECT Data FROM RoutineDefinition WHERE Revision=@Revision", new { day.Revision }))!;
         var item = definition.Items.SingleOrDefault(i => i.Recipe.Id == itemId) ?? throw new InvalidOperationException("The routine item was not found.");
         var existing = ReadRoutine<RoutineExecution>(await c.QuerySingleOrDefaultAsync<string>("SELECT Data FROM RoutineExecution WHERE DayId=@dayId AND ItemId=@itemId", new { dayId, itemId }));
-        var execution = existing ?? new RoutineExecution(Guid.NewGuid().ToString("N"), dayId, day.Revision, itemId, day.Day, item, RoutineItemState.InProgress);
+        // Taken up again, it's the activity as the routine has it now: one of your own may have changed since.
+        var execution = existing is null ? new RoutineExecution(Guid.NewGuid().ToString("N"), dayId, day.Revision, itemId, day.Day, item, RoutineItemState.InProgress) : existing with { Item = item };
         if (execution.State is RoutineItemState.NotStarted or RoutineItemState.Paused) execution = execution with { State = RoutineItemState.InProgress };
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         await WriteRoutineExecutionAsync(c, execution, transaction);

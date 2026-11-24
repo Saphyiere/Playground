@@ -1,20 +1,29 @@
 @page "/routine"
+@page "/routines/{Revision}"
 @inject RoutineService Routines
+@inject PrimaStore Store
 @inject NavigationManager Nav
+@using Prima.Core.Generation
+@using Prima.Core.Practice
+@using Prima.Core.Routines
 @using Prima.UI.Routines
 
-<PageTitle>My routine · Prima</PageTitle>
-<PageHead Title="My routine" Kicker="Today’s practice">
-    <a class="mu-btn mu-primary" data-piano="off" href="routine/ask">Ask for routine</a>
-</PageHead>
+@* A routine opened: the one Today follows (routine), or any of them (routines/…). Its activities as numbered tracks, each with
+   its shape, how it's played and how it's going there (faster, or its clean runs, and its minutes); beside them how the routine
+   is going (a lamp for each of the last four weeks' days it was played, this week's minutes, its clean runs, what's next) and
+   whether Today follows it. Start opens its next activity. One of yours is changed here (Edit: its name, each activity's
+   minutes and place, taken out, or the routine taken away) and filled from the exercises' +; one of Claude's is kept as it was
+   accepted, and can be copied to make one of yours. *@
+<PageTitle>@(routine is null ? "My routine" : Called) · Prima</PageTitle>
 
 @if (loading)
 {
-    <p class="page-note" role="status">Opening your routine…</p>
+    <PageHead Title="Routine" Kicker="Opening…" />
 }
-else if (routine is null || day is null)
+else if (routine is null || standing is null)
 {
-    <p class="page-note">No personalised routine is active. Your standard daily plan is ready on Today, or follow one of your routines again.</p>
+    <PageHead Title="My routine" Kicker="Today's practice" />
+    <p class="page-note">@(Revision is null ? "Today has the standard daily plan: no routine is on it. Open one of your routines to put it on Today." : "That routine isn't saved any more.")</p>
     <div class="control-row">
         <a class="mu-btn" data-piano="off" href="">Open Today</a>
         <a class="mu-btn" data-piano="off" href="routines">Your routines</a>
@@ -22,86 +31,198 @@ else if (routine is null || day is null)
 }
 else
 {
-    <section class="settings-section" data-state="routine-active">
-        <h2 class="section-title">@RoutineWords.American(routine.Title)</h2>
-        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
-        <p class="control-note">@routine.Items.Sum(i => i.Recipe.Minutes) minutes · @day.Items.Count(i => i.State == RoutineItemState.Done) of @routine.Items.Count activities done</p>
-        @if (sourceWarning is not null) { <p class="section-note" role="status">@sourceWarning</p> }
-    </section>
-    var nextItem = day.Items.FirstOrDefault(i => i.State is not (RoutineItemState.Done or RoutineItemState.Skipped))?.ItemId;
-    <ol class="routine-grid">
-        @for (var index = 0; index < routine.Items.Count; index++)
-        {
-            var prepared = routine.Items[index];
-            var item = prepared.Recipe;
-            var progress = day.Items.First(i => i.ItemId == item.Id);
-            var state = progress.State == RoutineItemState.Done ? "done" : item.Id == nextItem ? "now" : null;
-            var status = progress.State switch { RoutineItemState.Done => "Done", RoutineItemState.Skipped => "Skipped", RoutineItemState.Paused => "Paused", RoutineItemState.InProgress => "In progress", _ => "Ready" };
-            <li class="mu-step routine-card" data-routine-item="@item.Id" data-state="@state">
-                <div class="mu-step-meta">
-                    <span class="mu-led" aria-hidden="true"></span>
-                    <span>@((index + 1).ToString("00"))</span>
-                    <span>@item.Minutes min</span>
-                    <span>@status</span>
-                </div>
-                <h3 class="mu-step-name">@RoutineWords.American(item.Title)</h3>
-                <p class="section-note">@RoutineWords.American(item.Purpose)</p>
-                <div class="routine-card-footer">
-                    <span class="control-note">
-                        @(item.Mode == "wait" ? "Wait for me" : $"In time · {item.Tempo:0} bpm")
-                        @if (progress.ActiveSeconds > 0) { <span> · @((progress.ActiveSeconds / 60).ToString("0.#")) min practiced</span> }
-                    </span>
-                    <button class="mu-btn @(item.Id == nextItem ? "mu-primary" : "")" type="button" data-piano="off" data-action="routine-start-item" disabled="@busy" @onclick="() => Start(item.Id)">@(progress.State is RoutineItemState.Done or RoutineItemState.Skipped ? "Practice again" : progress.ActiveSeconds > 0 ? "Continue" : "Start")</button>
-                </div>
-            </li>
-        }
-    </ol>
-    @if (adjustments.Count > 0)
+    var go = standing.Next;
+    var starredHere = stars.Contains(routine.Revision);
+    <PageHead Title="@Called" Kicker="@Kicker">
+        <div class="page-head-keys">
+            <button type="button" class="lb-star" aria-pressed="@(starredHere ? "true" : "false")" aria-label="@(starredHere ? "Starred: it's on top of your routines. Take its star off" : "Star it, to keep it on top of your routines")" @onclick="() => Star(!starredHere)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+            </button>
+            @if (routine.Own)
+            {
+                <button type="button" class="mu-btn" data-piano="off" data-action="routine-edit" aria-pressed="@(editing ? "true" : "false")" @onclick="Edit">@(editing ? "Done" : "Edit")</button>
+            }
+            else
+            {
+                <button type="button" class="mu-btn" data-piano="off" data-action="routine-copy" disabled="@busy" @onclick="Copy">Make it yours</button>
+            }
+            @if (go is not null)
+            {
+                <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(go.Id)">@(standing.DoneToday.Count > 0 ? "Go on" : "Start")</button>
+            }
+            else if (routine.Items.Count > 0)
+            {
+                <button type="button" class="mu-btn" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(routine.Items[0].Recipe.Id)">Again</button>
+            }
+        </div>
+    </PageHead>
+
+    @if (editing)
     {
-        <section class="settings-section">
-            <h2 class="section-title">Suggested adjustments</h2>
-            <ul class="summary-words">
-                @foreach (var adjustment in adjustments)
+        <div class="control-row rep-name">
+            <input class="text-field" type="text" aria-label="The routine's name" maxlength="60" value="@typed" @oninput="e => typed = e.Value?.ToString()" @onkeydown="NameKey" @onblur="Rename" />
+            @if (dropping)
+            {
+                <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="routine-remove-confirm" disabled="@busy" @onclick="Remove">Remove it</button>
+                <button type="button" class="mu-btn" data-piano="off" @onclick="() => dropping = false">Keep it</button>
+            }
+            else
+            {
+                <button type="button" class="text-key away" data-action="routine-remove" @onclick="() => dropping = true">Remove this routine…</button>
+            }
+        </div>
+        @if (dropping)
+        {
+            <p class="section-note" role="status">“@routine.Title” goes, with its days; the runs you played in it stay with their exercises.</p>
+        }
+    }
+    @if (note is not null)
+    {
+        <p class="control-note" role="status">@note</p>
+    }
+    @if (!routine.Own && routine.Summary.Length > 0)
+    {
+        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
+    }
+    @if (sourceWarning is not null)
+    {
+        <p class="section-note" role="status">@sourceWarning</p>
+    }
+
+    <div class="rt-page" data-state="@(Following ? "routine-active" : null)">
+        <div class="rt-main">
+            @if (routine.Items.Count == 0)
+            {
+                <p class="page-note">Nothing in it yet. The + on any exercise puts it here.</p>
+            }
+            <ol class="rt-tracks">
+                @for (var index = 0; index < routine.Items.Count; index++)
                 {
-                    var item = routine.Items.First(i => i.Recipe.Id == adjustment.ItemId).Recipe;
-                    <li>
-                        @RoutineWords.American(item.Title):
-                        @if (adjustment.SuggestedPreparationBeats is { } beats) { <span>@beats preparation beats. </span> }
-                        else if (adjustment.SuggestedStep is { } step) { <span>Step @step. </span> }
-                        else if (adjustment.SuggestedMode is { } mode) { <span>@(mode == "time" ? "In time" : "Wait for me"). </span> }
-                        else { <span>@adjustment.CurrentTempo.ToString("0") → @adjustment.SuggestedTempo.ToString("0") bpm. </span> }
-                        @adjustment.Reason
+                    var at = index;
+                    var item = routine.Items[at].Recipe;
+                    var progress = day?.Items.FirstOrDefault(i => i.ItemId == item.Id);
+                    var state = progress?.State switch { RoutineItemState.Done => "done", RoutineItemState.Skipped => "skipped", _ => item.Id == go?.Id ? "now" : null };
+                    var exercise = OwnRoutines.ExerciseOf(item);
+                    <li class="rt-track" data-routine-item="@item.Id" data-state="@state">
+                        <span class="rt-no">@((at + 1).ToString("00"))</span>
+                        @if (exercise is { ToPlay: true })
+                        {
+                            <ExerciseShape Exercise="exercise" />
+                        }
+                        else
+                        {
+                            <span class="ex-shape ex-shape-none" aria-hidden="true"></span>
+                        }
+                        <button type="button" class="rt-name" data-piano="off" data-action="routine-start-item" disabled="@busy" @onclick="() => Start(item.Id)">
+                            <b>@RoutineWords.American(item.Title)</b>
+                            <span>@Played(item)</span>
+                        </button>
+                        <span class="rt-trend"><b>@Trend(item)</b><span>@item.Minutes min@(Status(progress) is { } status ? $" · {status}" : "")</span></span>
+                        @if (editing)
+                        {
+                            <span class="rt-edit">
+                                <button type="button" class="mu-btn lb-small" aria-label="@($"{item.Title}: a minute less")" disabled="@(busy || item.Minutes <= 1)" @onclick="() => Time(at, -1)">−</button>
+                                <button type="button" class="mu-btn lb-small" aria-label="@($"{item.Title}: a minute more")" disabled="@(busy || item.Minutes >= 30)" @onclick="() => Time(at, 1)">+</button>
+                                <button type="button" class="mu-btn lb-small" aria-label="@($"Move {item.Title} up")" disabled="@(busy || at == 0)" @onclick="() => Move(at, -1)">↑</button>
+                                <button type="button" class="mu-btn lb-small" aria-label="@($"Move {item.Title} down")" disabled="@(busy || at == routine.Items.Count - 1)" @onclick="() => Move(at, 1)">↓</button>
+                                <button type="button" class="mu-btn lb-small" aria-label="@($"Take {item.Title} out")" disabled="@busy" @onclick="() => TakeOut(at)">✕</button>
+                            </span>
+                        }
                     </li>
                 }
-            </ul>
-            <p class="section-note">Review these changes before applying them. This uses your saved results and makes no model request.</p>
-            <button class="mu-btn" type="button" data-piano="off" data-action="routine-review-adjustments" disabled="@busy" @onclick="ReviewAdjustments">Review adjustments</button>
-        </section>
-    }
-    <div class="control-row">
-        <a class="mu-btn" data-piano="off" data-action="all-routines" href="routines">Other routines and requests</a>
-        <button class="mu-btn" type="button" data-piano="off" data-action="routine-deactivate" disabled="@busy" @onclick="Deactivate">Use the standard daily plan</button>
-        <a class="mu-btn" data-piano="off" href="exercises?show=routine">Saved exercises</a>
+            </ol>
+            @if (routine.Own)
+            {
+                <div class="control-row"><a class="mu-btn" data-piano="off" data-action="routine-add" href="exercises">Add exercises</a></div>
+            }
+            @if (adjustments.Count > 0)
+            {
+                <section class="settings-section">
+                    <h2 class="section-title">Suggested adjustments</h2>
+                    <ul class="summary-words">
+                        @foreach (var adjustment in adjustments)
+                        {
+                            var item = routine.Items.First(i => i.Recipe.Id == adjustment.ItemId).Recipe;
+                            <li>
+                                @RoutineWords.American(item.Title):
+                                @if (adjustment.SuggestedPreparationBeats is { } beats) { <span>@beats preparation beats. </span> }
+                                else if (adjustment.SuggestedStep is { } step) { <span>Step @step. </span> }
+                                else if (adjustment.SuggestedMode is { } mode) { <span>@(mode == "time" ? "In time" : "Wait for me"). </span> }
+                                else { <span>@adjustment.CurrentTempo.ToString("0") → @adjustment.SuggestedTempo.ToString("0") bpm. </span> }
+                                @adjustment.Reason
+                            </li>
+                        }
+                    </ul>
+                    <p class="section-note">Review these changes before applying them. This uses your saved results and makes no model request.</p>
+                    <button class="mu-btn" type="button" data-piano="off" data-action="routine-review-adjustments" disabled="@busy" @onclick="ReviewAdjustments">Review adjustments</button>
+                </section>
+            }
+        </div>
+
+        <aside class="rt-panel" aria-label="How it's going">
+            <h2 class="section-title">How it's going</h2>
+            <div class="rep-meter rt-days" role="img" aria-label="@(standing.Last is { } seen ? $"Played on {standing.DaysPlayed} of the last {RoutineStanding.Days} days, last {RoutineStanding.When(seen, today).ToLowerInvariant()}" : "Not practiced yet")">
+                @foreach (var lit in standing.Lamps)
+                {
+                    <span class="@(lit ? "s2" : "")"></span>
+                }
+            </div>
+            <p class="rep-line">@if (standing.Last is { } last) { <b>@RoutineStanding.DaysSaid(standing.DaysPlayed)</b>@($" of the last {RoutineStanding.Days} · last {RoutineStanding.When(last, today).ToLowerInvariant()}") } else { <b>Not practiced yet</b> }</p>
+            <div class="mu-screen rt-figures">
+                <div class="mu-readout"><span class="mu-readout-label">This week</span><span class="mu-readout-value">@($"{standing.WeekMinutes:0} min")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Clean runs</span><span class="mu-readout-value">@($"{standing.CleanRuns}/{standing.Runs}")</span></div>
+            </div>
+            @if (standing.Faster is { Timed: > 0 } faster && standing.FirstRun is { } first)
+            {
+                <p class="rep-line"><b>Faster</b> · @($"{faster.Faster} of {faster.Timed} since {RoutineStanding.When(first, today)}")</p>
+            }
+            <p class="rep-line">@if (go is not null) { <b>Next</b>@($" · {RoutineWords.American(go.Title)}") } else if (routine.Items.Count > 0) { <b>Done today</b>@(" · again tomorrow") }</p>
+            <div class="control-row">
+                <button type="button" class="mu-toggle" data-piano="off" data-action="routine-today" aria-pressed="@(Following ? "true" : "false")" disabled="@(busy || routine.Items.Count == 0)" @onclick="OnToday"><span class="mu-led"></span>On Today</button>
+            </div>
+            <p class="control-note rt-today-note">@(Following ? "Today's plan follows it." : active is { } other ? $"Today follows “{(other.Own ? other.Title : RoutineWords.American(other.Title))}”." : "Today has the standard daily plan.")</p>
+        </aside>
     </div>
 }
-@if (problem is not null) { <p class="section-note" role="alert">@problem</p> }
+@if (problem is not null)
+{
+    <p class="section-note" role="alert">@problem</p>
+}
 
 @code {
+    /// <summary>The routine, by its revision; none for the one Today follows.</summary>
+    [Parameter] public string? Revision { get; set; }
+
     private RoutineDefinition? routine;
+    private RoutineDefinition? active;
     private RoutineDay? day;
+    private RoutineStanding? standing;
+    private IReadOnlyList<string> stars = [];
     private IReadOnlyList<RoutineAdjustment> adjustments = [];
+    // How each activity of yours is played now, as you last left its exercise: "G major · both hands · ♩ 92".
+    private Dictionary<string, string> played = [];
     private string? sourceWarning;
     private string? problem;
+    private string? note;
+    private string? typed;
     private bool loading = true;
     private bool busy;
+    private bool editing;
+    private bool dropping;
+    private DateOnly today = DateOnly.FromDateTime(DateTime.Now);
 
-    protected override async Task OnInitializedAsync()
+    private bool Following => routine is not null && routine.Revision == active?.Revision;
+
+    private string Called => routine is null ? "" : routine.Own ? routine.Title : RoutineWords.American(routine.Title);
+
+    private string Kicker => routine is null ? "" : $"{(routine.Own ? "Your routine" : "From Claude")} · {(routine.Items.Count == 1 ? "1 exercise" : $"{routine.Items.Count} exercises")} · {routine.Items.Sum(i => i.Recipe.Minutes)} min";
+
+    protected override async Task OnParametersSetAsync()
     {
+        (loading, editing, dropping, note, problem) = (true, false, false, null, null);
         try
         {
-            routine = await Routines.ActiveAsync();
-            day = await Routines.TodayAsync();
-            adjustments = await Routines.AdjustmentsAsync();
+            await Load();
             if (routine?.Source is { } source)
             {
                 try
@@ -116,11 +237,193 @@ else
         finally { loading = false; }
     }
 
+    private async Task Load()
+    {
+        today = DateOnly.FromDateTime(DateTime.Now);
+        active = await Routines.ActiveAsync();
+        routine = Revision is null ? active : await Routines.GetDefinitionAsync(Revision);
+        if (routine is null) return;
+
+        day = await Routines.DayAsync(routine.Revision);
+        standing = RoutineStanding.Of(routine, await Routines.TimesAsync(), await Routines.RunsAsync(), today);
+        stars = await Routines.StarredAsync();
+        adjustments = Following && !routine.Own ? await Routines.AdjustmentsAsync() : [];
+        played = [];
+        foreach (var prepared in routine.Items)
+        {
+            if (await PlayedNow(prepared.Recipe) is { } line) played[prepared.Recipe.Id] = line;
+        }
+    }
+
+    private static string Hands(HandUse hands) => hands switch { HandUse.Right => "right hand", HandUse.Left => "left hand", _ => "both hands" };
+
+    // How an activity is played: in one of Claude's, as its recipe says; in one of yours, as its exercise was last left.
+    private async Task<string?> PlayedNow(RoutineItem item)
+    {
+        if (!OwnRoutines.AsLeft(routine!, item)) return null;
+
+        var exercise = OwnRoutines.ExerciseOf(item);
+        if (item.Kind == "exercise" && exercise is not null)
+        {
+            if (exercise.Kind == ExerciseKind.Away) return "Away from the keys";
+            var kept = await Store.GetTrackAsync<ExerciseChoice>($"exercise:{exercise.Id}");
+            var keys = Exercises.KeysOf(exercise);
+            var key = kept is not null && keys.Contains(new Key(kept.Fifths, kept.Minor)) ? new Key(kept.Fifths, kept.Minor) : keys[0];
+            var hands = kept is not null && exercise.Hands.Contains(kept.Hands) ? kept.Hands : exercise.Hands[0];
+            var through = kept?.Through == true ? $"Through the keys from {exercise.KeyName(key)}" : exercise.KeyName(key);
+            return $"{through} · {Hands(hands)} · ♩ {kept?.Tempo ?? exercise.Tempo:0}";
+        }
+        if (item.TargetId is "scales" or "arpeggios" or "independence")
+        {
+            var chosen = await Store.GetTrackAsync<TechniqueChoice>($"technique-choice:{item.TargetId}");
+            return chosen is null ? "Today's key" : $"{chosen.Key.Name} · {Hands(chosen.Hands)}";
+        }
+        if (item.TargetId == "rhythm") return $"Level {(await Store.GetTrackAsync<RhythmState>("rhythm") ?? RhythmState.Start).Level}";
+        var info = DrillCatalog.All.FirstOrDefault(d => d.Key == item.TargetId);
+        var step = (await Store.GetTrackAsync<DrillTrack>($"drill:{item.TargetId}") ?? DrillTrack.Start).Step;
+        return info is { Top: > 1 } ? $"Step {step} of {info.Top}" : "New every time";
+    }
+
+    // What's played: as an activity of yours was last left, or as one of Claude's recipes asks.
+    private string Played(RoutineItem item) => played.TryGetValue(item.Id, out var line) ? line : item switch
+    {
+        { Kind: "drill", TargetId: "rhythm" } => $"Level {item.Step} · ♩ {item.Tempo:0}",
+        { Kind: "drill", TargetId: not ("scales" or "arpeggios" or "independence") } => $"Step {item.Step}",
+        { Kind: "generated" or "excerpt" } => $"From your piece · {Hands(item.Hands)} · {Mode(item)}",
+        _ => $"{new Key(item.Fifths, item.Minor).Name} · {Hands(item.Hands)} · {Mode(item)}",
+    };
+
+    private static string Mode(RoutineItem item) => item.Mode == "wait" ? "Wait for me" : $"♩ {item.Tempo:0}";
+
+    // How it's going there: faster In time since its first run, or else its clean runs, or new.
+    private string Trend(RoutineItem item) => standing!.Activities.GetValueOrDefault(item.Id) switch
+    {
+        { FirstTempo: { } from, LastTempo: { } to } when Math.Abs(to - from) >= 1 => $"{from:0} → {to:0}",
+        { Runs: > 0 } runs => $"{runs.Clean} of {runs.Runs} clean",
+        _ => "New",
+    };
+
+    private static string? Status(RoutineItemProgress? progress) => progress?.State switch
+    {
+        RoutineItemState.Done => "done",
+        RoutineItemState.Skipped => "skipped",
+        RoutineItemState.Paused or RoutineItemState.InProgress when progress.ActiveSeconds > 0 => $"{progress.ActiveSeconds / 60:0.#} min played",
+        _ => null,
+    };
+
+    // An activity opened on the routine's day, whether Today follows it or not.
     private async Task Start(string itemId)
     {
+        if (routine is null) return;
+
         busy = true;
-        try { Nav.NavigateTo(await Routines.OpenAsync(day!.Id, itemId)); }
+        try
+        {
+            day ??= await Routines.DayAsync(routine.Revision);
+            Nav.NavigateTo(await Routines.OpenAsync(day!.Id, itemId));
+        }
         catch (Exception error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task Star(bool on)
+    {
+        if (routine is null) return;
+
+        note = await Routines.StarAsync(routine.Revision, on) ? null : "Three are starred: take a star off one of them first.";
+        stars = await Routines.StarredAsync();
+    }
+
+    private async Task OnToday()
+    {
+        if (routine is null) return;
+
+        busy = true;
+        try
+        {
+            if (Following) await Routines.DeactivateAsync();
+            else await Routines.FollowAsync(routine.Revision);
+            active = await Routines.ActiveAsync();
+            adjustments = Following && !routine.Own ? await Routines.AdjustmentsAsync() : [];
+        }
+        catch (InvalidOperationException error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private void Edit() => (editing, dropping, typed) = (!editing, false, routine?.Title);
+
+    // A routine of yours as it now is, kept, and shown with how it's going.
+    private async Task Save(RoutineDefinition changed)
+    {
+        busy = true;
+        try
+        {
+            routine = await Routines.SaveAsync(changed);
+            day = await Routines.DayAsync(routine.Revision);
+            standing = RoutineStanding.Of(routine, await Routines.TimesAsync(), await Routines.RunsAsync(), today);
+        }
+        catch (InvalidOperationException error) { problem = error.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task Rename()
+    {
+        if (routine is null || typed?.Trim() is not { Length: > 0 } name || name == routine.Title) return;
+
+        if ((await Routines.RoutinesAsync()).Any(r => r.Own && r.Revision != routine.Revision && string.Equals(r.Title, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            note = "You have a routine by that name.";
+            return;
+        }
+        note = null;
+        await Save(routine with { Title = name });
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Rename();
+    }
+
+    private Task Time(int at, int minutes) => Change(at, items => items[at] = items[at] with { Recipe = items[at].Recipe with { Minutes = Math.Clamp(items[at].Recipe.Minutes + minutes, 1, 30) } });
+
+    private Task Move(int at, int by) => Change(at, items => (items[at], items[at + by]) = (items[at + by], items[at]));
+
+    private Task TakeOut(int at) => Change(at, items => items.RemoveAt(at));
+
+    private async Task Change(int at, Action<List<PreparedRoutineItem>> change)
+    {
+        if (routine is null || busy || at < 0 || at >= routine.Items.Count) return;
+
+        var items = routine.Items.ToList();
+        change(items);
+        await Save(routine with { Items = items });
+    }
+
+    private async Task Remove()
+    {
+        if (routine is null) return;
+
+        busy = true;
+        try
+        {
+            await Routines.DeleteAsync(routine.Revision);
+            Nav.NavigateTo("routines");
+        }
+        finally { busy = false; }
+    }
+
+    // One of Claude's copied as one of yours, opened to change.
+    private async Task Copy()
+    {
+        if (routine is null) return;
+
+        busy = true;
+        try
+        {
+            var mine = await Routines.CopyAsync(routine.Revision);
+            Nav.NavigateTo($"routines/{mine.Revision}");
+        }
+        catch (InvalidOperationException error) { problem = error.Message; }
         finally { busy = false; }
     }
 
@@ -128,14 +431,6 @@ else
     {
         busy = true;
         try { var job = await Routines.CreateAdjustmentDraftAsync(); Nav.NavigateTo($"routine/jobs/{job.Id}"); }
-        catch (Exception error) { problem = error.Message; }
-        finally { busy = false; }
-    }
-
-    private async Task Deactivate()
-    {
-        busy = true;
-        try { await Routines.DeactivateAsync(); Nav.NavigateTo(""); }
         catch (Exception error) { problem = error.Message; }
         finally { busy = false; }
     }

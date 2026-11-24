@@ -652,9 +652,11 @@ else if (Outcome?.InTime is not null && ChildContent is not null)
 
     private static string Count(int n, string thing) => $"{n} {thing}{(n == 1 ? "" : "s")}";
 
-    // A loop's passes in a line: each one's headline (In time the share right in time, Wait for me the notes right first time), or
-    // past a dozen the first, the best and the last.
-    private static string PassesSaid((int From, int To) loop, IReadOnlyList<PiecePass> passes)
+    /// <summary>
+    /// A loop's passes in a line: each one's headline (In time the share right in time, Wait for me the notes right first time),
+    /// or past a dozen the first, the best and the last. A screen with its own summary of a run (a scale's evenness) leads with it.
+    /// </summary>
+    public static string PassesSaid((int From, int To) loop, IReadOnlyList<PiecePass> passes)
     {
         var bars = BarsOf(loop.From, loop.To);
         if (passes.Count == 1) return $"One pass of {bars}.";

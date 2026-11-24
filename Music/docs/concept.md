@@ -682,26 +682,47 @@ keeps its star, and shows again when it's put back.
 
 ### Routines
 
-Every routine Claude has made for you, kept to follow again, so you can keep several going (one for a piece, one for technique)
-and switch between them. **Ask for routine** in its head asks for another (Exercises and Today have it too). In three parts:
+Your routines and Claude's, kept to come back to as the Repertoire keeps pieces, so several can go at once (one for a piece, one
+for technique, one to warm up). **New routine** in its head makes one of yours: named, then filled from the exercises (Exercises
+has the key too); **Ask Claude for one** asks Claude for one. Tabs show Everything, Yours or From Claude, each with how many.
 
-- **Following**: the routine Today has, with its minutes, activities and how many are done today, **Practice it** (My routine,
-  its activities to start) and **Use the standard daily plan**. With none followed, Today has the daily plan.
-- **Asked for**: every request that isn't a routine yet, however many are accepted after it, newest first, each with what it's
-  called, where it is (Asking Claude…, Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its piece and
-  when. Each opens the request: its proposal to look over and use, or why it didn't finish and **Retry request**. The list
-  follows a request as it changes. **Dismiss…** beside one that isn't being asked just now asks, then takes it off for good;
-  one waiting to be asked or asking Claude stays until it's back.
-- **Your routines**: every routine accepted, newest first, an adjusted one too (Adjusted), each a card with its minutes and
-  activities, its summary, its activities by name, when it was accepted and last practiced (the last day one of its activities
-  had time played: one only opened, or skipped, isn't practice), and its piece. **Follow** makes it the one Today has; the one
-  followed is lit, with **Practice it**. Following another keeps the one before, and each keeps its own progress for the day,
-  so switching back finds today's done activities still done.
+- **Starred**, on top as cards, three at most (a fourth star waits for one to come off): whose it is, how many exercises and its
+  minutes, and On Today on the one Today follows; its name; its exercises' shapes in a row, as on their cards (six, and how many
+  more); a lamp for each of the last four weeks' days it was played (time played on one of its activities: one only opened, or
+  skipped, isn't practice); when it last was, how many of its activities had a clean run that day, and on how many of the 28
+  days; and what's next, the first activity not done today, with **Start** (**Go on** once some are done, **Again** once all
+  are), which opens it at once.
+- **Your other routines**: the rest, the last played first, each a row with ▶ to start its next activity, whose it is, its
+  exercises and minutes, when it was last played and how many went clean, and a star.
+- **Asked of Claude**: every request that isn't a routine yet, however many are accepted after it, newest first, each with
+  what it's called, where it is (Asking Claude…, Ready to look over, Didn't finish, Interrupted, Cancelled), its minutes, its
+  piece and when. Each opens the request: its proposal to look over and use, or why it didn't finish and **Retry request**. The
+  list follows a request as it changes. **Dismiss…** beside one that isn't being asked just now asks, then takes it off for
+  good; one waiting to be asked or asking Claude stays until it's back.
 
-The Routines key in the rail is lit on every routine screen: this one, My routine, asking for one, a request and an activity,
-an exercise or a drill opened from a routine among them (Exercises is lit when they're opened from there). Routines
+A routine opens on its own page (the one Today follows at routine, any of them at routines/…): its activities as numbered
+tracks, each with its shape, its name, how it's played, how it's going there (faster, "66 → 76" from its first run In time in
+the routine to its latest; or its clean runs; or New) and its minutes, and each opening its activity. Beside them, **How it's
+going**: the four weeks' lamps, the days and the last, this week's minutes, the clean runs of the four weeks, how many of its
+activities got faster and since when, what's next, and **On Today**, which makes it the routine Today follows, or gives Today
+back its standard plan. In its head, the star and **Start**; for one of yours, **Edit**: its name, each activity a minute more
+or less, moved up or down, or taken out, and **Remove this routine…**, which asks first (its days go; the runs played in it
+stay, as runs of their exercises); with **Add exercises** under the tracks, to the catalogue, where a card's **+** puts one in.
+One of Claude's is kept as it was accepted, with its summary over the tracks; **Make it yours** copies it as one of yours to
+change, and its suggested adjustments, from your results, are looked over and make a routine of their own, as before.
+
+In a routine of yours an exercise or a drill is just itself, played as you last left it, and what's changed playing it (the
+key, the hands, a variation, the tempo, Loop, a drill's step) is kept as it would be anywhere: the routine is the practice, and
+each exercise remembers its own. Its track says how it's played now ("C major · right hand · ♩ 76", "Step 2 of 4"). In one of
+Claude's, an activity is played as its recipe says (a key, hands, a mode, a tempo, a step), and what's yours is left as it was.
+Either way the routine's bar over it counts its minutes down and goes on to the next activity not done, then back to the
+routine's page; a routine not on Today keeps its own day's progress, so it can be practiced any day without Today changing.
+The exercises once kept as My routine, a list with nothing else to it, are now a routine of yours by that name.
+
+The Routines key in the rail is lit on every routine screen: this one, a routine's page, asking for one, a request and an
+activity, an exercise or a drill opened from a routine among them (Exercises is lit when they're opened from there). Routines
 Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
-Claude's words are respelled, never the goal you typed or a piece's title.
+Claude's words are respelled, never the goal you typed, a routine you named or a piece's title.
 
 ### Tools
 
@@ -798,8 +819,8 @@ says why, and a key of its own does it all the same without a copy (**Clear it w
 copy**, **Reset them without a copy**).
 
 - **Start over** (**Clear my progress**) takes everything Prima keeps about your playing, so it's as on its first open: levels
-  and tracks (the drills', the exercises' and My routine), note cards and answers, every run, practice day and session (and so
-  the streak), routines and requests, which sight-reading passages have come up, and on each piece what's next, where it was
+  and tracks (the drills' and the exercises'), note cards and answers, every run, practice day and session (and so the
+  streak), routines (yours and Claude's, and their stars) and requests, which sight-reading passages have come up, and on each piece what's next, where it was
   left, the tempo set for it, the hand practiced and when it was last opened. The settings stay as they are, and so does the
   Library, with the music imported and the collection (the music isn't progress, and only a copy or an export carries it), and
   how each piece shows and each screen plays. Then Prima opens on its welcome.
@@ -989,7 +1010,10 @@ beside it as a red head, each named above (a single note's name as Settings says
 keys as red heads beside it, named. The next item takes the marks off; one asking for the same note as the item before
 (Keyboard geography's first step has only five keys) shows it unmarked, listened for as any other. The words under the staff
 name the same notes: "Off: note 2, E5 for F5", "The shape was right, from the wrong first note: …", and for a chord "Not quite:
-F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4 extra". A set's summary lists the single notes
+F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4 extra". A chord's keys go down together,
+within 150 ms; when the first are right and the rest still to come, it's listened to until all of it is down, a key not in it
+comes, or nothing more for 0.6 s, and the words say "Not quite: played a key at a time. A chord's keys go down together.", the
+notes played late amber. A set's summary lists the single notes
 and chords you missed. The drills with steps show the step beside the item count, with − and + to choose it: a new set starts at
 the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
 signature alone and asks for its tonic; the signature with no sharps or flats is a bare staff, so its prompt says so ("Play
@@ -1025,7 +1049,8 @@ start, and the step is done with the arpeggio's third run, not the scale's.
 
 A technique drill's bar has **Loop** (see [Playing to a tempo](#playing-to-a-tempo)): the scale, arpeggio or pattern goes
 round whole, each time round a run of the set, and the evenness shown when it's stopped is the last pass's, from that pass's
-own keys. Looping isn't held to five runs: it goes until Stop. Beside the key is **Through the keys**: every key one after
+own keys; its summary says so first, as every screen's does ("2 passes of bars 1 to 2, right in time: 100% and 100%. The rest
+is the last pass."). Looping isn't held to five runs: it goes until Stop. Beside the key is **Through the keys**: every key one after
 another as one piece of music, from the key showing on through the list and round to the one before it, each named over
 its first note with its signature where it starts, in the form, octaves and hands chosen, at the tempo showing. A run
 through the keys is practice for the notes, summed up as an exercise's run is: it isn't measured for evenness, no key's
@@ -1081,8 +1106,8 @@ left it, and its page is laid out as a piece's is: what you do in a line, its ch
 paper frame, drawn the way a piece's is, taking the rest of the screen and all that scrolls. Its words are the bar's
 **Options**, shown in the music's place as a piece's options are: how, what to notice, what it trains and, for one whose idea
 is from a lesson, a link to the lesson at that exercise's place in it; then what's been done of it (how many times and on how
-many days, when last, and the fastest clean run In time), **In my routine**, which keeps it in the catalogue's My routine, and a
-row that leads to the next in its section, or, when the exercise was opened from My routine, to the routine's next. One to
+many days, when last, and the fastest clean run In time), **Add to a routine**, which puts it in one of your routines or a new
+one (as a card's + does), and a row that leads to the next in its section (in a routine, the routine's bar has its next). One to
 read or to do away from the keys is its words.
 
 A **family** is a main exercise and the side ones a few choices make of it. Under its key and hands its page has a row for
@@ -1116,27 +1141,29 @@ independence, evenness, the thumb, arm and wrist, rotation, double notes, chords
 together, pedal. A section
 says what the notes are; a focus says what playing them is for, across the sections.
 
-The catalogue is laid out as the Library is. Down the left: **My routine**, your own list, when it has any; three picks of the
-ones to play, **Start here** (the first weeks', which the tab opens on), **Not tried yet** and **Played lately** (the last
+The catalogue is laid out as the Library is. Down the left: three picks of the ones to play, **Start here** (the first weeks', which the tab opens on), **Not tried yet** and **Played lately** (the last
 month's, the latest first); then the catalogue itself, listed by **Types**, **Trains** or **Levels** as the Library lists by
 composers, kinds or levels. Types are the Drills first, then the sections to play by short names (Arm and wrist, Five
 fingers, Scales, Broken chords, Chords, Jumps, Thumb under, Trills, Double notes, Two hands, Touch, Pedal), and under **To
 read** the three with nothing to play (Sitting, Warm-ups, Ways to practice); Trains lists the focuses, Reading first; Levels
 are First weeks, Beginner and Later. What's chosen shows beside the lists as **cards** under its name and a line on it: a
 type's in its own order, the rest by type, a family among its type's others. A card has the exercise's **shape**, its name,
-its tags (Drill, Variations for a family, Routine, To read, and Later for when the basics are easy) and when it was last done
-(Today, a date, or Not tried). The shape is how the notes move, drawn small, so what an exercise is shows before a word is
+its tags (Drill, Variations for a family, To read, and Later for when the basics are easy) and when it was last done (Today,
+a date, or Not tried). Its **+**, over the corner of its shape, puts it in one of your routines: a menu of them, each ticked
+while it's in it (a tap puts it in at the end, or takes it out), and **New routine…** to make one with it in; the + is lit
+while it's in one. Any exercise to play, any done away from the keys and the drills whose screens keep a routine's time can be
+in one (all but Endless notes and Listen and play back); a way to practice is to read. The shape is how the notes move, drawn small, so what an exercise is shows before a word is
 read: each note a bar at its pitch and time, the right hand's in the look's accent and the left's in ink, with a faint line
 at each C. It's the exercise's own opening in C, in its first hands, two bars (four where two hold few notes): a scale is a
 ramp, a trill a zigzag, a chord a stack, a jump two blocks far apart. A drill's, new every time, is what a set of it is like;
-one to read shows its type. The search, in the head beside **Ask for routine**, looks in an exercise's name, its section, what
+one to read shows its type. The search, in the head beside **New routine**, looks in an exercise's name, its section, what
 it trains and all its words, across the catalogue, so "jump", "thumb" or "pedal" finds whatever mentions it. What's shown is
 kept in the address, so coming back from an exercise comes back to it. The Drills screen's old address opens the catalogue
 at the drills, and a drill's Done goes back there.
 
 What it doesn't do yet: the exercises are fixed patterns, not adapted to how the last run went; they aren't a step of the
-daily plan; a routine Claude builds plays a family's main exercise, not a variation of it; My routine is one list, not several of your
-own to keep and star; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
+daily plan; a routine Claude builds plays a family's main exercise, not a variation of it; one exercise in two of your routines
+is the same exercise in both, in the key you last left it, not one key in each; and the measures `exercises.md` proposes for chord changes and jumps (the first landing, how together a chord's
 notes arrive, the time to travel, how far a miss missed) aren't taken. What MIDI can't carry isn't judged at all: the arm's
 weight, the forearm's turn, a loose wrist and the fingering are yours to feel, and the exercises that depend on them say so.
 
@@ -1239,15 +1266,18 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   (Read again's included), and when it was kept.
 - **Excerpts**: each piece's 2-, 4- and 8-bar stretches with their levels, how often each was read, and when last.
 - **Exercises**: each one's runs are attempts under its id, with the key and hands and, for a family, what was chosen of its
-  variations (a Done away from the keys is one too); the key, hands, tempo and variations each was last played in; and the
-  ones kept in My routine. An exercise that became a variation of a family (thumb under four fingers) is still opened by its
+  variations (a Done away from the keys is one too); and the key, hands, tempo and variations each was last played in. An
+  exercise that became a variation of a family (thumb under four fingers) is still opened by its
   own id, and what's played that way stays under it.
 - **Streak**: the days practiced and the freezes used.
 - **Calls to Claude**: each one's time, the piece it was for, the task and model, how it went, what was asked and answered (no
   images, and never the key), and the tokens and cost, so Settings can show the month's cost.
 - **Routines**: each request (what was asked, the evidence it was asked with, the piece's edition, where it is, what came back);
-  each routine accepted, kept as accepted, never changed (an adjustment is a routine of its own); which one is followed, a
-  setting; and each routine's day, one per routine and date, with each activity's state, time and runs.
+  each routine accepted, kept as accepted, never changed (an adjustment is a routine of its own); each routine of yours, the
+  same shape (its activities exercises and drills by id, each with its minutes, under the provider "own"), changed in place as
+  you change it; which one is followed, a setting; the three starred, a track ("routine-stars"); and each routine's day, one
+  per routine and date, with each activity's state, time and runs, which a routine of yours changed keeps for the activities
+  still in it.
 - **Problems** aren't in the data file: they're `errors.log` beside `claude-key.txt`, plain text, an entry a problem (`===`, the
   time, how bad and what said it, then what it said and the rest), so they're there even when the data file isn't.
 - **Copies** of all of it but Claude's key, through the Kit's sync (Kit/Playground.Sync): the data file (`prima.db`, snapshotted

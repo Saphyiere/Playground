@@ -234,7 +234,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     private async Task GoThrough(bool on)
     {
         through = on;
-        if (routineSession?.IsRoutine != true) await Store.SetSettingAsync(ThroughKey, on ? "on" : "off");
+        if (routineSession?.Fixed != true) await Store.SetSettingAsync(ThroughKey, on ? "on" : "off");
         await Build();
     }
 
@@ -256,7 +256,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     private async Task Choose(TechniqueChoice to)
     {
         choice = to;
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"technique-choice:{Key}", to);
+        if (routineSession?.Fixed != true) await Store.SaveTrackAsync($"technique-choice:{Key}", to);
         await Build();
     }
 
@@ -286,7 +286,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     private async Task SetTempo(double bpm)
     {
         state = state with { Tempo = bpm, Started = state.Started ?? Today };
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync(StateKey, state);
+        if (routineSession?.Fixed != true) await Store.SaveTrackAsync(StateKey, state);
     }
 
     private Task Starting()
@@ -327,7 +327,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
             {
                 comfortable = 60_000 / (gapMs * item.NotesPerBeat);
                 state = state.Comfortable(comfortable.Value, Today);
-                if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync(StateKey, state);
+                if (routineSession?.Fixed != true) await Store.SaveTrackAsync(StateKey, state);
             }
             if (routineSession?.Execution is not null)
             {
@@ -373,7 +373,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         await (sheet?.ShowMarks(marks) ?? Task.CompletedTask);
         var sd = handRuns.Where(r => r.Valid).Select(r => r.IoiSdPercent).DefaultIfEmpty(0).Max();
         var tempo = Tempo;
-        if (routineSession?.IsRoutine != true)
+        if (routineSession?.Fixed != true)
         {
             state = state.After(result.Valid, result.Valid ? sd : null, Today);
             await Store.SaveTrackAsync(StateKey, state);
@@ -397,6 +397,8 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     {
         if (result is null) yield break;
 
+        // Round a loop, how many times it went round, as every screen's summary says it; the evenness is the last pass's.
+        if (outcome is { Loop: { } round, Passes: { Count: > 0 } passes }) yield return PlaySummary.PassesSaid(round, passes);
         foreach (var (hand, run) in new[] { ("Right hand", result.Right), ("Left hand", result.Left) })
         {
             if (run is null) continue;

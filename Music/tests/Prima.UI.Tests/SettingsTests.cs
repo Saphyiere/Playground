@@ -358,7 +358,9 @@ public class SettingsTests
         // request, a sight-reading passage from the piece read, a session on the piece yesterday whose run left something to do
         // next, and the piece's place, tempo and hand.
         await host.Store.SaveTrackAsync("reading", Prima.Core.Practice.ReadingState.Start with { Level = 3 });
-        await host.Store.SaveTrackAsync("exercise-routine", new[] { "octave-jump" });
+        var mine = RoutineStoreTests.Own("Leaps", "octave-jump");
+        await host.Store.SaveOwnRoutineAsync(mine);
+        await host.Store.SaveTrackAsync("routine-stars", new[] { mine.Revision });
         await host.Store.SaveAnswerAsync(new Prima.Core.Practice.NoteCard(Prima.Core.Music.Clef.Treble, 60, 2, today, today, today),
             new Prima.Core.Practice.NoteAnswer(DateTimeOffset.Now, Prima.Core.Music.Clef.Treble, 60, true, 900), 60, "notes");
         await host.Store.AddAttemptAsync(new Prima.UI.Storage.AttemptRecord(0, DateTimeOffset.Now, today, "passage", null, null, 3, 66, 7, null, "[]", null, "{\"inTime\":0.9}", 0.9, false, null));
@@ -387,7 +389,8 @@ public class SettingsTests
 
         // The playing has gone.
         Assert.Null(await host.Store.GetTrackAsync<Prima.Core.Practice.ReadingState>("reading"));
-        Assert.Null(await host.Store.GetTrackAsync<string[]>("exercise-routine"));
+        Assert.Null(await host.Store.GetTrackAsync<string[]>("routine-stars"));
+        Assert.Empty(await host.Store.GetRoutineDefinitionsAsync());
         Assert.Empty(await host.Store.GetCardsAsync());
         Assert.Empty(await host.Store.GetAnswersAsync(DateTimeOffset.MinValue));
         Assert.Empty(await host.Store.GetAttemptsAsync(DateOnly.MinValue));

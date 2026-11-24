@@ -112,6 +112,9 @@ else
     private bool feedbackRight;
     private bool? looked;
     private Timer? chordTimer;
+    // A chord coming a key at a time, listened to past its 150 ms until it's all down; and how long a gap ends that.
+    private bool spreading;
+    private const int SpreadGapMs = 600;
     private List<NoteCard> cards = [];
     private List<NoteAnswer> answers = [];
     private double fastMs;
@@ -241,13 +244,19 @@ else
         if (e.Kind != MidiKind.NoteOn || !waiting || index >= items.Count) return;
         routineSession?.Start();
 
-        lock (heard) heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
+        bool newKey;
+        lock (heard)
+        {
+            newKey = heard.All(h => h.Midi != e.Note);
+            heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
+        }
         var item = items[index].Item;
         var needed = item.Answer.Count;
         if (needed == 1 && item.Answer[0].Count > 1)
         {
-            // A chord: everything within 150 ms of its first note.
-            chordTimer ??= new Timer(_ => InvokeAsync(Judge), null, (int)(DrillScorer.ChordWindowNs / 1_000_000) + 20, Timeout.Infinite);
+            // A chord: everything within 150 ms of its first note; or, coming a key at a time, all of it.
+            if (chordTimer is null) chordTimer = new Timer(_ => InvokeAsync(ChordWindowUp), null, (int)(DrillScorer.ChordWindowNs / 1_000_000) + 20, Timeout.Infinite);
+            else if (spreading) Spread(item.Answer[0], e.Note, newKey);
             return;
         }
         int count;
@@ -255,11 +264,55 @@ else
         if (count >= needed) _ = InvokeAsync(Judge);
     }
 
+    // The chord's 150 ms are up. What's down is judged, unless it's all the chord's but not all of it: a chord being played a key at
+    // a time, listened to until it's all down, a key not in it comes, or no more of it comes for a while, so that the answer can
+    // say what happened rather than call the keys still to come missing.
+    private async Task ChordWindowUp()
+    {
+        if (!waiting || index >= items.Count) return;
+        if (!spreading)
+        {
+            var chord = items[index].Item.Answer[0];
+            HashSet<int> keys;
+            lock (heard) keys = [.. heard.Where(h => h.OnNs >= shownNs).Select(h => h.Midi)];
+            if (keys.Count > 0 && keys.All(chord.Contains) && !chord.All(keys.Contains))
+            {
+                spreading = true;
+                Rearm(SpreadGapMs);
+                return;
+            }
+        }
+        await Judge();
+    }
+
+    // A chord coming a key at a time: a key not in it, or the last of it, and it's judged; another of its keys, and it's listened to
+    // for a while longer.
+    private void Spread(IReadOnlyList<int> chord, int key, bool newKey)
+    {
+        HashSet<int> keys;
+        lock (heard) keys = [.. heard.Select(h => h.Midi)];
+        if (!chord.Contains(key) || chord.All(keys.Contains)) _ = InvokeAsync(Judge);
+        else if (newKey) Rearm(SpreadGapMs);
+    }
+
+    private void Rearm(int ms)
+    {
+        try
+        {
+            chordTimer?.Change(ms, Timeout.Infinite);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
     private async Task Judge()
     {
         if (!waiting || index >= items.Count) return;
 
         waiting = false;
+        var spread = spreading;
+        spreading = false;
         chordTimer?.Dispose();
         chordTimer = null;
         var entry = items[index];
@@ -283,7 +336,10 @@ else
         if (item.Answer.Count == 1 && item.Answer[0].Count > 1)
         {
             var chord = DrillScorer.Chord(item.Answer[0], notes, shownNs)!;
-            var keys = played.Where(p => p.OnNs - played[0].OnNs <= DrillScorer.ChordWindowNs).Select(p => p.Midi).Distinct().ToList();
+            var together = played.Where(p => p.OnNs - played[0].OnNs <= DrillScorer.ChordWindowNs).Select(p => p.Midi).Distinct().ToList();
+            // Listened to while it came a key at a time, the keys after the 150 ms too: the chord's are its notes played apart.
+            var keys = spread ? [.. played.Select(p => p.Midi).Distinct()] : together;
+            var apart = keys.Where(k => !together.Contains(k) && expected.Any(n => n.Midi == k)).ToList();
             var missing = expected.Where(n => !keys.Contains(n.Midi)).OrderBy(n => n.Midi).ToList();
             var extra = keys.Where(k => expected.All(n => n.Midi != k)).Order().ToList();
             // As many wrong keys as notes missing: each took a note's place, low to high, a wrong note ("F4 for E4"). Otherwise the
@@ -292,7 +348,7 @@ else
             // Low to high, so the names above the chord stack in the same order.
             foreach (var n in expected.OrderBy(n => n.Midi))
             {
-                var kind = keys.Contains(n.Midi) ? "right" : "missed";
+                var kind = together.Contains(n.Midi) ? "right" : apart.Contains(n.Midi) ? "apart" : "missed";
                 marks.Add(swapped.TryGetValue(n.Id, out var k) ? Wrong(n, k) : new SheetMark(n.Id, kind));
             }
             if (swapped.Count == 0) marks.AddRange(extra.Select(k => Wrong(expected.MinBy(n => Math.Abs(n.Midi - k))!, k) with { Kind = "extra" }));
@@ -300,8 +356,9 @@ else
             var swapWords = swapped.Count > 0 ? string.Join(", ", missing.Select(n => $"{key.Spell(swapped[n.Id])} for {written[n.Id]}")) : null;
             var missingWords = swapped.Count == 0 && missing.Count > 0 ? $"{string.Join(", ", missing.Select(n => written[n.Id]))} missing" : null;
             var extraWords = swapped.Count == 0 && extra.Count > 0 ? $"{string.Join(", ", extra.Select(k => key.Spell(k)))} extra" : null;
-            var slips = new[] { swapWords, missingWords, extraWords }.OfType<string>();
-            feedback = chord.Right ? $"Right, {chord.SpreadMs:0} ms between the first and last notes." : $"Not quite: {string.Join("; ", slips)}.";
+            var apartWords = apart.Count > 0 ? "played a key at a time" : null;
+            var slips = new[] { apartWords, swapWords, missingWords, extraWords }.OfType<string>();
+            feedback = chord.Right ? $"Right, {chord.SpreadMs:0} ms between the first and last notes." : $"Not quite: {string.Join("; ", slips)}.{(apart.Count > 0 ? " A chord's keys go down together." : "")}";
         }
         else if (item.Answer.Count == 1)
         {
@@ -364,13 +421,13 @@ else
         Registry.DrillAnswer = null;
         var share = Share;
         (sets, lastShare) = (sets + 1, share);
-        if (info!.Top > 1 && routineSession?.IsRoutine != true)
+        if (info!.Top > 1 && routineSession?.Fixed != true)
         {
             var (step, last) = DrillLadder.After(track.Step, track.LastShare, share, info.Top);
             track = new DrillTrack(step, last, share, Today);
         }
         else track = track with { LastResult = share, LastDay = Today };
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"drill:{Key}", track);
+        if (routineSession?.Fixed != true) await Store.SaveTrackAsync($"drill:{Key}", track);
         var measures = new { share, items = results.Count, medianMs = Stats.Median(results.Where(r => r.Right).Select(r => r.Ms).ToArray()), forgotTheKey, step = performedStep, performedStep };
         var attempt = new AttemptRecord(0, DateTimeOffset.Now, Today, Key, null, null, performedStep, null, null, null, "[]", null, System.Text.Json.JsonSerializer.Serialize(measures), share, share == 1, null);
         if (routineSession?.Execution is not null) await routineSession.RecordAsync(attempt, 1);
@@ -386,7 +443,7 @@ else
     private async Task SetStep(int step)
     {
         track = track with { Step = Math.Clamp(step, 1, info!.Top) };
-        if (routineSession?.IsRoutine != true) await Store.SaveTrackAsync($"drill:{Key}", track);
+        if (routineSession?.Fixed != true) await Store.SaveTrackAsync($"drill:{Key}", track);
         await NewSet();
     }
 

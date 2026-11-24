@@ -116,9 +116,11 @@ app.MapGet("/seed/routine/{activities}", async (string activities, int? spent, P
     return Results.Text(address);
 });
 
-// Routines (the Routines screen): two kept, one practiced yesterday and the other followed with an activity done today; a request
-// ready to look over; and one that didn't finish. Any routines before are cleared first.
-app.MapGet("/seed/routines", async (PrimaStore store) =>
+// Routines (the Routines screen): two of Claude's kept, one practiced yesterday and the other followed with an activity done
+// today; a request ready to look over; one that didn't finish; and four of your own, played over the last four weeks (the
+// scales getting faster, the reading all done today, the jumps a week ago, the thirds not yet), the scales, the reading and
+// Claude's leaps starred. Any routines before are cleared first.
+app.MapGet("/seed/routines", async (PrimaStore store, RoutineService routines) =>
 {
     using (var connection = new SqliteConnection($"Data Source={dbPath}"))
     {
@@ -126,8 +128,10 @@ app.MapGet("/seed/routines", async (PrimaStore store) =>
         foreach (var table in new[] { "RoutineAttempt", "RoutineExecution", "RoutineDay", "RoutineDefinition", "RoutineGeneration" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
         new SqliteCommand("DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'", connection).ExecuteNonQuery();
     }
+    await store.SaveTrackAsync<List<string>>("routine-stars", []);
     var (now, today) = (DateTimeOffset.UtcNow, DateOnly.FromDateTime(DateTime.Now));
-    RoutineItem Item(string id, int minutes) => Exercises.Find(id) is { } exercise
+    // A drill's catalogue entry (its id the drill's, "geography") is a drill, not an exercise.
+    RoutineItem Item(string id, int minutes) => Exercises.Find(id) is { Kind: not ExerciseKind.Drill } exercise
         ? new RoutineItem { Id = id, TargetId = id, Title = exercise.Name, Purpose = "Land it the first time", Minutes = minutes, Hands = HandUse.Right, Mode = "wait" }
         : new RoutineItem { Id = id, Kind = "drill", TargetId = id, Title = DrillCatalog.Find(id)?.Name ?? id, Purpose = "Warm up", Minutes = minutes, Hands = HandUse.Together };
     async Task<RoutineGenerationJob> Job(string title, string summary, string goal, RoutineGenerationState state, params RoutineItem[] items)
@@ -156,6 +160,46 @@ app.MapGet("/seed/routines", async (PrimaStore store) =>
     await Job("Left-hand chords", "Chord shapes for the waltz's left hand, then the bars they're in.", "Left-hand chords in the waltz",
         RoutineGenerationState.Ready, Item("jump-ladder", 4), Item("geography", 3));
     await Job("", "", "The jumps in the Aria", RoutineGenerationState.Failed);
+
+    // Yours: each activity an exercise or a drill from the catalogue, for its minutes.
+    PreparedRoutineItem Mine(string id, int minutes)
+    {
+        var activity = OwnRoutines.Activity(Exercises.Find(id) ?? Exercises.All.First(e => e.Route == $"drills/{id}"));
+        return activity with { Recipe = activity.Recipe with { Minutes = minutes } };
+    }
+    // Each day played, every activity for its minutes, a run each: In time at a tempo moving from one to the other over the days
+    // (none for a drill to read), clean but every third.
+    async Task Played(RoutineDefinition routine, int[] daysAgo, Dictionary<string, (double From, double To)> tempos)
+    {
+        var days = daysAgo.OrderByDescending(d => d).ToList();
+        foreach (var (ago, n) in days.Select((d, i) => (d, i)))
+        {
+            var on = today.AddDays(-ago);
+            var day = (await store.GetOrCreateRoutineDayAsync(on, routine.Revision))!;
+            foreach (var (prepared, k) in routine.Items.Select((p, k) => (p, k)))
+            {
+                var item = prepared.Recipe;
+                double? tempo = tempos.TryGetValue(item.TargetId, out var t) ? Math.Round(t.From + (t.To - t.From) * n / Math.Max(1, days.Count - 1)) : null;
+                var execution = await store.BeginRoutineExecutionAsync(day.Id, item.Id);
+                var at = new DateTimeOffset(on.ToDateTime(new TimeOnly(18, 0)), TimeSpan.Zero).AddMinutes(k);
+                var attempt = new AttemptRecord(0, at, on, item.Kind == "drill" ? item.TargetId : "exercise", tempo is null ? null : "in time", item.TargetId, null, tempo, null, "{}", "[]", null, "{}", 1, (n + k) % 3 != 1, null);
+                await store.RecordRoutineAttemptAsync(execution.Id, Guid.NewGuid().ToString("N"), attempt, item.Minutes * 60, 1);
+            }
+        }
+    }
+    foreach (var (id, tempo) in new[] { ("chromatic", 76.0), ("scale-parting", 72.0), ("trill-2-3", 60.0), ("trill-bursts", 66.0), ("thumb-three", 69.0), ("octave-jump", 66.0), ("jump-ladder", 60.0), ("chord-jump", 50.0) })
+    {
+        var exercise = Exercises.Find(id)!;
+        await store.SaveTrackAsync($"exercise:{id}", new ExerciseChoice(0, false, exercise.Hands[0], tempo));
+    }
+    var scales = await routines.MakeAsync("Scales and trills", [Mine("scales", 3), Mine("chromatic", 2), Mine("scale-parting", 4), Mine("trill-2-3", 2), Mine("trill-bursts", 3), Mine("thumb-three", 2)]);
+    await Played(scales, [1, 2, 4, 5, 8, 9, 11, 13, 14, 16, 18, 21, 23, 26], new() { ["chromatic"] = (66, 76), ["scale-parting"] = (72, 72), ["trill-2-3"] = (60, 60), ["trill-bursts"] = (54, 66), ["thumb-three"] = (60, 69) });
+    var readingWarmUp = await routines.MakeAsync("Reading warm-up", [Mine("notes", 3), Mine("intervals", 3), Mine("keys", 2), Mine("rhythm", 2)]);
+    await Played(readingWarmUp, [0, 1, 2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 22, 24, 25, 27], []);
+    var jumps = await routines.MakeAsync("Jumps, slow then faster", [Mine("octave-jump", 4), Mine("jump-ladder", 4), Mine("chord-jump", 4)]);
+    await Played(jumps, [6, 9, 12], new() { ["octave-jump"] = (60, 66), ["jump-ladder"] = (56, 60), ["chord-jump"] = (50, 50) });
+    await routines.MakeAsync("Thirds and bounces", [Mine("thirds", 3), Mine("bounce", 3), Mine("two-to-one", 2)]);
+    foreach (var starred in new[] { scales.Revision, readingWarmUp.Revision, (await store.GetRoutineJobAsync(landing.Id))!.AcceptedRevision! }) await routines.StarAsync(starred, true);
     return Results.Text("routines");
 });
 

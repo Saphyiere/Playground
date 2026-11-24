@@ -1,0 +1,130 @@
+@inject RoutineService Routines
+@using Prima.Core.Generation
+@using Prima.UI.Routines
+
+@* Which of your routines an exercise is in: each of them, to put it in or take it out, and a new one made here with it in it.
+   Opened where its + was tapped, as a piece's star opens where it's kept, and kept on the screen; a tap beside it closes it.
+   Claude's routines are kept as they were accepted, so they aren't among them. *@
+@if (Exercise is { } exercise)
+{
+    <div class="lb-away" @onclick="Close"></div>
+    <div class="lb-menu add-to @(X == 0 && Y == 0 ? "middle" : "")" role="menu" aria-label="@($"Which of your routines {exercise.Name} is in")" style="@($"--at-x: {X.ToString("0", CultureInfo.InvariantCulture)}px; --at-y: {Y.ToString("0", CultureInfo.InvariantCulture)}px")">
+        <p class="menu-title">Add “@exercise.Name” to</p>
+        @foreach (var routine in own)
+        {
+            var there = OwnRoutines.Holds(routine, exercise);
+            <button type="button" role="menuitemcheckbox" aria-checked="@(there ? "true" : "false")" disabled="@busy" @onclick="() => Put(routine, !there)"><span class="mu-led"></span>@routine.Title</button>
+        }
+        @if (own.Count > 0)
+        {
+            <hr />
+        }
+        @if (naming || own.Count == 0)
+        {
+            <div class="lb-menu-new">
+                <input class="text-field" type="text" placeholder="A new routine's name" aria-label="The new routine's name" maxlength="60" value="@newName" @oninput="e => newName = e.Value?.ToString()" @onkeydown="NameKey" />
+                <button type="button" class="mu-btn mu-primary lb-small" disabled="@busy" @onclick="Make">Make</button>
+            </div>
+            @if (nameNote is not null)
+            {
+                <p class="menu-note" role="status">@nameNote</p>
+            }
+        }
+        else
+        {
+            <button type="button" role="menuitem" @onclick="() => naming = true">New routine…</button>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The exercise whose + was tapped; none while the menu is closed.</summary>
+    [Parameter] public Exercise? Exercise { get; set; }
+
+    /// <summary>Where on the screen it was tapped; nowhere, and it opens in the middle.</summary>
+    [Parameter] public double X { get; set; }
+
+    [Parameter] public double Y { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>A line for the screen about what was done.</summary>
+    [Parameter] public EventCallback<string> OnSaid { get; set; }
+
+    /// <summary>Your routines as they now are, after one was changed or made here.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<RoutineDefinition>> OnChanged { get; set; }
+
+    private List<RoutineDefinition> own = [];
+    private string? shown;
+    private bool naming;
+    private bool busy;
+    private string? newName;
+    private string? nameNote;
+
+    // Each time it opens for an exercise: your routines as they are now, and no name being typed.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Exercise?.Id == shown) return;
+
+        (shown, naming, newName, nameNote) = (Exercise?.Id, false, null, null);
+        if (Exercise is not null) own = [.. (await Routines.RoutinesAsync()).Where(r => r.Own)];
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    // Into a routine at its end, or out of it (every time it's there).
+    private async Task Put(RoutineDefinition routine, bool on)
+    {
+        if (Exercise is not { } exercise || busy) return;
+
+        busy = true;
+        try
+        {
+            var (kind, target) = OwnRoutines.Of(exercise);
+            var items = on ? [.. routine.Items, OwnRoutines.Activity(exercise)] : routine.Items.Where(i => i.Recipe.Kind != kind || i.Recipe.TargetId != target).ToList();
+            var saved = await Routines.SaveAsync(routine with { Items = items });
+            own[own.FindIndex(r => r.Revision == routine.Revision)] = saved;
+            await OnSaid.InvokeAsync(on ? $"{exercise.Name} is in “{routine.Title}”, last." : $"{exercise.Name} is out of “{routine.Title}”.");
+            await OnChanged.InvokeAsync(own);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    // A new routine of yours, with the exercise in it.
+    private async Task Make()
+    {
+        if (Exercise is not { } exercise || busy) return;
+
+        var name = newName?.Trim() ?? "";
+        if (name.Length == 0)
+        {
+            nameNote = "Give it a name.";
+            return;
+        }
+        if (own.Any(r => string.Equals(r.Title, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            nameNote = "You have a routine by that name.";
+            return;
+        }
+        busy = true;
+        try
+        {
+            own.Add(await Routines.MakeAsync(name, [OwnRoutines.Activity(exercise)]));
+            (naming, newName, nameNote) = (false, null, null);
+            await OnSaid.InvokeAsync($"“{name}” is made, with {exercise.Name} in it.");
+            await OnChanged.InvokeAsync(own);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Make();
+    }
+}

@@ -1,46 +1,149 @@
 @page "/routines"
 @implements IDisposable
 @inject RoutineService Routines
+@inject NavigationManager Nav
+@inject AppNavigation Navigation
 @inject ILogger<RoutineLibrary> Logger
 @using Microsoft.Extensions.Logging
 @using Prima.Core.Routines
 @using Prima.UI.Routines
 
 <PageTitle>Routines · Prima</PageTitle>
-<PageHead Title="Routines" Kicker="Asked for, kept, and the one you follow">
-    <a class="mu-btn mu-primary" data-piano="off" data-action="ask-routine" href="routine/ask">Ask for routine</a>
+
+@* Your routines and Claude's, as the Repertoire has its pieces: three starred on top as cards, each with how it's going (a lamp
+   for each day of the last four weeks it was played, when it last was, how many of its activities went clean that day, and
+   what's next), the rest listed under them, and what's been asked of Claude that isn't a routine yet after them. A routine opens
+   on its own page; Start goes straight to its next activity. Yours are made here and filled from the exercises, with the + on
+   any of them; Claude's are asked for. *@
+<PageHead Title="Routines" Kicker="Yours and Claude's">
+    <div class="page-head-keys">
+        <button type="button" class="mu-btn" data-piano="off" data-action="new-routine" @onclick="Name">New routine</button>
+        <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask Claude for one</a>
+    </div>
 </PageHead>
 
-@* Every routine Prima has made for you, to follow any of them again: the one Today follows now, what's been asked for and isn't a
-   routine yet (being asked, ready to look over, or not finished), and every routine accepted, newest first. Following another
-   keeps the one before, and each keeps its own progress for the day. *@
+@if (naming)
+{
+    <div class="control-row rep-name">
+        <input class="text-field" type="text" placeholder="The routine's name" aria-label="The new routine's name" maxlength="60" value="@typed" @oninput="e => typed = e.Value?.ToString()" @onkeydown="NameKey" />
+        <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="make-routine" disabled="@busy" @onclick="Make">Make</button>
+        <button type="button" class="mu-btn" data-piano="off" @onclick="() => naming = false">Cancel</button>
+    </div>
+}
+@if (note is not null)
+{
+    <p class="control-note" role="status">@note</p>
+}
+
 @if (loading)
 {
     <p class="page-note" role="status">Opening your routines…</p>
 }
 else
 {
-    <section class="settings-section" aria-labelledby="following-heading" data-state="routine-following">
-        <h2 id="following-heading" class="section-title">Following</h2>
-        @if (active is { } now)
+    var shown = Shown().ToList();
+    var starred = stars.Select(s => shown.FirstOrDefault(r => r.Routine.Revision == s)).OfType<RoutineStanding>().ToList();
+    var rest = shown.Where(r => !stars.Contains(r.Routine.Revision)).OrderByDescending(r => r.Last ?? DateOnly.MinValue).ThenByDescending(r => r.Routine.Accepted).ToList();
+    @if (standings.Count == 0)
+    {
+        <p class="page-note">None yet. Make one with New routine and fill it with the + on any exercise, or ask Claude for one.</p>
+    }
+    else
+    {
+        <div class="settings-tabs" role="tablist" aria-label="Whose routines">
+            @foreach (var (key, label) in Tabs)
+            {
+                <button type="button" role="tab" class="settings-tab" aria-selected="@((Whose ?? "") == key ? "true" : "false")" @onclick="() => Show(key)">@label<span class="tab-dot">·</span><span class="tab-n">@Of(key).Count()</span></button>
+            }
+        </div>
+        @if (starred.Count > 0)
         {
-            <p class="section-note">Today has <b>@RoutineWords.American(now.Title)</b>: @Minutes(now) min, @Activities(now)@(day is null ? "" : $", {day.Items.Count(i => i.State == RoutineItemState.Done)} of {now.Items.Count} done today").</p>
-            <div class="control-row">
-                <a class="mu-btn mu-primary" data-piano="off" data-action="open-active-routine" href="routine">Practice it</a>
-                <button type="button" class="mu-btn" data-piano="off" data-action="routine-deactivate" disabled="@busy" @onclick="StopFollowing">Use the standard daily plan</button>
+            <div class="rep-grid rt-grid">
+                @foreach (var standing in starred)
+                {
+                    var routine = standing.Routine;
+                    var go = standing.Next;
+                    <article class="rep-card rt-card" data-routine="@routine.Revision" data-state="@(routine.Revision == active?.Revision ? "now" : null)">
+                        <div class="rep-top">
+                            <div>
+                                <p class="rep-kicker">@About(routine, true)@if (routine.Revision == active?.Revision) { <span class="rt-today">On Today</span> }</p>
+                                <h3 class="rep-title"><a href="@($"routines/{routine.Revision}")">@Called(routine)</a></h3>
+                            </div>
+                            <button type="button" class="lb-star" aria-pressed="true" aria-label="@($"{Called(routine)} is starred: take its star off")" @onclick="() => Star(routine, false)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                            </button>
+                        </div>
+                        <RoutineStrip Routine="routine" />
+                        <div class="rep-meter rt-days" role="img" aria-label="@Days(standing)">
+                            @foreach (var lit in standing.Lamps)
+                            {
+                                <span class="@(lit ? "s2" : "")"></span>
+                            }
+                        </div>
+                        <p class="rep-line">@Went(standing)</p>
+                        <div class="rep-foot">
+                            @if (routine.Items.Count == 0)
+                            {
+                                <p class="rep-line"><b>Empty</b> · the + on an exercise puts it in</p>
+                                <a class="mu-btn lb-small" data-piano="off" href="exercises">Exercises</a>
+                            }
+                            else if (go is not null)
+                            {
+                                <p class="rep-line"><b>Next</b> · @RoutineWords.American(go.Title)</p>
+                                <button type="button" class="mu-btn mu-primary lb-small" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(routine, go.Id)">@(standing.DoneToday.Count > 0 ? "Go on" : "Start")</button>
+                            }
+                            else
+                            {
+                                <p class="rep-line"><b>Done today</b> · again tomorrow</p>
+                                <button type="button" class="mu-btn lb-small" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(routine, routine.Items[0].Recipe.Id)">Again</button>
+                            }
+                        </div>
+                    </article>
+                }
             </div>
         }
-        else
+        else if (rest.Count > 0)
         {
-            <p class="section-note">Today has the standard daily plan. Follow one of your routines below, or ask for a new one, and Today has it instead.</p>
+            <p class="section-note">A star keeps a routine here on top, as a card: three of them at most.</p>
         }
-    </section>
+        @if (rest.Count > 0)
+        {
+            <section class="settings-section" aria-labelledby="rest-heading">
+                <h2 id="rest-heading" class="section-title">@(starred.Count > 0 ? "Your other routines" : "Your routines")</h2>
+                <ul class="up-list rep-lately rt-rest">
+                    @foreach (var standing in rest)
+                    {
+                        var routine = standing.Routine;
+                        var go = standing.Next ?? routine.Items.FirstOrDefault()?.Recipe;
+                        <li class="up-row piece-item" data-routine="@routine.Revision" data-state="@(routine.Revision == active?.Revision ? "now" : null)">
+                            @if (go is not null)
+                            {
+                                <button type="button" class="mu-btn piece-hear" data-piano="off" aria-label="@($"Start {Called(routine)}")" disabled="@busy" @onclick="() => Start(routine, go.Id)">▶</button>
+                            }
+                            else
+                            {
+                                <span class="piece-hear-none"></span>
+                            }
+                            <div class="up-main">
+                                <a class="up-title piece-title" href="@($"routines/{routine.Revision}")">@Called(routine)</a>
+                                <span class="up-artist">@About(routine)@(routine.Revision == active?.Revision ? " · on Today" : "")</span>
+                            </div>
+                            <span class="up-last">@if (standing.Last is { } last) { <b>@RoutineStanding.When(last, today)</b>@(standing.CleanOnLast is { } clean ? $" · {clean} of {routine.Items.Count} clean" : "") } else { <b>Not practiced yet</b> }</span>
+                            <button type="button" class="lb-star" aria-pressed="false" aria-label="@($"Star {Called(routine)}")" @onclick="() => Star(routine, true)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    }
 
     @if (asked.Count > 0)
     {
         <section class="settings-section" aria-labelledby="asked-heading">
-            <h2 id="asked-heading" class="section-title">Asked for</h2>
-            <p class="section-note">Requests that aren't routines yet: open one to look over what came back, ask again, or see why it didn't finish. Dismiss one you don't want, for good, once it isn't being asked. The ones you've accepted are your routines, below.</p>
+            <h2 id="asked-heading" class="section-title">Asked of Claude</h2>
+            <p class="section-note">Not routines yet: open one to look over what came back, ask again, or see why it didn't finish. Dismiss one you don't want, once it isn't being asked.</p>
             <ul class="piece-list routine-requests">
                 @foreach (var job in asked)
                 {
@@ -71,48 +174,6 @@ else
             </ul>
         </section>
     }
-
-    <section class="settings-section" aria-labelledby="routines-heading">
-        <h2 id="routines-heading" class="section-title">Your routines</h2>
-        @if (routines.Count == 0)
-        {
-            <p class="section-note">None yet. Ask for a routine, look it over, and use it: it's kept here, to follow again whenever you like.</p>
-        }
-        else
-        {
-            <ol class="routine-grid routine-list">
-                @foreach (var routine in routines)
-                {
-                    var following = routine.Revision == active?.Revision;
-                    var adjusted = routine.Provider == "local";
-                    <li class="mu-step routine-card" data-routine="@routine.Revision" data-state="@(following ? "now" : null)">
-                        <div class="mu-step-meta">
-                            <span class="mu-led" aria-hidden="true"></span>
-                            <span>@Minutes(routine) min</span>
-                            <span>@Activities(routine)</span>
-                            <span>@(following ? "Following" : adjusted ? "Adjusted" : "Kept")</span>
-                        </div>
-                        <h3 class="mu-step-name">@RoutineWords.American(routine.Title)</h3>
-                        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
-                        <p class="control-note routine-items">@string.Join(" · ", routine.Items.Select(i => RoutineWords.American(i.Recipe.Title)))</p>
-                        <div class="routine-card-footer">
-                            <span class="control-note">
-                                @(adjusted ? "Adjusted" : "Accepted") @routine.Accepted.ToLocalTime().ToString("d MMM", CultureInfo.InvariantCulture)@(practiced.TryGetValue(routine.Revision, out var last) ? $" · last practiced {When(last)}" : " · not practiced yet")@(routine.Source is { } source ? $" · {source.Title}" : "")
-                            </span>
-                            @if (following)
-                            {
-                                <a class="mu-btn mu-primary" data-piano="off" href="routine">Practice it</a>
-                            }
-                            else
-                            {
-                                <button type="button" class="mu-btn" data-piano="off" data-action="routine-follow" disabled="@busy" @onclick="() => Follow(routine.Revision)">Follow</button>
-                            }
-                        </div>
-                    </li>
-                }
-            </ol>
-        }
-    </section>
 }
 @if (problem is not null)
 {
@@ -120,20 +181,33 @@ else
 }
 
 @code {
+    private static readonly (string Key, string Label)[] Tabs = [("", "Everything"), ("yours", "Yours"), ("claude", "From Claude")];
+
+    /// <summary>Whose routines are shown: "yours" or "claude"; all of them when none.</summary>
+    [SupplyParameterFromQuery(Name = "whose")] public string? Whose { get; set; }
+
+    /// <summary>"1" to open with a new routine being named.</summary>
+    [SupplyParameterFromQuery(Name = "new")] public string? New { get; set; }
+
     private RoutineDefinition? active;
-    private RoutineDay? day;
-    private IReadOnlyList<RoutineDefinition> routines = [];
+    private List<RoutineStanding> standings = [];
+    private IReadOnlyList<string> stars = [];
     private IReadOnlyList<RoutineGenerationJob> asked = [];
-    private Dictionary<string, DateOnly> practiced = [];
     private bool loading = true;
     private bool busy;
+    private bool naming;
+    private string? typed;
+    private string? note;
     private string? problem;
     // The request whose Dismiss… was tapped, asking whether to take it off for good.
     private string? dismissing;
+    private DateOnly today = DateOnly.FromDateTime(DateTime.Now);
 
     protected override async Task OnInitializedAsync()
     {
+        Navigation.Name("Routines");
         Routines.Changed += Changed;
+        naming = New == "1";
         await Load();
         loading = false;
     }
@@ -142,11 +216,13 @@ else
     {
         try
         {
+            today = DateOnly.FromDateTime(DateTime.Now);
             active = await Routines.ActiveAsync();
-            day = active is null ? null : await Routines.TodayAsync();
-            routines = await Routines.RoutinesAsync();
+            var (times, runs) = (await Routines.TimesAsync(), await Routines.RunsAsync());
+            standings = [.. (await Routines.RoutinesAsync()).Select(r => RoutineStanding.Of(r, times, runs, today))];
+            var saved = standings.Select(s => s.Routine.Revision).ToHashSet();
+            stars = [.. (await Routines.StarredAsync()).Where(saved.Contains)];
             asked = await Routines.RecentAsync();
-            practiced = await Routines.LastPracticedAsync();
         }
         catch (Exception error)
         {
@@ -162,18 +238,87 @@ else
         StateHasChanged();
     });
 
-    private async Task Follow(string revision)
+    private IEnumerable<RoutineStanding> Of(string whose) => whose switch
+    {
+        "yours" => standings.Where(s => s.Routine.Own),
+        "claude" => standings.Where(s => !s.Routine.Own),
+        _ => standings,
+    };
+
+    private IEnumerable<RoutineStanding> Shown() => Of(Whose ?? "");
+
+    private void Show(string whose) => Navigation.Replace(Nav.GetUriWithQueryParameter("whose", whose.Length == 0 ? null : whose));
+
+    private static string Called(RoutineDefinition routine) => routine.Own ? routine.Title : RoutineWords.American(routine.Title);
+
+    // Whose it is, how many exercises and how long: "Yours · 6 exercises · 18 min", or on a card, under which its exercises'
+    // shapes show, "Yours · 6 · 18 min".
+    private static string About(RoutineDefinition routine, bool card = false)
+    {
+        var count = card ? $"{routine.Items.Count}" : routine.Items.Count == 1 ? "1 exercise" : $"{routine.Items.Count} exercises";
+        return $"{(routine.Own ? "Yours" : "From Claude")} · {count} · {routine.Items.Sum(i => i.Recipe.Minutes)} min";
+    }
+
+    // When it was last played, how many of its activities went clean that day, and on how many of the last four weeks' days.
+    private string Went(RoutineStanding standing) => standing.Last is { } last
+        ? string.Join(" · ", new[] { RoutineStanding.When(last, today), standing.CleanOnLast is { } clean ? $"{clean} of {standing.Routine.Items.Count} clean" : null, $"{RoutineStanding.DaysSaid(standing.DaysPlayed)} of {RoutineStanding.Days}" }.OfType<string>())
+        : $"Not practiced yet · made {RoutineStanding.When(DateOnly.FromDateTime(standing.Routine.Accepted.LocalDateTime), today).ToLowerInvariant()}";
+
+    private string Days(RoutineStanding standing) => standing.Last is { } last
+        ? $"Played on {standing.DaysPlayed} of the last {RoutineStanding.Days} days, last {RoutineStanding.When(last, today).ToLowerInvariant()}"
+        : "Not practiced yet";
+
+    private void Name() => (naming, typed, note) = (true, null, null);
+
+    // A new routine of yours under the name typed, opened at once to fill it.
+    private async Task Make()
+    {
+        var name = typed?.Trim() ?? "";
+        if (name.Length == 0)
+        {
+            note = "Give it a name.";
+            return;
+        }
+        if (standings.Any(s => s.Routine.Own && string.Equals(s.Routine.Title, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            note = "You have a routine by that name.";
+            return;
+        }
+        busy = true;
+        try
+        {
+            var made = await Routines.MakeAsync(name);
+            Nav.NavigateTo($"routines/{made.Revision}");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Make();
+    }
+
+    private async Task Star(RoutineDefinition routine, bool on)
+    {
+        note = await Routines.StarAsync(routine.Revision, on) ? null : $"Three are starred: take a star off one of them to star {Called(routine)}.";
+        await Load();
+    }
+
+    // Straight to an activity of a routine, on its day's progress, whether Today follows it or not.
+    private async Task Start(RoutineDefinition routine, string itemId)
     {
         busy = true;
         try
         {
-            await Routines.FollowAsync(revision);
-            await Load();
+            var day = await Routines.DayAsync(routine.Revision) ?? throw new InvalidOperationException("That routine isn't saved any more.");
+            Nav.NavigateTo(await Routines.OpenAsync(day.Id, itemId));
         }
         catch (InvalidOperationException error) { problem = error.Message; }
         finally { busy = false; }
     }
-
 
     // A request taken off for good. One asked again since it was tapped stays, being asked.
     private async Task Dismiss(string id)
@@ -186,27 +331,6 @@ else
             await Load();
         }
         finally { busy = false; }
-    }
-
-    private async Task StopFollowing()
-    {
-        busy = true;
-        try
-        {
-            await Routines.DeactivateAsync();
-            await Load();
-        }
-        finally { busy = false; }
-    }
-
-    private static int Minutes(RoutineDefinition routine) => routine.Items.Sum(i => i.Recipe.Minutes);
-
-    private static string Activities(RoutineDefinition routine) => routine.Items.Count == 1 ? "1 activity" : $"{routine.Items.Count} activities";
-
-    private static string When(DateOnly day)
-    {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        return day == today ? "today" : day == today.AddDays(-1) ? "yesterday" : day.ToString("d MMM", CultureInfo.InvariantCulture);
     }
 
     // What a request is called: what came back, or else what was asked for, or the piece it's for. Only Claude's words are

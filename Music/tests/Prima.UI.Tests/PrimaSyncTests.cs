@@ -291,7 +291,6 @@ public class PrimaSyncTests
         Assert.Equal(SyncReason.AfterPractice, tablet.Sync.Status.Last?.Manifest.Reason);
 
         // A routine's activity done is practice too (one skipped isn't); with the last copy just taken, no other follows it.
-        await tablet.Store.SaveTrackAsync("exercise-routine", new[] { "octave-jump" });
         var job = RoutineStoreTests.ReadyJob();
         await tablet.Store.CreateRoutineJobAsync(job);
         await tablet.Store.AcceptRoutineAsync(job.Id);

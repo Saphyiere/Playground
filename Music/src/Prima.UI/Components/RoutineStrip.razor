@@ -1,0 +1,27 @@
+@using Prima.UI.Routines
+
+@* A routine's activities in a row, each as the shape on its exercise's card, so what's in it shows before a word is read: six at
+   most, and how many more after them. One done away from the keys, or music Claude made from a piece, is a plain tile. *@
+<div class="rt-strip" aria-hidden="true">
+    @foreach (var item in Routine.Items.Take(Most))
+    {
+        @if (OwnRoutines.ExerciseOf(item.Recipe) is { ToPlay: true } exercise)
+        {
+            <ExerciseShape Exercise="exercise" />
+        }
+        else
+        {
+            <span class="ex-shape ex-shape-none"></span>
+        }
+    }
+    @if (Routine.Items.Count > Most)
+    {
+        <span class="rt-more">+@(Routine.Items.Count - Most)</span>
+    }
+</div>
+
+@code {
+    private const int Most = 6;
+
+    [Parameter, EditorRequired] public RoutineDefinition Routine { get; set; } = default!;
+}

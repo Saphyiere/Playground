@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Playground.AI.Assist;
 using Prima.Core.Routines;
 
@@ -12,10 +13,21 @@ public sealed record RoutineGenerationJob(string Id, int Revision, RoutineGenera
     RoutineDraft? Draft = null, IReadOnlyList<PreparedRoutineItem>? Prepared = null, string? Problem = null,
     bool Dispatched = false, Usage? Usage = null, InferenceResponse? Response = null, string? AcceptedRevision = null);
 
-/// <summary>An accepted immutable routine, including the exact generated music and source used to make it.</summary>
+/// <summary>
+/// A routine: one Claude made, accepted and kept as it was, with the exact generated music and source used to make it; or one of
+/// your own, made from the exercises and changed as you like (its provider <see cref="Yours"/>), whose activities are played as you
+/// last left each of them.
+/// </summary>
 public sealed record RoutineDefinition(string Id, string Revision, DateTimeOffset Accepted, string Title, string Summary,
     RoutineRequest Request, PracticeEvidenceSnapshot Evidence, RoutineSource? Source, string Provider, string Model,
-    IReadOnlyList<PreparedRoutineItem> Items);
+    IReadOnlyList<PreparedRoutineItem> Items)
+{
+    /// <summary>The provider of a routine of your own.</summary>
+    public const string Yours = "own";
+
+    /// <summary>Whether it's one of your own.</summary>
+    [JsonIgnore] public bool Own => Provider == Yours;
+}
 
 public sealed record RoutineItemProgress(string ItemId, RoutineItemState State = RoutineItemState.NotStarted,
     double ActiveSeconds = 0, int CompletedPasses = 0, string? LastExecutionId = null);
@@ -29,3 +41,9 @@ public sealed record RoutineExecution(string Id, string DayId, string Revision, 
 
 public sealed record RoutineAdjustment(string ItemId, double CurrentTempo, double SuggestedTempo, int ComparableRuns, string Reason,
     int? SuggestedPreparationBeats = null, int? SuggestedStep = null, string? SuggestedMode = null);
+
+/// <summary>An activity's time on a day it was opened: its routine, how long it was played, and how it stands.</summary>
+public sealed record RoutineTime(string Revision, string ItemId, DateOnly Day, double Seconds, RoutineItemState State);
+
+/// <summary>A run played in a routine: its routine and activity, the day, whether it was clean, and its tempo In time.</summary>
+public sealed record RoutineRun(string Revision, string ItemId, DateOnly Day, DateTimeOffset At, bool Clean, double? Tempo);

@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Components.Routing;
 namespace Prima.UI.Layout;
 
 /// <summary>
-/// The rail's Routines key, lit on every routine screen: the list (routines), and the routine followed, asking for one, a request
-/// and an activity of one (routine, routine/…), an exercise or a drill opened from a routine among them (its address carries the
-/// routine's run: exercises/…?execution=…).
+/// The rail's Routines key, lit on every routine screen: the list (routines) and a routine's page (routines/…), and the routine
+/// followed, asking for one, a request and an activity of one (routine, routine/…), an exercise or a drill opened from a routine
+/// among them (its address carries the routine's run: exercises/…?execution=…).
 /// </summary>
 public sealed class RoutinesNavLink : NavLink
 {

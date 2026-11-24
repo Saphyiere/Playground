@@ -6267,6 +6267,56 @@ html[data-full] .piece .summary {
     opacity: 0.75;
 }
 
+/* A card's +, over the corner of its shape: it puts the exercise in one of your routines, and is lit while it's in one. */
+.ex-card-at {
+    position: relative;
+    min-width: 0;
+    display: flex;
+}
+
+.ex-card-at > .ex-card {
+    flex: 1;
+}
+
+.ex-add {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--card) 86%, transparent);
+    color: var(--on-card);
+    cursor: pointer;
+}
+
+.ex-add svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+
+.ex-add[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+[data-theme="vinyl"] .ex-add {
+    border-radius: 0;
+}
+
+.ex-add:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
 .exercise-done {
     grid-area: level;
     justify-self: end;
@@ -8497,6 +8547,230 @@ button.up-artist {
 
 .rep-lately .up-row {
     grid-template-columns: 44px minmax(0, 1.5fr) minmax(0, 1fr) 44px;
+}
+
+/* Routines, as the Repertoire has its pieces: three starred as cards, each with its exercises' shapes in a row, a lamp for each
+   of the last four weeks' days it was played, when it last was and what's next; the rest in rows under them. The shapes are
+   drawn in the card's own colours. */
+.rt-strip {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+    --on-card: var(--on-surface);
+}
+
+.rt-strip .ex-shape {
+    aspect-ratio: 3 / 2;
+}
+
+.rt-more {
+    display: grid;
+    place-items: center;
+    font-family: var(--mu-print);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-muted);
+}
+
+.rt-today {
+    margin-left: 8px;
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .rt-today {
+    color: var(--accent-2);
+}
+
+.rt-days > span {
+    height: 9px;
+}
+
+.rt-rest .up-last b {
+    font-weight: 600;
+}
+
+/* A routine opened: its activities as numbered tracks (each its shape, its name with how it's played, and how it's going), and
+   beside them how the routine is going and whether Today follows it. */
+.rt-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 28px;
+}
+
+.rt-tracks {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    --on-card: var(--ink);
+}
+
+.rt-track {
+    display: grid;
+    grid-template-columns: 30px 108px minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 14px;
+    min-height: 74px;
+    padding: 8px 0;
+    border-top: 1px solid var(--seam);
+}
+
+.rt-track:last-child {
+    border-bottom: 1px solid var(--seam);
+}
+
+.rt-track:has(.rt-edit) {
+    grid-template-columns: 30px 108px minmax(0, 1fr) auto auto;
+}
+
+.rt-no {
+    font-family: var(--mu-print);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-muted);
+}
+
+.rt-track[data-state="now"] .rt-no {
+    color: var(--accent);
+}
+
+[data-theme="vinyl"] .rt-track[data-state="now"] .rt-no {
+    color: var(--accent-2);
+}
+
+.rt-track .ex-shape {
+    width: 108px;
+}
+
+.rt-name {
+    min-width: 0;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rt-name b {
+    font-family: var(--mu-name);
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+}
+
+[data-theme="vinyl"] .rt-name b {
+    font-size: 23px;
+    line-height: 24px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.rt-name span,
+.rt-trend span {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink-muted);
+}
+
+.rt-track[data-state="done"] .rt-name b,
+.rt-track[data-state="skipped"] .rt-name b {
+    color: var(--ink-muted);
+}
+
+.rt-trend {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.rt-trend b {
+    font-family: var(--mu-print);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.rt-edit {
+    display: flex;
+    gap: 6px;
+}
+
+.rt-main .control-row {
+    margin-top: 14px;
+}
+
+.rt-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px 18px;
+    border-radius: var(--radius-cap);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+}
+
+[data-theme="vinyl"] .rt-panel {
+    border-radius: 0;
+    border-top: 3px solid var(--accent);
+    box-shadow: none;
+}
+
+.rt-panel .section-title {
+    margin: 0;
+    color: inherit;
+}
+
+.rt-panel .rep-line b {
+    color: var(--on-surface);
+}
+
+.rt-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.rt-panel .control-row,
+.rt-panel .control-note {
+    margin: 0;
+}
+
+@media (orientation: portrait) {
+    .rt-page {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rt-panel {
+        order: -1;
+    }
+
+    .rt-track {
+        grid-template-columns: 26px 88px minmax(0, 1fr) auto;
+        column-gap: 12px;
+    }
+
+    .rt-track:has(.rt-edit) {
+        grid-template-columns: 26px minmax(0, 1fr) auto auto;
+    }
+
+    .rt-track:has(.rt-edit) .ex-shape {
+        display: none;
+    }
+
+    .rt-track .ex-shape {
+        width: 88px;
+    }
 }
 
 /* Today's own band for the repertoire: the pieces played last, each with what comes next. */
