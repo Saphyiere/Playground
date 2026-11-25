@@ -205,7 +205,22 @@ app.MapGet("/seed/routines", async (PrimaStore store, RoutineService routines) =
     return Results.Text("routines");
 });
 
-// The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.
+// Routines as on a fresh install: none but the ones that come with Prima, put in as they are when Prima first starts.
+app.MapGet("/seed/standard-routines", async (PrimaStore store) =>
+{
+    using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+    {
+        connection.Open();
+        foreach (var table in new[] { "RoutineAttempt", "RoutineExecution", "RoutineDay", "RoutineDefinition", "RoutineGeneration" }) new SqliteCommand($"DELETE FROM {table}", connection).ExecuteNonQuery();
+        new SqliteCommand("DELETE FROM Setting WHERE Key = 'Routine.ActiveRevision'", connection).ExecuteNonQuery();
+    }
+    await store.SaveTrackAsync<List<string>>("routine-stars", []);
+    await store.SaveTrackAsync<List<string>>(RoutineService.StandardTrack, []);
+    await RoutineService.PutInStandardAsync(store);
+    return Results.Text($"{Prima.Core.Routines.StandardRoutines.All.Count} routines that come with Prima");
+});
+
+// The stand-in piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.
 app.MapGet("/keys/connect", (StandInKeyboard keys) => { keys.Plug(true); return Results.Text("connected"); });
 app.MapGet("/keys/disconnect", (StandInKeyboard keys) => { keys.Plug(false); return Results.Text("disconnected"); });
 // Two voices layered on the keys, as the P-225's Dual: each key and pedal then says its message on channels 1 and 2.

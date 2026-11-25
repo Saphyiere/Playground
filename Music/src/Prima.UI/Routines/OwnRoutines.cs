@@ -29,7 +29,10 @@ public static class OwnRoutines
     };
 
     /// <summary>An exercise as an activity: a minute for one away from the keys, three to play, five for a drill.</summary>
-    public static PreparedRoutineItem Activity(Exercise exercise)
+    public static PreparedRoutineItem Activity(Exercise exercise) => Activity(exercise, exercise.Kind == ExerciseKind.Away ? 1 : Of(exercise).Kind == "drill" ? 5 : 3);
+
+    /// <summary>An exercise as an activity, for these minutes.</summary>
+    public static PreparedRoutineItem Activity(Exercise exercise, int minutes)
     {
         var (kind, target) = Of(exercise);
         return new(new RoutineItem
@@ -39,7 +42,7 @@ public static class OwnRoutines
             TargetId = target,
             Title = exercise.Name,
             Purpose = exercise.Does,
-            Minutes = exercise.Kind == ExerciseKind.Away ? 1 : kind == "drill" ? 5 : 3,
+            Minutes = minutes,
             Hands = exercise.Hands.Count > 0 ? exercise.Hands[0] : HandUse.Together,
             Mode = "time",
             Tempo = exercise.Tempo,

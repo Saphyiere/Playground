@@ -80,9 +80,9 @@ else
     {
         <p class="control-note" role="status">@note</p>
     }
-    @if (!routine.Own && routine.Summary.Length > 0)
+    @if (routine.Summary.Length > 0)
     {
-        <p class="section-note">@RoutineWords.American(routine.Summary)</p>
+        <p class="section-note">@(routine.Own ? routine.Summary : RoutineWords.American(routine.Summary))</p>
     }
     @if (sourceWarning is not null)
     {

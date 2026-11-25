@@ -17,6 +17,9 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
     private readonly Task recovered = RecoverAsync(store);
     private const string StarsTrack = "routine-stars";
 
+    /// <summary>The routines that came with Prima and have been put in, by their keys: each only once.</summary>
+    public const string StandardTrack = "routine-standard";
+
     /// <summary>How many routines can be starred, to keep them on top of the routines.</summary>
     public const int MostStarred = 3;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> active = new();
@@ -249,16 +252,44 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
 
     public async Task<RoutineDefinition?> ActiveAsync() { await recovered; return await store.GetActiveRoutineAsync(); }
 
-    // Requests left half asked when Prima last stopped; and the exercises once kept as My routine (a list of them, with nothing
-    // else to it), now a routine of your own by that name.
+    // Requests left half asked when Prima last stopped; the exercises once kept as My routine, now a routine of yours by that
+    // name; and the routines that come with Prima.
     private static async Task RecoverAsync(PrimaStore store)
     {
         await store.RecoverRoutineJobsAsync();
+        await MoveMyRoutineAsync(store);
+        await PutInStandardAsync(store);
+    }
+
+    // The exercises once kept as My routine (a list of them, with nothing else to it), now a routine of your own by that name.
+    private static async Task MoveMyRoutineAsync(PrimaStore store)
+    {
         if (await store.GetTrackAsync<List<string>>("exercise-routine") is not { Count: > 0 } kept) return;
 
-        var items = kept.Select(Exercises.Find).OfType<Exercise>().Where(OwnRoutines.CanHave).Select(OwnRoutines.Activity).ToList();
+        var items = kept.Select(Exercises.Find).OfType<Exercise>().Where(OwnRoutines.CanHave).Select(e => OwnRoutines.Activity(e)).ToList();
         if (items.Count > 0) await store.SaveOwnRoutineAsync(Own("My routine", items));
         await store.SaveTrackAsync<List<string>>("exercise-routine", []);
+    }
+
+    /// <summary>
+    /// The routines that come with Prima, each put in once as one of yours, listed in their own order: one changed stays as it was
+    /// changed, one taken away stays away, and one a later Prima adds comes in once too. Clearing your progress clears what was
+    /// put in, so they come again. Run as Prima starts; the preview runs it for a fresh start.
+    /// </summary>
+    public static async Task PutInStandardAsync(PrimaStore store)
+    {
+        var done = await store.GetTrackAsync<List<string>>(StandardTrack) ?? [];
+        var now = DateTimeOffset.UtcNow;
+        var added = false;
+        foreach (var (standard, at) in StandardRoutines.All.Select((r, i) => (r, i)).Where(x => !done.Contains(x.r.Key)))
+        {
+            var items = standard.Activities.Select(a => (Exercise: Exercises.Find(a.Id), a.Minutes)).Where(a => a.Exercise is not null && OwnRoutines.CanHave(a.Exercise))
+                .Select(a => OwnRoutines.Activity(a.Exercise!, a.Minutes)).ToList();
+            // Listed newest first: each a second older than the one before it, so they come in their own order.
+            if (items.Count > 0) await store.SaveOwnRoutineAsync(Own(standard.Title, items) with { Summary = standard.Purpose, Accepted = now.AddSeconds(-at) });
+            (done, added) = ([.. done, standard.Key], true);
+        }
+        if (added) await store.SaveTrackAsync(StandardTrack, done);
     }
 
     // A routine of your own as it's first made.

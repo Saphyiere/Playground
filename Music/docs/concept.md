@@ -719,6 +719,13 @@ Either way the routine's bar over it counts its minutes down and goes on to the 
 routine's page; a routine not on Today keeps its own day's progress, so it can be practiced any day without Today changing.
 The exercises once kept as My routine, a list with nothing else to it, are now a routine of yours by that name.
 
+Prima comes with twelve routines of yours, put in the first time it starts ([routines.md](routines.md) has the research behind
+them): Beginner daily, Intermediate daily and Advanced daily; Quick warm-up, Concert warm-up and Short concert warm-up; Reading
+focus, Even scales and arpeggios, Two hands, two jobs, Chords and jumps, and Touch and pedal; and Light day. Each has its line
+on what it's for over its tracks, saying what follows it (Sight-read, your pieces) where that matters. They're yours like any
+other: changed, they stay changed; taken away, they stay away; and one a later Prima adds is put in once. Starting over puts
+them in again.
+
 The Routines key in the rail is lit on every routine screen: this one, a routine's page, asking for one, a request and an
 activity, an exercise or a drill opened from a routine among them (Exercises is lit when they're opened from there). Routines
 Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
@@ -1275,7 +1282,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
 - **Routines**: each request (what was asked, the evidence it was asked with, the piece's edition, where it is, what came back);
   each routine accepted, kept as accepted, never changed (an adjustment is a routine of its own); each routine of yours, the
   same shape (its activities exercises and drills by id, each with its minutes, under the provider "own"), changed in place as
-  you change it; which one is followed, a setting; the three starred, a track ("routine-stars"); and each routine's day, one
+  you change it, and which of those that come with Prima have been put in, a track ("routine-standard"), so each is put in once;
+  which one is followed, a setting; the three starred, a track ("routine-stars"); and each routine's day, one
   per routine and date, with each activity's state, time and runs, which a routine of yours changed keeps for the activities
   still in it.
 - **Problems** aren't in the data file: they're `errors.log` beside `claude-key.txt`, plain text, an entry a problem (`===`, the

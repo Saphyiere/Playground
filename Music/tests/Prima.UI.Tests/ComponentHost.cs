@@ -68,6 +68,9 @@ internal sealed class ComponentHost : IAsyncDisposable
         // Registered after Prima's own, so it's the one the updater is given.
         if (safeguard is not null) Context.Services.AddSingleton(safeguard);
         Store = Context.Services.GetRequiredService<PrimaStore>();
+        // A test starts without the routines that come with Prima, as if they'd been put in and taken away; StandardRoutineTests
+        // puts them in.
+        Store.SaveTrackAsync(Prima.UI.Routines.RoutineService.StandardTrack, Prima.Core.Routines.StandardRoutines.All.Select(r => r.Key).ToList()).GetAwaiter().GetResult();
         Jobs = Context.Services.GetRequiredService<ConversionJobs>();
         ConversionHost.Run = Jobs.RunAsync;
     }
