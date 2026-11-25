@@ -1322,7 +1322,9 @@ details.
   close Prima while it's out of sight (it does, to free memory), coming back opens the screen it was on rather than Today, started
   afresh: a drill begins a new set.
 - **Preview**: the UI as a Blazor Server page against sample data, for checking screens from the cloud, as `CLAUDE.md`
-  describes.
+  describes. Its stand-in piano (`Host/StandInKeyboard.cs`, played by `StandInPlayer.cs`) is the one a build from the PC puts
+  in front of the tablet's piano too: Settings › Keyboard › Stand-in piano turns it on there, and DevTools plays it
+  (`StandInCalls.cs`), so every exercise and drill can be played on the tablet without the piano. A release has none of it.
 - **Notation** is real sheet music, engraved by Verovio in the web view: black on paper, on the grand staff, the same in both
   looks, with the look around it and the cursor and marks drawn on top. A passage is engraved on the page's own thread as
   it's asked for; a whole piece by a second Verovio in a worker (`wwwroot/engraver.js`), a scroll's lines coming a part at a

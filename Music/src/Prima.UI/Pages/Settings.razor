@@ -11,6 +11,7 @@
 @inject ProblemLog Problems
 @inject Playground.Sync.Syncer Sync
 @inject IJSRuntime JS
+@inject IServiceProvider Services
 @using Playground.AI.Assist
 @using Playground.Updates
 @implements IDisposable
@@ -159,6 +160,18 @@ else if (!finder.FoundAny)
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = false)"><span class="mu-led"></span>Off</button>
         </div>
     </Setting>
+    @* Only in a build from the PC, which has a stand-in piano: Prima plays as if a piano were plugged in, and DevTools plays its
+       keys. The piano's own still come through. *@
+    @if (Services.GetService(typeof(StandInKeyboard)) is StandInKeyboard standIn)
+    {
+        <Setting Name="Stand-in piano" Words="On, Off, test, without the piano, debug" Note="In a build from the PC only, for trying Prima without the piano: with it on, Prima plays as if one were plugged in, and DevTools plays its keys (DotNet.invokeMethodAsync('Prima.UI', 'StandIn', …)). The piano's own keys still come through.">
+            <div class="control-row">
+                <span class="control-label">Stand-in piano</span>
+                <button type="button" class="mu-toggle" data-action="stand-in-on" aria-pressed="@On(standIn.On)" @onclick="() => standIn.Plug(true, StandInKeyboard.Called)"><span class="mu-led"></span>On</button>
+                <button type="button" class="mu-toggle" data-action="stand-in-off" aria-pressed="@On(!standIn.On)" @onclick="() => standIn.Plug(false)"><span class="mu-led"></span>Off</button>
+            </div>
+        </Setting>
+    }
     <Setting Name="Timing" Words="Calibrate, Redo timing, Not calibrated yet">
         <div class="control-row">
             <span class="control-label">Timing</span>

@@ -249,6 +249,14 @@ release from GitHub (below).
 
 Don't uninstall the app to fix a build problem: that deletes your practice history.
 
+**Trying it without the piano:** a build from the PC has a stand-in piano, the preview's, in front of the real one: Settings ›
+Keyboard › **Stand-in piano** turns it on, and Prima then plays as if a piano were plugged in. Its keys are played from the
+web view's DevTools (`adb forward tcp:9339 localabstract:webview_devtools_remote_<Prima's pid>`):
+`DotNet.invokeMethodAsync('Prima.UI', 'StandIn', 'on', {})`, then `'perform'` (the In time run in progress, `{ right: 1 }` for
+every note right), `'answer'` (what a drill or Wait for me waits for; `apart: 250` plays a chord a key at a time) or `'play'`
+(`{ notes: [60, 64, 67] }`), as the preview's `/keys` routes do. The piano's own keys still come through. A release has none
+of it. What it plays is kept as practice, so back up first and restore afterwards to leave the history as it was.
+
 ## Updates from GitHub
 
 Prima is released with the other apps, from the repo's **Actions › Release › Run workflow**: a release, **Prima 1.0.N**, with the
@@ -388,7 +396,8 @@ by the app's own scoring, and the session is left going: open the piece (`librar
 and Finish practice is on its cover. Open the Library once first, so the piece is stored. `/keys/piece?id=…&bpm=…` plays a piece's notes
 in real time, for following along, and `/files/next?path=…` hands the next import a file on the machine. `/keys/dual?on=true`
 layers two voices on the simulated piano's keys, as the P-225's Dual does: each key and pedal then says its message on channels
-1 and 2. `/keys/answer` plays what a drill or a Wait for me run is waiting for (`right=false` for a wrong key), a chord's keys
+1 and 2. The stand-in is the same one a build from the PC has on the tablet (`src/Prima.UI/Host/StandInKeyboard.cs` and
+`StandInPlayer.cs`). `/keys/answer` plays what a drill or a Wait for me run is waiting for (`right=false` for a wrong key), a chord's keys
 together, or with `apart=600` one at a time, that many ms apart. `/keys/perform` plays the In time run in progress: all at
 once, ending it, or with `live=true` each note as it's due, which is how a looped run is played (the player stops when the
 run does).

@@ -22,7 +22,17 @@ public static class MauiProgram
         builder.Logging.AddProvider(new AndroidErrorLog());
         builder.Services.AddSingleton<LookSetting, TabletLookSetting>();
         builder.Services.AddSingleton<IClock, AndroidClock>();
+#if DEBUG
+        // A build from the PC puts a stand-in piano in front of the real one, to try Prima without the piano: Settings › Keyboard
+        // turns it on, and DevTools plays it (StandInCalls). The piano's own keys still come through, and what Prima sends still
+        // reaches it. A release has only the piano.
+        builder.Services.AddSingleton<AndroidKeyboard>();
+        builder.Services.AddSingleton(sp => new StandInKeyboard(sp.GetRequiredService<IClock>(), sp.GetRequiredService<AndroidKeyboard>()));
+        builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<StandInKeyboard>());
+        builder.Services.AddSingleton<StandInPlayer>();
+#else
         builder.Services.AddSingleton<IKeyboard, AndroidKeyboard>();
+#endif
         builder.Services.AddSingleton<IClick, AndroidClick>();
         builder.Services.AddSingleton<IFiles, AndroidFiles>();
         builder.Services.AddSingleton<ISystemBars, AndroidSystemBars>();
@@ -52,6 +62,10 @@ public static class MauiProgram
 #endif
 
         var app = builder.Build();
+#if DEBUG
+        // Made now, so DevTools can reach it before any screen has asked for it.
+        _ = app.Services.GetRequiredService<StandInPlayer>();
+#endif
         KeepWhatNothingCaught(app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Prima.Tablet"));
         // At most once in 20 hours; Settings › Updates shows what it found.
         _ = app.Services.GetRequiredService<Updater>().CheckAsync();

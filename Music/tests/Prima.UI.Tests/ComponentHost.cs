@@ -148,9 +148,10 @@ internal sealed class TestPiano(bool plugged = false, bool takesNotes = false) :
 
     public event Action? Changed;
 
-    public void Send(byte[] message, long atNs)
-    {
-    }
+    /// <summary>What Prima sent it.</summary>
+    public List<byte[]> Sent { get; } = [];
+
+    public void Send(byte[] message, long atNs) => Sent.Add(message);
 
     public void Silence()
     {

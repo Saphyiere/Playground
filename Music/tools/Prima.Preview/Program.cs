@@ -24,8 +24,10 @@ var builder = WebApplication.CreateBuilder(args);
 // The MEI the browser makes from a MusicXML file comes back over SignalR, and a piece's is far bigger than its 32 KB default.
 builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddHubOptions(o => o.MaximumReceiveMessageSize = 16 * 1024 * 1024);
 builder.Services.AddSingleton<IClock, StopwatchClock>();
-builder.Services.AddSingleton<SimulatedKeyboard>();
-builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<SimulatedKeyboard>());
+// The stand-in piano, played from the /keys routes; the same one a build from the PC puts in front of the tablet's.
+builder.Services.AddSingleton(sp => new StandInKeyboard(sp.GetRequiredService<IClock>()));
+builder.Services.AddSingleton<IKeyboard>(sp => sp.GetRequiredService<StandInKeyboard>());
+builder.Services.AddSingleton<StandInPlayer>();
 // The Library's music (Music/library), and a file picker /files/next fills (?path=…, repeated for several files).
 var root = new DirectoryInfo(AppContext.BaseDirectory);
 while (root is not null && !File.Exists(Path.Combine(root.FullName, "Directory.Build.props"))) root = root.Parent;
@@ -204,18 +206,18 @@ app.MapGet("/seed/routines", async (PrimaStore store, RoutineService routines) =
 });
 
 // The simulated piano: plugged in or out, keys and pedals, Active Sensing, and taps on the click's beats for the timing calibration.
-app.MapGet("/keys/connect", (SimulatedKeyboard keys) => { keys.Plug(true); return Results.Text("connected"); });
-app.MapGet("/keys/disconnect", (SimulatedKeyboard keys) => { keys.Plug(false); return Results.Text("disconnected"); });
+app.MapGet("/keys/connect", (StandInKeyboard keys) => { keys.Plug(true); return Results.Text("connected"); });
+app.MapGet("/keys/disconnect", (StandInKeyboard keys) => { keys.Plug(false); return Results.Text("disconnected"); });
 // Two voices layered on the keys, as the P-225's Dual: each key and pedal then says its message on channels 1 and 2.
-app.MapGet("/keys/dual", (bool on, SimulatedKeyboard keys) => { keys.Voices = on ? 2 : 1; return Results.Text(on ? "two voices on each key" : "one voice"); });
-app.MapGet("/keys/play", (string notes, int? velocity, int? hold, SimulatedKeyboard keys) =>
+app.MapGet("/keys/dual", (bool on, StandInKeyboard keys) => { keys.Voices = on ? 2 : 1; return Results.Text(on ? "two voices on each key" : "one voice"); });
+app.MapGet("/keys/play", (string notes, int? velocity, int? hold, StandInKeyboard keys) =>
 {
     keys.Play(notes.Split(',').Select(n => int.Parse(n, CultureInfo.InvariantCulture)), velocity ?? 80, hold ?? 300);
     return Results.Text($"played {notes}");
 });
-app.MapGet("/keys/pedal", (int controller, int value, SimulatedKeyboard keys) => { keys.Pedal(controller, value); return Results.Text("pedal"); });
-app.MapGet("/keys/sense", (int? seconds, double? jitter, SimulatedKeyboard keys) => { keys.Sense(seconds ?? 70, jitter ?? 1.2); return Results.Text("sensed"); });
-app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spread, Click click, SimulatedKeyboard keys) =>
+app.MapGet("/keys/pedal", (int controller, int value, StandInKeyboard keys) => { keys.Pedal(controller, value); return Results.Text("pedal"); });
+app.MapGet("/keys/sense", (int? seconds, double? jitter, StandInKeyboard keys) => { keys.Sense(seconds ?? 70, jitter ?? 1.2); return Results.Text("sensed"); });
+app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spread, Click click, StandInKeyboard keys) =>
 {
     var random = new Random(5);
     for (var beat = from; beat < from + count; beat++)
@@ -229,67 +231,11 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
 // a bar on (a stop), a share of notes with a slip (the key above, just before the right one), a share let go at 60% of their
 // length, and every chord rolled ("roll", the ms between its keys). In one go, ending the run, so a summary can be screenshotted
 // without waiting; or with "live", each note when it's due, as from the piano, so the sheet marks them during the run.
-app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, SessionRegistry registry, SimulatedKeyboard keys, IClock clock) =>
-{
-    var session = registry.Current;
-    if (session?.Plan is null) return Results.Text("no run in progress");
-
-    var random = new Random(9);
-    var beatsPerBar = session.Plan.BeatsPerBar;
-    var notes = session.Expected
-        .Where(e => stop is null || e.Beat < (stop.Value - 1) * beatsPerBar)
-        .SelectMany(e =>
-        {
-            var midi = random.NextDouble() < (right ?? 0.95) ? e.Midi : e.Midi + (random.NextDouble() < 0.5 ? 1 : 2);
-            // With "roll", every chord is rolled up from its lowest key, that many ms between keys.
-            var rolledBy = roll is { } gap ? session.Expected.Count(o => o.Beat == e.Beat && o.Midi < e.Midi) * gap : 0;
-            var on = session.TimeAt(e.Beat) + (long)(((lean ?? -15) + rolledBy + (random.NextDouble() - 0.5) * 2 * (spread ?? 12)) * 1e6);
-            var (start, end) = (session.TimeAt(e.Beat), session.TimeAt(e.Beat + e.Beats));
-            var off = early is { } share && random.NextDouble() < share ? on + (long)((end - start) * 0.6) : end - 30_000_000;
-            var note = new Prima.Core.Scoring.PlayedNote(midi, on, off, 60 + random.Next(20));
-            return slips is { } slip && midi == e.Midi && random.NextDouble() < slip ? [new(midi + 1, on - 60_000_000, on - 20_000_000, 60), note] : new[] { note };
-        }).ToList();
-    if (live != true)
-    {
-        session.Perform(notes);
-        return Results.Text($"performed {notes.Count} notes");
-    }
-
-    _ = Task.Run(async () =>
-    {
-        foreach (var note in notes.OrderBy(n => n.OnNs))
-        {
-            var wait = (note.OnNs - clock.NowNs) / 1e6;
-            if (wait > 0) await Task.Delay(TimeSpan.FromMilliseconds(wait));
-            // The run stopped, or another begun (a looped run is half an hour of notes): its player stops with it, and plays
-            // nothing into whatever comes next.
-            if (registry.Current != session || session.Phase is not (Phase.CountIn or Phase.Playing)) return;
-            keys.PlayAt(note.Midi, note.Velocity, note.OnNs, note.OffNs);
-        }
-    });
-    return Results.Text($"playing {notes.Count} notes live");
-});
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, StandInPlayer player) =>
+    Results.Text(player.Perform(new(right ?? 0.95, lean ?? -15, spread ?? 12, stop, live == true, slips, early, roll))));
 // Answers the drill item on screen: right, or wrong. A step's keys go down together, or with "apart" one at a time, that many
 // ms after the one before, as a chord played a note at a time.
-app.MapGet("/keys/answer", async (bool? right, int? apart, SessionRegistry registry, SimulatedKeyboard keys) =>
-{
-    if (registry.DrillAnswer is not { } answer) return Results.Text("no drill item");
-
-    foreach (var step in answer(right ?? true))
-    {
-        if (apart is not { } ms)
-        {
-            keys.Play(step, 70, 200);
-            continue;
-        }
-        foreach (var key in step)
-        {
-            keys.Play([key], 70, 200);
-            await Task.Delay(ms);
-        }
-    }
-    return Results.Text("answered");
-});
+app.MapGet("/keys/answer", async (bool? right, int? apart, StandInPlayer player) => Results.Text(await player.Answer(right ?? true, apart)));
 // The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 // Every form of an exercise, for checking each one engraves: each key and choice of hands it offers and, for a family, each
@@ -314,7 +260,7 @@ app.MapGet("/seed/exercise/{id}", async (string id, int? fifths, bool? minor, Ha
     await store.SaveTrackAsync($"exercise:{id}", new ExerciseChoice(fifths ?? 0, minor ?? false, hands ?? exercise.Hands[0], tempo ?? exercise.Tempo) { Variation = variation });
     return Results.Text($"{id}: {new Key(fifths ?? 0, minor ?? false).Name}, {hands ?? exercise.Hands[0]}, {variation}");
 });
-app.MapGet("/keys/sent", (SimulatedKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
+app.MapGet("/keys/sent", (StandInKeyboard keys) => Results.Text(string.Join('\n', keys.Sent.Select(s => $"{s.AtNs} {Convert.ToHexString(s.Message)}"))));
 // What the tablet's speaker was given to play (a piece's opening without the piano), and how often it was stopped.
 app.MapGet("/speaker/played", (PreviewSpeaker speaker) => Results.Text($"stopped {speaker.Stops} times\n{string.Join('\n', speaker.Played.Select(p => $"{p.At:HH:mm:ss} {p.Bytes} bytes"))}"));
 // The next file "picked" for an import: a file on this machine, by path.
@@ -444,7 +390,7 @@ app.MapGet("/files/next", (string[] path, PreviewFiles files) =>
     return Results.Text(files.Next.Count == 0 ? "no such file" : $"next pick: {string.Join(", ", files.Next.Select(f => f.Name))}");
 });
 // Plays a piece's notes in order at a tempo, as if from the piano: for following along. From event "from", "count" of them.
-app.MapGet("/keys/piece", async (string id, int? from, int? count, double? bpm, int? skip, PrimaStore store, SimulatedKeyboard keys) =>
+app.MapGet("/keys/piece", async (string id, int? from, int? count, double? bpm, int? skip, PrimaStore store, StandInKeyboard keys) =>
 {
     if (await store.GetMeiAsync(id) is not { } mei) return Results.Text("no such piece");
 
