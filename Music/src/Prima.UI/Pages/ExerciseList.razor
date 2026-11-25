@@ -80,7 +80,8 @@
                     <p class="col-sub">@(shown.Count == 1 ? "1" : $"{shown.Count}") · @about</p>
                 </div>
             </div>
-            <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")">
+            @* Keyed by the list shown, so another list's cards arrive whole. *@
+            <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")" @key="@($"{Show} {Type} {Trains} {Level}")">
                 @if (shown.Count == 0)
                 {
                     <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : "Nothing here.")</p>

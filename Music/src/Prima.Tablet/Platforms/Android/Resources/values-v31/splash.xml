@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Vinyl's splash: the record on the sleeve's teal. Android shows it from the start after Vinyl is chosen (TabletLookSetting,
+         Android 13 and later); Studio's is the app's own (MauiSplashScreen). -->
+    <style name="Prima.Splash.Vinyl" parent="Maui.SplashTheme">
+        <item name="android:windowSplashScreenBackground">#173B3D</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_vinyl</item>
+    </style>
+</resources>

@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Click>();
         services.AddSingleton<Practice.SessionRegistry>();
         services.AddScoped<AppNavigation>();
+        services.AddScoped<Layout.LayoutStart>();
         services.AddScoped<Library.LibraryPrep>();
         services.AddScoped<Library.LibraryPlace>();
         services.AddScoped<Library.RepertoireBook>();

@@ -47,16 +47,16 @@
     <p class="section-note copies-kept">@Shared()</p>
 }
 <div class="control-row">
-    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@(status.Step == SyncStep.Copying ? "Copying…" : "Back up now")</button>
+    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@if (status.Step == SyncStep.Copying) { <Busy /><span>Copying</span> } else { <span>Back up now</span> }</button>
     <button type="button" class="mu-btn" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
-    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="Export">@(status.Step == SyncStep.Exporting ? "Exporting…" : "Export everything")</button>
+    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="Export">@if (status.Step == SyncStep.Exporting) { <Busy /><span>Exporting</span> } else { <span>Export everything</span> }</button>
 </div>
 @if (status.Progress is { } progress)
 {
     var percent = (int)Math.Round(progress.Fraction * 100);
     <div class="copies-progress" aria-live="polite">
         <p class="mu-meter-head"><span>@progress.Doing</span><span>@percent%</span></p>
-        <div class="mu-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="@progress.Doing">
+        <div class="mu-meter meter-going" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="@progress.Doing">
             @for (var i = 0; i < 20; i++)
             {
                 <span class="@(i < (int)Math.Round(progress.Fraction * 20) ? "on" : "")"></span>
@@ -69,7 +69,14 @@
     <div class="copies-restore">
         @if (found.Count == 0)
         {
-            <p class="section-note">@(looking ? "Looking for copies…" : $"This tablet has no copy of its own yet. Choose the folder copies are in ({Sync.Store.Name}, a folder for each time Prima was installed), or an export.")</p>
+            @if (looking)
+            {
+                <p class="section-note busy-line" role="status"><Busy />Looking for copies</p>
+            }
+            else
+            {
+                <p class="section-note">@($"This tablet has no copy of its own yet. Choose the folder copies are in ({Sync.Store.Name}, a folder for each time Prima was installed), or an export.")</p>
+            }
         }
         else
         {

@@ -80,11 +80,9 @@ else if (note is not null)
         }
 
         var cards = Kept(shown).Select(k => cardOf.GetValueOrDefault(k.Piece)).OfType<PieceCard>().ToList();
-        @if (cards.Count < Kept(shown).Count())
-        {
-            <p class="section-note" role="status">Reading where they stand…</p>
-        }
-        @if (cards.Count > 0)
+        // The cards still being read wait in their places, after the ones read.
+        var unread = Kept(shown).Count() - cards.Count;
+        @if (cards.Count > 0 || unread > 0)
         {
             <div class="rep-grid">
                 @foreach (var card in InOrder(cards))
@@ -124,6 +122,10 @@ else if (note is not null)
                             <a class="mu-btn mu-primary lb-small" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">Practice</a>
                         </div>
                     </article>
+                }
+                @if (unread > 0)
+                {
+                    <Waiting Shape="WaitShape.Card" Count="@Math.Min(unread, 6)" From="@cards.Count" Label="Reading where they stand" />
                 }
             </div>
         }

@@ -20,7 +20,7 @@
 <div class="lib">
     <header class="page-head">
         <div>
-            <p class="page-kicker">@Counted()</p>
+            <p class="page-kicker">@if (loaded) { @Counted() } else { <text>&nbsp;</text> }</p>
             <h1 class="page-title">Library</h1>
         </div>
         <div class="head-tools">
@@ -51,7 +51,16 @@
     }
     else if (note is not null)
     {
-        <p class="control-note lib-said @(note.EndsWith('…') ? "staying" : "")" role="status" style="@($"--said: {(4 + note.Length * 0.07).ToString("0.0", CultureInfo.InvariantCulture)}s")" @key="sayings">@note</p>
+        <p class="control-note lib-said @(note.EndsWith('…') ? "staying" : "")" role="status" style="@($"--said: {(4 + note.Length * 0.07).ToString("0.0", CultureInfo.InvariantCulture)}s")" @key="sayings">
+            @if (note.EndsWith('…'))
+            {
+                <span class="busy-line"><Busy />@(note[..^1])</span>
+            }
+            else
+            {
+                @note
+            }
+        </p>
     }
 
     @{
@@ -121,7 +130,12 @@
     }
 
     <div class="lib-cols">
-        <nav class="lib-col lib-list" aria-label="The Library's lists" data-keep="list" data-at="@listed">
+        <nav class="lib-col lib-list" aria-label="The Library's lists" data-keep="list" data-at="@listed" @key="listed">
+            @if (!loaded)
+            {
+                <p class="col-title">Catalogue</p>
+                <Waiting Shape="WaitShape.Line" Count="12" Label="Reading the Library" />
+            }
             @if (pieces.Any(p => p.Imported))
             {
                 <a class="col-item shelf-own" href="@Address("mine", null)" aria-current="@(view == "mine" ? "true" : null)"><span>Uploaded pieces</span><span class="n">@pieces.Count(p => p.Imported)</span></a>
@@ -190,7 +204,16 @@
         </nav>
 
         <div class="lib-main">
-            @if (pieces.Count == 0)
+            @if (!loaded)
+            {
+                <div class="lib-main-head">
+                    <div class="wait-item"><span class="wait-line tall" style="width: 260px"></span><span class="wait-line small" style="width: 180px"></span></div>
+                </div>
+                <div class="lib-col">
+                    <ol class="mov-list"><Waiting Shape="WaitShape.Piece" Count="9" From="2" /></ol>
+                </div>
+            }
+            else if (pieces.Count == 0)
             {
                 @if (!Prep.Running && puttingBack is null)
                 {
@@ -264,7 +287,11 @@
                 </div>
                 @if (works is null)
                 {
-                    <p class="section-note" role="status">Reading its works…</p>
+                    <div class="lib-pair only-wide">
+                        <div class="lib-col works"><Waiting Shape="WaitShape.Work" Count="5" Label="Reading the composer's works" /></div>
+                        <div class="lib-col"><ol class="mov-list"><Waiting Shape="WaitShape.Piece" Count="8" From="2" /></ol></div>
+                    </div>
+                    <div class="lib-col only-upright"><Waiting Shape="WaitShape.Work" Count="7" /></div>
                 }
                 else
                 {
@@ -273,7 +300,7 @@
                     @if (shown.All(w => w.Parts.Count == 1 && w.Others.Count == 0))
                     {
                         // Pieces that each stand by themselves need no second column.
-                        <div class="lib-col" data-keep="pieces" data-at="@($"{of} {tab?.Name}")">
+                        <div class="lib-col" data-keep="pieces" data-at="@($"{of} {tab?.Name}")" @key="@($"{of} {tab?.Name}")">
                             <ol class="mov-list">
                                 @foreach (var work in shown)
                                 {
@@ -290,7 +317,7 @@
                         var chosen = ChosenOf(shown);
                         // Across: the works, and the one chosen beside them.
                         <div class="lib-pair only-wide">
-                            <div class="lib-col works" data-keep="works" data-at="@($"{of} {tab?.Name}")">
+                            <div class="lib-col works" data-keep="works" data-at="@($"{of} {tab?.Name}")" @key="@($"{of} {tab?.Name}")">
                                 @foreach (var work in shown)
                                 {
                                     <a class="col-item col-work" href="@Nav.GetUriWithQueryParameter("work", work.Key)" aria-current="@(work == chosen ? "true" : null)" @onclick="@(() => Keep("work", work.Key))" @onclick:preventDefault>
@@ -300,7 +327,7 @@
                                     </a>
                                 }
                             </div>
-                            <div class="lib-col" data-keep="work" data-at="@($"{of} {chosen?.Key}")">
+                            <div class="lib-col" data-keep="work" data-at="@($"{of} {chosen?.Key}")" @key="@($"{of} {chosen?.Key}")">
                                 @if (chosen is not null)
                                 {
                                     <h3 class="col-head small">@chosen.Title</h3>
@@ -343,7 +370,7 @@
                 </div>
                 @if (index is null)
                 {
-                    <p class="section-note" role="status">Reading the works…</p>
+                    <div class="lib-col"><Waiting Shape="WaitShape.Work" Count="9" Label="Reading the works" /></div>
                 }
                 else
                 {

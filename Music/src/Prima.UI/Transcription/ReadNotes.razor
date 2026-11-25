@@ -51,7 +51,15 @@ else if (job is { State: not ConversionState.Ready })
         <p class="piece-bar-title">@Piece.Title</p>
         <button type="button" data-piano="off" class="mu-btn piece-key" data-action="back-to-sheet" @onclick="Close">Back to sheet music</button>
         <div class="mu-readout"><span class="mu-readout-label">Conversion</span><span class="mu-readout-value">@job.State</span></div>
-        <div class="mu-readout"><span class="mu-readout-label">Batches saved</span><span class="mu-readout-value">@job.Chunks.Count(c => c.Phase == ConversionPhase.Complete) of @job.Chunks.Count</span></div>
+        <div class="mu-readout">
+            <span class="mu-readout-label">Batches saved</span><span class="mu-readout-value">@job.Chunks.Count(c => c.Phase == ConversionPhase.Complete) of @job.Chunks.Count</span>
+            <div class="mu-meter meter-slim @(job.State == ConversionState.Running ? "meter-going" : null)" aria-hidden="true">
+                @foreach (var lit in SavedSegments(job))
+                {
+                    <span class="@(lit ? "on" : null)"></span>
+                }
+            </div>
+        </div>
         <div class="mu-readout" data-cost-kind="job" data-cost-unknown="@(job.HasUnknownCost ? "true" : "false")"><span class="mu-readout-label">@(job.HasUnknownCost ? "Known subtotal · total uncertain" : "Known cost")</span><span class="mu-readout-value">@Money(job.KnownCost)@(job.HasUnknownCost ? " + unknown" : "")</span></div>
     </section>
     <section class="pdfread-progress">
@@ -82,17 +90,31 @@ else if (job is { State: not ConversionState.Ready })
             <div class="pdfread-actions">
                 @if (job.CanRepairBoundaries)
                 {
-                    <button type="button" data-piano="off" class="mu-btn" data-action="repair-source" disabled="@(starting || !prepared)" @onclick="EditSource">@BoundaryButton</button>
+                    <button type="button" data-piano="off" class="mu-btn" data-action="repair-source" disabled="@(starting || !prepared)" @onclick="EditSource">@if (Preparing) { <Busy /> }<span>@BoundaryButton</span></button>
                 }
                 <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="resume-conversion" disabled="@(starting || job.HasUncertainRequest && !acknowledgeResend || job.NeedsRequestAllowance && !allowAdditionalRequest)" @onclick="Resume">Resume conversion</button>
             </div>
         }
         <div class="pdfread-list">
+            @{ var current = job.State == ConversionState.Running ? job.Chunks.FirstOrDefault(c => c.Phase != ConversionPhase.Complete) : null; }
             @foreach (var (chunk, index) in job.Chunks.Select((c, i) => (c, i)))
             {
                 <div class="pdfread-row" data-chunk="@chunk.Chunk.Id" data-phase="@chunk.Phase">
                     <div class="pdfread-name"><strong>Batch @(index + 1)</strong><span>@chunk.Chunk.BarIds.Count bars</span></div>
-                    <div class="pdfread-state">@(chunk.Phase switch { ConversionPhase.Read => "Waiting to read", ConversionPhase.Validate => "Checking notation", ConversionPhase.Render => "Drawing notation", _ => "Saved" })</div>
+                    <div class="pdfread-state">
+                        @if (chunk == current)
+                        {
+                            <span class="busy-line"><Busy />@(chunk.Phase switch { ConversionPhase.Read => "Claude is reading it", ConversionPhase.Validate => "Checking notation", _ => "Drawing notation" })</span>
+                        }
+                        else if (chunk.Phase == ConversionPhase.Complete)
+                        {
+                            <span class="busy-line"><span class="mu-led on"></span>Saved</span>
+                        }
+                        else
+                        {
+                            @(chunk.Phase switch { ConversionPhase.Read => "Waiting to read", ConversionPhase.Validate => "Checking notation", _ => "Drawing notation" })
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -167,7 +189,7 @@ else if (stage == Stage.Estimate)
             <input id="conversion-model" type="text" data-piano="off" class="text-field" value="@model" @onchange="e => model = e.Value?.ToString()?.Trim() ?? string.Empty" />
             <p class="pdfread-words">@(HasConfirmedSource ? $"{source!.Bars.Count} PDF bars confirmed. You can adjust their boundaries before converting." : "Check the proposed bar boundaries before converting, so every bar keeps its place in the PDF.")</p>
             <div class="pdfread-actions">
-                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(starting || !prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">@BoundaryButton</button>
+                <button type="button" data-piano="off" class="mu-btn" data-action="edit-source" disabled="@(starting || !prepared || SystemsIn(from, to) == 0)" @onclick="EditSource">@if (Preparing) { <Busy /> }<span>@BoundaryButton</span></button>
             </div>
             @if (noKey)
             {
@@ -218,7 +240,7 @@ else
                 @if (job is not null)
                 {
                     <button type="button" data-piano="off" class="mu-btn" data-action="new-conversion" @onclick="NewConversion">New conversion</button>
-                    <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="keep-reading" disabled="@(!result.Ok || keeping)" @onclick="Keep">@(keeping ? "Keeping…" : "Keep")</button>
+                    <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="keep-reading" disabled="@(!result.Ok || keeping)" @onclick="Keep">@if (keeping) { <Busy /><span>Keeping</span> } else { <span>Keep</span> }</button>
                 }
                 else if (throwing)
                 {
@@ -228,7 +250,7 @@ else
                 else
                 {
                     <button type="button" data-piano="off" class="mu-btn" @onclick="() => throwing = true">Throw away…</button>
-                    <button type="button" data-piano="off" class="mu-btn mu-primary" disabled="@(!result.Ok || keeping)" @onclick="Keep">@(keeping ? "Keeping…" : "Keep")</button>
+                    <button type="button" data-piano="off" class="mu-btn mu-primary" disabled="@(!result.Ok || keeping)" @onclick="Keep">@if (keeping) { <Busy /><span>Keeping</span> } else { <span>Keep</span> }</button>
                 }
             </div>
         }
@@ -478,7 +500,17 @@ else
     private int? listeningFrom;
 
     private bool CanListen => Keyboard.CanSend && Settings.SendToPiano;
-    private string BoundaryButton => preparingPage is { } page ? $"Preparing page {page} of {to}…" : prepared ? "Check bar boundaries" : "Opening PDF…";
+    private string BoundaryButton => preparingPage is { } page ? $"Preparing page {page} of {to}" : prepared ? "Check bar boundaries" : "Opening the PDF";
+
+    private bool Preparing => preparingPage is not null || !prepared;
+
+    // The batches saved as up to 20 segments, lit as they're saved.
+    private static IEnumerable<bool> SavedSegments(ConversionJob job)
+    {
+        var (count, saved) = (job.Chunks.Count, job.Chunks.Count(c => c.Phase == ConversionPhase.Complete));
+        var segments = Math.Clamp(count, 1, 20);
+        return Enumerable.Range(0, segments).Select(i => i < (int)Math.Round(segments * (double)saved / Math.Max(1, count)));
+    }
 
     private string? ReviewId => (job?.IsRecheck == false ? job.Id : savedDraft?.ConversionJobId) ?? mappedSourceRevision ?? source?.Revision;
 

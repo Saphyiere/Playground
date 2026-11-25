@@ -257,7 +257,7 @@ else if (!finder.FoundAny)
             @if (maskedKey is { } masked)
             {
                 <span class="key-figure" aria-label="@($"The key on this tablet, ending {masked[^4..]}")">@masked</span>
-                <button type="button" class="mu-btn" disabled="@testing" @onclick="TestKey">@(testing ? "Testing…" : "Test")</button>
+                <button type="button" class="mu-btn" disabled="@testing" @onclick="TestKey">@if (testing) { <Busy /><span>Testing</span> } else { <span>Test</span> }</button>
                 @if (removingKey)
                 {
                     <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="RemoveKey">Remove it</button>
@@ -334,7 +334,7 @@ else if (!finder.FoundAny)
         <div class="control-row">
             <span class="control-label">This tablet</span>
             <span class="key-figure">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
-            <button type="button" class="mu-btn" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@(Updates.Status.Step == UpdateStep.Checking ? "Checking…" : "Check")</button>
+            <button type="button" class="mu-btn" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@if (Updates.Status.Step == UpdateStep.Checking) { <Busy /><span>Checking</span> } else { <span>Check</span> }</button>
         </div>
         @if (Updates.Status is { Latest: { } newest, Step: UpdateStep.Available or UpdateStep.Downloading or UpdateStep.Installing or UpdateStep.Failed })
         {
@@ -351,7 +351,16 @@ else if (!finder.FoundAny)
                             }
                         </ul>
                     }
-                    <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@UpdateBusy" @onclick="InstallUpdate">@(Updates.Status.Step == UpdateStep.Downloading ? $"Downloading… {(int)(Updates.Status.Progress * 100)}%" : "Install")</button>
+                    <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@UpdateBusy" @onclick="InstallUpdate">@if (Updates.Status.Step == UpdateStep.Downloading) { <Busy /><span>@($"Downloading {(int)(Updates.Status.Progress * 100)}%")</span> } else { <span>Install</span> }</button>
+                    @if (Updates.Status.Step == UpdateStep.Downloading)
+                    {
+                        <div class="mu-meter meter-slim meter-going" aria-hidden="true">
+                            @for (var i = 0; i < 20; i++)
+                            {
+                                <span class="@(i < (int)Math.Round(Updates.Status.Progress * 20) ? "on" : "")"></span>
+                            }
+                        </div>
+                    }
                     @if (Updates.Status.CopyProblem is not null && !UpdateBusy)
                     {
                         <p class="section-note">Prima keeps a copy of your data before each update, and this time it couldn't. Installed without one, there will be nothing to go back to if the update loses anything.</p>

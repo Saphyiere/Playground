@@ -14,12 +14,21 @@
 
 @if (job is null)
 {
-    <p class="page-note" role="status">@(problem ?? "Opening the saved request…")</p>
+    @if (problem is not null)
+    {
+        <p class="page-note" role="status">@problem</p>
+    }
+    else
+    {
+        <p class="page-note busy-line" role="status"><Busy />Opening the saved request</p>
+    }
 }
 else if (job.State is RoutineGenerationState.Queued or RoutineGenerationState.Running)
 {
-    <section class="mu-screen" role="status" data-state="routine-working">
-        <h2 class="mu-screen-head">Preparing your routine</h2>
+    @* Claude at work: notes being written onto a staff, and how long it has been asked (not said aloud each second). *@
+    <section class="mu-screen claude-work" role="status" data-state="routine-working">
+        <h2 class="mu-screen-head"><span>Preparing your routine</span><span class="claude-time" aria-hidden="true">@Asked()</span></h2>
+        <Writing />
         <p class="page-panel-line">You can leave this screen. Prima will keep the request and notify you when the proposal is ready.</p>
         <button class="mu-btn" type="button" data-piano="off" data-action="routine-cancel" disabled="@busy" @onclick="Cancel">Cancel</button>
     </section>
@@ -116,7 +125,7 @@ else if (job.State == RoutineGenerationState.Ready && draft is not null)
     }
     @if (problem is not null) { <p class="section-note" role="alert" data-state="routine-draft-error">@problem</p> }
     <div class="control-row">
-        <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-accept" disabled="@(busy || problem is not null || draft.Items.Count == 0)" @onclick="Accept">@(busy ? "Saving…" : "Use routine")</button>
+        <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-accept" disabled="@(busy || problem is not null || draft.Items.Count == 0)" @onclick="Accept">@if (busy) { <Busy /><span>Saving</span> } else { <span>Use routine</span> }</button>
         <a class="mu-btn" data-piano="off" href="routine/ask">Change the request</a>
     </div>
 }
@@ -147,6 +156,9 @@ else
     private string? problem;
     private bool busy;
     private bool disposed;
+    // Since when it's been asked, as far as this screen has seen, and the second's tick that shows it while it is.
+    private DateTimeOffset? askedSince;
+    private Timer? ticking;
     private static string On(bool value) => value ? "true" : "false";
     private static string HandsName(HandUse hand) => hand switch { HandUse.Right => "Right hand", HandUse.Left => "Left hand", _ => "Hands together" };
 
@@ -163,6 +175,30 @@ else
             problem = job is null ? "This saved request is unavailable." : null;
         }
         catch (Exception error) { problem = error.Message; }
+        Watch();
+    }
+
+    // While it's asked, its time on the panel goes on a second at a time; from when it was asked, as the request says (its last
+    // change), or the earliest this screen saw.
+    private void Watch()
+    {
+        if (job?.State is RoutineGenerationState.Queued or RoutineGenerationState.Running)
+        {
+            askedSince = askedSince is { } seen && seen < job.Updated ? seen : job.Updated;
+            ticking ??= new Timer(_ => { if (!disposed) _ = InvokeAsync(StateHasChanged); }, null, 1000, 1000);
+        }
+        else
+        {
+            ticking?.Dispose();
+            ticking = null;
+        }
+    }
+
+    private string Asked()
+    {
+        var gone = DateTimeOffset.UtcNow - (askedSince ?? DateTimeOffset.UtcNow);
+        if (gone < TimeSpan.Zero) gone = TimeSpan.Zero;
+        return FormattableString.Invariant($"{(int)gone.TotalMinutes}:{gone.Seconds:00}");
     }
 
     private void Changed(RoutineGenerationJob update)
@@ -171,6 +207,7 @@ else
         _ = InvokeAsync(() =>
         {
             job = update;
+            Watch();
             catalog = RoutineCompiler.Input(update.Request, update.Evidence, update.Source).Catalog;
             sourceEvents = update.Source is { } source ? RoutineCompiler.SourceEvents(MeiReader.Read(source.Mei)) : [];
             if (draft is null || update.State != RoutineGenerationState.Ready)
@@ -264,5 +301,5 @@ else
         finally { busy = false; }
     }
 
-    public void Dispose() { disposed = true; Routines.Changed -= Changed; }
+    public void Dispose() { disposed = true; Routines.Changed -= Changed; ticking?.Dispose(); }
 }

@@ -35,7 +35,22 @@ export function size(element) {
     return [element.clientWidth, element.clientHeight];
 }
 
-// Full screen: the piece alone, the rail and the head hidden (data-full on <html>; the tablet's own bars go by the host).
+// Full screen: the piece alone, the rail and the head hidden (data-full on <html>; the tablet's own bars go by the host). Where the
+// browser can, and motion isn't turned down, the bar and the music move to their places as the rest fades (a view transition;
+// prima.css, Motion). They're named for the move only while it lasts. Not when the screen's going: there's no bar then.
 export function fullScreen(on) {
-    document.documentElement.toggleAttribute("data-full", on);
+    const root = document.documentElement;
+    if (root.hasAttribute("data-full") === on) return;
+    const toggle = () => root.toggleAttribute("data-full", on);
+    const bar = document.querySelector(".play-bar");
+    if (!document.startViewTransition || !bar || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        toggle();
+        return;
+    }
+    const named = [[bar, "play-bar"], [document.querySelector(".piece-stage"), "play-music"]].filter(([element]) => element);
+    for (const [element, name] of named) element.style.viewTransitionName = name;
+    const move = document.startViewTransition(toggle);
+    const unname = () => { for (const [element] of named) element.style.viewTransitionName = ""; };
+    move.ready.catch(() => { });
+    move.finished.then(unname, unname);
 }

@@ -1,0 +1,13 @@
+@* Claude at work: notes written onto a staff one after another, the newest bright, for as long as the answer takes (prima.css,
+   Motion). It says something is being made, not how far it has got; the time beside it says how long. *@
+<div class="writing" aria-hidden="true">
+    @foreach (var (x, y) in Notes)
+    {
+        <i class="@(y <= 2 ? "down" : null)" style="@($"--x: {x}; --y: {y}")"></i>
+    }
+</div>
+
+@code {
+    // Each note's place along the staff and its step down from the top line, two steps to a space; a high one's stem goes down.
+    private static readonly (int X, int Y)[] Notes = [(0, 6), (1, 4), (2, 5), (3, 2), (4, 3), (5, 1), (6, 4), (7, 2)];
+}

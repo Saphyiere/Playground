@@ -8897,3 +8897,618 @@ button.up-artist {
         box-shadow: 0 -18px 44px rgba(0, 0, 0, 0.22);
     }
 }
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   Motion: how Prima opens, how a screen and what's on it arrive, and how a wait looks.
+
+   One curve for whatever arrives (the play summary's), and each look's own pace: Studio's keys and lamps are quick and travel
+   little; Vinyl's print is a touch slower and comes a little further, like a sleeve slid out. Only opacity and transform move,
+   so the browser moves them on a thread of its own, and nothing new moves while a run plays. Android's Remove animations
+   (prefers-reduced-motion) keeps the fades, quicker, and stills everything else (at the end).
+   --------------------------------------------------------------------------------------------------------------------------- */
+
+:root, [data-theme="studio"] {
+    --ease-arrive: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --t-lamp: 120ms;
+    --t-pop: 140ms;
+    --t-arrive: 180ms;
+    --t-step: 28ms;
+    --rise: 6px;
+}
+
+[data-theme="vinyl"] {
+    --t-pop: 180ms;
+    --t-arrive: 240ms;
+    --t-step: 36ms;
+    --rise: 10px;
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        transform: translateY(var(--rise));
+    }
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+    }
+}
+
+
+/* Opening: Android's splash, then the page's own mark in the same place (index.html) while .NET starts and the first screen is
+   read, then the screen. Studio's mark is the icon's display with the play cursor going over its staff, each note lighting as it
+   passes; Vinyl's is Today's record turning. The layout fades it as its first screen is drawn and takes it away after
+   (MainLayout.razor.js); under Blazor's own bar, should Prima stop answering before then. */
+.opening {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    background: var(--ground);
+    pointer-events: none;
+    transition: opacity 240ms ease, visibility 0s linear 240ms;
+}
+
+.opening.gone {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Sized as Android draws the splash: its 108-unit image scaled to 192 dp, so the hand-over doesn't move. */
+.opening-mark {
+    width: 192px;
+    height: 192px;
+}
+
+.opening-mark .cursor {
+    animation: opening-cursor 1.4s linear infinite;
+}
+
+.opening-mark .note {
+    fill: #7a5c2c;
+    animation: opening-note 1.4s linear infinite;
+}
+
+.opening-mark .stem {
+    stroke: #7a5c2c;
+    animation: opening-stem 1.4s linear infinite;
+}
+
+/* The cursor starts where the splash has it, half way across, over the second note: each note lights as it passes. */
+.opening-mark .cursor,
+.opening-mark .n1 {
+    animation-delay: -0.68s;
+}
+
+.opening-mark .n2 {
+    animation-delay: -0.3s;
+}
+
+.opening-mark .n3 {
+    animation-delay: 0.08s;
+}
+
+.opening-mark .lamp {
+    animation: opening-lamp 1.4s ease-in-out infinite;
+}
+
+@keyframes opening-cursor {
+    from { transform: translateX(-2px); }
+    to { transform: translateX(42px); }
+}
+
+@keyframes opening-note {
+    0%, 12% { fill: #7a5c2c; }
+    22%, 60% { fill: #ffd27a; }
+    100% { fill: #7a5c2c; }
+}
+
+@keyframes opening-stem {
+    0%, 12% { stroke: #7a5c2c; }
+    22%, 60% { stroke: #ffd27a; }
+    100% { stroke: #7a5c2c; }
+}
+
+@keyframes opening-lamp {
+    50% { opacity: 0.35; }
+}
+
+/* The record as Vinyl's splash draws it: 68 of its 108 units across. */
+.opening-record {
+    width: 124px;
+    height: 124px;
+    animation: opening-turn 1.8s linear infinite;
+}
+
+.opening-record .disc { fill: var(--disc); }
+.opening-record .groove { fill: none; stroke: var(--disc-detail); stroke-width: 1.5; }
+.opening-record .arc { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+.opening-record .label { fill: var(--label); }
+.opening-record .print { fill: var(--on-label); }
+.opening-record .hole { fill: var(--ground); }
+
+@keyframes opening-turn {
+    to { transform: rotate(1turn); }
+}
+
+/* As Prima opens (data-opening on <html>, until the first screen has had time to arrive): the rail slides in from its edge and
+   the screen comes after it, Today with its one moment (Studio's knob sweeping round once, as an instrument does as it's switched
+   on, and settling at the tempo; Vinyl's record coming out of its sleeve). Every screen after it builds the rail again, which
+   then doesn't move. */
+@keyframes rail-in {
+    from {
+        opacity: 0;
+        transform: translateX(-14px);
+    }
+}
+
+[data-opening] .shell > .mu-nav {
+    animation: rail-in 300ms var(--ease-arrive) backwards;
+}
+
+[data-opening] .shell-main > * {
+    animation-delay: 120ms;
+}
+
+/* The knob's pointer is drawn at the tempo, --knob-turn round from its lowest (60); it starts there, goes to the top (132) and
+   comes back. */
+[data-opening] .studio-knob .pointer {
+    transform-origin: 64px 64px;
+    animation: knob-sweep 900ms ease-in-out 240ms backwards;
+}
+
+@keyframes knob-sweep {
+    0% { transform: rotate(calc(-1 * var(--knob-turn, 0deg))); }
+    50% { transform: rotate(calc(270deg - var(--knob-turn, 0deg))); }
+    100% { transform: rotate(0deg); }
+}
+
+[data-opening] .vinyl-record {
+    animation: record-out 800ms var(--ease-arrive) 220ms backwards;
+}
+
+@keyframes record-out {
+    from { transform: translateX(-96px) rotate(-120deg); }
+}
+
+
+/* A screen arrives: rising a little into place as it fades in. The rail stays as it was. Only what's drawn new moves, so a
+   screen that redraws in place (a filter, a search) doesn't come in again. */
+.shell-main > * {
+    animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
+}
+
+/* Rows and cards arrive one after another, the first few only, so a long list isn't kept waiting. A list drawn again for another
+   choice (a composer, a work, a tab) is keyed by it, so it arrives again whole rather than in part. A wait in the list keeps
+   its own pace (below). */
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :not(.wait-item) {
+    animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
+}
+
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(2):not(.wait-item) { animation-delay: calc(var(--t-step) * 1); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(3):not(.wait-item) { animation-delay: calc(var(--t-step) * 2); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(4):not(.wait-item) { animation-delay: calc(var(--t-step) * 3); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(5):not(.wait-item) { animation-delay: calc(var(--t-step) * 4); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(6):not(.wait-item) { animation-delay: calc(var(--t-step) * 5); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(7):not(.wait-item) { animation-delay: calc(var(--t-step) * 6); }
+:is(.ex-cards, .rt-grid, .rep-grid, .rt-tracks, .mu-steps, .today-routine .piece-list, .lib-list, .lib-col.works, .mov-list, .up-list) > :nth-child(n + 8):not(.wait-item) { animation-delay: calc(var(--t-step) * 7); }
+
+/* A section a tab or a search shows (Settings), and what comes over the screen: a piece's details from the side, the pause's
+   question. */
+.settings-section:not([hidden]) {
+    animation: appear var(--t-arrive) ease backwards;
+}
+
+@keyframes from-side {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+}
+
+.lb-sheet {
+    animation: from-side var(--t-arrive) var(--ease-arrive) backwards;
+}
+
+/* Upright, the sheet comes up from the foot. */
+@keyframes from-below {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+}
+
+@media (orientation: portrait) {
+    .lb-sheet {
+        animation-name: from-below;
+    }
+}
+
+.pause-cover {
+    animation: appear var(--t-arrive) ease backwards;
+}
+
+.pause-cover > * {
+    animation: arrive var(--t-arrive) var(--ease-arrive) 60ms backwards;
+}
+
+
+/* A wait in the shape of what's coming (Waiting.razor): the screen's own rows and cards, empty and faint, in their places, a light
+   passing over them from the first to the last the way the light crosses the sheet's paper while it waits. They show after a
+   moment, as the paper's wait does, so a screen that's quick never shows them, and the screen's things take their places as
+   they come. Each carries its place in the order (--i) and its length (--w). */
+.wait-item {
+    pointer-events: none;
+    animation: sheet-wait-in 0.15s ease-out 0.15s both;
+}
+
+.wait-line {
+    display: block;
+    width: var(--w, 60%);
+    height: 11px;
+    border-radius: 3px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    animation: wait-light 1.6s ease-in-out calc(var(--i, 0) * 90ms) infinite;
+}
+
+.wait-line.small {
+    height: 8px;
+    margin-top: 7px;
+}
+
+.wait-line.tall {
+    height: 16px;
+}
+
+.wait-n {
+    width: 18px;
+}
+
+.wait-shape {
+    display: block;
+    background: color-mix(in srgb, currentColor 7%, transparent);
+    animation: wait-light 1.6s ease-in-out calc(var(--i, 0) * 90ms) infinite;
+}
+
+.wait-key {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--mu-r-control);
+}
+
+.wait-tabs {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    min-height: 44px;
+}
+
+[data-theme="vinyl"] :is(.wait-line, .wait-shape) {
+    border-radius: 0;
+}
+
+@keyframes wait-light {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+
+/* A small wait on a key or a line ("Testing", "Checking", "Exporting", "Asking Claude"), in place of the "…" (Busy.razor): Studio's
+   LCD with three of the meter's segments taking turns; Vinyl's little record turning. */
+.busy {
+    flex: none;
+    display: inline-flex;
+    gap: 3px;
+    padding: 4px 5px;
+    border-radius: 3px;
+    background: var(--screen);
+    vertical-align: middle;
+}
+
+.busy > i {
+    width: 5px;
+    height: 5px;
+    border-radius: 1px;
+    background: var(--meter-on);
+    animation: busy-turn 900ms ease-out infinite;
+}
+
+.busy > i:nth-child(2) { animation-delay: -600ms; }
+.busy > i:nth-child(3) { animation-delay: -300ms; }
+
+@keyframes busy-turn {
+    0% { opacity: 1; }
+    55%, 100% { opacity: 0.2; }
+}
+
+[data-theme="vinyl"] .busy {
+    position: relative;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, var(--label) 0 3.6px, transparent 4.2px),
+        repeating-radial-gradient(circle, var(--disc) 0 1.6px, var(--disc-detail) 1.6px 2.2px);
+    animation: opening-turn 1.8s linear infinite;
+}
+
+[data-theme="vinyl"] .busy > i {
+    display: none;
+}
+
+[data-theme="vinyl"] .busy::after {
+    content: "";
+    position: absolute;
+    top: 0.5px;
+    left: 50%;
+    width: 2.5px;
+    height: 4px;
+    margin-left: -1.25px;
+    border-radius: 1px;
+    background: var(--accent);
+}
+
+/* A wait said with its mark: the words beside it, in the line's own type. */
+.busy-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+/* Claude at work (Writing.razor): notes written onto a staff one after another, the newest in the display's bright ink, settling
+   as the next comes, the oldest going as the line comes round again, for as long as the answer takes. It says something is
+   being made, not how far it has got: the time beside it says how long it has been. */
+.writing {
+    position: relative;
+    max-width: 520px;
+    height: 64px;
+    background: repeating-linear-gradient(to bottom, var(--staff-line) 0 1px, transparent 1px 9px) 0 14px / 100% 37px no-repeat;
+}
+
+.writing > i {
+    position: absolute;
+    left: calc(3% + var(--x) * 12%);
+    top: calc(14px + var(--y) * 4.5px - 4px);
+    width: 11px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    color: var(--on-screen-muted);
+    opacity: 0;
+    animation: writing-note 3.2s var(--ease-arrive) calc(var(--x) * 400ms) infinite;
+}
+
+.writing > i::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 4px;
+    width: 1.4px;
+    height: 25px;
+    background: currentColor;
+}
+
+.writing > i.down::after {
+    right: auto;
+    left: 0;
+    top: 4px;
+    bottom: auto;
+}
+
+@keyframes writing-note {
+    0% { opacity: 0; transform: translateY(-6px) rotate(-20deg); color: var(--on-screen); }
+    7% { opacity: 1; transform: rotate(-20deg); color: var(--on-screen); }
+    22% { color: var(--on-screen-muted); transform: rotate(-20deg); }
+    78% { opacity: 1; transform: rotate(-20deg); }
+    92%, 100% { opacity: 0; transform: rotate(-20deg); }
+}
+
+.claude-work .mu-screen-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.claude-time {
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* Something counted as it goes (the collection stored, an update downloaded, a PDF's batches read): each segment lights as it's
+   reached, and the last one lit breathes while the next is on its way. */
+.mu-meter > span {
+    transition: background-color 220ms ease-out;
+}
+
+:is(.library-prep, .meter-going) .mu-meter > span.on:has(+ span:not(.on)),
+.mu-meter.meter-going > span.on:has(+ span:not(.on)) {
+    animation: wait-light 1.1s ease-in-out infinite;
+}
+
+/* A meter of its own beside a count: a slim line of segments. */
+.mu-meter.meter-slim {
+    gap: 3px;
+    margin-top: 6px;
+    padding: 0;
+    background: none;
+}
+
+.mu-meter.meter-slim > span {
+    flex: 1;
+    width: auto;
+    height: 6px;
+}
+
+
+/* The keys: a lamp warms up and cools down rather than switching; a key that turns off while a run plays (Options, the metronome)
+   dims rather than blinks; a pressed key's colour follows it. */
+.mu-led {
+    transition: background-color var(--t-lamp) ease-out, box-shadow var(--t-lamp) ease-out;
+}
+
+.mu-btn,
+.mu-toggle {
+    transition: transform 80ms ease, box-shadow 80ms ease, background-color var(--t-lamp) ease, color var(--t-lamp) ease, border-color var(--t-lamp) ease, opacity 160ms ease;
+}
+
+.play-mode-option {
+    transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+/* What opens from a key comes out of it: a little drop and growth from where it's anchored (Studio), a short slide down (Vinyl). */
+@keyframes pop {
+    from {
+        opacity: 0;
+        translate: 0 -6px;
+        scale: 0.96;
+    }
+}
+
+@keyframes pop-flat {
+    from {
+        opacity: 0;
+        translate: 0 -8px;
+    }
+}
+
+.tempo-pop {
+    transform-origin: top center;
+    animation: pop var(--t-pop) var(--ease-arrive) backwards;
+}
+
+.lb-menu {
+    transform-origin: top right;
+    animation: pop var(--t-pop) var(--ease-arrive) backwards;
+}
+
+[data-theme="vinyl"] :is(.tempo-pop, .lb-menu) {
+    animation-name: pop-flat;
+}
+
+/* The bar as a run starts and ends: what comes into it (the run's figures and Stop; then the result and Play again) fades in where
+   it goes, and what stays (the tools) doesn't move. The count-in comes at once: its first beat is a beat. */
+.play-bar > :not(.play-tools, .play-bar-break, .count-in) {
+    animation: appear var(--t-arrive) ease backwards;
+}
+
+/* In place of the music, and the music again: Options, How, What's this. The music fades out under what comes over it, and back
+   in when it goes. */
+.piece-options {
+    animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
+}
+
+.piece-frame {
+    transition: opacity var(--t-arrive) ease, visibility 0s linear 0s;
+}
+
+.piece-frame-hidden {
+    opacity: 0;
+    transition: opacity var(--t-arrive) ease, visibility 0s linear var(--t-arrive);
+}
+
+/* The music onto its paper, on a piece's or an exercise's stage: drawn, it fades in over the paper's waiting staves rather than
+   replacing them in one frame, and a long piece drawn in parts fades each part in as it comes. Not while a run plays (the bar
+   says so: music drawn then, a key changed on the way through the keys, is there at once), and never on the drills that time
+   how soon you answer what's shown (they draw outside a stage). */
+.piece-stage .sheet-music > svg {
+    animation: appear 220ms ease-out backwards;
+}
+
+.shell-main:has(.play-bar[data-running]) .piece-stage .sheet-music > svg {
+    animation: none;
+}
+
+/* Full screen (turns.js): the bar and the music move to their places, rather than jump, as the rail and the head fade away and
+   back. They're named for the move only while it lasts, so nothing else about them changes. Each moves as it will be, at its
+   own size and anchored at its corner: the bar's keys spread out at once rather than showing twice, as a crossfade would. */
+::view-transition-group(play-bar),
+::view-transition-group(play-music) {
+    animation-duration: 320ms;
+    animation-timing-function: var(--ease-arrive);
+}
+
+::view-transition-old(play-bar),
+::view-transition-old(play-music) {
+    display: none;
+}
+
+::view-transition-new(play-bar),
+::view-transition-new(play-music) {
+    height: auto;
+    width: auto;
+    animation: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 220ms;
+}
+
+
+/* Reading a PDF: the system being read has its lamp breathing; a batch's state has the row's width, so a line with its mark
+   doesn't wrap. */
+.pdfread-lamp.now {
+    animation: wait-light 1.1s ease-in-out infinite;
+}
+
+.pdfread-row[data-chunk] .pdfread-state {
+    grid-column: 2 / -1;
+}
+
+
+/* Android's Remove animations: nothing travels, turns or sweeps. Things still fade in, quicker, and a wait is its shape, still. */
+@media (prefers-reduced-motion: reduce) {
+    :root,
+    [data-theme="vinyl"] {
+        --rise: 0px;
+        --t-arrive: 120ms;
+        --t-step: 0ms;
+    }
+
+    [data-opening] .shell > .mu-nav,
+    .lb-sheet {
+        animation-name: appear;
+    }
+
+    [data-opening] :is(.studio-knob .pointer, .vinyl-record),
+    .opening :is(.opening-mark, .opening-record) *,
+    .opening .opening-record,
+    :is(.tempo-pop, .lb-menu) {
+        animation: none;
+    }
+
+    :is(.wait-line, .wait-shape),
+    :is(.library-prep, .meter-going) .mu-meter > span.on:has(+ span:not(.on)),
+    .mu-meter.meter-going > span.on:has(+ span:not(.on)) {
+        animation: none;
+        opacity: 0.75;
+    }
+
+    [data-theme] .busy,
+    .busy > i,
+    .pdfread-lamp.now {
+        animation: none;
+    }
+
+    .busy > i:not(:first-child) {
+        opacity: 0.3;
+    }
+
+    /* Keys change colour as before, but nothing about them moves (as Prima had it). */
+    .mu-btn,
+    .mu-play,
+    .mu-toggle {
+        transition: background-color var(--t-lamp) ease, color var(--t-lamp) ease, border-color var(--t-lamp) ease, opacity 160ms ease;
+    }
+
+    .writing > i {
+        animation: none;
+        opacity: 1;
+        transform: rotate(-20deg);
+    }
+}

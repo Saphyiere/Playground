@@ -23,7 +23,8 @@
     nothing is judged, so you can hear how it goes or play along.
 *@
 
-<section class="reading-bar play-bar piece-bar @BarClass" aria-label="Playing">
+@* While a run plays (its count-in too) the bar says so, and nothing new moves on the screen (prima.css, Motion). *@
+<section class="reading-bar play-bar piece-bar @BarClass" aria-label="Playing" data-running="@(Running || moving)">
     @if (session is { Phase: Phase.CountIn })
     {
         <CountIn Session="session" />

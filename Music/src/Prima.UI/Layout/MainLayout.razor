@@ -1,11 +1,8 @@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
 @inject LookSetting LookSetting
-@inject PrimaSettings Settings
-@inject PrimaStore Store
+@inject LayoutStart Start
 @inject IJSRuntime JS
-@inject ClaudeKeyFile KeyFile
-@inject Playground.AI.Assist.IAssistKeyStore Keys
 @inject ILogger<MainLayout> Logger
 @using System.Text.Json
 @using Microsoft.Extensions.Logging
@@ -36,8 +33,8 @@
     protected override async Task OnInitializedAsync()
     {
         LookSetting.Changed += OnLookChanged;
-        // A Claude key copied over USB is taken in as Prima opens; Settings says what became of it.
-        await Task.WhenAll(LookSetting.LoadAsync(), Store.LoadAsync(Settings), KeyFile.ImportAsync(Keys));
+        // Read as Prima opens (a Claude key copied over USB is taken in then), and at once for every screen after.
+        await Start.ReadyAsync();
         loaded = true;
     }
 
@@ -53,6 +50,8 @@
         {
             page ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Layout/MainLayout.razor.js");
             await page.InvokeVoidAsync("showLook", shownLook);
+            // The first screen is drawn: Prima's opening mark goes as it arrives.
+            await page.InvokeVoidAsync("opened");
             // Verovio is a 7 MB script: it loads in the background now, so the first sheet doesn't wait for it.
             if (firstRender || sheet is null)
             {

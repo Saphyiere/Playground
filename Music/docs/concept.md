@@ -56,6 +56,35 @@ Every screen is drawn inside a guard: a screen that fails, in drawing itself or 
 still goes anywhere, and another screen starts afresh. Before, a failure left the whole page not answering taps under Blazor's
 yellow bar, until Reload.
 
+How Prima opens, how screens arrive and how a wait looks (all in prima.css's Motion; the mock-ups they were chosen from are the
+page "Prima in Motion", https://claude.ai/artifact/HDkvVecovjYqnYaj3tLjJi):
+
+- **Opening.** Android's splash is in the look last used: Studio's display on warm grey, or, from the start after Vinyl is
+  chosen (Android 13 and later), Today's record on teal. Prima's page then shows the same mark in the same place while .NET starts
+  and the settings are read, alive (Studio's play cursor going over the display's staff, each note lighting as it passes;
+  Vinyl's record turning), and it fades as the first screen is drawn: the rail slides in from its edge and the screen rises in.
+  On Today, once: Studio's tempo knob sweeps round and settles at the tempo; Vinyl's record comes out of its sleeve. The settings
+  are read once while Prima is open, so no later screen waits on them.
+- **A screen arrives** rising a few pixels as it fades in, in each look's pace (Studio 0.18 s and 6 px, Vinyl 0.24 s and
+  10 px); its rows and cards follow one after another, the first eight only. A list drawn again for another choice (a composer,
+  a work, a tab, another list of exercises) arrives again whole; a screen that redraws in place (a filter, a search) doesn't.
+  The rail stays still.
+- **A wait takes the shape of what's coming**: where a screen is still reading (the Library and a composer's works, Routines, a
+  routine, Repertoire's cards), its own rows and cards stand faint in their places with a light passing down them, as a long
+  piece's paper waits, and the real ones take their places. They show only after 0.15 s, so a quick screen never shows them;
+  the Library no longer says it has no collection while it's reading it.
+- **A small wait** keeps its words and loses the "…": a working mark on the key or the line (three of the meter's segments taking
+  turns on an LCD in Studio, a tiny record turning in Vinyl): the key's Test, Check, Install as it downloads (with a meter), Back
+  up now, Export everything, Ask Claude's Generate, a request being asked on Routines, the PDF's boundaries key as it opens.
+  A meter counting something lights each segment as it's reached, the last one lit breathing while the next comes.
+- **Claude at work.** A routine being made shows notes written onto a staff one after another, and how long it's been asked; a
+  PDF being read marks the batch Claude is reading now, lights each batch saved and fills a meter by the count.
+- **The play bar and the music.** Pop-ups come out of their key, lamps warm up, the keys a run turns off dim, what comes into the
+  bar as a run starts or ends fades in where it goes (the count-in comes at once), Options and How fade in over the music, and
+  full screen slides the bar and the music to their places as the rail and head fade. On a piece's or an exercise's stage the
+  music fades onto its paper as it's drawn; never while a run plays, and never on the drills that time how soon you answer.
+- **Remove animations** (Android's setting) keeps the fades, quicker, and stills the rest: nothing travels, turns or sweeps.
+
 ### Today
 
 What to do now. The day's plan as five steps (below), with the next one ready to start; a shorter five-minute plan for busy

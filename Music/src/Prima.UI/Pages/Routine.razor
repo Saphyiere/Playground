@@ -19,6 +19,11 @@
 @if (loading)
 {
     <PageHead Title="Routine" Kicker="Opening…" />
+    <div class="rt-page">
+        <div class="rt-main">
+            <ol class="rt-tracks"><Waiting Shape="WaitShape.Track" Count="4" Label="Opening the routine" /></ol>
+        </div>
+    </div>
 }
 else if (routine is null || standing is null)
 {

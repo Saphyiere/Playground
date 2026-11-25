@@ -16,7 +16,7 @@
 
 @if (loading)
 {
-    <p class="page-note" role="status">Looking at your recent practice…</p>
+    <p class="page-note busy-line" role="status"><Busy />Looking at your recent practice</p>
 }
 else
 {
@@ -56,7 +56,7 @@ else
                 </ul>
                 @if (pieces.Count == 0) { <p class="section-note">Import a piece in the Library to plan practice around it.</p> }
             }
-            @if (preparing) { <p class="section-note" role="status">Preparing this edition…</p> }
+            @if (preparing) { <p class="section-note busy-line" role="status"><Busy />Preparing this edition</p> }
             @if (selected is not null && !preparing && source is null)
             {
                 <p class="section-note">This piece needs readable notes before Prima can construct exercises from it. Your request is saved.</p>
@@ -115,7 +115,7 @@ else
         <p class="section-note">Generate sends a summary of your practice and relevant notes from the selected piece to this provider. The request keeps running when you leave the screen. Your current routine stays in place until you accept a new one.</p>
         @if (problem is not null) { <p class="section-note" role="alert" data-state="request-error">@problem</p> }
         <div class="control-row">
-            <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-generate" disabled="@(!CanGenerate)" @onclick="Generate">@(submitting ? "Starting…" : "Generate routine")</button>
+            <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-generate" disabled="@(!CanGenerate)" @onclick="Generate">@if (submitting) { <Busy /><span>Starting</span> } else { <span>Generate routine</span> }</button>
             <a class="mu-btn" data-piano="off" href="settings?tab=claude">Provider settings</a>
         </div>
     </section>

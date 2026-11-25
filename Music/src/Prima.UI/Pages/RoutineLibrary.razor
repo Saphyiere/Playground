@@ -37,7 +37,9 @@
 
 @if (loading)
 {
-    <p class="page-note" role="status">Opening your routines…</p>
+    <div class="wait-tabs wait-item"><span class="wait-line tall" style="width: 120px"></span><span class="wait-line tall" style="width: 78px"></span><span class="wait-line tall" style="width: 118px"></span></div>
+    <div class="rep-grid rt-grid"><Waiting Shape="WaitShape.Card" Count="3" Label="Opening your routines" /></div>
+    <section class="settings-section"><ul class="up-list rep-lately rt-rest"><Waiting Shape="WaitShape.Row" Count="3" From="3" /></ul></section>
 }
 else
 {
@@ -58,7 +60,7 @@ else
         </div>
         @if (starred.Count > 0)
         {
-            <div class="rep-grid rt-grid">
+            <div class="rep-grid rt-grid" @key="@($"cards {Whose}")">
                 @foreach (var standing in starred)
                 {
                     var routine = standing.Routine;
@@ -108,7 +110,7 @@ else
         }
         @if (rest.Count > 0)
         {
-            <section class="settings-section" aria-labelledby="rest-heading">
+            <section class="settings-section" aria-labelledby="rest-heading" @key="@($"rest {Whose}")">
                 <h2 id="rest-heading" class="section-title">@(starred.Count > 0 ? "Your other routines" : "Your routines")</h2>
                 <ul class="up-list rep-lately rt-rest">
                     @foreach (var standing in rest)
@@ -150,7 +152,17 @@ else
                     <li class="routine-request">
                         <a class="piece-row" data-piano="off" data-routine-job="@job.Id" data-state="@job.State.ToString().ToLowerInvariant()" href="@($"routine/jobs/{job.Id}")">
                             <span class="piece-title">@JobTitle(job)</span>
-                            <span class="piece-meta">@JobState(job) · @job.Request.Minutes min@(job.Source is { } source ? $" · {source.Title}" : "") · @job.Updated.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)</span>
+                            <span class="piece-meta">
+                                @if (job.State is RoutineGenerationState.Queued or RoutineGenerationState.Running)
+                                {
+                                    <span class="busy-line"><Busy />@JobState(job)</span>
+                                }
+                                else
+                                {
+                                    @JobState(job)
+                                }
+                                @($" · {job.Request.Minutes} min{(job.Source is { } source ? $" · {source.Title}" : "")} · {job.Updated.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.InvariantCulture)}")
+                            </span>
                         </a>
                         @* One being asked just now stays: what Claude sends back would have nowhere to go. Taking one off asks first. *@
                         @if (job.State is not (RoutineGenerationState.Queued or RoutineGenerationState.Running))
@@ -341,7 +353,7 @@ else
     private static string JobState(RoutineGenerationJob job) => job.State switch
     {
         RoutineGenerationState.Queued => "Waiting to be asked",
-        RoutineGenerationState.Running => "Asking Claude…",
+        RoutineGenerationState.Running => "Asking Claude",
         RoutineGenerationState.Ready => "Ready to look over",
         RoutineGenerationState.Failed => "Didn't finish",
         RoutineGenerationState.Interrupted => "Interrupted",

@@ -1,0 +1,64 @@
+@* What's coming while it's read: the list's own rows or cards, empty and faint, in their places, a light passing down them
+   (prima.css, Motion: .wait-item). They show after a moment, so a list read quickly never shows them, and the real ones take
+   their places without anything moving. In an ol or ul its items are li; what's being read is said to a screen reader. *@
+@if (Label is not null)
+{
+    <span class="mu-sr" role="status">@Label</span>
+}
+@for (var k = 0; k < Count; k++)
+{
+    var i = From + k;
+    var w = Widths[i % Widths.Length];
+    var at = Invariant($"--i: {i}");
+    switch (Shape)
+    {
+        case WaitShape.Line:
+            <span class="col-item wait-item @Class" style="@at" aria-hidden="true"><span><span class="wait-line" style="@Width(w)"></span></span><span class="wait-line wait-n"></span></span>
+            break;
+        case WaitShape.Work:
+            <span class="col-item col-work wait-item @Class" style="@at" aria-hidden="true"><span class="work-no"></span><span><span class="wait-line" style="@Width(w)"></span><span class="wait-line small" style="@Width(w - 24)"></span></span><span class="wait-line wait-n"></span></span>
+            break;
+        case WaitShape.Piece:
+            <li class="mov piece-item wait-item @Class" style="@at" aria-hidden="true"><span class="wait-shape wait-key"></span><span class="mov-no"></span><span class="mov-name"><span class="wait-line" style="@Width(w - 22)"></span><span class="wait-line small" style="@Width(18)"></span></span><span class="wait-line" style="width: 22px"></span><span></span></li>
+            break;
+        case WaitShape.Card:
+            <article class="rep-card wait-item @Class" style="@at" aria-hidden="true">
+                <span class="wait-line small" style="@Width(38)"></span>
+                <span class="wait-line tall" style="@Width(w)"></span>
+                <span class="wait-shape" style="height: 34px"></span>
+                <span class="wait-line small" style="@Width(88)"></span>
+                <span class="wait-line small" style="@Width(w - 8)"></span>
+            </article>
+            break;
+        case WaitShape.Row:
+            <li class="up-row piece-item wait-item @Class" style="@at" aria-hidden="true"><span class="wait-shape wait-key"></span><span><span class="wait-line" style="@Width(w - 20)"></span><span class="wait-line small" style="@Width(26)"></span></span></li>
+            break;
+        case WaitShape.Track:
+            <li class="rt-track wait-item @Class" style="@at" aria-hidden="true"><span class="rt-no"><span class="wait-line" style="width: 18px"></span></span><span class="ex-shape wait-shape"></span><span class="rt-name"><span class="wait-line" style="@Width(w)"></span><span class="wait-line small" style="@Width(w - 26)"></span></span><span class="rt-trend"><span class="wait-line" style="width: 52px"></span></span></li>
+            break;
+    }
+}
+
+@code {
+    /// <summary>The shape of the list's rows or cards.</summary>
+    [Parameter, EditorRequired] public WaitShape Shape { get; set; }
+
+    /// <summary>How many: about what fits where the real ones will be.</summary>
+    [Parameter] public int Count { get; set; } = 8;
+
+    /// <summary>The place in the light's passing of the first, for a list that follows another on the screen.</summary>
+    [Parameter] public int From { get; set; }
+
+    /// <summary>What's being read, for a screen reader ("Reading the Library").</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>The list's own class for its items, where it has one besides the shape's (rt-card).</summary>
+    [Parameter] public string? Class { get; set; }
+
+    // The lines' lengths, varied so the rows don't read as a pattern.
+    private static readonly int[] Widths = [62, 48, 70, 55, 66, 44, 58, 72, 50, 64, 46, 60];
+
+    private static string Width(int percent) => Invariant($"--w: {Math.Max(14, percent)}%");
+
+    private static string Invariant(FormattableString text) => FormattableString.Invariant(text);
+}
