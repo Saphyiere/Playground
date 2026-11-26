@@ -385,7 +385,7 @@ a PDF plays out; this is what came of it.
   timed from when it's painted.
 - **In Practice** a piece's tools come first on its bar, after the level: **?** (What's this,
   below), **Options**, which shows the piece's options in place of the music (the view, a song's lyrics, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
-  where to start; a PDF's tempo and bars) until it's pressed again, the **metronome**'s settings (below), and **Full
+  where to start; a PDF's tempo and bars), on the same keys as an exercise's Change, the hands as two hands, until it's pressed again, the **metronome**'s settings (below), and **Full
   screen**, which leaves only the bar and the
   music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
   A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practicing
