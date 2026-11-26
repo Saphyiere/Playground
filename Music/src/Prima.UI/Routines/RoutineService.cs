@@ -302,11 +302,11 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
 
     private static int Minutes(IReadOnlyList<PreparedRoutineItem> items) => Math.Clamp(items.Sum(i => i.Recipe.Minutes), 1, 120);
 
-    /// <summary>A routine of your own, made under a name, with what's to be in it to start with.</summary>
-    public async Task<RoutineDefinition> MakeAsync(string title, IReadOnlyList<PreparedRoutineItem>? items = null)
+    /// <summary>A routine of your own, made under a name, with what's to be in it to start with and a line on what it's for.</summary>
+    public async Task<RoutineDefinition> MakeAsync(string title, IReadOnlyList<PreparedRoutineItem>? items = null, string summary = "")
     {
         await recovered;
-        var routine = Own(title, items ?? []);
+        var routine = Own(title, items ?? []) with { Summary = summary };
         await store.SaveOwnRoutineAsync(routine);
         return routine;
     }

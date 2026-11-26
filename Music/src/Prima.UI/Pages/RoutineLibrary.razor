@@ -18,9 +18,24 @@
 <PageHead Title="Routines" Kicker="Yours and Claude's">
     <div class="page-head-keys">
         <button type="button" class="mu-btn" data-piano="off" data-action="new-routine" @onclick="Name">New routine</button>
+        <button type="button" class="mu-btn" data-piano="off" data-action="rcm-routine" aria-expanded="@(choosingRcm ? "true" : "false")" @onclick="ChooseRcm">RCM technique</button>
         <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask Claude for one</a>
     </div>
 </PageHead>
+
+@* RCM's technique for a level, Preparatory A to Level 4, made a routine of yours when it's asked for: its scales, chords and
+   arpeggios, a key a day, with RCM's minimum tempo as the target. One already made for the level opens again. *@
+@if (choosingRcm)
+{
+    <div class="control-row rep-name rcm-levels" role="group" aria-label="RCM's technique for a level">
+        <span class="control-label">RCM's technique for</span>
+        @foreach (var level in Prima.Core.Routines.RcmTechnique.Levels)
+        {
+            <button type="button" class="mu-btn" data-piano="off" data-action="@($"rcm-{level.Key}")" disabled="@busy" @onclick="() => MakeRcm(level)">@level.Name</button>
+        }
+        <button type="button" class="mu-btn" data-piano="off" @onclick="() => choosingRcm = false">Cancel</button>
+    </div>
+}
 
 @if (naming)
 {
@@ -280,7 +295,28 @@ else
         ? $"Played on {standing.DaysPlayed} of the last {RoutineStanding.Days} days, last {RoutineStanding.When(last, today).ToLowerInvariant()}"
         : "Not practiced yet";
 
-    private void Name() => (naming, typed, note) = (true, null, null);
+    private void Name() => (naming, choosingRcm, typed, note) = (true, false, null, null);
+
+    // Choosing a level of RCM's technique, Preparatory A to Level 4, to make a routine of.
+    private bool choosingRcm;
+
+    private void ChooseRcm() => (choosingRcm, naming, note) = (!choosingRcm, false, null);
+
+    // A level of RCM's technique as a routine of yours, opened at once; the one made before for the level, where there is one.
+    private async Task MakeRcm(Prima.Core.Routines.RcmLevel level)
+    {
+        busy = true;
+        try
+        {
+            var made = standings.Select(s => s.Routine).FirstOrDefault(r => r.Own && r.Items.Any(i => Prima.Core.Routines.RcmTechnique.Find(i.Recipe.Id)?.Level == level.Key))
+                ?? await Routines.MakeAsync(level.Title, level.Items, level.Summary);
+            Nav.NavigateTo($"routines/{made.Revision}");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
 
     // A new routine of yours under the name typed, opened at once to fill it.
     private async Task Make()

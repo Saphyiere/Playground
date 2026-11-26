@@ -10,6 +10,8 @@ public enum ScaleKind
     Arpeggio,
     /// <summary>Up and down a triad within a fifth: the first arpeggio step.</summary>
     BrokenTriad,
+    /// <summary>A minor scale as its signature has it, nothing raised: RCM asks it from Preparatory B.</summary>
+    NaturalMinor,
 }
 
 public enum HandUse
@@ -25,8 +27,14 @@ public sealed record TechniqueNote(string Id, int Midi, int Finger, int Index, b
 /// <summary>A scale or arpeggio to play: its score with fingering, each hand's notes in order, and how many notes to a beat.</summary>
 public sealed record TechniqueItem(string Name, Key Key, ScaleKind Kind, int Octaves, HandUse Hands, Score Score, IReadOnlyList<TechniqueNote> Right, IReadOnlyList<TechniqueNote> Left, int NotesPerBeat)
 {
-    /// <summary>What its progress is kept under: its name, and its octaves past one, as more octaves are their own item.</summary>
-    public string Id => Octaves > 1 ? $"{Name}, {Octaves} octaves" : Name;
+    /// <summary>Its notes' value where it's written in other than its own ("in eighths", as RCM writes a scale), else null.</summary>
+    public string? Written { get; init; }
+
+    /// <summary>
+    /// What its progress is kept under: its name, its octaves past one, as more octaves are their own item, and its notes' value
+    /// where that's not its own, since a tempo means another speed in eighths than in sixteenths.
+    /// </summary>
+    public string Id => (Octaves > 1 ? $"{Name}, {Octaves} octaves" : Name) + (Written is null ? "" : $", {Written}");
 }
 
 /// <summary>
@@ -87,10 +95,13 @@ public static class Technique
         new(-3), new(4), new(3, true), new(-3, true), new(5), new(-4), new(4, true), new(-4, true), new(-5), new(6), new(5, true),
     ];
 
-    /// <summary>A scale up and down over <paramref name="octaves"/>, in sixteenths (eighths for one octave at the start), ending on a held tonic.</summary>
-    public static TechniqueItem Scale(Key key, ScaleKind kind, int octaves, HandUse hands)
+    /// <summary>
+    /// A scale up and down over <paramref name="octaves"/>, in sixteenths (eighths for one octave at the start), ending on a held
+    /// tonic; or in the notes <paramref name="perBeat"/> asks for (2 for eighths, as RCM writes its scales).
+    /// </summary>
+    public static TechniqueItem Scale(Key key, ScaleKind kind, int octaves, HandUse hands, int perBeat = 0)
     {
-        var minor = kind is ScaleKind.HarmonicMinor or ScaleKind.MelodicMinor;
+        var minor = kind is ScaleKind.HarmonicMinor or ScaleKind.MelodicMinor or ScaleKind.NaturalMinor;
         var sound = key with { Minor = minor };
         var (right, left) = (minor ? Minor : Major)[Math.Clamp(key.Fifths, -7, 7)];
         int Degree(int i) => i;
@@ -109,13 +120,21 @@ public static class Technique
         int RightFinger(int i) => i == count ? right[7] : right[i % 7];
         int LeftFinger(int i) => i == 0 ? left[0] : left[((i - 1) % 7) + 1];
         int Finger(int index, bool rh) { var i = index <= count ? index : 2 * count - index; return rh ? RightFinger(i) : LeftFinger(i); }
-        var name = $"{sound.Name}{(kind == ScaleKind.MelodicMinor ? " melodic" : kind == ScaleKind.HarmonicMinor ? " harmonic" : "")} scale";
+        var name = $"{sound.Name}{(kind == ScaleKind.MelodicMinor ? " melodic" : kind == ScaleKind.HarmonicMinor ? " harmonic" : kind == ScaleKind.NaturalMinor ? " natural" : "")} scale";
         var (rightOctave, leftOctave) = Octaves(octaves);
-        return Build(name, sound, kind, octaves, hands, degrees.Select((x, i) => (Pitch(x.d, rightOctave, x.Item2), Finger(i, true))).ToList(), degrees.Select((x, i) => (Pitch(x.d, leftOctave, x.Item2), Finger(i, false))).ToList(), octaves == 1 ? 2 : 4);
+        var own = octaves == 1 ? 2 : 4;
+        return Build(name, sound, kind, octaves, hands, degrees.Select((x, i) => (Pitch(x.d, rightOctave, x.Item2), Finger(i, true))).ToList(), degrees.Select((x, i) => (Pitch(x.d, leftOctave, x.Item2), Finger(i, false))).ToList(), perBeat > 0 ? perBeat : own)
+            with { Written = perBeat > 0 && perBeat != own ? Value(perBeat) : null };
     }
 
-    /// <summary>An arpeggio up and down over <paramref name="octaves"/> (or a broken triad within a fifth), in eighths.</summary>
-    public static TechniqueItem Arpeggio(Key key, int octaves, HandUse hands, bool brokenTriad = false)
+    // A note value by how many go to a beat, as an item's id names it.
+    private static string Value(int perBeat) => perBeat switch { 1 => "in quarters", 2 => "in eighths", 3 => "in triplets", 4 => "in sixteenths", _ => $"{perBeat} to a beat" };
+
+    /// <summary>
+    /// An arpeggio up and down over <paramref name="octaves"/> (or a broken triad within a fifth), in eighths, or in the notes
+    /// <paramref name="perBeat"/> asks for.
+    /// </summary>
+    public static TechniqueItem Arpeggio(Key key, int octaves, HandUse hands, bool brokenTriad = false, int perBeat = 0)
     {
         var tonic = key.Degree(0, 4);
         var black = ((tonic.Midi % 12) + 12) % 12 is 1 or 3 or 6 or 8 or 10;
@@ -136,7 +155,8 @@ public static class Technique
         int LeftFinger(int i) => i == 0 ? leftPattern[0] : i % 3 == 0 ? leftPattern[3] : leftPattern[i % 3];
         int Finger(int index, bool rh) { var i = index <= count ? index : 2 * count - index; return rh ? RightFinger(i) : LeftFinger(i); }
         var (rightOctave, leftOctave) = Octaves(octaves);
-        return Build($"{key.Name} arpeggio", key, ScaleKind.Arpeggio, octaves, hands, degrees.Select((d, i) => (key.Degree(d, rightOctave), Finger(i, true))).ToList(), degrees.Select((d, i) => (key.Degree(d, leftOctave), Finger(i, false))).ToList(), 2);
+        return Build($"{key.Name} arpeggio", key, ScaleKind.Arpeggio, octaves, hands, degrees.Select((d, i) => (key.Degree(d, rightOctave), Finger(i, true))).ToList(), degrees.Select((d, i) => (key.Degree(d, leftOctave), Finger(i, false))).ToList(), perBeat > 0 ? perBeat : 2)
+            with { Written = perBeat > 0 && perBeat != 2 ? Value(perBeat) : null };
     }
 
     /// <summary>
@@ -218,12 +238,15 @@ public static class Technique
 /// </summary>
 public sealed record TechniqueChoice(Key Key, ScaleKind Form, int Octaves, HandUse Hands, int Pattern)
 {
+    /// <summary>How many notes to a beat it's written in, where that's asked (2 for RCM's eighths); 0 for the drill's own.</summary>
+    public int PerBeat { get; init; }
+
     /// <summary>The scale, arpeggio or pattern for drill "scales", "arpeggios" or "independence".</summary>
     public TechniqueItem Item(string drill) => drill switch
     {
-        "arpeggios" => Octaves <= 0 ? Technique.Arpeggio(Key, 1, Hands, brokenTriad: true) : Technique.Arpeggio(Key, Octaves, Hands),
+        "arpeggios" => Octaves <= 0 ? Technique.Arpeggio(Key, 1, Hands, brokenTriad: true) : Technique.Arpeggio(Key, Octaves, Hands, perBeat: PerBeat),
         "independence" => Technique.FingerPattern(Key with { Minor = false }, Pattern, Hands),
-        _ => Technique.Scale(Key, Key.Minor ? (Form == ScaleKind.MelodicMinor ? ScaleKind.MelodicMinor : ScaleKind.HarmonicMinor) : ScaleKind.Major, Math.Max(1, Octaves), Hands),
+        _ => Technique.Scale(Key, Key.Minor ? Form switch { ScaleKind.MelodicMinor or ScaleKind.NaturalMinor => Form, _ => ScaleKind.HarmonicMinor } : ScaleKind.Major, Math.Max(1, Octaves), Hands, PerBeat),
     };
 
     /// <summary>

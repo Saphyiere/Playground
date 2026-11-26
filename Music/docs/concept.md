@@ -766,6 +766,24 @@ on what it's for over its tracks, saying what follows it (Sight-read, your piece
 other: changed, they stay changed; taken away, they stay away; and one a later Prima adds is put in once. Starting over puts
 them in again.
 
+**RCM technique**, beside New routine, makes RCM's technique for a level a routine of yours: Preparatory A, Preparatory B or
+Level 1 to 4, as The Royal Conservatory's Piano Syllabus, 2022 Edition asks it (pages 9 to 38), named "RCM Level 1 technique"
+with its line on what it is over its tracks; asked for again, the one made before opens. Its activities are the catalogue's
+own: the Scales and Arpeggios drills, and the exercises for pentascales (The pattern, then its chord; Five fingers, detached),
+contrary motion, the chromatic scale, the triad sequence (One shape up the scale) and tonic triads broken and solid (through
+the inversions). Each plays as RCM asks it, as one of Claude's activities plays its recipe: RCM's keys come round a key a day,
+and where RCM asks for hands separately, each hand on a day of its own (Level 1's nine scales, two hands each, come round in
+eighteen days), so a day holds two or three minutes of each, about ten in all. Its track says how it's played that day ("Today:
+A minor, natural, right hand · RCM ♩ 69 in eighths"). RCM's minimum tempo is the target. A drill writes RCM's notes (its scales
+in eighths, two octaves from Level 1) and shows RCM's tempo beside its own target, finding your own speed first in Wait for me
+and building towards RCM's as it does anywhere, its tempo kept by the item in eighths apart from the drill's own; each valid
+run says how it stood against RCM's. An exercise keeps its own notes, so it starts at RCM's tempo in its beat at the same notes
+a minute (RCM's triplets at ♩ 50 are its quarters at ♩ 150), and says so over the music, with where Prima's differs from RCM's
+(one octave where RCM asks two; the left hand playing the chords' roots). Not in Prima yet: the formula pattern (Levels 2 to 4)
+and Preparatory A's triad sequence broken. Prima isn't affiliated with RCM. What's changed playing them (the key, the hands,
+the tempo of an exercise) isn't kept as yours, as with Claude's; the routine itself is yours, to rename, time, reorder, add to
+or take away.
+
 The Routines key in the rail is lit on every routine screen: this one, a routine's page, asking for one, a request and an
 activity, an exercise or a drill opened from a routine among them (Exercises is lit when they're opened from there). Routines
 Claude wrote before it was asked for American spelling are shown with practice spelled as the rest of Prima spells it; only
@@ -1083,8 +1101,8 @@ shown as below what anyone can hear. Repetitions are capped per set and per day,
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
 
 What a technique drill plays is yours to choose, whatever your reading level: the key, stepped easier or harder in the exams'
-order (C, A minor, G, F, D …), a minor scale harmonic or melodic, one to four octaves (or an arpeggio's broken triad), and
-the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
+order (C, A minor, G, F, D …), a minor scale natural, harmonic or melodic, one to four octaves (or an arpeggio's broken
+triad), and the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
 tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
 comfortable speed the In time runs start a little under (the pace from one moment of the music to the next, so the two keys
 of a moment played hands together count once), and the bar is set to Wait for me for that run; the tempo can also be set

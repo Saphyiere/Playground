@@ -31,6 +31,12 @@ public sealed class RoutineSession(RoutineService service)
 
     /// <summary>Whether the recipe is what's played and your own settings and progress are left as they were: Claude's routines.</summary>
     public bool Fixed { get; private set; }
+
+    /// <summary>
+    /// One of RCM's technique, as the day has it (its key, form and hands, and RCM's tempo as the target), where that's the
+    /// activity: played as RCM asks, its own tempo kept as a drill's is anywhere.
+    /// </summary>
+    public RcmToday? Rcm { get; private set; }
     public string? Problem { get; private set; }
     public DateOnly Day => Execution?.Day ?? DateOnly.FromDateTime(DateTime.Now);
     public bool IsRoutine { get; private set; }
@@ -53,7 +59,9 @@ public sealed class RoutineSession(RoutineService service)
             Problem = "This routine activity is no longer available. Return to your routine to choose an activity.";
             return false;
         }
-        Fixed = await service.GetDefinitionAsync(Execution.Revision) is not { } routine || !OwnRoutines.AsLeft(routine, Execution.Item.Recipe);
+        var definition = await service.GetDefinitionAsync(Execution.Revision);
+        Fixed = definition is null || !OwnRoutines.AsLeft(definition, Execution.Item.Recipe);
+        Rcm = definition is null ? null : OwnRoutines.Rcm(definition, Execution.Item.Recipe, Execution.Day);
         baseline = Execution.ActiveSeconds;
         clock.Restart();
         return true;

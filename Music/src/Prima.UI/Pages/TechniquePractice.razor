@@ -35,7 +35,8 @@
         <button type="button" class="mu-btn" aria-label="A harder key" disabled="@(playing || KeyAt(1) is null)" @onclick="() => Choose(choice with { Key = KeyAt(1)!.Value })">+</button>
         @if (Key == "scales" && choice.Key.Minor)
         {
-            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form != ScaleKind.MelodicMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.HarmonicMinor })"><span class="mu-led"></span>Harmonic</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.NaturalMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.NaturalMinor })"><span class="mu-led"></span>Natural</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form is not (ScaleKind.MelodicMinor or ScaleKind.NaturalMinor))" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.HarmonicMinor })"><span class="mu-led"></span>Harmonic</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.MelodicMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.MelodicMinor })"><span class="mu-led"></span>Melodic</button>
         }
         @if (choice != today with { Hands = choice.Hands })
@@ -72,9 +73,13 @@
 </section>
 
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
-<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || loop || through || runs < TechniqueState.RunsPerSet)" ShowLoop="true" LoopChanged="Looped" Ask="@(routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime : FirstRun && !through ? PlayMode.WaitForMe : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
+<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || loop || through || runs < TechniqueState.RunsPerSet)" ShowLoop="true" LoopChanged="Looped" Ask="@Asked" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
     <Readouts>
         <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
+        @if (routineSession?.Rcm is { } rcm)
+        {
+            <div class="mu-readout"><span class="mu-readout-label">RCM @rcm.Activity.LevelName</span><span class="mu-readout-value">♩ @rcm.Activity.Rcm.ToString("0", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+        }
     </Readouts>
 </PlayAlong>
 
@@ -159,6 +164,19 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     // What it has no tempo for yet and hasn't been run: its first run is in Wait for me, which the bar is set to.
     private bool FirstRun => state.Tempo is null && result is null && outcome is null;
 
+    // The mode the bar is set to: one of Claude's activities as its recipe says; one of RCM's, In time once its own speed is
+    // known (Wait for me the first time, as anywhere); otherwise Wait for me the first time, and else as the bar was left.
+    private PlayMode? Asked => routineSession?.Rcm is not null ? (FirstRun ? PlayMode.WaitForMe : PlayMode.InTime)
+        : routineSession?.Item is { } recipe ? recipe.Mode == "wait" ? PlayMode.WaitForMe : PlayMode.InTime
+        : FirstRun && !through ? PlayMode.WaitForMe : null;
+
+    // Whether its tempo and target are kept: anywhere but in one of Claude's routines. One of RCM's keeps them, by its item (in
+    // eighths, as RCM writes it), so it builds speed towards RCM's as a drill does anywhere.
+    private bool Keeps => routineSession?.Fixed != true || routineSession.Rcm is not null;
+
+    // The tempo the last run In time went at, for what's said of it against RCM's.
+    private double ranAt;
+
     private TechniqueChoice choice = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueChoice today = new(new Key(0), ScaleKind.Major, 1, HandUse.Right, 1);
     private TechniqueItem? item;
@@ -224,7 +242,9 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         today = TechniqueChoice.Today(Key, plan.ScaleKey, plan.ArpeggioKey, level, pattern, Today);
         choice = await Store.GetTrackAsync<TechniqueChoice>($"technique-choice:{Key}") ?? today;
         through = routineSession.Item is null && (await Store.GetSettingsAsync()).GetValueOrDefault(ThroughKey) == "on";
-        if (routineSession.Item is { } requested) choice = new(new Key(requested.Fifths, requested.Minor), Key == "arpeggios" ? ScaleKind.Arpeggio : requested.Minor ? ScaleKind.HarmonicMinor : ScaleKind.Major, 1, requested.Hands, requested.Step);
+        // One of RCM's: the key, form and hands its day brings, at its octaves, written as RCM writes it.
+        if (routineSession.Rcm is { } rcm) choice = new TechniqueChoice(rcm.Key, Key == "arpeggios" ? ScaleKind.Arpeggio : rcm.Form, rcm.Activity.Octaves, rcm.Hands, 1) { PerBeat = rcm.Activity.PerBeat };
+        else if (routineSession.Item is { } requested) choice = new(new Key(requested.Fifths, requested.Minor), Key == "arpeggios" ? ScaleKind.Arpeggio : requested.Minor ? ScaleKind.HarmonicMinor : ScaleKind.Major, 1, requested.Hands, requested.Step);
         await Build();
     }
 
@@ -279,14 +299,14 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         mei = MeiWriter.Write(score, 72);
         music = new PlayMusic(score, score.Expected());
         state = await Store.GetTrackAsync<TechniqueState>(StateKey) ?? TechniqueState.New;
-        if (routineSession?.Item is { } requested) state = state with { Tempo = requested.Tempo };
+        if (routineSession?.Item is { } requested && routineSession.Rcm is null) state = state with { Tempo = requested.Tempo };
         (result, outcome, comfortable) = (null, null, null);
     }
 
     private async Task SetTempo(double bpm)
     {
         state = state with { Tempo = bpm, Started = state.Started ?? Today };
-        if (routineSession?.Fixed != true) await Store.SaveTrackAsync(StateKey, state);
+        if (Keeps) await Store.SaveTrackAsync(StateKey, state);
     }
 
     private Task Starting()
@@ -327,7 +347,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
             {
                 comfortable = 60_000 / (gapMs * item.NotesPerBeat);
                 state = state.Comfortable(comfortable.Value, Today);
-                if (routineSession?.Fixed != true) await Store.SaveTrackAsync(StateKey, state);
+                if (Keeps) await Store.SaveTrackAsync(StateKey, state);
             }
             if (routineSession?.Execution is not null)
             {
@@ -372,8 +392,8 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         }).Concat(handRuns.SelectMany(h => h.Extras).Select(e => KeyMark(e.AfterId, "extra", e.Played)));
         await (sheet?.ShowMarks(marks) ?? Task.CompletedTask);
         var sd = handRuns.Where(r => r.Valid).Select(r => r.IoiSdPercent).DefaultIfEmpty(0).Max();
-        var tempo = Tempo;
-        if (routineSession?.Fixed != true)
+        var tempo = ranAt = Tempo;
+        if (Keeps)
         {
             state = state.After(result.Valid, result.Valid ? sd : null, Today);
             await Store.SaveTrackAsync(StateKey, state);
@@ -416,6 +436,13 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         }
         if (result.SyncSdMs is { } syncSd) yield return $"The hands landed {Math.Abs(result.SyncMeanMs ?? 0):0} ms apart on average, give or take {TechniqueScorer.Describe(syncSd, noiseFloor)}.";
         if (state.InvalidInRow == 0 && !result.Valid && state.Tempo is { } t) yield return $"Next run a little slower: {t:0}.";
+        // One of RCM's: this run against the least RCM asks.
+        if (routineSession?.Rcm is { Activity: var rcm } && result.Valid)
+        {
+            yield return ranAt >= rcm.Rcm
+                ? $"At RCM {rcm.LevelName}'s tempo: it asks at least ♩ {rcm.Rcm:0}, and this run went at ♩ {ranAt:0}."
+                : $"RCM {rcm.LevelName} asks at least ♩ {rcm.Rcm:0}; this run went at ♩ {ranAt:0}.";
+        }
     }
 
     // A run's slips, briefly: "1 wrong", "2 missed", "1 wrong, 1 extra".

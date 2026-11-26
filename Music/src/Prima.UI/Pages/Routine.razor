@@ -262,9 +262,11 @@ else
 
     private static string Hands(HandUse hands) => hands switch { HandUse.Right => "right hand", HandUse.Left => "left hand", _ => "both hands" };
 
-    // How an activity is played: in one of Claude's, as its recipe says; in one of yours, as its exercise was last left.
+    // How an activity is played: in one of Claude's, as its recipe says; in one of yours, as its exercise was last left; one of
+    // RCM's technique, in the key and hands the day brings, with RCM's tempo as its target.
     private async Task<string?> PlayedNow(RoutineItem item)
     {
+        if (OwnRoutines.Rcm(routine!, item, today) is { } rcm) return $"Today: {rcm.Played} · RCM ♩ {rcm.Activity.Rcm:0} {rcm.Activity.Note}";
         if (!OwnRoutines.AsLeft(routine!, item)) return null;
 
         var exercise = OwnRoutines.ExerciseOf(item);

@@ -91,6 +91,10 @@ else
     {
         <div @key="Id" class="exercise exercise-played practice-page">
             <p class="exercise-does full-hide">@exercise.Does</p>
+            @if (routineSession?.Rcm is { } rcm)
+            {
+                <p class="section-note full-hide rcm-asks">@rcm.Played. @rcm.Activity.Asks@(rcm.Activity.Differs is { } differs ? $" {differs}" : "")</p>
+            }
             @if (choosing)
             {
                 <section class="exercise-choice full-hide" aria-label="What to play">
@@ -244,6 +248,8 @@ else
         through = last?.Through == true;
         // An activity of one of Claude's routines is the one key it was planned in.
         if (routineSession.Item is { } requested) (key, hands, tempo, through) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo, false);
+        // One of RCM's technique: the key and hands its day brings, at RCM's tempo in this music's beat.
+        if (routineSession.Rcm is { } rcm) (key, hands, tempo) = (rcm.Key, rcm.Hands, rcm.Activity.Tempo);
         Build();
     }
 

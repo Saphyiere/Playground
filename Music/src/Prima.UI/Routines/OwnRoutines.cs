@@ -67,7 +67,10 @@ public static class OwnRoutines
     /// <summary>
     /// Whether an activity is played as you last left it: an exercise or a drill in a routine of your own. One of Claude's is played
     /// as its recipe says (a key, hands, a mode and a tempo), and leaves your own as they were; so is music Claude made from a
-    /// piece, wherever it is.
+    /// piece, wherever it is; and so is one of RCM's technique (<see cref="RcmTechnique"/>), in the key and hands its day brings.
     /// </summary>
-    public static bool AsLeft(RoutineDefinition routine, RoutineItem item) => routine.Own && item.Kind is "exercise" or "drill";
+    public static bool AsLeft(RoutineDefinition routine, RoutineItem item) => routine.Own && item.Kind is "exercise" or "drill" && RcmTechnique.Find(item.Id) is null;
+
+    /// <summary>One of RCM's technique in a routine of yours, as it is on a day; null for any other activity.</summary>
+    public static RcmToday? Rcm(RoutineDefinition routine, RoutineItem item, DateOnly day) => routine.Own ? RcmTechnique.Find(item.Id)?.On(day) : null;
 }
