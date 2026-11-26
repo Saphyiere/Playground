@@ -47,7 +47,8 @@ public class ChordDrillTests
         Assert.DoesNotContain("a key at a time", Feedback(view));
     }
 
-    // A drill's step is chosen over its bar, as an exercise's key is; the bar keeps the item, what's right and Loop.
+    // A drill's step is on its card over its bar, as an exercise's key is, and Change has every step on a pad, any of them one
+    // tap away; the bar keeps the item, what's right and Loop.
     [Fact]
     public async Task ADrillsStepIsChosenOverItsBarAsAnExercisesKeyIs()
     {
@@ -55,12 +56,14 @@ public class ChordDrillTests
         var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
         var view = host.Context.Render<ItemDrill>(p => p.Add(c => c.Key, "keys"));
         view.WaitForAssertion(() => Assert.NotNull(registry.DrillAnswer));
-        Assert.Equal("1 of 6", view.Find(".drill-choice .control-value").TextContent.Trim());
-        Assert.Empty(view.FindAll(".drill-bar [aria-label='A harder step']"));
+        Assert.Equal(["Step 1 of 6"], Choosing.Facts(view));
+        Assert.Empty(view.FindAll(".drill-bar .choice-change"));
         Assert.Equal(["Item", "Right"], view.FindAll(".drill-bar .mu-readout-label").Select(l => l.TextContent.Trim()));
 
-        await view.Find(".drill-choice [aria-label='A harder step']").ClickAsync(new MouseEventArgs());
-        view.WaitForAssertion(() => Assert.Equal("2 of 6", view.Find(".drill-choice .control-value").TextContent.Trim()));
-        Assert.Equal(2, (await host.Store.GetTrackAsync<DrillTrack>("drill:keys"))!.Step);
+        await Choosing.OpenChange(view);
+        Assert.Equal(["1", "2", "3", "4", "5", "6"], view.FindAll(".change-panel .choice-pad").Select(p => p.TextContent.Trim()));
+        await Choosing.Tap(view, "[aria-label='Step 4']");
+        view.WaitForAssertion(() => Assert.Equal(["Step 4 of 6"], Choosing.Facts(view)));
+        Assert.Equal(4, (await host.Store.GetTrackAsync<DrillTrack>("drill:keys"))!.Step);
     }
 }

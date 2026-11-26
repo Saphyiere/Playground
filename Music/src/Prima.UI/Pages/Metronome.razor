@@ -1,10 +1,11 @@
 @page "/tools/metronome"
 @implements IDisposable
 @inject Click Click
+@inject AppNavigation Navigation
 
 <PageTitle>Metronome · Prima</PageTitle>
 
-<PageHead Title="Metronome" Kicker="Tools"><KeyboardLamp /></PageHead>
+<PageHead Title="Metronome" Kicker="Tools" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))"><KeyboardLamp /></PageHead>
 
 <section class="mu-screen metro-screen" aria-label="Metronome">
     <div class="mu-screen-head"><span>Tempo</span><span>@meter.Name · @StageName(stage)</span></div>
@@ -24,31 +25,42 @@
 </section>
 
 <div class="control-rows">
-    <div class="control-row">
-        <span class="control-label">Tempo</span>
-        <button type="button" class="mu-btn" @onclick="() => Nudge(-5)">−5</button>
-        <button type="button" class="mu-btn" @onclick="() => Nudge(-1)">−1</button>
-        <input type="range" class="control-range" min="30" max="208" value="@bpm" aria-label="Tempo" @onchange="e => SetTempo(int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
-        <button type="button" class="mu-btn" @onclick="() => Nudge(1)">+1</button>
-        <button type="button" class="mu-btn" @onclick="() => Nudge(5)">+5</button>
-    </div>
-    <div class="control-row">
-        <span class="control-label">Metre</span>
-        @foreach (var m in Meters)
-        {
-            <button type="button" class="mu-toggle" aria-pressed="@(m == meter ? "true" : "false")" @onclick="() => Change(() => meter = m)"><span class="mu-led"></span>@m.Name</button>
-        }
-    </div>
-    <div class="control-row">
-        <span class="control-label">Count-in</span>
-        <button type="button" class="mu-toggle" aria-pressed="@(countIn == 1 ? "true" : "false")" @onclick="() => Change(() => countIn = 1)"><span class="mu-led"></span>One bar</button>
-        <button type="button" class="mu-toggle" aria-pressed="@(countIn == 0 ? "true" : "false")" @onclick="() => Change(() => countIn = 0)"><span class="mu-led"></span>None</button>
-        <span class="control-label control-label-gap">Heard</span>
-        @foreach (var s in Enum.GetValues<ClickStage>())
-        {
-            <button type="button" class="mu-toggle" aria-pressed="@(s == stage ? "true" : "false")" @onclick="() => Change(() => stage = s)"><span class="mu-led"></span>@StageName(s)</button>
-        }
-    </div>
+    @* Its choices are its screen: the same keys Change has elsewhere, on a panel of their own. *@
+    <section class="choice-panel" aria-label="The click">
+        <div class="control-row control-row-wide">
+            <span class="control-label">Tempo</span>
+            <button type="button" class="mu-btn" @onclick="() => Nudge(-5)">−5</button>
+            <button type="button" class="mu-btn" @onclick="() => Nudge(-1)">−1</button>
+            <input type="range" class="control-range" min="30" max="208" value="@bpm" aria-label="Tempo" @onchange="e => SetTempo(int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+            <button type="button" class="mu-btn" @onclick="() => Nudge(1)">+1</button>
+            <button type="button" class="mu-btn" @onclick="() => Nudge(5)">+5</button>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Metre</span>
+            <div class="choice-set">
+                @foreach (var m in Meters)
+                {
+                    <button type="button" class="mu-toggle" aria-pressed="@(m == meter ? "true" : "false")" @onclick="() => Change(() => meter = m)"><span class="mu-led"></span>@m.Name</button>
+                }
+            </div>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Count-in</span>
+            <div class="choice-set">
+                <button type="button" class="mu-toggle" aria-pressed="@(countIn == 1 ? "true" : "false")" @onclick="() => Change(() => countIn = 1)"><span class="mu-led"></span>One bar</button>
+                <button type="button" class="mu-toggle" aria-pressed="@(countIn == 0 ? "true" : "false")" @onclick="() => Change(() => countIn = 0)"><span class="mu-led"></span>None</button>
+            </div>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Heard</span>
+            <div class="choice-set">
+                @foreach (var s in Enum.GetValues<ClickStage>())
+                {
+                    <button type="button" class="mu-toggle" aria-pressed="@(s == stage ? "true" : "false")" @onclick="() => Change(() => stage = s)"><span class="mu-led"></span>@StageName(s)</button>
+                }
+            </div>
+        </div>
+    </section>
     <div class="control-row control-row-play">
         <button type="button" class="mu-play" aria-label="@(Click.Running ? "Stop" : "Start")" data-piano="off" @onclick="Toggle">
             @if (Click.Running)

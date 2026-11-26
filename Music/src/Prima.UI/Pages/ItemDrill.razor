@@ -6,6 +6,7 @@
 @inject IKeyboard Keyboard
 @inject IClock Clock
 @inject SessionRegistry Registry
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using DrillMaterial = Prima.Core.Generation.Drills
 @using Prima.Core.Practice
@@ -13,7 +14,7 @@
 
 <PageTitle>@(info?.Name ?? "Drill") · Prima</PageTitle>
 
-<PageHead Title="@(info?.Name ?? "Drill")" Kicker="@Kicker()" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="@(info?.Name ?? "Drill")" Kicker="@Kicker()" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
 <RoutineBar Session="routineSession" BeforeLeaving="PauseRoutine" OnResume="ResumeRoutine" />
 
 @if (info is null)
@@ -26,17 +27,15 @@ else if (items.Count == 0)
 }
 else if (index < items.Count)
 {
-    @* What to practice sits over the bar, as an exercise's key does: the step by hand, a new set at it, and the ladder moves on
-       from there. In full screen only the bar and the music are left. *@
+    @* What to practice sits on a card over the bar, as an exercise's key does: the step, Change opening every step on a pad, any
+       of them one tap; a new set starts at it, and the ladder moves on from there. In full screen only the bar and the music are
+       left. *@
     @if (info.Top > 1)
     {
-        <section class="exercise-choice drill-choice full-hide" aria-label="What to practice">
-            <div class="control-row">
-                <span class="control-label">Step</span>
-                <button type="button" class="mu-btn" aria-label="An easier step" disabled="@(track.Step <= 1)" @onclick="() => SetStep(track.Step - 1)">−</button>
-                <span class="control-value exercise-option">@track.Step of @info.Top</span>
-                <button type="button" class="mu-btn" aria-label="A harder step" disabled="@(track.Step >= info.Top)" @onclick="() => SetStep(track.Step + 1)">+</button>
-            </div>
+        <section class="practice-choice drill-choice full-hide" aria-label="What to practice">
+            <ChoiceCard Open="changing" OnChange="() => changing = !changing">
+                <span class="choice-fact">Step @track.Step of @info.Top</span>
+            </ChoiceCard>
         </section>
     }
     <section class="reading-bar play-bar piece-bar drill-bar" aria-label="Where you are">
@@ -52,8 +51,25 @@ else if (index < items.Count)
         <p class="drill-prompt">@items[index].Item.Prompt</p>
         <LoopKey On="loop" Changed="SetLoop" OnLabel="Loop: on. Sets come one after another until you leave" OffLabel="Loop: off. A set ends at its summary" Class="drill-loop" />
     </section>
-    <div class="sheet-frame">
-        <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
+    <div class="piece-stage drill-stage">
+        <div class="sheet-frame">
+            <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
+        </div>
+        @if (changing && info.Top > 1)
+        {
+            <ChangePanel OnDone="() => changing = false">
+                <div class="control-row">
+                    <span class="control-label">Step</span>
+                    <div class="choice-set">
+                        @for (var s = 1; s <= info.Top; s++)
+                        {
+                            var step = s;
+                            <button type="button" class="mu-toggle choice-pad" aria-pressed="@(track.Step == step ? "true" : "false")" aria-label="@($"Step {step}")" @onclick="() => SetStep(step)"><span class="mu-led"></span>@step</button>
+                        }
+                    </div>
+                </div>
+            </ChangePanel>
+        }
     </div>
     <p class="drill-feedback @(feedbackRight ? "right" : "wrong")" aria-live="polite">@feedback</p>
 }
@@ -442,6 +458,18 @@ else
     }
 
     // The step by hand: a new set at it, and the ladder moves on from there as before.
+    // Change: every step on a pad, over the music.
+    private bool changing;
+
+    // The way back: to where it was opened from, by its name.
+    private string WayBack => Navigation.PreviousName ?? "Exercises";
+
+    private async Task Leave()
+    {
+        await PauseRoutine();
+        await Navigation.BackAsync("exercises?type=drills");
+    }
+
     private async Task SetStep(int step)
     {
         track = track with { Step = Math.Clamp(step, 1, info!.Top) };

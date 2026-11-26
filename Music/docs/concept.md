@@ -1132,8 +1132,8 @@ F4 for E4" when as many keys were wrong as notes missing, or "G4 missing; A4, B4
 within 150 ms; when the first are right and the rest still to come, it's listened to until all of it is down, a key not in it
 comes, or nothing more for 0.6 s, and the words say "Not quite: played a key at a time. A chord's keys go down together.", the
 notes played late amber. A set's summary lists the single notes
-and chords you missed. The drills with steps show the step over the bar, as an exercise shows its key, with − and + to choose it
-(the bar keeps the item, what's right and Loop): a new set starts at the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
+and chords you missed. The drills with steps show the step on a card over the bar, as an exercise shows its key, and its
+**Change** has every step on a numbered pad, any of them one tap (the bar keeps the item, what's right and Loop): a new set starts at the step chosen, and from there over 90% in two sets in a row steps up and under 80% steps back. Key signatures shows a
 signature alone and asks for its tonic; the signature with no sharps or flats is a bare staff, so its prompt says so ("Play
 the tonic of this key: major (no sharps or flats)"), where a bare staff with nothing said looked like music that hadn't
 drawn.
@@ -1216,7 +1216,7 @@ press Done, once a day. A **way to practice** is a few lines to read. And a **dr
 Drills type, and the three technique drills are in the sections they belong to as well.
 
 An exercise's page has the way back at its head, by the name of where it was opened from (Exercises, Today), as a piece's
-has; a technique drill's has it too. Then what you do in a line, how in a few steps, and what to notice. Every
+has; a technique drill's and a drill's have it too, and the metronome's goes back to Tools. Then what you do in a line, how in a few steps, and what to notice. Every
 one that's played has a card above its play bar saying what's chosen: the key lit on a small keyboard and named, the hands
 drawn, a family's choices a word each. **Change** opens the choices over the music: its keys on an octave of the piano, each
 named as the key it picks is written and any key it isn't in off, so any of them is one tap, with Major or Minor beside it

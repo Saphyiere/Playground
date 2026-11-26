@@ -9111,6 +9111,11 @@ button.up-artist {
     border-top: 3px solid var(--accent);
 }
 
+/* The music under Change is hidden, as under the options: drawn still, so it needn't be again, but none of its frame showing. */
+.piece-stage:has(> .change-panel) > :is(.piece-frame, .sheet-frame) {
+    visibility: hidden;
+}
+
 /* Its rows share a line where they fit, the key's alone on its own; Done at the end of the last. */
 .change-panel .control-row {
     flex: none;
@@ -9145,7 +9150,7 @@ button.up-artist {
 }
 
 /* A choice: a keycap with its lamp, held down when it's chosen. */
-.change-panel .mu-toggle {
+:is(.change-panel, .choice-panel) .mu-toggle {
     position: relative;
     flex: none;
     min-width: 0;
@@ -9155,14 +9160,14 @@ button.up-artist {
     gap: 8px;
 }
 
-.change-panel .mu-toggle[aria-pressed="true"] {
+:is(.change-panel, .choice-panel) .mu-toggle[aria-pressed="true"] {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #b5afa4;
     background: #ece8df;
 }
 
 /* A choice with its picture: the picture over its word, the lamp in the corner. */
-.change-panel .mu-toggle.choice-icon {
+:is(.change-panel, .choice-panel) .mu-toggle.choice-icon {
     flex-direction: column;
     justify-content: center;
     width: 66px;
@@ -9173,7 +9178,7 @@ button.up-artist {
     letter-spacing: 0.08em;
 }
 
-.change-panel :is(.choice-icon, .choice-pad) > .mu-led {
+:is(.change-panel, .choice-panel) :is(.choice-icon, .choice-pad) > .mu-led {
     position: absolute;
     top: 6px;
     left: 6px;
@@ -9181,14 +9186,14 @@ button.up-artist {
     height: 6px;
 }
 
-.change-panel .choice-icon :is(.music-icon, .hand-icon) {
+:is(.change-panel, .choice-panel) .choice-icon :is(.music-icon, .hand-icon) {
     width: 30px;
     height: 30px;
     flex: none;
 }
 
 /* A count on a numbered pad. */
-.change-panel .mu-toggle.choice-pad {
+:is(.change-panel, .choice-panel) .mu-toggle.choice-pad {
     justify-content: center;
     width: 46px;
     padding: 0;
@@ -9198,21 +9203,21 @@ button.up-artist {
     letter-spacing: 0;
 }
 
-[data-theme="vinyl"] .change-panel .mu-toggle {
+[data-theme="vinyl"] :is(.change-panel, .choice-panel) .mu-toggle {
     border-radius: 0;
 }
 
-[data-theme="vinyl"] .change-panel .mu-toggle.choice-icon {
+[data-theme="vinyl"] :is(.change-panel, .choice-panel) .mu-toggle.choice-icon {
     font-size: 11px;
     letter-spacing: 0.04em;
 }
 
-[data-theme="vinyl"] .change-panel .mu-toggle.choice-pad {
+[data-theme="vinyl"] :is(.change-panel, .choice-panel) .mu-toggle.choice-pad {
     font-size: 24px;
     line-height: 24px;
 }
 
-[data-theme="vinyl"] .change-panel .mu-toggle[aria-pressed="true"] {
+[data-theme="vinyl"] :is(.change-panel, .choice-panel) .mu-toggle[aria-pressed="true"] {
     transform: none;
     border-color: var(--accent);
     background: var(--accent);
@@ -9220,8 +9225,54 @@ button.up-artist {
     box-shadow: none;
 }
 
-[data-theme="vinyl"] .change-panel .mu-toggle[aria-pressed="true"] > .mu-led {
+[data-theme="vinyl"] :is(.change-panel, .choice-panel) .mu-toggle[aria-pressed="true"] > .mu-led {
     background: var(--on-accent);
+}
+
+/* A screen whose choices are the screen until it starts (Endless notes, Sight-read before a passage, the metronome): the same
+   keys on a panel of their own, in the page. */
+.choice-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 40px;
+    padding: 18px 22px;
+    box-sizing: border-box;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+}
+
+[data-theme="vinyl"] .choice-panel {
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 3px solid var(--accent);
+}
+
+.choice-panel .control-row {
+    flex: none;
+    max-width: 100%;
+    gap: 10px 12px;
+}
+
+.choice-panel .control-row-wide {
+    flex: 1 1 100%;
+}
+
+.choice-panel .control-label {
+    min-width: 0;
+}
+
+/* A long range, stepped: − and + as small keys either side of its figure. */
+:is(.change-panel, .choice-panel) .mu-btn:not(.mu-primary) {
+    min-height: 44px;
+    padding: 0 14px;
+}
+
+/* A drill's music, which its Change covers. */
+.drill-stage {
+    min-height: 200px;
 }
 
 /* The key on the piano: an octave, each key named as its key is written, the chosen one lit. */

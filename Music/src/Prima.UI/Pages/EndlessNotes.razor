@@ -4,13 +4,14 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject SessionRegistry Registry
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 @using DrillMaterial = Prima.Core.Generation.Drills
 
 <PageTitle>Endless notes · Prima</PageTitle>
 
-<PageHead Title="Endless notes" Kicker="Reading · faster and faster" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="Endless notes" Kicker="Reading · faster and faster" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
 
 @if (running && stream is not null)
 {
@@ -53,23 +54,32 @@ else
     {
         <p class="page-note">One note after another until you stop. A right answer moves straight on, so the only wait is your reading: bring the time of your last ten down. A missed note comes back a few notes later. It's practice on its own: the Notes drill's review doesn't change.</p>
     }
-    <div class="control-row">
-        <span class="control-label">Clefs</span>
-        @foreach (var (value, label) in ClefChoices)
-        {
-            <button type="button" class="mu-toggle" aria-pressed="@On(clefs == value)" @onclick="() => clefs = value"><span class="mu-led"></span>@label</button>
-        }
-    </div>
-    <div class="control-row">
-        <span class="control-label">Range</span>
-        <button type="button" class="mu-toggle" aria-pressed="@On(!ledgerLines)" @onclick="() => ledgerLines = false"><span class="mu-led"></span>The staff</button>
-        <button type="button" class="mu-toggle" aria-pressed="@On(ledgerLines)" @onclick="() => ledgerLines = true"><span class="mu-led"></span>Ledger lines</button>
-    </div>
-    <div class="control-row">
-        <span class="control-label">Sharps and flats</span>
-        <button type="button" class="mu-toggle" aria-pressed="@On(!accidentals)" @onclick="() => accidentals = false"><span class="mu-led"></span>Off</button>
-        <button type="button" class="mu-toggle" aria-pressed="@On(accidentals)" @onclick="() => accidentals = true"><span class="mu-led"></span>On</button>
-    </div>
+    @* What to read, before it starts: the same keys Change has elsewhere, the clefs drawn, on a panel of their own. *@
+    <section class="choice-panel" aria-label="What to read">
+        <div class="control-row">
+            <span class="control-label">Clefs</span>
+            <div class="choice-set">
+                @foreach (var (value, label) in ClefChoices)
+                {
+                    <button type="button" class="mu-toggle choice-icon" aria-pressed="@On(clefs == value)" aria-label="@label" @onclick="() => clefs = value"><span class="mu-led"></span><MusicIcon Kind="@value" /><span class="choice-word">@label</span></button>
+                }
+            </div>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Range</span>
+            <div class="choice-set">
+                <button type="button" class="mu-toggle" aria-pressed="@On(!ledgerLines)" @onclick="() => ledgerLines = false"><span class="mu-led"></span>The staff</button>
+                <button type="button" class="mu-toggle" aria-pressed="@On(ledgerLines)" @onclick="() => ledgerLines = true"><span class="mu-led"></span>Ledger lines</button>
+            </div>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Sharps and flats</span>
+            <div class="choice-set">
+                <button type="button" class="mu-toggle" aria-pressed="@On(!accidentals)" @onclick="() => accidentals = false"><span class="mu-led"></span>Off</button>
+                <button type="button" class="mu-toggle" aria-pressed="@On(accidentals)" @onclick="() => accidentals = true"><span class="mu-led"></span>On</button>
+            </div>
+        </div>
+    </section>
     <div class="control-row control-row-play">
         <button type="button" class="mu-play" aria-label="Start" data-piano="go" @onclick="Start"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
         <a class="mu-btn" href="exercises?type=drills">Done</a>

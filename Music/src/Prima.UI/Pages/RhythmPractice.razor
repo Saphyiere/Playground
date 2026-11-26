@@ -7,13 +7,14 @@
 @inject IClock Clock
 @inject Click Click
 @inject SessionRegistry Registry
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 @using Prima.Core.Scoring
 
 <PageTitle>Rhythm · Prima</PageTitle>
 
-<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
 <p class="page-note full-hide">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>

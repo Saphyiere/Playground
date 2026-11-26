@@ -57,21 +57,26 @@
                 <div class="mu-readout"><span class="mu-readout-label">Today</span><span class="mu-readout-value">@passagesToday</span></div>
             </div>
         </section>
-        <div class="control-row">
-            <span class="control-label">Level</span>
-            <button type="button" class="mu-btn" aria-label="An easier level" disabled="@(reading.Level <= 1)" @onclick="() => SetLevel(reading.Level - 1)">−</button>
-            <span class="control-value">@reading.Level</span>
-            <button type="button" class="mu-btn" aria-label="A harder level" disabled="@(reading.Level >= Ladder.Top)" @onclick="() => SetLevel(reading.Level + 1)">+</button>
-            <p class="control-note">@LevelWords(Ladder.Level(reading.Level))</p>
-        </div>
-        <div class="control-row">
-            <span class="control-label">Variant</span>
-            @foreach (var v in Variants)
-            {
-                var disabled = v is Variant.Duet or Variant.HearFirst && !PianoPlays;
-                <button type="button" class="mu-toggle" disabled="@disabled" aria-pressed="@(variant == v ? "true" : "false")" @onclick="() => chosen = variant = variant == v ? null : v"><span class="mu-led"></span>@VariantName(v)</button>
-            }
-        </div>
+        @* What to read: the level, stepped, with what it reads; a variant, or none. The same keys Change has elsewhere. *@
+        <section class="choice-panel" aria-label="What to read">
+            <div class="control-row control-row-wide">
+                <span class="control-label">Level</span>
+                <button type="button" class="mu-btn" aria-label="An easier level" disabled="@(reading.Level <= 1)" @onclick="() => SetLevel(reading.Level - 1)">−</button>
+                <span class="control-value">@reading.Level</span>
+                <button type="button" class="mu-btn" aria-label="A harder level" disabled="@(reading.Level >= Ladder.Top)" @onclick="() => SetLevel(reading.Level + 1)">+</button>
+                <p class="control-note">@LevelWords(Ladder.Level(reading.Level))</p>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Variant</span>
+                <div class="choice-set">
+                    @foreach (var v in Variants)
+                    {
+                        var disabled = v is Variant.Duet or Variant.HearFirst && !PianoPlays;
+                        <button type="button" class="mu-toggle" disabled="@disabled" aria-pressed="@(variant == v ? "true" : "false")" @onclick="() => chosen = variant = variant == v ? null : v"><span class="mu-led"></span>@VariantName(v)</button>
+                    }
+                </div>
+            </div>
+        </section>
         <div class="control-row control-row-play">
             @* The screen's main key (its primary), ▶ for a new passage; Find my level beside it. *@
             <button type="button" class="mu-play mu-primary" aria-label="New passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>

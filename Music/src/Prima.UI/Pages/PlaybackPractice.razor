@@ -6,6 +6,7 @@
 @inject IClock Clock
 @inject Click Click
 @inject SessionRegistry Registry
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 @using Prima.Core.Scoring
@@ -13,7 +14,7 @@
 
 <PageTitle>Listen and play back · Prima</PageTitle>
 
-<PageHead Title="Listen and play back" Kicker="@($"Step {track.Step} of 3")" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="Listen and play back" Kicker="@($"Step {track.Step} of 3")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
 
 @if (!(Keyboard.CanSend && Settings.SendToPiano))
 {
