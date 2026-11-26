@@ -1,11 +1,16 @@
 @page "/library/credits"
 @inject PrimaStore Store
+@inject ILibraryBundle Bundle
 
 <PageTitle>Where the music comes from · Prima</PageTitle>
 
 <PageHead Title="Credits" Kicker="Where the music comes from"><a class="mu-btn" href="library">Library</a></PageHead>
 
 <p class="page-note">The bundled pieces are public domain or openly licensed, and each is credited as its licence asks. Engravings from MuseScore users come through PDMX (Long et al., 2024, CC BY 4.0); the PDFs and their MIDI come from the Mutopia Project, whose pieces under CC BY-SA are share-alike: anything made from one, an arrangement or a new edition, is shared under the same licence. Prima engraves the MusicXML itself with Verovio (LGPL), and draws the PDFs with pdf.js (Apache 2.0).</p>
+@if (syllabus is not null)
+{
+    <p class="page-note">RCM's levels say where <a href="@syllabus.Url" target="_blank" rel="noopener">@syllabus.Name</a> lists Prima's own pieces: @syllabus.Pieces.Count of them, each looked up in the syllabus's free PDF and cited by its page. They're facts about these pieces, not a copy of the syllabus's lists, and Prima isn't affiliated with The Royal Conservatory.</p>
+}
 @if (pieces.Any(p => p.Origin == "collection"))
 {
     <p class="page-note">The local collection, imported from the Library tool's files, is for this tablet only. Craig Sapp's Humdrum editions, the DCML's annotated corpora (EPFL) and ASAP's scores are CC BY-NC-SA 4.0, non-commercial and shared alike; its pieces from PDMX and the Mutopia Project are on the same terms as the bundled ones, and its hymns from the Open Hymnal (edited by Brian J. Dumont) are public domain.</p>
@@ -34,8 +39,22 @@
 
 @code {
     private List<PieceRecord> pieces = [];
+    private Prima.Core.Library.Syllabus? syllabus;
 
-    protected override async Task OnInitializedAsync() => pieces = await Store.GetPiecesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        pieces = await Store.GetPiecesAsync();
+        if (await Bundle.ReadAsync(Prima.Core.Library.Syllabus.RcmFile) is { } bytes)
+        {
+            try
+            {
+                syllabus = Prima.Core.Library.Syllabus.Read(System.Text.Encoding.UTF8.GetString(bytes));
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+        }
+    }
 
     // A collection kept as its separate pieces ("Children's Album, No. 5") came from one file, and is credited once.
     private static PieceRecord Credited(IGrouping<string, PieceRecord> file) => file.Count() == 1 ? file.First() : file.First() with { Title = System.Text.RegularExpressions.Regex.Replace(file.First().Title, @", No\. \d+$", "") };

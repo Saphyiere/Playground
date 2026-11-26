@@ -262,7 +262,8 @@ a PDF plays out; this is what came of it.
   (sonatas, études, preludes and fugues, dances, character pieces, chorales and hymns, variations, by words in the title and
   work; a piece that's none of them is a character piece, and so is a fantasy, a capriccio or a toccata unless its title says
   more, as a fantasy and fugue or a polonaise-fantasy does; a cake-walk is a dance, and Debussy's Doctor Gradus ad Parnassum
-  isn't an étude) or the **Levels** (where most of a piece reads). What's chosen in the list is beside it, the row turned
+  isn't an étude), the **Levels** (where most of a piece reads), or **RCM**'s levels (RCM's, below; upright the switch takes
+  a second line). What's chosen in the list is beside it, the row turned
   over, and each column scrolls by itself. With nothing chosen the Library opens on the uploaded pieces; with none uploaded, on
   the pieces near your level, and else on its first composer.
   - A **composer** has its kinds as tabs, the fullest first, each with how many pieces it holds; past five kinds the smallest
@@ -343,6 +344,16 @@ a PDF plays out; this is what came of it.
   accidentals, range, leaps in the tune, ledger lines, clef changes, pedal, 8va and ornaments. The hardest sets the level, as
   Henle grades. A piece shows its hardest excerpt's level and where most of it reads. A PDF can't be graded from its notes until
   they're read (below), so it shows about where its collection sits.
+- **RCM's levels**: where The Royal Conservatory's Piano Syllabus, 2022 Edition, lists a piece of the collection, as 121 of its
+  295 are (94 different pieces, some in more than one edition): its level, 1 to 10, and its list (A to D, by period), or that
+  it's one of the level's études, with the page. It's RCM's own statement, a fact looked up for each piece in the syllabus's
+  free PDF (`library/rcm-2022.json`, beside the manifest, brought up to date with each bundle as its credits are), not a copy of
+  its lists, and Prima isn't affiliated with RCM. A board's level rates a piece learned and played, as teachers place it, where
+  Prima's own is where its music reads at sight, so the two are shown side by side and neither is worked out from the other
+  (RCM Level 3's pieces read at Prima's levels 7 to 11). About this piece says it ("RCM's 2022 piano syllabus lists it at Level
+  3, List A (page 33)."); the line under a piece in the Library's lists ends "RCM 3"; and the list's switch has **RCM**: RCM
+  Level 1 to 10, each with how many it holds, and each a list of its pieces under their composers (`library?by=rcm&of=3`).
+  Where the music comes from says where the levels come from. The local collection's pieces and imports have none yet.
 - **A piece** opens on its front: its music, About this piece under it, and on its bar its level and two big keys,
   **Practice** and **Play** ([practice.md](practice.md) has the design). At its head is **the way back**, a key named for
   where it goes: the list the piece was opened from ("Ludwig van Beethoven", "Uploaded pieces"), or the Library when it was

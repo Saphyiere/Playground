@@ -1,0 +1,856 @@
+{
+  "board": "RCM",
+  "edition": "2022",
+  "name": "The Royal Conservatory's Piano Syllabus, 2022 Edition",
+  "url": "https://rcmusic-production-strapi-media.s3.ca-central-1.amazonaws.com/piano_syllabus_2022_edition_9c6a49bb96.pdf",
+  "about": "Where RCM's 2022 piano syllabus lists Prima's own pieces, each looked up in the syllabus's free PDF and cited by its page: facts about these pieces, not a copy of the syllabus's lists. Prima isn't affiliated with The Royal Conservatory.",
+  "pieces": [
+    {
+      "id": "pdmx-QmVESzhQqB1q62QNkPUUhFj5jgEdJduukkuYsY51SmLt1x",
+      "level": 2,
+      "list": "A",
+      "page": 26,
+      "what": "Aria in D minor, BWV 515 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmePzXNB4NpwhuD7RfT46EWM8NakiBVPmtxxhExeA4mDSm",
+      "level": 2,
+      "list": "A",
+      "page": 26,
+      "what": "Aria in D minor, BWV 515 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmauGmfcSSapLpdXTpqzFTVpznqLVHKnk5F1eG6KCJbkBp",
+      "level": 1,
+      "list": "A",
+      "page": 20,
+      "what": "Aria in F, BWV Anh. 131 (Notebook for Anna Magdalena Bach; the file is titled Gavotte)"
+    },
+    {
+      "id": "pdmx-QmPNpEiPg4MyNZSNBpUr5yUCiyXUaboF99qwMD6ViqFXHU",
+      "level": 1,
+      "list": "A",
+      "page": 20,
+      "what": "Aria in F, BWV Anh. 131 (Notebook for Anna Magdalena Bach; the file lacks its key signature)"
+    },
+    {
+      "id": "mutopia-bach-invention-01",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Invention No. 1, BWV 772"
+    },
+    {
+      "id": "mutopia-bach-invention-10",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 10, BWV 781"
+    },
+    {
+      "id": "pdmx-QmSDCwHjSSFa5GvZL9fzKZgXjk9bK7VSXiaHXhKomLydpf",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 11 in G minor, BWV 782"
+    },
+    {
+      "id": "mutopia-bach-invention-11",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 11, BWV 782"
+    },
+    {
+      "id": "mutopia-bach-invention-12",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 12, BWV 783"
+    },
+    {
+      "id": "pdmx-QmUbCP81miGkFzFSk3cTqCXyNV4psQm4UM33sjmc4Twpae",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 13 in A minor, BWV 784"
+    },
+    {
+      "id": "mutopia-bach-invention-13",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 13, BWV 784"
+    },
+    {
+      "id": "mutopia-bach-invention-14",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 14, BWV 785"
+    },
+    {
+      "id": "pdmx-QmSkpv88AXBwfQVSki4Lja1uAi1SiabTExoBT7fJmkVgyd",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 15 in B minor, BWV 786"
+    },
+    {
+      "id": "mutopia-bach-invention-15",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 15, BWV 786"
+    },
+    {
+      "id": "mutopia-bach-invention-02",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 2, BWV 773"
+    },
+    {
+      "id": "mutopia-bach-invention-03",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 3, BWV 774"
+    },
+    {
+      "id": "mutopia-bach-invention-04",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Invention No. 4, BWV 775"
+    },
+    {
+      "id": "pdmx-QmcgPrR41ikm5Ci6ABVf4r58KCVov3VKepGZTgAnGRCoPD",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 5 in E flat, BWV 776"
+    },
+    {
+      "id": "mutopia-bach-invention-05",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 5, BWV 776"
+    },
+    {
+      "id": "mutopia-bach-invention-06",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 6, BWV 777"
+    },
+    {
+      "id": "mutopia-bach-invention-07",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 7, BWV 778"
+    },
+    {
+      "id": "mutopia-bach-invention-08",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Invention No. 8, BWV 779"
+    },
+    {
+      "id": "mutopia-bach-invention-09",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Invention No. 9, BWV 780"
+    },
+    {
+      "id": "mutopia-bwv-942",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in A minor, BWV 942"
+    },
+    {
+      "id": "pdmx-QmWtmdgRHpAfkEhet1VrX1ZDpqGFGMDCd8y2BsFzL3yAXj",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in A minor, BWV 942"
+    },
+    {
+      "id": "mutopia-bwv-934",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "Bach, Little Prelude in C minor, BWV 934"
+    },
+    {
+      "id": "pdmx-QmacHkEMLbKiN7YagLdNjR2WPRvZAZW6ahjHjtPgvRNCdn",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "Bach, Little Prelude in C minor, BWV 999"
+    },
+    {
+      "id": "mutopia-bwv933",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in C, BWV 933"
+    },
+    {
+      "id": "pdmx-Qma58kekAvv9TsecniR4ja9nDEv3GD4os1aDq9r8ZfzvD8",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in C, BWV 933"
+    },
+    {
+      "id": "mutopia-bwv-939",
+      "level": 5,
+      "list": "A",
+      "page": 47,
+      "what": "Bach, Little Prelude in C, BWV 939"
+    },
+    {
+      "id": "pdmx-QmNjDJ1X5fmH6pi6PzAysdfn1WMKDgHfb6nGxgaP3D2yBL",
+      "level": 5,
+      "list": "A",
+      "page": 47,
+      "what": "Bach, Little Prelude in C, BWV 939"
+    },
+    {
+      "id": "pdmx-QmZ3RfASNhTtAmVg1sF7DUhxgPjNSWRfpijSrmvJfX14Bu",
+      "level": 5,
+      "list": "A",
+      "page": 47,
+      "what": "Bach, Little Prelude in C, BWV 939"
+    },
+    {
+      "id": "mutopia-bach-praeludium-02",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "Bach, Little Prelude in D minor, BWV 926"
+    },
+    {
+      "id": "pdmx-QmT9NqLb9PRKSzEJQhgM2iaYrLhUDVQMFc3Vp7BXe4r2eR",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "Bach, Little Prelude in D minor, BWV 926"
+    },
+    {
+      "id": "mutopia-bwv-935",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in D minor, BWV 935"
+    },
+    {
+      "id": "pdmx-QmdBfR996vfyD22i7aR5N2i94XcBU71KfneDWcgTrKM1t1",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in D minor, BWV 935"
+    },
+    {
+      "id": "pdmx-Qme9ePDW9tzuX4sRdXnzyhVtbqFtGNBfVmLjov2me6M9ck",
+      "level": 7,
+      "list": "A",
+      "page": 63,
+      "what": "Bach, Little Prelude in D minor, BWV 935"
+    },
+    {
+      "id": "mutopia-bwv-936",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Little Prelude in D, BWV 936"
+    },
+    {
+      "id": "mutopia-bwv-938",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Little Prelude in E minor, BWV 938"
+    },
+    {
+      "id": "mutopia-bwv-941",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "Bach, Little Prelude in E minor, BWV 941"
+    },
+    {
+      "id": "mutopia-bwv-937",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Little Prelude in E, BWV 937"
+    },
+    {
+      "id": "mutopia-bach-praeludium-10",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Little Prelude in F, BWV 928"
+    },
+    {
+      "id": "mutopia-prelude-9",
+      "level": 8,
+      "list": "A",
+      "page": 72,
+      "what": "Bach, Little Prelude in F, BWV 928"
+    },
+    {
+      "id": "mutopia-bwv787",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 1, BWV 787"
+    },
+    {
+      "id": "mutopia-bwv796",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 10, BWV 796"
+    },
+    {
+      "id": "mutopia-bwv797",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 11, BWV 797"
+    },
+    {
+      "id": "mutopia-bwv798",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 12, BWV 798"
+    },
+    {
+      "id": "mutopia-bwv799",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 13, BWV 799"
+    },
+    {
+      "id": "mutopia-bwv800",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 14, BWV 800"
+    },
+    {
+      "id": "mutopia-bwv801",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 15, BWV 801"
+    },
+    {
+      "id": "mutopia-bwv788",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 2, BWV 788"
+    },
+    {
+      "id": "mutopia-bwv789",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 3, BWV 789"
+    },
+    {
+      "id": "mutopia-bwv790",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 4, BWV 790"
+    },
+    {
+      "id": "mutopia-bwv791",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 5, BWV 791"
+    },
+    {
+      "id": "mutopia-bwv792",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 6, BWV 792"
+    },
+    {
+      "id": "mutopia-bwv793",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 7, BWV 793"
+    },
+    {
+      "id": "mutopia-bwv794",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 8, BWV 794"
+    },
+    {
+      "id": "mutopia-bwv795",
+      "level": 9,
+      "list": "A",
+      "page": 82,
+      "what": "Bach, Sinfonia No. 9, BWV 795"
+    },
+    {
+      "id": "pdmx-QmetPJWpxk5JX5tHPziMZZf4y1FzkEDYW3PDtnfv2BSN1z",
+      "level": 3,
+      "list": "B",
+      "page": 33,
+      "what": "Beethoven (attributed), Sonatina in G, Anh. 5 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-QmdXWkWbF5xQQnBwYR2LFiiSDjY7kWswUocDNAwKbeviFe",
+      "level": 7,
+      "list": "B",
+      "page": 64,
+      "what": "Beethoven, Für Elise, WoO 59"
+    },
+    {
+      "id": "mutopia-25EF-02",
+      "level": 3,
+      "etude": true,
+      "page": 31,
+      "what": "Burgmüller, Arabesque, Op. 100 No. 2"
+    },
+    {
+      "id": "pdmx-QmTvMxdMwcpLqNRRV8UBcFWvezab2dcr66WS7kVSAcF4dH",
+      "level": 3,
+      "etude": true,
+      "page": 31,
+      "what": "Burgmüller, Arabesque, Op. 100 No. 2"
+    },
+    {
+      "id": "pdmx-QmZfHayYiHJJBpxa5yZpMwR9RDMcDRYGvFC25NyyKa8ziH",
+      "level": 3,
+      "etude": true,
+      "page": 31,
+      "what": "Burgmüller, Arabesque, Op. 100 No. 2"
+    },
+    {
+      "id": "mutopia-25EF-15",
+      "level": 4,
+      "etude": true,
+      "page": 38,
+      "what": "Burgmüller, Ballade, Op. 100 No. 15"
+    },
+    {
+      "id": "pdmx-QmPntU8tX6xg8CsDWpWWoMhFskjyS15Dqez1baCcKouRwZ",
+      "level": 4,
+      "list": "A",
+      "page": 40,
+      "what": "C. P. E. Bach, March in D, BWV Anh. 122 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-17",
+      "level": 10,
+      "list": "C",
+      "page": 94,
+      "what": "Chopin, Prelude in A flat, Op. 28 No. 17"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-06",
+      "level": 8,
+      "list": "C",
+      "page": 73,
+      "what": "Chopin, Prelude in B minor, Op. 28 No. 6"
+    },
+    {
+      "id": "pdmx-QmfNseniSwST8r2CM6MKccHfJ4BB5rEu1MiZdmrP9kh2q2",
+      "level": 10,
+      "list": "C",
+      "page": 94,
+      "what": "Chopin, Prelude in C sharp minor, Op. 45 (the file says C minor)"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-15",
+      "level": 9,
+      "list": "C",
+      "page": 83,
+      "what": "Chopin, Prelude in D flat, Op. 28 No. 15"
+    },
+    {
+      "id": "pdmx-QmcBaSHudKKowgpZpEpf57baYWkcGmQFuRSJwNsvjMZdEv",
+      "level": 9,
+      "list": "C",
+      "page": 83,
+      "what": "Chopin, Prelude in D flat, Op. 28 No. 15 (the file says Opus 18)"
+    },
+    {
+      "id": "pdmx-QmanzCS7875c3wuXfewZKx3qARMdn6GvcwJfQ15QGmxQ6n",
+      "level": 7,
+      "list": "C",
+      "page": 65,
+      "what": "Chopin, Prelude in E minor, Op. 28 No. 4"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-04",
+      "level": 7,
+      "list": "C",
+      "page": 65,
+      "what": "Chopin, Prelude in E minor, Op. 28 No. 4"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-09",
+      "level": 8,
+      "list": "C",
+      "page": 73,
+      "what": "Chopin, Prelude in E, Op. 28 No. 9"
+    },
+    {
+      "id": "pdmx-QmfM3JtYkeZXaQbaDJrJV3V54mujUrEcGLBEn1djBtaUHM-13",
+      "level": 9,
+      "list": "C",
+      "page": 83,
+      "what": "Chopin, Prelude in F sharp, Op. 28 No. 13"
+    },
+    {
+      "id": "pdmx-QmU5Dv5TxAi9SEpv5i6yRvB6BShwQ5oo6L3EoDcjFDdRbR",
+      "level": 3,
+      "list": "B",
+      "page": 33,
+      "what": "Clementi, Sonatina in C, Op. 36 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-QmdYK53o4RhByfUKq2msSA9uUqUGuZUsPTWzYuwHf2GbQi",
+      "level": 3,
+      "list": "B",
+      "page": 33,
+      "what": "Clementi, Sonatina in C, Op. 36 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-Qmbs8bGTAq4UJLeLcyLJjzUzBtXKQRFaU3hQoqKxkfmdbD",
+      "level": 3,
+      "list": "B",
+      "page": 33,
+      "what": "Clementi, Sonatina in C, Op. 36 No. 1, third movement (Vivace, 3/8)"
+    },
+    {
+      "id": "pdmx-QmZLmH4rC6AGdK4MYd4L7bhADET4o9wRSjoVWYJRoW6mrV",
+      "level": 4,
+      "list": "B",
+      "page": 40,
+      "what": "Diabelli, Sonatina in F, Op. 168 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-QmasAcd9tbsewBQFVVbZNZGg35JCV94UF42JFrqCNngLdM",
+      "level": 6,
+      "list": "C",
+      "page": 57,
+      "what": "Grieg, Arietta, Op. 12 No. 1"
+    },
+    {
+      "id": "pdmx-Qme4QYAn916MeagaLdKZJRCjaWXXmqb1E2Y3Q24kVdjMma",
+      "level": 6,
+      "list": "C",
+      "page": 57,
+      "what": "Grieg, Folk Melody, Op. 12 No. 5"
+    },
+    {
+      "id": "mutopia-solace",
+      "level": 10,
+      "list": "D",
+      "page": 98,
+      "what": "Joplin, Solace"
+    },
+    {
+      "id": "mutopia-winners",
+      "level": 9,
+      "list": "D",
+      "page": 86,
+      "what": "Joplin, The Easy Winners"
+    },
+    {
+      "id": "mutopia-sonatine-1-allegro",
+      "level": 6,
+      "list": "B",
+      "page": 56,
+      "what": "Kuhlau, Sonatina in C, Op. 20 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-QmQR6PUBEzWWcB7AYyPja37sh6Djg9RPgiPhFHr7jBQrrL",
+      "level": 6,
+      "list": "B",
+      "page": 56,
+      "what": "Kuhlau, Sonatina in C, Op. 20 No. 1, first movement"
+    },
+    {
+      "id": "pdmx-QmfTvtpvFyWHHZ95rBcfNob9yWF1wme3VoKo2S24WARpVX",
+      "level": 3,
+      "etude": true,
+      "page": 31,
+      "what": "Lemoine, Étude, Op. 37 No. 17"
+    },
+    {
+      "id": "pdmx-QmUgKKU4f6dAocxy7yJ75kF1v47RaPfK1ysUvqZWD7twTS",
+      "level": 6,
+      "list": "A",
+      "page": 55,
+      "what": "March in E flat, BWV Anh. 127 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmZMAg8KBp5Rtd8yAtjuXvvtDJ8HqPzUmP6mFZv4jAG6a8",
+      "level": 4,
+      "list": "A",
+      "page": 40,
+      "what": "Minuet in A minor, BWV Anh. 120 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmUqCoSTSoifrWw21QNi9mDvUpyJTkjx7qLuWB1LT55Euv",
+      "level": 4,
+      "list": "A",
+      "page": 40,
+      "what": "Minuet in C minor, BWV Anh. 121 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmZLB5s1pGDSPhmWx5Zwkt1APsVUQpbvyEqwvi9WP1xxzF",
+      "level": 4,
+      "list": "A",
+      "page": 40,
+      "what": "Minuet in F, BWV Anh. 113 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmTZNZKbmjups1k5dXfBz5V65QP1FMRnfsSFpfyUwutStj",
+      "level": 1,
+      "list": "A",
+      "page": 21,
+      "what": "Mozart, Allegro in B flat, K. 3"
+    },
+    {
+      "id": "pdmx-QmdTZbbMT8VGXoYtr8S8LCfqDpmCd6go7ydUsMVVTCjP6K",
+      "level": 2,
+      "list": "A",
+      "page": 27,
+      "what": "Mozart, Allegro in F, K. 1c"
+    },
+    {
+      "id": "pdmx-QmUz3onQZMb2NssgZwyULUhGSWGDbzqupLa5KYsi3Nd8sv",
+      "level": 1,
+      "list": "A",
+      "page": 21,
+      "what": "Mozart, Minuet in F, K. 2"
+    },
+    {
+      "id": "pdmx-QmWPFpLyAkm7gcKYZHuEZ8NgeASsVGdyzGVrisSGKAmpvX",
+      "level": 1,
+      "list": "A",
+      "page": 21,
+      "what": "Mozart, Minuet in F, K. 2"
+    },
+    {
+      "id": "pdmx-QmSSZAHjALT7zf8hpZpLFXaBHB9ytuBETs4QbhvYDFSAaa",
+      "level": 2,
+      "list": "A",
+      "page": 27,
+      "what": "Mozart, Minuet in G, K. 1e"
+    },
+    {
+      "id": "pdmx-QmPMGUoKCzpnHAGzMPQdMbmXS731juBmSKujW1cpkr57ES",
+      "level": 2,
+      "list": "A",
+      "page": 27,
+      "what": "Mozart, Minuet in G, K. 1e, with its trio, K. 1f"
+    },
+    {
+      "id": "pdmx-QmfCULDvejZyShSRANTgFLGt4TudSaWNcuAfbV89RhdFPP",
+      "level": 2,
+      "list": "A",
+      "page": 27,
+      "what": "Mozart, Minuet in G, K. 1e, with its trio, K. 1f"
+    },
+    {
+      "id": "pdmx-QmcmB7Rvh3DyQJ63EmKEnjxqUzC8toMRd3zk6CrT6mkJyB",
+      "level": 5,
+      "list": "B",
+      "page": 48,
+      "what": "Mozart, Rondo in F, K. 15hh"
+    },
+    {
+      "id": "pdmx-QmUMjbvUcVKGhutBkr334mtKzcxWYcRsXzc2pQcjzP8kKH",
+      "level": 3,
+      "list": "A",
+      "page": 32,
+      "what": "Musette in D, BWV Anh. 126 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmVWM6wbvpu5KUmBMSMconXZsAM3AAay5LdxCNFzKpQt7g",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G minor, BWV Anh. 115"
+    },
+    {
+      "id": "pdmx-QmRrZzvLMSKYsLBvxkNAb5sEEizMmKhjMmj5Da8FaB2bef",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G minor, BWV Anh. 115 (it opens as BWV Anh. 115 does)"
+    },
+    {
+      "id": "pdmx-QmPcZ5vXeX5YEK77qDFMLrNkswKpMsRczQgeg3wfWeki6V",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G, BWV Anh. 114"
+    },
+    {
+      "id": "pdmx-QmUq8P8pvoDes682mBCKFiSSdvmfdAXak31oEPnxVNBAqv",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G, BWV Anh. 114"
+    },
+    {
+      "id": "pdmx-QmeZGCq4yEPgFQahrVwV5AsP1bvLtv8zwaxRhD7tBwPRJH",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G, BWV Anh. 114"
+    },
+    {
+      "id": "pdmx-QmPz8ot3H9kHbT1STkre6DWsejxc1tmnCqPYFSrq8Z68a7",
+      "level": 3,
+      "list": "A",
+      "page": 33,
+      "what": "Petzold, Minuet in G, BWV Anh. 114 (a 24-bar version)"
+    },
+    {
+      "id": "pdmx-QmZsHHxzDb2d1gvFyqdkKeAPDWueRYWjs4reFvHbH6fCw9",
+      "level": 3,
+      "list": "A",
+      "page": 32,
+      "what": "Polonaise in G minor, BWV Anh. 119 (Notebook for Anna Magdalena Bach)"
+    },
+    {
+      "id": "pdmx-QmTjtmaXgH4Xr81Xkdgs4YFRTwvuoXcoGagyjmez2pkuEJ",
+      "level": 8,
+      "list": "D",
+      "page": 77,
+      "what": "Satie, Gnossienne No. 3"
+    },
+    {
+      "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-06",
+      "level": 8,
+      "list": "C",
+      "page": 74,
+      "what": "Schumann, An Important Event, Op. 15 No. 6"
+    },
+    {
+      "id": "pdmx-QmQ91CoSnRCiMV4oVgLTJruJcnLjXPS4Myxj5P5o7Rr3ug",
+      "level": 4,
+      "list": "C",
+      "page": 43,
+      "what": "Schumann, First Loss, Op. 68 No. 16"
+    },
+    {
+      "id": "pdmx-QmTqcy2mY1vfL5RyJZ2HUp6jEYMHevt1yHAmdq5yinK7RX",
+      "level": 4,
+      "list": "C",
+      "page": 43,
+      "what": "Schumann, Little Study, Op. 68 No. 14"
+    },
+    {
+      "id": "pdmx-QmbT7X3bFmM9tEJYaRAoRP1Gr2B2RSttYS6LU3avyVPYcy-01",
+      "level": 6,
+      "list": "C",
+      "page": 59,
+      "what": "Schumann, Of Foreign Lands and Peoples, Op. 15 No. 1"
+    },
+    {
+      "id": "pdmx-Qmepg1r1PyQ5N2bT28PjPV6ZRVVBNopDd8nHJjbcJc3np9",
+      "level": 5,
+      "list": "C",
+      "page": 50,
+      "what": "Schumann, Siciliano, Op. 68 No. 11"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-15",
+      "level": 4,
+      "list": "C",
+      "page": 43,
+      "what": "Tchaikovsky, Italian Song, Op. 39 (No. 15 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-10",
+      "level": 5,
+      "list": "C",
+      "page": 51,
+      "what": "Tchaikovsky, Mazurka, Op. 39 (No. 10 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-01",
+      "level": 3,
+      "list": "C",
+      "page": 36,
+      "what": "Tchaikovsky, Morning Prayer, Op. 39 (No. 1 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-16",
+      "level": 4,
+      "list": "C",
+      "page": 43,
+      "what": "Tchaikovsky, Old French Song, Op. 39 (No. 16 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-14",
+      "level": 5,
+      "list": "C",
+      "page": 51,
+      "what": "Tchaikovsky, Polka, Op. 39 (No. 14 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-22",
+      "level": 7,
+      "list": "C",
+      "page": 67,
+      "what": "Tchaikovsky, Song of the Lark, Op. 39 (No. 22 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-21",
+      "level": 5,
+      "list": "C",
+      "page": 51,
+      "what": "Tchaikovsky, Sweet Dreams, Op. 39 (No. 21 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-07",
+      "level": 4,
+      "list": "C",
+      "page": 43,
+      "what": "Tchaikovsky, The Doll's Funeral, Op. 39 (No. 7 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-06",
+      "level": 2,
+      "list": "B",
+      "page": 29,
+      "what": "Tchaikovsky, The Sick Doll, Op. 39 (No. 6 in the first edition)"
+    },
+    {
+      "id": "pdmx-QmZjz6EuyUKYTfqSDQRc1fds8dnV1vCTPS8yYuHaKaa5bU-08",
+      "level": 6,
+      "list": "C",
+      "page": 59,
+      "what": "Tchaikovsky, Waltz, Op. 39 (No. 8 in the first edition)"
+    }
+  ]
+}

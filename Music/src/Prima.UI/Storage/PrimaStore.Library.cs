@@ -108,6 +108,16 @@ public sealed partial class PrimaStore
             Saved TEXT NOT NULL,
             Kept TEXT
         );
+        CREATE TABLE IF NOT EXISTS Listing (
+            Piece TEXT NOT NULL,
+            Board TEXT NOT NULL,
+            Edition TEXT NOT NULL,
+            Level INTEGER NOT NULL,
+            List TEXT,
+            Page INTEGER NOT NULL,
+            Origin TEXT NOT NULL,
+            PRIMARY KEY (Piece, Board)
+        );
         """;
 
     private const string PieceColumns = "Id, Origin, Title, Composer, Work, Format, File, Midi, Level, TypicalLevel, Reasons, Bars, Source, SourceUrl, Licence, LicenceUrl, Credit, Tier, Tempo, Layout, Position, Added, Opened";
@@ -214,6 +224,36 @@ public sealed partial class PrimaStore
         }
         await transaction.CommitAsync();
     });
+
+    /// <summary>
+    /// Where a board's syllabus lists pieces of one origin (the bundle's, from the file beside its manifest), in place of what was
+    /// kept for that origin and board, as one piece of work: a newer bundle's listings reach the tablet as its credits do. They're
+    /// kept by the piece's id alone, so one taken out of the Library and put back has its listing again.
+    /// </summary>
+    public Task KeepListingsAsync(string origin, string board, IReadOnlyList<(string Piece, Listing Listing)> listings) => RunAsync(async c =>
+    {
+        await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
+        await c.ExecuteAsync("DELETE FROM Listing WHERE Origin = @origin AND Board = @board", new { origin, board }, transaction);
+        foreach (var (piece, listing) in listings)
+        {
+            await c.ExecuteAsync("""
+                INSERT INTO Listing (Piece, Board, Edition, Level, List, Page, Origin) VALUES (@piece, @Board, @Edition, @Level, @List, @Page, @origin)
+                ON CONFLICT (Piece, Board) DO UPDATE SET Edition = excluded.Edition, Level = excluded.Level, List = excluded.List, Page = excluded.Page, Origin = excluded.Origin
+                """, new { piece, listing.Board, listing.Edition, listing.Level, listing.List, listing.Page, origin }, transaction);
+        }
+        await transaction.CommitAsync();
+    });
+
+    /// <summary>Each piece's place on a board's syllabus, by its id: the first board's, by name, where a piece has more.</summary>
+    public Task<Dictionary<string, Listing>> GetListingsAsync() => RunAsync(async c =>
+        (await c.QueryAsync<(string Piece, string Board, string Edition, long Level, string? List, long Page)>("SELECT Piece, Board, Edition, Level, List, Page FROM Listing ORDER BY Board"))
+            .GroupBy(r => r.Piece)
+            .ToDictionary(g => g.Key, g => g.Select(r => new Listing(r.Board, r.Edition, (int)r.Level, r.List, (int)r.Page)).First()));
+
+    /// <summary>A piece's place on a board's syllabus; null when none lists it.</summary>
+    public Task<Listing?> GetListingAsync(string piece) => RunAsync(async c =>
+        (await c.QueryAsync<(string Board, string Edition, long Level, string? List, long Page)>("SELECT Board, Edition, Level, List, Page FROM Listing WHERE Piece = @piece ORDER BY Board", new { piece }))
+            .Select(r => new Listing(r.Board, r.Edition, (int)r.Level, r.List, (int)r.Page)).FirstOrDefault());
 
     /// <summary>
     /// A collection the Library tool built, as one of its zips is imported, against the collection's pieces already here, as one

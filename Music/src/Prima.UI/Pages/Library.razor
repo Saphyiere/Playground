@@ -148,7 +148,7 @@
                     <a class="col-item" href="@Address("near", null)" aria-current="@(view == "near" ? "true" : null)"><span>Near your level</span><span class="n">@near</span></a>
                 }
                 <p class="col-by">
-                    @foreach (var (key, label) in Lists)
+                    @foreach (var (key, label) in ListsShown)
                     {
                         <a href="@Nav.GetUriWithQueryParameter("list", key)" aria-current="@(listed == key ? "true" : null)" @onclick="@(() => Keep("list", key))" @onclick:preventDefault>@label</a>
                     }
@@ -173,6 +173,14 @@
                         {
                             <a class="col-item" href="@Address("kind", kind)" aria-current="@(view == "kind" && of == kind ? "true" : null)"><span>@kind</span><span class="n">@count</span></a>
                         }
+                    }
+                }
+                else if (listed == "rcm")
+                {
+                    <p class="section-note">Where RCM's 2022 piano syllabus lists a piece, to learn and play.</p>
+                    @foreach (var level in pieces.Where(p => listings.ContainsKey(p.Id)).GroupBy(p => listings[p.Id].Level).OrderBy(g => g.Key))
+                    {
+                        <a class="col-item" href="@Address("rcm", level.Key.ToString())" aria-current="@(view == "rcm" && of == level.Key.ToString() ? "true" : null)"><span>RCM Level @level.Key</span><span class="n">@level.Count()</span></a>
                     }
                 }
                 else
@@ -200,7 +208,7 @@
                     <button type="button" class="mu-btn" @onclick="LetBackIn">@(collectionOut.Count == 1 ? "Let it back in" : "Let them back in")</button>
                 </div>
             }
-            <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower). <a href="library/credits">Where the music comes from</a></p>
+            <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower).@(listings.Count > 0 ? " RCM's level is where its 2022 piano syllabus lists a piece." : "") <a href="library/credits">Where the music comes from</a></p>
         </nav>
 
         <div class="lib-main">
@@ -474,7 +482,7 @@
                     <div class="band-head">
                         <div>
                             <h2 class="col-head">@Heading</h2>
-                            <p class="col-sub">@(shown.Count == 1 ? "1 piece" : $"{shown.Count:N0} pieces")@(by > 1 ? $" by {by} composers" : "").@(view == "near" ? $" {NearNote()}" : "")</p>
+                            <p class="col-sub">@(shown.Count == 1 ? "1 piece" : $"{shown.Count:N0} pieces")@(by > 1 ? $" by {by} composers" : "").@(view == "near" ? $" {NearNote()}" : view == "rcm" ? $" {RcmNote()}" : "")</p>
                         </div>
                         @if (view != "pdf")
                         {

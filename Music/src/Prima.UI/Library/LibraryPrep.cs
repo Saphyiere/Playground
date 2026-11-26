@@ -65,9 +65,26 @@ public sealed class LibraryPrep(PrimaStore store, ILibraryBundle bundle, IJSRunt
         // bundled pieces it no longer has go: a collection that's now its separate pieces, say.
         var have = await store.GetPieceIdsAsync();
         await store.RefreshBundleAsync([.. entries.Select(e => (e.Part?.Id ?? e.Piece.Id, e.Part?.Title ?? e.Piece.Title, e.Piece))]);
+        await KeepListings();
 
         var missing = entries.Where(e => (e.Part?.Id ?? e.Piece.Id) is var id && !have.Contains(id) && !removed.Contains(id)).ToList();
         if (missing.Count > 0) await StoreAll(missing, "bundle", bundle.ReadAsync, null);
+    }
+
+    // Where RCM's syllabus lists the bundle's pieces, from its file beside the manifest (Syllabus): each bundle brings them up to
+    // date, before its pieces are stored, so the lists show them as the pieces come in. A file that can't be read leaves those
+    // kept as they were.
+    private async Task KeepListings()
+    {
+        if (await bundle.ReadAsync(Syllabus.RcmFile) is not { } bytes) return;
+        try
+        {
+            var syllabus = Syllabus.Read(System.Text.Encoding.UTF8.GetString(bytes));
+            await store.KeepListingsAsync("bundle", syllabus.Board, [.. syllabus.Listings]);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
     }
 
     // What a manifest holds, as the Library keeps it: a PDF as it is, a MusicXML piece as prepared (a collection as its pieces).

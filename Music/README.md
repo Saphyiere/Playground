@@ -78,7 +78,7 @@ tools/pdf-to-midi/        Makes the MusicXML and MIDI for a bought Musicnotes PD
 tests/Prima.Core.Tests/   Tests for the Core. One reads a printed system with Claude, when PLAYGROUND_CLAUDE_KEY holds a key.
 tests/Prima.UI.Tests/     Component, persistence and conversion-lifecycle tests, with a stand-in inference provider.
 docs/                     How it works, the plan and the research.
-library/                  The Library's music (MusicXML, PDF and MIDI) and its manifest, packed into the app.
+library/                  The Library's music (MusicXML, PDF, MIDI), its manifest and RCM's levels, packed into the app.
 ```
 
 ## One-time setup (Windows)
@@ -110,6 +110,11 @@ A full run takes about 15 minutes: PDMX's index (225 MB), one pass through its 1
 files, then Mutopia's PDFs and MIDI, then half a minute preparing. `-- prepare` only prepares what's there again (after a change
 to the grader, say). Downloads are kept in `artifacts/library-cache`, so a second run only fetches what's missing;
 `-- pdmx` or `-- mutopia` runs one source.
+
+`library/rcm-2022.json` says where The Royal Conservatory's Piano Syllabus, 2022 Edition, lists the bundle's pieces: each one's
+level, its list (or that it's an étude) and the page, looked up by hand in the syllabus's free PDF. The tool doesn't write it,
+so a run that changes a piece's id leaves its entry behind; `SyllabusTests` in the Core tests names it. Prima isn't affiliated
+with The Royal Conservatory.
 
 ### More music, for your tablet only
 

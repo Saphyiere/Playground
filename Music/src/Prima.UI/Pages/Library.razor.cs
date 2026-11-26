@@ -14,7 +14,7 @@ public partial class Library
     private static readonly (string Key, string Label)[] Formats = [("all", "All"), ("notation", "To play along"), ("pdf", "PDFs")];
 
     // What the Library's list goes by, and how the uploaded pieces are sorted.
-    private static readonly (string Key, string Label)[] Lists = [("composers", "Composers"), ("kinds", "Kinds"), ("levels", "Levels")];
+    private static readonly (string Key, string Label)[] Lists = [("composers", "Composers"), ("kinds", "Kinds"), ("levels", "Levels"), ("rcm", "RCM")];
     private static readonly (string Key, string Label)[] Sorts = [("latest", "Latest"), ("az", "A–Z"), ("artist", "By artist")];
 
     private const string NotGiven = "Composer not given";
@@ -45,7 +45,7 @@ public partial class Library
     [SupplyParameterFromQuery(Name = "only")]
     public string? Only { get; set; }
 
-    /// <summary>What the list down the left goes by: composers, kinds or levels; what's shown says, when none.</summary>
+    /// <summary>What the list down the left goes by: composers, kinds, levels or RCM's levels; what's shown says, when none.</summary>
     [SupplyParameterFromQuery(Name = "list")]
     public string? List { get; set; }
 
@@ -63,6 +63,8 @@ public partial class Library
 
     private List<PieceRecord> pieces = [];
     private Dictionary<string, PieceRecord> byId = [];
+    // Where RCM's syllabus lists a piece, by its id: the bundle's pieces it lists (Syllabus).
+    private Dictionary<string, Listing> listings = [];
     // Each piece's period and kind, by its id: worked out once each time the pieces are read.
     private Dictionary<string, string> periodOf = [];
     private Dictionary<string, string> kindOf = [];
@@ -117,12 +119,15 @@ public partial class Library
 
     // What's shown beside the list. With nothing asked for, what's yours comes first.
     private string View => search is not null ? "found"
-        : By is "composer" or "kind" or "level" or "near" or "mine" or "all" or "pdf" or "period" ? By
+        : By is "composer" or "kind" or "level" or "rcm" or "near" or "mine" or "all" or "pdf" or "period" ? By
         : pieces.Any(p => p.Imported) ? "mine" : Near().Any() ? "near" : composers.Count > 0 ? "composer" : "all";
 
     private string? ShownOf => View == "composer" && (By != "composer" || Of is null) ? composers.Select(c => c.Name).FirstOrDefault() : Of;
 
-    private string ListMode => List is "composers" or "kinds" or "levels" ? List : View switch { "kind" => "kinds", "level" => "levels", _ => "composers" };
+    private string ListMode => List is "composers" or "kinds" or "levels" or "rcm" ? List : View switch { "kind" => "kinds", "level" => "levels", "rcm" => "rcm", _ => "composers" };
+
+    // What the list can go by: RCM's levels only once a piece here has one.
+    private IEnumerable<(string Key, string Label)> ListsShown => listings.Count > 0 ? Lists : Lists.Where(l => l.Key != "rcm");
 
     private string Sorted => Sort is "az" or "artist" ? Sort : "latest";
 
@@ -133,6 +138,7 @@ public partial class Library
         "found" => $"“{search}”",
         "composer" or "kind" or "period" => ShownOf,
         "level" => Of == "0" ? "Not graded" : $"Level {Of}",
+        "rcm" => $"RCM Level {Of}",
         "near" => "Near your level",
         "pdf" => "PDFs",
         "mine" => "Uploaded pieces",
@@ -198,12 +204,13 @@ public partial class Library
 
     // One of the list's own addresses. The list stays as it was switched to (kinds, say) while something else is shown.
     private string Address(string by, string? of) =>
-        $"library?by={by}{(of is null ? "" : $"&of={Uri.EscapeDataString(of)}")}{(List is "composers" or "kinds" or "levels" ? $"&list={List}" : "")}";
+        $"library?by={by}{(of is null ? "" : $"&of={Uri.EscapeDataString(of)}")}{(List is "composers" or "kinds" or "levels" or "rcm" ? $"&list={List}" : "")}";
 
     private async Task Load()
     {
         pieces = await Store.GetPiecesAsync();
         byId = pieces.ToDictionary(p => p.Id);
+        listings = await Store.GetListingsAsync();
         periodOf = pieces.ToDictionary(p => p.Id, p => Shelves.Period(p.Composer));
         kindOf = pieces.ToDictionary(p => p.Id, p => Shelves.Kind(p.Title, p.Work));
         var named = pieces.Where(p => !string.IsNullOrWhiteSpace(p.Composer)).GroupBy(p => p.Composer).ToList();
@@ -336,6 +343,7 @@ public partial class Library
         {
             "period" => periodOf[p.Id] == Of,
             "level" => LevelOf(p).ToString() == Of,
+            "rcm" => listings.GetValueOrDefault(p.Id)?.Level.ToString() == Of,
             "near" => p.PlaysAlong && (p.TypicalLevel ?? p.Level) is { } l && l >= from && l <= to,
             "pdf" => p.IsPdf,
             _ => true,
@@ -430,22 +438,29 @@ public partial class Library
     // A piece's level as it's shown: about, for a PDF whose notes aren't read (its collection's); a dash when it has none.
     private static string LevelShown(PieceRecord p) => p.Level is { } l ? (p.IsPdf && !p.HasNotes ? $"~{l}" : $"{l}") : "–";
 
-    // The line under a movement: what it is, how long, and where most of it reads when that's lower than its hardest excerpt.
-    private static string About(PieceRecord p) => Line(p.IsPdf ? "PDF" : null, Bars(p), Most_(p));
+    // The line under a movement: what it is, how long, where most of it reads when that's lower than its hardest excerpt, and
+    // RCM's level for it, where RCM's syllabus lists it.
+    private string About(PieceRecord p) => Line(p.IsPdf ? "PDF" : null, Bars(p), Most_(p), Rcm(p));
 
     // Under another version of a work: whose it is.
-    private static string AboutVersion(PieceRecord p) => Line(Whose(p), p.IsPdf ? "PDF" : null, Bars(p));
+    private string AboutVersion(PieceRecord p) => Line(Whose(p), p.IsPdf ? "PDF" : null, Bars(p), Rcm(p));
 
     // Under a piece that is a work by itself: its catalogue number first, then the set its source has it in.
-    private static string AboutAlone(ListedWork work, PieceRecord p) =>
-        Line(work.Catalogue, string.Equals(p.Work?.Replace(" ", ""), work.Catalogue?.Replace(" ", ""), StringComparison.OrdinalIgnoreCase) ? null : p.Work, p.IsPdf ? "PDF" : null, Bars(p), Most_(p));
+    private string AboutAlone(ListedWork work, PieceRecord p) =>
+        Line(work.Catalogue, string.Equals(p.Work?.Replace(" ", ""), work.Catalogue?.Replace(" ", ""), StringComparison.OrdinalIgnoreCase) ? null : p.Work, p.IsPdf ? "PDF" : null, Bars(p), Most_(p), Rcm(p));
 
     // Under a piece in a list of pieces: the work its source names.
-    private static string AboutListed(PieceRecord p) => Line(p.Work, p.IsPdf ? "PDF" : null, Most_(p));
+    private string AboutListed(PieceRecord p) => Line(p.Work, p.IsPdf ? "PDF" : null, Most_(p), Rcm(p));
 
     // Under a piece found: its work as the catalogue names it, where that isn't its own title.
     private string AboutFound(PieceRecord p) =>
-        Line(workOf?.GetValueOrDefault(p.Id) is { Parts.Count: > 1 } w ? $"{w.Title}{(w.Catalogue is null ? "" : $", {w.Catalogue}")}" : p.Work, p.Imported ? "Uploaded" : null, p.IsPdf ? "PDF" : null, Bars(p));
+        Line(workOf?.GetValueOrDefault(p.Id) is { Parts.Count: > 1 } w ? $"{w.Title}{(w.Catalogue is null ? "" : $", {w.Catalogue}")}" : p.Work, p.Imported ? "Uploaded" : null, p.IsPdf ? "PDF" : null, Bars(p), Rcm(p));
+
+    // A piece's RCM level, where RCM's syllabus lists it: "RCM 3".
+    private string? Rcm(PieceRecord p) => listings.GetValueOrDefault(p.Id)?.Short;
+
+    // What a list of RCM's level says of itself: its level is RCM's, and the number beside each piece is Prima's own.
+    private string RcmNote() => $"RCM's 2022 piano syllabus lists them at its Level {Of}, to learn and play; the number beside each is Prima's level, where it reads at sight.";
 
     private static string Line(params string?[] parts) => string.Join(" · ", parts.Where(s => !string.IsNullOrEmpty(s)));
 

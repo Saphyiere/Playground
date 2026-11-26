@@ -482,6 +482,10 @@ else
                 {
                     <li>About level @anchor, where its collection sits. Its notes aren't read yet: Options › Notes.</li>
                 }
+                @if (listing is { } listed)
+                {
+                    <li>@listed.Sentence</li>
+                }
                 @if (mei is not null && reading is { Kept: { } kept } && JsonSerializer.Deserialize<ReadingDraft>(reading.Result, Playground.AI.Assist.AssistSchema.Json) is { } read)
                 {
                     <li>Its notes were read from the PDF by Claude on @kept.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture), for @("$" + read.Cost.ToString("0.00", CultureInfo.InvariantCulture))@(read.Doubts.Count == 0 ? "" : $"; bar{(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "" : "s")} {string.Join(", ", read.Doubts.Select(d => d.Bar).Distinct().Order())} {(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "was" : "were")} still in doubt when kept").</li>
@@ -579,6 +583,8 @@ else
     private bool openedFromNotification;
 
     private PieceRecord? piece;
+    // Where RCM's syllabus lists it, when it does: About says so.
+    private Listing? listing;
     private bool missing;
     // The piece's music is still being read (loading). Then how its drawing stands, as its sheet tells it as its lines come
     // (nothing said yet: the paper is waiting); and whether its sheet has been drawn whole, or a PDF's first page has.
@@ -683,6 +689,7 @@ else
             missing = true;
             return;
         }
+        listing = await Store.GetListingAsync(Id);
 
         // Its head, its bar and About show at once, the paper waiting with a mark that moves and the way back, while its music is
         // read and drawn.
