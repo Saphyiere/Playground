@@ -1,6 +1,7 @@
 @page "/exercises/{Id}"
 @inject PrimaStore Store
 @inject Prima.UI.Routines.RoutineService Routines
+@inject AppNavigation Navigation
 @using System.Text.Json
 @using Prima.Core.Generation
 @using Prima.Core.Practice
@@ -28,7 +29,7 @@ else
         history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
     }
 
-    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name" Class="full-hide"><KeyboardLamp /></PageHead>
+    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
 
     // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
     // done of it, the key that puts it in one of your routines, and what comes next.
@@ -98,53 +99,33 @@ else
             }
             @if (choosing)
             {
-                <section class="exercise-choice full-hide" aria-label="What to play">
-                    @if (keys.Count > 1)
-                    {
-                        <div class="control-row">
-                            <span class="control-label">Key</span>
-                            <button type="button" class="mu-btn" aria-label="An easier key" disabled="@(playing || keys.IndexOf(key) == 0)" @onclick="() => Choose(keys[keys.IndexOf(key) - 1], hands)">−</button>
-                            <span class="control-value exercise-key">@exercise.KeyName(key)</span>
-                            <button type="button" class="mu-btn" aria-label="A harder key" disabled="@(playing || keys.IndexOf(key) == keys.Count - 1)" @onclick="() => Choose(keys[keys.IndexOf(key) + 1], hands)">+</button>
-                            @* Through the keys: all of them one after another as one piece of music, from the key showing on
-                               through the list and round to the one before it, each running into the next. *@
-                            <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All {keys.Count}, from {exercise.KeyName(key)}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
-                        </div>
-                    }
-                    @if (exercise.Hands.Count > 1)
-                    {
-                        <div class="control-row">
-                            <span class="control-label">Hands</span>
-                            @foreach (var h in exercise.Hands)
-                            {
-                                <button type="button" class="mu-toggle" aria-pressed="@On(hands == h)" disabled="@playing" @onclick="() => Choose(key, h)"><span class="mu-led"></span>@(h switch { HandUse.Right => "Right", HandUse.Left => "Left", _ => "Together" })</button>
-                            }
-                        </div>
-                    }
-                    @if (family is not null && variant is not null)
-                    {
-                        @* Two or three options are keys to press, like the hands; more are stepped through with − and +, like the key. *@
-                        @foreach (var variation in family.For(hands))
+                @* What's chosen, on a card above the play bar: the key on a small keyboard, the hands drawn, a family's own choices
+                   a word each; Change opens them all over the music. *@
+                <section class="practice-choice exercise-choice full-hide" aria-label="What to play">
+                    <ChoiceCard Key="key" KeyName="@exercise.KeyName(key)" Hands="hands" Open="changing" OnChange="ToggleChange" Disabled="playing">
+                        @if (family is not null && variant is not null)
                         {
-                            var at = variation.Options.ToList().FindIndex(o => o.Key == variant[variation.Key]);
-                            <div class="control-row" data-variation="@variation.Key">
-                                <span class="control-label">@variation.Name</span>
-                                @if (variation.Options.Count > 3)
-                                {
-                                    <button type="button" class="mu-btn" aria-label="@($"{variation.Name}: the one before")" disabled="@(playing || at == 0)" @onclick="() => Vary(variation.Key, variation.Options[at - 1].Key)">−</button>
-                                    <span class="control-value exercise-option">@variation.Options[at].Name</span>
-                                    <button type="button" class="mu-btn" aria-label="@($"{variation.Name}: the next")" disabled="@(playing || at == variation.Options.Count - 1)" @onclick="() => Vary(variation.Key, variation.Options[at + 1].Key)">+</button>
-                                }
-                                else
-                                {
-                                    @foreach (var option in variation.Options)
+                            @foreach (var variation in family.For(hands))
+                            {
+                                var option = variation.Options.FirstOrDefault(o => o.Key == variant[variation.Key]) ?? variation.Options[0];
+                                <span class="choice-fact">
+                                    @if (variation.Key == "interval")
                                     {
-                                        <button type="button" class="mu-toggle" aria-pressed="@On(at >= 0 && variation.Options[at] == option)" disabled="@playing" @onclick="() => Vary(variation.Key, option.Key)"><span class="mu-led"></span>@option.Name</button>
+                                        <MusicIcon Kind="interval" Steps="@IntervalSteps(option.Key)" />
                                     }
-                                }
-                            </div>
+                                    else if (variation.Key == "touch")
+                                    {
+                                        <MusicIcon Kind="@(option.Key == "detached" ? "staccato" : "legato")" />
+                                    }
+                                    @FactWords(variation.Key, option)
+                                </span>
+                            }
                         }
-                    }
+                        @if (through)
+                        {
+                            <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
+                        }
+                    </ChoiceCard>
                 </section>
             }
 
@@ -163,6 +144,63 @@ else
                             <button type="button" class="mu-btn" @onclick="ToggleWords">Back to the music</button>
                         </div>
                     </section>
+                }
+                @if (changing && choosing)
+                {
+                    <ChangePanel OnDone="ToggleChange">
+                        @if (keys.Count > 1)
+                        {
+                            <div class="control-row change-key-row">
+                                <span class="control-label">Key</span>
+                                <KeyPiano Keys="keys" Value="key" ValueChanged="k => Choose(k, hands)" Disabled="playing" />
+                                <span class="key-piano-name">@exercise.KeyName(key)</span>
+                                @* Through the keys: all of them one after another as one piece of music, from the key showing on
+                                   through the list and round to the one before it, each running into the next. *@
+                                <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All {keys.Count}, from {exercise.KeyName(key)}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
+                            </div>
+                        }
+                        @if (family is not null && variant is not null)
+                        {
+                            @* Each of a family's variations, every option a key: an interval drawn as its two notes, a touch as its
+                               slur or its dots, a count on a numbered pad. *@
+                            @foreach (var variation in family.For(hands))
+                            {
+                                <div class="control-row" data-variation="@variation.Key">
+                                    <span class="control-label">@variation.Name</span>
+                                    <div class="choice-set">
+                                        @foreach (var option in variation.Options)
+                                        {
+                                            var picture = variation.Key is "interval" or "touch";
+                                            var pad = Pads(variation.Key);
+                                            <button type="button" class="mu-toggle @(picture ? "choice-icon" : pad ? "choice-pad" : null)" aria-pressed="@On(variant[variation.Key] == option.Key)" aria-label="@option.Name" disabled="@playing" @onclick="() => Vary(variation.Key, option.Key)">
+                                                <span class="mu-led"></span>
+                                                @if (variation.Key == "interval")
+                                                {
+                                                    <MusicIcon Kind="interval" Steps="@IntervalSteps(option.Key)" />
+                                                }
+                                                else if (variation.Key == "touch")
+                                                {
+                                                    <MusicIcon Kind="@(option.Key == "detached" ? "staccato" : "legato")" />
+                                                }
+                                                <span class="choice-word">@(pad ? option.Key : option.Name)</span>
+                                            </button>
+                                        }
+                                    </div>
+                                    @if (variation.Key is "under" or "octaves")
+                                    {
+                                        <span class="choice-unit">@(variation.Key == "under" ? "fingers" : "octaves")</span>
+                                    }
+                                </div>
+                            }
+                        }
+                        @if (exercise.Hands.Count > 1)
+                        {
+                            <div class="control-row">
+                                <span class="control-label">Hands</span>
+                                <HandsChoice Offered="exercise.Hands" Value="hands" ValueChanged="h => Choose(key, h)" Disabled="playing" />
+                            </div>
+                        }
+                    </ChangePanel>
                 }
             </div>
 
@@ -318,10 +356,41 @@ else
 
     private void Starting()
     {
-        (playing, outcome, review, wordsOpen) = (true, null, null, false);
+        (playing, outcome, review, wordsOpen, changing) = (true, null, null, false, false);
     }
 
-    private void ToggleWords() => wordsOpen = !wordsOpen;
+    // The way back: to where it was opened from, by its name.
+    private string WayBack => Navigation.PreviousName ?? "Exercises";
+
+    private async Task Leave()
+    {
+        await StopRoutine();
+        await Navigation.BackAsync("exercises");
+    }
+
+    // Its words and Change share the music's place: one opening closes the other.
+    private void ToggleWords() => (wordsOpen, changing) = (!wordsOpen, false);
+
+    // Change: what to play, over the music.
+    private bool changing;
+
+    private void ToggleChange() => (changing, wordsOpen) = (!changing, false);
+
+    // An interval's steps from its lower note to its upper, for its picture.
+    private static int IntervalSteps(string option) => option switch { "third" => 2, "fourth" => 3, "fifth" => 4, "sixth" => 5, _ => 7 };
+
+    // A variation that's a count is on numbered pads, its option's number on each.
+    private static bool Pads(string variation) => variation is "quick" or "under" or "octaves";
+
+    // What's chosen of a variation, as the card says it.
+    private static string FactWords(string variation, VariationOption option) => variation switch
+    {
+        "quick" => option.Key == "1" ? "1 quick note" : $"{option.Key} quick notes",
+        "under" => $"Under {option.Name}",
+        "fingers" => $"Fingers {option.Name}",
+        "holding" => option.Key == "0" ? "Each holds in turn" : $"{option.Name} holds",
+        _ => option.Name,
+    };
 
     private void PracticeStarting() => routineSession?.Start();
 

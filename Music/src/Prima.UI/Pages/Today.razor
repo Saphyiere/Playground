@@ -4,6 +4,7 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @inject Prima.UI.Routines.RoutineService Routines
 @inject Prima.UI.Library.RepertoireBook Book
 @using Prima.UI.Routines
@@ -180,6 +181,9 @@
             Nav.NavigateTo("welcome");
             return;
         }
+
+        // What the way back from the day's steps says.
+        Navigation.Name("Today");
 
         reading = await Store.GetTrackAsync<ReadingState>("reading");
         activeRoutine = await Routines.ActiveAsync();

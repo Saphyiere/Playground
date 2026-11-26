@@ -160,12 +160,13 @@ public class LoopTests
         Assert.DoesNotContain("rptstart", view.FindComponent<Sheet>().Instance.Mei);
 
         // Through the keys: every key's two bars one after another, and the last key's close; kept for the exercise.
-        await view.Find(".exercise-through").ClickAsync(new MouseEventArgs());
+        await Choosing.Tap(view, ".exercise-through");
         view.WaitForAssertion(() => Assert.Equal(Technique.Order.Count * 2 + 1, Music().Score.Bars.Count));
         Assert.Equal(Technique.Order.Select(k => k.Name), Music().Score.Marks.Where(m => m.Kind == MarkKind.Text).Select(m => m.Text));
         Assert.True((await host.Store.GetTrackAsync<ExerciseChoice>("exercise:five"))!.Through);
+        Assert.Contains("Through the keys", Choosing.Facts(view));
         // From another key, it starts there and comes round to the key before.
-        await view.Find("[aria-label='A harder key']").ClickAsync(new MouseEventArgs());
+        await Choosing.ChooseKey(view, "A minor");
         view.WaitForAssertion(() => Assert.Equal("A minor", Music().Score.Marks.First(m => m.Kind == MarkKind.Text).Text));
         Assert.Equal("C major", Music().Score.Marks.Last(m => m.Kind == MarkKind.Text).Text);
 
@@ -178,7 +179,7 @@ public class LoopTests
 
         // Off again, and one key alone: the signs come off.
         await view.Find(".play-loop .play-mode-option").ClickAsync(new MouseEventArgs());
-        await view.Find(".exercise-through").ClickAsync(new MouseEventArgs());
+        await Choosing.Tap(view, ".exercise-through");
         view.WaitForAssertion(() => Assert.Equal(3, Music().Score.Bars.Count));
         Assert.DoesNotContain("rptstart", view.FindComponent<Sheet>().Instance.Mei);
     }
@@ -194,23 +195,26 @@ public class LoopTests
 
         // The thumb under three fingers: three bars that go round and the close, through the ten keys where it lands on white ones.
         Assert.Equal([0, 1, 2], Music().Round);
-        await view.Find(".exercise-through").ClickAsync(new MouseEventArgs());
+        await Choosing.Tap(view, ".exercise-through");
         view.WaitForAssertion(() => Assert.Equal(10 * 3 + 1, Music().Score.Bars.Count));
+        // Only those ten are on the piano: of the major keys, C, D, E, G and A; in F and B the thumb would land on a black key.
+        await Choosing.OpenChange(view);
+        Assert.Equal(["C major", "D major", "E major", "F: not offered", "G major", "A major", "B: not offered"], view.FindAll(".key-piano-white").Select(k => k.GetAttribute("aria-label")));
         foreach (var name in new[] { "A minor", "G major", "D major" })
         {
-            await view.Find("[aria-label='A harder key']").ClickAsync(new MouseEventArgs());
+            await Choosing.ChooseKey(view, name);
             view.WaitForAssertion(() => Assert.Equal(name, view.Find(".exercise-key").TextContent));
         }
         Assert.Equal(["D major", "E minor", "D minor", "A major", "G minor", "E major", "C minor", "C major", "A minor", "G major"], Named());
 
         // Under two fingers it would land on F♯ in D: those have six keys of their own, and the key goes back to the first. The
         // run through them is what's chosen: four bars in two to a key, and the close.
-        await view.Find("[data-variation=under] button[aria-label='Under: the one before']").ClickAsync(new MouseEventArgs());
+        await Choosing.Tap(view, "[data-variation=under] button[aria-label='2 fingers']");
         view.WaitForAssertion(() => Assert.Equal("C major", view.Find(".exercise-key").TextContent));
         Assert.Equal(["C major", "A minor", "G major", "F major", "E minor", "B minor"], Named());
         Assert.Equal(6 * 4 + 1, Music().Score.Bars.Count);
         Assert.Equal(new Meter(2, 4), Music().Score.Meter);
-        Assert.True(view.Find("[aria-label='An easier key']").HasAttribute("disabled"));
+        Assert.Equal("D: not offered", view.FindAll(".key-piano-white")[1].GetAttribute("aria-label"));
         var kept = await host.Store.GetTrackAsync<ExerciseChoice>("exercise:thumb-three");
         Assert.Equal(("under=2", true, 0, false), (kept!.Variation, kept.Through, kept.Fifths, kept.Minor));
 
@@ -222,7 +226,7 @@ public class LoopTests
         // It opens again as it was left: under two, through its six keys.
         var again = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, "thumb-three"));
         again.WaitForAssertion(() => Assert.Equal(25, again.FindComponent<PlayAlong>().Instance.Music?.Score.Bars.Count));
-        Assert.Equal("2 fingers", again.Find("[data-variation=under] .exercise-option").TextContent);
+        Assert.Equal(["Under 2 fingers", "Through the keys"], Choosing.Facts(again));
     }
 
     [Fact]
@@ -233,8 +237,9 @@ public class LoopTests
         {
             var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, exercise.Id));
             view.WaitForAssertion(() => Assert.NotNull(view.FindComponent<PlayAlong>().Instance.Music));
-            Assert.True(view.FindAll("[aria-label='A harder key']").Count == 1 && view.FindAll(".exercise-through").Count == 1 && view.FindAll(".play-loop").Count == 1, exercise.Id);
             Assert.Equal(exercise.KeyName(new Prima.Core.Music.Key(0)), view.Find(".exercise-key").TextContent);
+            await Choosing.OpenChange(view);
+            Assert.True(view.FindAll(".key-piano").Count == 1 && view.FindAll(".exercise-through").Count == 1 && view.FindAll(".play-loop").Count == 1, exercise.Id);
             view.Dispose();
         }
     }
@@ -250,7 +255,7 @@ public class LoopTests
         var one = Music().Score.Bars.Count;
 
         // Through the keys: every key's scale one after another, each named, from the key chosen.
-        await view.Find(".exercise-through").ClickAsync(new MouseEventArgs());
+        await Choosing.Tap(view, ".exercise-through");
         view.WaitForAssertion(() => Assert.Equal(Technique.Order.Count, Music().Score.Marks.Count(m => m.Kind == MarkKind.Text)));
         Assert.True(Music().Score.Bars.Count >= Technique.Order.Count * one);
         Assert.Equal("on", (await host.Store.GetSettingsAsync())["Technique.Through.scales"]);

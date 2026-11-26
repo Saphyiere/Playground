@@ -156,6 +156,7 @@
                 }
             </div>
         }
+        @RunKeys
         @if (startNeeds is not null)
         {
             <p class="tempo-pop play-why" role="status">@startNeeds</p>
@@ -244,8 +245,20 @@
     /// </summary>
     [Parameter] public bool Metronome { get; set; } = true;
 
-    // The metronome where there's music for it to go by (a screen that starts its runs with music of its own has none).
-    private bool HasMetronome => Metronome && Music is not null;
+    /// <summary>
+    /// The beats in a bar, for the metronome on a bar with no music to go by: a PDF's print, which scrolls at the tempo by the
+    /// beats it's given.
+    /// </summary>
+    [Parameter] public int? Beats { get; set; }
+
+    /// <summary>A screen's own keys at the end of the run's, where Start would be: a PDF's Scroll and Convert to notation.</summary>
+    [Parameter] public RenderFragment? RunKeys { get; set; }
+
+    // The metronome where there's music, or beats, for it to go by (a screen that starts its runs with music of its own has none).
+    private bool HasMetronome => Metronome && BarBeats() is not null;
+
+    // The beats a bar the metronome counts: the music's metre where it starts, or the beats given.
+    private int? BarBeats() => Music is { } music ? OpeningMeter(music).Beats : Beats;
 
     /// <summary>The tools at the bar's start (<see cref="PlayTools"/>): off only for a bar that's a slim strip (a piece's Play).</summary>
     [Parameter] public bool ShowTools { get; set; } = true;
@@ -384,7 +397,7 @@
     protected override async Task OnParametersSetAsync()
     {
         // The metronome going at what's asked of it: a new tempo, start bar's metre, or click starts it again with it.
-        if (ticking is { } going && Music is { } music && going != (Tempo, OpeningMeter(music).Beats, Settings.ClickOnPiano, Settings.ClickSound, Settings.ClickVolume)) Tick();
+        if (ticking is { } going && BarBeats() is { } beats && going != (Tempo, beats, Settings.ClickOnPiano, Settings.ClickSound, Settings.ClickVolume)) Tick();
         if (kept is not { } own || Ask == asked) return;
 
         (asked, Mode) = (Ask, Ask ?? own);
@@ -408,9 +421,8 @@
     // The metronome clicking at the tempo, by the metre where the music starts: from a downbeat, with nothing counted in.
     private void Tick()
     {
-        if (Music is not { } music) return;
+        if (BarBeats() is not { } beats) return;
 
-        var beats = OpeningMeter(music).Beats;
         Click.Start(new ClickPlan(Tempo, beats, 0, ClickStage.Throughout));
         ticking = (Tempo, beats, Settings.ClickOnPiano, Settings.ClickSound, Settings.ClickVolume);
     }

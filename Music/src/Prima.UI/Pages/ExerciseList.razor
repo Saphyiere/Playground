@@ -1,6 +1,7 @@
 @page "/exercises"
 @inject PrimaStore Store
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @inject Prima.UI.Routines.RoutineService Routines
 @using Prima.Core.Generation
 @using Prima.UI.Routines
@@ -171,6 +172,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // What an exercise's or a drill's way back says.
+        Navigation.Name("Exercises");
         done = await Store.GetDoneAsync("exercise", [.. Exercises.All.Where(e => e.Route is not null).Select(e => KindOf(e.Route!))]);
         Mine((await Routines.RoutinesAsync()).Where(r => r.Own).ToList());
         ready = true;

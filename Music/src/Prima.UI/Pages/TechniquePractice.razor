@@ -6,69 +6,35 @@
 @inject PrimaSettings Settings
 @inject IKeyboard Keyboard
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 @using Prima.Core.Scoring
 
 <PageTitle>@Title · Prima</PageTitle>
 
-<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
 
-@* What to play is yours to choose, whatever your reading level: the key (easier to harder, in the exams' order) or all the
-   keys one after another, the form, the octaves, the hands. Today's is the day's plan. Then the play bar every screen with
-   music shares, and the music in a piece's paper frame, taking the rest of the screen, as an exercise's page does; in full
-   screen only the two. *@
+@* What to play is yours to choose, whatever your reading level: the key (any of them in one tap, on the piano) or all the keys
+   one after another, the form, the octaves, the hands. What's chosen shows on a card above the play bar, Change opening it all
+   over the music; Today's goes back to the day's plan. Then the play bar every screen with music shares, and the music in a
+   piece's paper frame, taking the rest of the screen, as an exercise's page does; in full screen only the two. *@
 <div class="practice-page">
-<section class="control-rows technique-choice full-hide" aria-label="What to play">
-    <div class="control-row">
+<section class="practice-choice technique-choice full-hide" aria-label="What to play">
+    <ChoiceCard Key="choice.Key" KeyNote="@FormName()" Hands="choice.Hands" Open="changing" OnChange="ToggleChange" Disabled="playing">
         @if (Key == "independence")
         {
-            <span class="control-label">Pattern</span>
-            @foreach (var (pattern, name) in Patterns)
-            {
-                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Pattern == pattern)" disabled="@playing" @onclick="() => Choose(choice with { Pattern = pattern })"><span class="mu-led"></span>@name</button>
-            }
+            <span class="choice-fact">@Patterns.First(p => p.Pattern == choice.Pattern).Name</span>
         }
-        <span class="control-label @(Key == "independence" ? "control-label-gap" : "")">Key</span>
-        <button type="button" class="mu-btn" aria-label="An easier key" disabled="@(playing || KeyAt(-1) is null)" @onclick="() => Choose(choice with { Key = KeyAt(-1)!.Value })">−</button>
-        <span class="control-value">@choice.Key.Name</span>
-        <button type="button" class="mu-btn" aria-label="A harder key" disabled="@(playing || KeyAt(1) is null)" @onclick="() => Choose(choice with { Key = KeyAt(1)!.Value })">+</button>
-        @if (Key == "scales" && choice.Key.Minor)
+        else
         {
-            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.NaturalMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.NaturalMinor })"><span class="mu-led"></span>Natural</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form is not (ScaleKind.MelodicMinor or ScaleKind.NaturalMinor))" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.HarmonicMinor })"><span class="mu-led"></span>Harmonic</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.MelodicMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.MelodicMinor })"><span class="mu-led"></span>Melodic</button>
+            <span class="choice-fact"><MusicIcon Kind="octave" />@OctavesName(choice.Octaves)</span>
         }
-        @if (choice != today with { Hands = choice.Hands })
+        @if (through)
         {
-            <button type="button" class="mu-btn" disabled="@playing" @onclick="() => Choose(today with { Hands = choice.Hands })">Today's</button>
+            <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
         }
-        @* Through the keys: every key one after another as one piece of music, from the key showing on and round to the one
-           before it. Practice for the notes: it isn't measured for evenness and doesn't move a tempo. *@
-        <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All of them, from {choice.Key.Name}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
-    </div>
-    @if (Key != "independence")
-    {
-        <div class="control-row">
-            <span class="control-label">Octaves</span>
-            @if (Key == "arpeggios")
-            {
-                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Octaves == 0)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = 0 })"><span class="mu-led"></span>Triad</button>
-            }
-            @for (var n = 1; n <= 4; n++)
-            {
-                var octaves = n;
-                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Octaves == octaves)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = octaves })"><span class="mu-led"></span>@octaves</button>
-            }
-        </div>
-    }
-    <div class="control-row">
-        <span class="control-label">Hands</span>
-        @foreach (var h in new[] { HandUse.Right, HandUse.Left, HandUse.Together })
-        {
-            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Hands == h)" disabled="@playing" @onclick="() => Choose(choice with { Hands = h })"><span class="mu-led"></span>@HandName(h)</button>
-        }
-    </div>
+    </ChoiceCard>
     <p class="control-note">@(runs <= TechniqueState.RunsPerSet ? $"Runs {runs} of {TechniqueState.RunsPerSet}." : $"{runs} runs: a set is {TechniqueState.RunsPerSet}.") Stop if anything hurts.</p>
 </section>
 
@@ -117,6 +83,71 @@ else if (FirstRun)
     <div class="piece-frame sheet-frame piece-frame-scroll" data-follow="">
         <Sheet @ref="sheet" Mei="@mei" Layout="scroll" Class="piece-sheet" />
     </div>
+    @if (changing)
+    {
+        <ChangePanel OnDone="ToggleChange">
+            <ChildContent>
+                @if (Key == "independence")
+                {
+                    <div class="control-row">
+                        <span class="control-label">Pattern</span>
+                        <div class="choice-set">
+                            @foreach (var (pattern, name) in Patterns)
+                            {
+                                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Pattern == pattern)" disabled="@playing" @onclick="() => Choose(choice with { Pattern = pattern })"><span class="mu-led"></span>@name</button>
+                            }
+                        </div>
+                    </div>
+                }
+                <div class="control-row change-key-row">
+                    <span class="control-label">Key</span>
+                    <KeyPiano Keys="KeysOffered" Value="choice.Key" ValueChanged="k => Choose(choice with { Key = k })" Disabled="playing" />
+                    <span class="key-piano-name">@choice.Key.Name</span>
+                    @* Through the keys: every key one after another as one piece of music, from the key showing on and round to the one
+                       before it. Practice for the notes: it isn't measured for evenness and doesn't move a tempo. *@
+                    <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All of them, from {choice.Key.Name}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
+                </div>
+                @if (Key == "scales" && choice.Key.Minor)
+                {
+                    <div class="control-row">
+                        <span class="control-label">Form</span>
+                        <div class="choice-set">
+                            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.NaturalMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.NaturalMinor })"><span class="mu-led"></span>Natural</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form is not (ScaleKind.MelodicMinor or ScaleKind.NaturalMinor))" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.HarmonicMinor })"><span class="mu-led"></span>Harmonic</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(choice.Form == ScaleKind.MelodicMinor)" disabled="@playing" @onclick="() => Choose(choice with { Form = ScaleKind.MelodicMinor })"><span class="mu-led"></span>Melodic</button>
+                        </div>
+                    </div>
+                }
+                @if (Key != "independence")
+                {
+                    <div class="control-row">
+                        <span class="control-label">Octaves</span>
+                        <div class="choice-set">
+                            @if (Key == "arpeggios")
+                            {
+                                <button type="button" class="mu-toggle" aria-pressed="@On(choice.Octaves == 0)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = 0 })"><span class="mu-led"></span>Triad</button>
+                            }
+                            @for (var n = 1; n <= 4; n++)
+                            {
+                                var octaves = n;
+                                <button type="button" class="mu-toggle choice-pad" aria-pressed="@On(choice.Octaves == octaves)" aria-label="@OctavesName(octaves)" disabled="@playing" @onclick="() => Choose(choice with { Octaves = octaves })"><span class="mu-led"></span>@octaves</button>
+                            }
+                        </div>
+                    </div>
+                }
+                <div class="control-row">
+                    <span class="control-label">Hands</span>
+                    <HandsChoice Offered="AllHands" Value="choice.Hands" ValueChanged="h => Choose(choice with { Hands = h })" Disabled="playing" />
+                </div>
+            </ChildContent>
+            <Extra>
+                @if (choice != today with { Hands = choice.Hands })
+                {
+                    <button type="button" class="mu-btn" disabled="@playing" @onclick="() => Choose(today with { Hands = choice.Hands })">Today's</button>
+                }
+            </Extra>
+        </ChangePanel>
+    }
 </div>
 
 @if (result is not null && review is not null)
@@ -225,14 +256,30 @@ else if (review is not null && outcome is { Wait: not null } or { InTime: not nu
 
     private double Tempo => state.Tempo ?? 60;
 
-    private static string HandName(HandUse h) => h switch { HandUse.Right => "Right", HandUse.Left => "Left", _ => "Together" };
+    private static readonly HandUse[] AllHands = [HandUse.Right, HandUse.Left, HandUse.Together];
 
-    // The next key easier or harder in the exams' order (major keys only for the finger patterns), or null at the end.
-    private Key? KeyAt(int step)
+    // The keys to choose from, in the exams' order: major keys only for the finger patterns.
+    private IReadOnlyList<Key> KeysOffered => [.. Technique.Order.Where(k => Key != "independence" || !k.Minor)];
+
+    // A minor scale's form, under its key's name on the card.
+    private string? FormName() => Key == "scales" && choice.Key.Minor
+        ? choice.Form switch { ScaleKind.NaturalMinor => "Natural minor", ScaleKind.MelodicMinor => "Melodic minor", _ => "Harmonic minor" }
+        : null;
+
+    private static string OctavesName(int octaves) => octaves switch { 0 => "Triad", 1 => "1 octave", _ => $"{octaves} octaves" };
+
+    // Change: what to play, over the music. A run starting closes it.
+    private bool changing;
+
+    private void ToggleChange() => changing = !changing;
+
+    // The way back: to where it was opened from, by its name.
+    private string WayBack => Navigation.PreviousName ?? (From == "today" ? "Today" : "Exercises");
+
+    private async Task Leave()
     {
-        var keys = Technique.Order.Where(k => Key != "independence" || !k.Minor).ToList();
-        var i = keys.IndexOf(choice.Key) + step;
-        return i >= 0 && i < keys.Count ? keys[i] : null;
+        await StopRoutine();
+        await Navigation.BackAsync(From == "today" ? "" : "exercises?type=drills");
     }
 
     protected override async Task OnInitializedAsync()
@@ -335,7 +382,7 @@ else if (review is not null && outcome is { Wait: not null } or { InTime: not nu
 
     private Task Starting()
     {
-        (playing, result, outcome, review, comfortable) = (true, null, null, null, null);
+        (playing, result, outcome, review, comfortable, changing) = (true, null, null, null, null, false);
         return Task.CompletedTask;
     }
 

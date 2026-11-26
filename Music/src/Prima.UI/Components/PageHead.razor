@@ -2,6 +2,11 @@
    the other end, like a status lamp or a button. *@
 <header class="page-head @Class">
     <div>
+        @if (Back is not null)
+        {
+            @* The way back, by the name of where it goes, as a piece's head has it. *@
+            <button type="button" class="way-back" data-piano="off" @onclick="() => OnBack.InvokeAsync()">@Back</button>
+        }
         @if (Kicker is not null)
         {
             <p class="page-kicker">@Kicker</p>
@@ -15,6 +20,11 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
 
     [Parameter] public string? Kicker { get; set; }
+
+    /// <summary>The way back's words, the name of where it goes; none for a screen the rail is the way out of.</summary>
+    [Parameter] public string? Back { get; set; }
+
+    [Parameter] public EventCallback OnBack { get; set; }
 
     /// <summary>A class of its own: full-hide, for a head that full screen takes away.</summary>
     [Parameter] public string? Class { get; set; }

@@ -578,7 +578,11 @@ a PDF plays out; this is what came of it.
   also play (**Hear it on the piano**). A staff line is one unbroken stroke across more than half the page, so a row of beams
   lying along a staff, the ties under a system or a dashed octave line isn't taken for one, however much ink it adds up to.
   Where a scan's lines are too broken to follow, the rows that are more than half ink count instead.
-- **Converting a PDF's notes** starts from the orange **Convert to notation** button on the PDF's main toolbar. The PDF opens
+- **A PDF's bar** is the notation's play bar, its keys in the same places: its level and page, then its tools (the page turns,
+  Print once its notes are read, Options, the metronome's settings, full screen), then the metronome and the tempo, which the
+  scroll goes at. Nothing played on it is followed, so it has no mode and no Play: its own keys end it where Play would be,
+  **Scroll** (in Scroll at the tempo) and **Convert to notation**, the one to press orange.
+- **Converting a PDF's notes** starts from the orange **Convert to notation** button on the PDF's bar. The PDF opens
   normally even when it has a saved conversion; the button reopens its progress or review. The toolbar then shows **Back to
   sheet music**, while **Convert to notation** moves into the form below, requiring a separate tap before a paid request.
   Conversion and correction controls never respond to the piano's shortcut keys. Image-only PDFs are read from their pixels,
@@ -1151,9 +1155,13 @@ Technique results are compared with your own earlier runs, since there are no am
 shown as below what anyone can hear. Repetitions are capped per set and per day, with
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
 
-What a technique drill plays is yours to choose, whatever your reading level: the key, stepped easier or harder in the exams'
-order (C, A minor, G, F, D …), a minor scale natural, harmonic or melodic, one to four octaves (or an arpeggio's broken
-triad), and the hands; finger independence picks its pattern. **Today's** goes back to the day's plan. Each scale or arpeggio keeps its own
+What a technique drill plays is yours to choose, whatever your reading level. A card above the play bar says what's chosen:
+the key lit on a small keyboard and named (a minor scale's form under it), the hands drawn, the octaves (or the pattern), and
+Through the keys when it's on. **Change**, on the card, opens the choices over the music, which stays drawn underneath: the
+key on an octave of the piano, each key named as the key it picks is written (D♭ major, C♯ minor), so any key is one tap,
+with Major or Minor beside it; a minor scale natural, harmonic or melodic; one to four octaves on numbered pads (an arpeggio's
+broken triad too); the hands as two hands, both lit for together; finger independence's pattern. **Done** closes it, and so
+does a run starting; **Today's**, beside Done, goes back to the day's plan. Each scale or arpeggio keeps its own
 tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
 comfortable speed the In time runs start a little under (the pace from one moment of the music to the next, so the two keys
 of a moment played hands together count once), and the bar is set to Wait for me for that run; the tempo can also be set
@@ -1207,8 +1215,13 @@ pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) h
 press Done, once a day. A **way to practice** is a few lines to read. And a **drill** opens the drill: all twelve are the
 Drills type, and the three technique drills are in the sections they belong to as well.
 
-An exercise's page has what you do in a line, how in a few steps, and what to notice. Every one that's played offers its
-keys with − and +, easier to harder in the exams' order, and the hands it's written for: right, left, together. Most have
+An exercise's page has the way back at its head, by the name of where it was opened from (Exercises, Today), as a piece's
+has; a technique drill's has it too. Then what you do in a line, how in a few steps, and what to notice. Every
+one that's played has a card above its play bar saying what's chosen: the key lit on a small keyboard and named, the hands
+drawn, a family's choices a word each. **Change** opens the choices over the music: its keys on an octave of the piano, each
+named as the key it picks is written and any key it isn't in off, so any of them is one tap, with Major or Minor beside it
+where it has both; and the hands it's written for, two hands drawn, a tap lighting or putting out one, both lit for together
+(one stays lit; where together isn't offered, a tap is that hand alone). Most have
 every major and minor key. One that's major by its nature (major then minor, the four kinds of chord, the four-chord loop,
 Hanon's pattern, the bounced double notes, the scale in octaves) has the twelve major keys; the chromatic scale starts from
 each of the twelve notes ("From E♭") and is written without a signature; and the thumb passes under only in the keys where
@@ -1227,9 +1240,10 @@ many days, when last, and the fastest clean run In time), **Add to a routine**, 
 one (as a card's + does), and a row that leads to the next in its section (in a routine, the routine's bar has its next). One to
 read or to do away from the keys is its words.
 
-A **family** is a main exercise and the side ones a few choices make of it. Under its key and hands its page has a row for
-each **variation**: two or three options are keys to press, more are stepped through with − and + as the key is. What's
-chosen is kept with the key and hands, and the main exercise is every variation at its usual. Loop and Through the keys
+A **family** is a main exercise and the side ones a few choices make of it. Its Change has a row for each **variation**,
+every option a key: an interval drawn as its two notes on a staff, a touch as its slur or its dots, a count (quick notes,
+fingers under, octaves) on numbered pads; the card says what's chosen ("Sixths", "2 quick notes"). What's chosen is kept
+with the key and hands, and the main exercise is every variation at its usual. Loop and Through the keys
 play it as it's chosen.
 
 | Family | Its variations |

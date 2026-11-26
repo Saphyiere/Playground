@@ -445,11 +445,11 @@ public class RoutinePlayerTests
         var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, item.TargetId));
 
         // A routine asks for a key, hands and a tempo, and no variation: sixths, two quick notes, whatever was last chosen.
-        view.WaitForAssertion(() => Assert.Equal("Sixths", view.Find("[data-variation=interval] .exercise-option").TextContent));
+        view.WaitForAssertion(() => Assert.Equal(["Sixths", "2 quick notes"], Choosing.Facts(view)));
         Assert.Equal([64, 72, 64, 72], view.FindComponent<PlayAlong>().Instance.Music!.Notes.Take(4).Select(n => n.Midi));
         // A variation chosen during it is played and not kept.
-        await view.InvokeAsync(() => view.Find("[data-variation=quick] button[aria-label='Quick notes: the next']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
-        view.WaitForAssertion(() => Assert.Equal("Three", view.Find("[data-variation=quick] .exercise-option").TextContent));
+        await Choosing.Tap(view, "[data-variation=quick] button[aria-label='Three']");
+        view.WaitForAssertion(() => Assert.Equal("Three", Choosing.Chosen(view, "quick")));
         Assert.Equal(kept, await host.Store.GetTrackAsync<ExerciseChoice>("exercise:bounce"));
     }
 

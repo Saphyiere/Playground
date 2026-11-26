@@ -247,7 +247,10 @@ public class PracticeFullscreenTests
         view.WaitForElement("[aria-label='Show the print']");
         await view.InvokeAsync(() => view.Find("[aria-label='Show the print']").ClickAsync(new MouseEventArgs()));
         view.WaitForElement("[aria-label='Show the notation']");
-        Assert.Empty(view.FindAll(".play-bar"));
+        // The print's bar is the notation's, without what follows the playing: no mode, and no Play.
+        Assert.Single(view.FindAll(".play-bar"));
+        Assert.Empty(view.FindAll(".play-bar .play-mode"));
+        Assert.Empty(view.FindAll(".play-bar [data-piano='go']"));
         Assert.Single(view.FindAll(".reading-head .practice-strip"));
         var finish = view.Find(".piece-bar > .piece-title-row + .piece-finish");
         Assert.Equal("off", finish.GetAttribute("data-piano"));

@@ -1,0 +1,21 @@
+@*
+    Change: what to play, over the music, which stays drawn underneath. A row each: the key on the piano, the screen's own
+    choices, the hands as hands. Done closes it, and so does a run starting.
+*@
+<section class="change-panel" aria-label="What to play">
+    @ChildContent
+    <div class="change-panel-end">
+        @Extra
+        <button type="button" class="mu-btn mu-primary change-done" @onclick="() => OnDone.InvokeAsync()">Done</button>
+    </div>
+</section>
+
+@code {
+    /// <summary>Its rows: a <c>control-row</c> each, a <c>control-label</c> first.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Keys beside Done (Today's, to go back to the day's).</summary>
+    [Parameter] public RenderFragment? Extra { get; set; }
+
+    [Parameter] public EventCallback OnDone { get; set; }
+}

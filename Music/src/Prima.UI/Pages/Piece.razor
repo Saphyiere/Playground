@@ -63,49 +63,55 @@ else
         }
         else if (Pdf)
         {
-            <section class="reading-bar piece-bar" aria-label="The piece">
-                @if (stage == Stage.Practice && clock is not null)
-                {
-                    @* A practice session while Print shows a PDF's print: its clocks beside the title (portrait's), and in full
-                       screen Finish practice first, as on the notation's bar. *@
-                    <div class="piece-title-row">
-                        <p class="piece-bar-title">@piece.Title</p>
-                        <PracticeStrip Clock="clock" OnFinish="FinishPractice" Counts="false" />
-                    </div>
-                    @if (fullScreen)
+            @* A PDF's print has the bar the notation has, its keys in the same places: its figures, its tools (the page turns,
+               Print, Options, the metronome's settings, full screen), then the metronome and the tempo, which the scroll goes at.
+               Nothing it plays is followed, so it has no mode and no Play: its own keys end the bar where Play would be, Scroll and
+               Convert to notation, the one to press orange. *@
+            <PlayAlong Name="library-pdf" Beats="pdfLayout.BeatsPerBar" Tempo="tempo" TempoChanged="SetTempo" ShowMode="false" ShowStart="false"
+                       OnOptions="ToggleOptions" OptionsOpen="options" OnFullScreen="ToggleFullScreen">
+                <Tools>
+                    <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
+                    <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
+                    @printKey
+                </Tools>
+                <Readouts>
+                    @if (stage == Stage.Practice && clock is not null)
                     {
-                        <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
-                    }
-                }
-                else
-                {
-                    <p class="piece-bar-title">@piece.Title</p>
-                }
-                @if (pdfBytes is not null)
-                {
-                    <button type="button" class="mu-btn mu-primary piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
-                }
-                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">@(view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
-                @* The first time it's opened: the pages whose systems are still being found, behind the page showing. *@
-                @if (PagesNote() is { } coming)
-                {
-                    <p class="bar-note" role="status">@coming</p>
-                }
-                <PlayTools OnOptions="ToggleOptions" OptionsOpen="options" OnFullScreen="ToggleFullScreen" Running="playing">
-                    <Extra>
-                        <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
-                        <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
-                        @if (view == View.Scroll)
+                        @* A practice session while Print shows a PDF's print: its clocks beside the title (portrait's), and in full
+                           screen Finish practice first, as on the notation's bar. *@
+                        <div class="piece-title-row">
+                            <p class="piece-bar-title">@piece.Title</p>
+                            <PracticeStrip Clock="clock" OnFinish="FinishPractice" Counts="false" />
+                        </div>
+                        @if (fullScreen)
                         {
-                            @* Scrolling goes a system at a time: it waits for every page's to be found. *@
-                            <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" disabled="@(found is not null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                            <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
                         }
-                        @printKey
-                    </Extra>
-                </PlayTools>
-            </section>
+                    }
+                    else
+                    {
+                        <p class="piece-bar-title">@piece.Title</p>
+                    }
+                    <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
+                    <div class="mu-readout"><span class="mu-readout-label">@(view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
+                    @* The first time it's opened: the pages whose systems are still being found, behind the page showing. *@
+                    @if (PagesNote() is { } coming)
+                    {
+                        <p class="bar-note" role="status">@coming</p>
+                    }
+                </Readouts>
+                <RunKeys>
+                    @if (view == View.Scroll)
+                    {
+                        @* Scrolling goes a system at a time: it waits for every page's to be found. *@
+                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" disabled="@(found is not null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                    }
+                    @if (pdfBytes is not null)
+                    {
+                        <button type="button" class="mu-btn @(view == View.Scroll ? "" : "mu-primary") piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
+                    }
+                </RunKeys>
+            </PlayAlong>
         }
         else if (stage == Stage.Front)
         {

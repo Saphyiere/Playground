@@ -8905,6 +8905,448 @@ button.up-artist {
 }
 
 /* ---------------------------------------------------------------------------------------------------------------------------
+   Choosing what to play (an exercise, Scales, Arpeggios, Finger independence): a card above the play bar says what's chosen,
+   the key lit on a small keyboard and named, the hands drawn, the rest a word each with its picture; Change opens every choice
+   over the music: the key on an octave of the piano with its keys named, the hands as hands, the rest as keys. They're
+   Studio's keycaps with their lamps, smaller than the keys that act, a key held down when it's chosen; Vinyl's are square
+   outlined keys, the chosen one mustard.
+   --------------------------------------------------------------------------------------------------------------------------- */
+
+.practice-choice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+}
+
+.practice-choice > .control-note {
+    flex: 1 1 220px;
+}
+
+.choice-card {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px 10px 14px;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--shadow-cap);
+}
+
+[data-theme="vinyl"] .choice-card {
+    border-radius: 0;
+    border-top: 3px solid var(--accent);
+}
+
+.choice-card-key {
+    display: grid;
+}
+
+.choice-card-key .exercise-key {
+    min-width: 0;
+    text-align: left;
+    font-family: var(--mu-name);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--on-surface);
+}
+
+[data-theme="vinyl"] .choice-card-key .exercise-key {
+    font-size: 30px;
+    line-height: 30px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+.choice-card-key small,
+.choice-card-hand,
+.choice-unit {
+    font-family: var(--mu-print);
+    font-size: 10px;
+    line-height: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.choice-card-hand {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.choice-card-hands {
+    display: inline-flex;
+    color: var(--on-surface);
+}
+
+.choice-card-hands .hand-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.choice-card-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--seam);
+}
+
+.choice-card-facts {
+    display: grid;
+    gap: 2px;
+    font-family: var(--mu-ui);
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 600;
+    color: var(--on-surface);
+}
+
+.choice-fact {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.choice-fact :is(.music-icon, .cycle-icon) {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    color: var(--ink-muted);
+}
+
+.music-icon,
+.hand-icon {
+    display: block;
+}
+
+/* Change: as tall as the card's figures, smaller than the keys that act. */
+.mu-btn.choice-change {
+    min-height: 38px;
+    padding: 0 14px 0 11px;
+    gap: 8px;
+}
+
+/* The key at a glance: an octave, the key's tonic lit. */
+.mini-keys {
+    --wk: 13px;
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    gap: 1px;
+    height: 44px;
+    padding: 2px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    background: var(--key-dark);
+}
+
+.mini-keys i {
+    width: var(--wk);
+    border-radius: 0 0 2px 2px;
+    background: #f8f5ef;
+}
+
+.mini-keys b {
+    position: absolute;
+    top: 2px;
+    left: calc(2px + var(--at) * (var(--wk) + 1px) - 0.5px - var(--wk) * 0.33);
+    width: calc(var(--wk) * 0.66);
+    height: 58%;
+    border-radius: 0 0 1px 1px;
+    background: #1f1e1c;
+}
+
+.mini-keys .on {
+    background: var(--accent-2);
+}
+
+[data-theme="vinyl"] .mini-keys {
+    border-radius: 0;
+    background: #121212;
+}
+
+[data-theme="vinyl"] .mini-keys i {
+    border-radius: 0;
+    background: var(--card);
+}
+
+[data-theme="vinyl"] .mini-keys b {
+    background: #121212;
+}
+
+[data-theme="vinyl"] .mini-keys .on {
+    background: var(--accent);
+}
+
+/* Change, over the music (which stays drawn underneath), as the options cover it. */
+.change-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    align-items: center;
+    gap: 16px 40px;
+    padding: 20px 24px;
+    box-sizing: border-box;
+    border-radius: var(--mu-r-panel);
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: 0 0 0 1px var(--seam), 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="vinyl"] .change-panel {
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 3px solid var(--accent);
+}
+
+/* Its rows share a line where they fit, the key's alone on its own; Done at the end of the last. */
+.change-panel .control-row {
+    flex: none;
+    max-width: 100%;
+    gap: 10px 12px;
+}
+
+.change-panel .change-key-row {
+    flex-basis: 100%;
+}
+
+.change-panel .control-label {
+    min-width: 96px;
+}
+
+.change-panel .control-row:not(.change-key-row) > .control-label {
+    min-width: 0;
+}
+
+.change-panel-end {
+    margin-left: auto;
+    align-self: flex-end;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.choice-set {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* A choice: a keycap with its lamp, held down when it's chosen. */
+.change-panel .mu-toggle {
+    position: relative;
+    flex: none;
+    min-width: 0;
+    max-width: none;
+    height: 44px;
+    padding: 0 14px 0 11px;
+    gap: 8px;
+}
+
+.change-panel .mu-toggle[aria-pressed="true"] {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #b5afa4;
+    background: #ece8df;
+}
+
+/* A choice with its picture: the picture over its word, the lamp in the corner. */
+.change-panel .mu-toggle.choice-icon {
+    flex-direction: column;
+    justify-content: center;
+    width: 66px;
+    height: 64px;
+    padding: 8px 2px 5px;
+    gap: 3px;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+}
+
+.change-panel :is(.choice-icon, .choice-pad) > .mu-led {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 6px;
+    height: 6px;
+}
+
+.change-panel .choice-icon :is(.music-icon, .hand-icon) {
+    width: 30px;
+    height: 30px;
+    flex: none;
+}
+
+/* A count on a numbered pad. */
+.change-panel .mu-toggle.choice-pad {
+    justify-content: center;
+    width: 46px;
+    padding: 0;
+    font-family: var(--mu-figure);
+    font-size: 17px;
+    line-height: 20px;
+    letter-spacing: 0;
+}
+
+[data-theme="vinyl"] .change-panel .mu-toggle {
+    border-radius: 0;
+}
+
+[data-theme="vinyl"] .change-panel .mu-toggle.choice-icon {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+}
+
+[data-theme="vinyl"] .change-panel .mu-toggle.choice-pad {
+    font-size: 24px;
+    line-height: 24px;
+}
+
+[data-theme="vinyl"] .change-panel .mu-toggle[aria-pressed="true"] {
+    transform: none;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .change-panel .mu-toggle[aria-pressed="true"] > .mu-led {
+    background: var(--on-accent);
+}
+
+/* The key on the piano: an octave, each key named as its key is written, the chosen one lit. */
+.key-piano {
+    position: relative;
+    display: flex;
+    flex: none;
+    gap: 2px;
+    height: 80px;
+    padding: 4px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    background: var(--key-dark);
+    box-shadow: var(--shadow-cap-dark);
+}
+
+.key-piano button {
+    margin: 0;
+    border: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    font-family: var(--mu-print);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color var(--t-lamp) ease, box-shadow var(--t-lamp) ease;
+}
+
+.key-piano-white {
+    width: 34px;
+    padding: 0 0 6px;
+    border-radius: 0 0 5px 5px;
+    background: #f8f5ef;
+    color: #6d685f;
+    font-size: 11px;
+    line-height: 12px;
+}
+
+.key-piano-black {
+    position: absolute;
+    top: 4px;
+    z-index: 1;
+    width: 24px;
+    height: 47px;
+    left: calc(var(--at) * 36px - 9px);
+    padding: 0 0 5px;
+    border-radius: 0 0 4px 4px;
+    background: #1f1e1c;
+    color: #bdb8ae;
+    font-size: 8.5px;
+    line-height: 10px;
+}
+
+.key-piano [aria-pressed="true"] {
+    background: var(--accent-2);
+    color: #1d1b19;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-2) 70%, transparent);
+}
+
+/* A key with nothing offered on it, in the mode showing. */
+.key-piano button:disabled {
+    cursor: default;
+}
+
+.key-piano-white:disabled {
+    background: #cfcac0;
+    color: #9a958b;
+}
+
+.key-piano-black:disabled {
+    background: #2c2b28;
+    color: #5f5b54;
+}
+
+.key-piano-name {
+    min-width: 7em;
+    font-family: var(--mu-name);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--on-surface);
+}
+
+[data-theme="vinyl"] .key-piano {
+    border-radius: 0;
+    background: #121212;
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .key-piano-white {
+    border-radius: 0;
+    background: var(--card);
+    color: var(--on-card);
+}
+
+[data-theme="vinyl"] .key-piano-black {
+    border-radius: 0;
+    background: #121212;
+    color: color-mix(in srgb, var(--card) 70%, transparent);
+}
+
+[data-theme="vinyl"] .key-piano [aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: none;
+}
+
+[data-theme="vinyl"] .key-piano-white:disabled {
+    background: color-mix(in srgb, var(--card) 45%, #121212);
+    color: color-mix(in srgb, var(--on-card) 60%, transparent);
+}
+
+[data-theme="vinyl"] .key-piano-black:disabled {
+    background: #2a2a2a;
+}
+
+[data-theme="vinyl"] .key-piano-name {
+    font-size: 30px;
+    line-height: 30px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------------
    Motion: how Prima opens, how a screen and what's on it arrive, and how a wait looks.
 
    One curve for whatever arrives (the play summary's), and each look's own pace: Studio's keys and lamps are quick and travel
@@ -9404,7 +9846,8 @@ button.up-artist {
 
 /* In place of the music, and the music again: Options, How, What's this. The music fades out under what comes over it, and back
    in when it goes. */
-.piece-options {
+.piece-options,
+.change-panel {
     animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
 }
 
