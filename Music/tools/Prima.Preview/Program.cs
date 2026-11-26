@@ -244,10 +244,12 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
 });
 // Plays the run in progress: a share of notes right (the rest a key away), a lean and a spread in ms, and optionally nothing from
 // a bar on (a stop), a share of notes with a slip (the key above, just before the right one), a share let go at 60% of their
-// length, and every chord rolled ("roll", the ms between its keys). In one go, ending the run, so a summary can be screenshotted
-// without waiting; or with "live", each note when it's due, as from the piano, so the sheet marks them during the run.
-app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, StandInPlayer player) =>
-    Results.Text(player.Perform(new(right ?? 0.95, lean ?? -15, spread ?? 12, stop, live == true, slips, early, roll))));
+// length, every chord rolled ("roll", the ms between its keys), a drift ("drift", ms a beat: -10 speeds up, 10 slows down), and
+// each key held a share of its note ("hold": 1.1 runs into the next, 0.5 is detached). In one go, ending the run, so a summary
+// can be screenshotted without waiting; or with "live", each note when it's due, as from the piano, so the sheet marks them
+// during the run.
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, double? drift, double? hold, StandInPlayer player) =>
+    Results.Text(player.Perform(new(right ?? 0.95, lean ?? -15, spread ?? 12, stop, live == true, slips, early, roll, drift, hold))));
 // Answers the drill item on screen: right, or wrong. A step's keys go down together, or with "apart" one at a time, that many
 // ms after the one before, as a chord played a note at a time.
 app.MapGet("/keys/answer", async (bool? right, int? apart, StandInPlayer player) => Results.Text(await player.Answer(right ?? true, apart)));

@@ -25,11 +25,13 @@ public sealed class StandInPlayer
     /// <summary>
     /// How a run is played: a share of its notes right (the rest a key or two away), a lean and a spread in ms, and optionally
     /// nothing from a bar on (a stop), a share of notes with a slip (the key above, just before the right one), a share let go at
-    /// 60% of their length, and every chord rolled (the ms between its keys). In one go, ending the run at once; or live, each note
+    /// 60% of their length, every chord rolled (the ms between its keys), a drift (ms a beat, from the first note on: less than
+    /// none speeds up, more slows down), and how long each key is held as a share of its note (1.1 runs into the next note, 0.5
+    /// is detached; otherwise each comes up just before its note ends). In one go, ending the run at once; or live, each note
     /// when it's due, as from the piano, so the music is marked as it goes.
     /// </summary>
     public sealed record Performance(double Right = 0.95, double Lean = -15, double Spread = 12, int? Stop = null, bool Live = false,
-        double? Slips = null, double? Early = null, int? Roll = null);
+        double? Slips = null, double? Early = null, int? Roll = null, double? Drift = null, double? Hold = null);
 
     /// <summary>The stand-in plugged in, or out.</summary>
     public string Plug(bool connected, string name = "P-225B")
@@ -53,15 +55,19 @@ public sealed class StandInPlayer
 
         var random = new Random(9);
         var beatsPerBar = session.Plan.BeatsPerBar;
+        var first = session.Expected.Count == 0 ? 0 : session.Expected.Min(e => e.Beat);
+        // How far the drift has taken a moment of the music from the click, in ns.
+        long Drifted(double beat) => (long)((how.Drift ?? 0) * (beat - first) * 1e6);
         var notes = session.Expected
             .Where(e => how.Stop is null || e.Beat < (how.Stop.Value - 1) * beatsPerBar)
             .SelectMany(e =>
             {
                 var midi = random.NextDouble() < how.Right ? e.Midi : e.Midi + (random.NextDouble() < 0.5 ? 1 : 2);
                 var rolledBy = how.Roll is { } gap ? session.Expected.Count(o => o.Beat == e.Beat && o.Midi < e.Midi) * gap : 0;
-                var on = session.TimeAt(e.Beat) + (long)((how.Lean + rolledBy + (random.NextDouble() - 0.5) * 2 * how.Spread) * 1e6);
-                var (start, end) = (session.TimeAt(e.Beat), session.TimeAt(e.Beat + e.Beats));
-                var off = how.Early is { } share && random.NextDouble() < share ? on + (long)((end - start) * 0.6) : end - 30_000_000;
+                var on = session.TimeAt(e.Beat) + Drifted(e.Beat) + (long)((how.Lean + rolledBy + (random.NextDouble() - 0.5) * 2 * how.Spread) * 1e6);
+                var (start, end) = (session.TimeAt(e.Beat) + Drifted(e.Beat), session.TimeAt(e.Beat + e.Beats) + Drifted(e.Beat + e.Beats));
+                var off = how.Hold is { } hold ? on + (long)((end - start) * hold)
+                    : how.Early is { } share && random.NextDouble() < share ? on + (long)((end - start) * 0.6) : end - 30_000_000;
                 var note = new PlayedNote(midi, on, off, 60 + random.Next(20));
                 return how.Slips is { } slip && midi == e.Midi && random.NextDouble() < slip ? [new(midi + 1, on - 60_000_000, on - 20_000_000, 60), note] : new[] { note };
             }).ToList();

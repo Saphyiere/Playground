@@ -225,6 +225,7 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
                             Lifted = notesEvent.Articulation == Articulation.Staccato || notesEvent.Length <= Ticks.Quarter && (slurEnds.Contains(tone.Id) || slurEnds.Contains(notesEvent.Id)),
                             Articulation = notesEvent.Articulation,
                             Slur = slur,
+                            Finger = tone.Finger,
                         });
                     }
                 }
@@ -583,6 +584,9 @@ public sealed record ExpectedNote(string Id, int Midi, int Bar, int Staff, long 
 
     /// <summary>The slur it's under, by the id of the slur's first note (a pass's own, played again), so its notes are joined.</summary>
     public string? Slur { get; init; }
+
+    /// <summary>The finger printed on it, 1 (thumb) to 5: an exercise's and a drill's notes have them, a piece's mostly not.</summary>
+    public int? Finger { get; init; }
 
     /// <summary>Its id as written, without the pass a repeat adds to it ("n12" for "n12~2").</summary>
     public string WrittenId => Id.Split('~')[0];

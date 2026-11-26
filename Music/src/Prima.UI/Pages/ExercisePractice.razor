@@ -3,6 +3,7 @@
 @inject Prima.UI.Routines.RoutineService Routines
 @using System.Text.Json
 @using Prima.Core.Generation
+@using Prima.Core.Practice
 
 <PageTitle>@(exercise?.Name ?? "Exercise") · Prima</PageTitle>
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
@@ -168,7 +169,7 @@ else
             @if (outcome is not null)
             {
                 <section class="summary" aria-label="How it went">
-                    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" />
+                    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review" />
                 </section>
             }
         </div>
@@ -209,6 +210,8 @@ else
     // Its words, shown in place of the music by the bar's Options, as a piece's options are.
     private bool wordsOpen;
     private PlayOutcome? outcome;
+    // The run in two lines: what you did, and next time.
+    private RunReview? review;
     private DoneRecord? was;
     // The menu of your routines, to put it in one, and what was done there.
     private bool adding;
@@ -270,7 +273,7 @@ else
         if (loop) score = score.WithRepeat(round[0], round[^1]);
         mei = MeiWriter.Write(score, tempo);
         music = new PlayMusic(score, score.Expected()) { Round = round };
-        outcome = null;
+        (outcome, review) = (null, null);
     }
 
     // What's kept of how it was last played: an activity of one of Claude's routines, played as its recipe says, leaves that as it
@@ -315,7 +318,7 @@ else
 
     private void Starting()
     {
-        (playing, outcome, wordsOpen) = (true, null, false);
+        (playing, outcome, review, wordsOpen) = (true, null, null, false);
     }
 
     private void ToggleWords() => wordsOpen = !wordsOpen;
@@ -328,6 +331,10 @@ else
     private async Task Finished(PlayOutcome how)
     {
         (playing, outcome) = (false, how);
+        // Its review: through the keys, no one key's sharps and flats are the ones to name.
+        review = how.InTime is { } run ? RunReviews.InTime(run, through ? null : key, how.Passes, how is { Stopped: true, Passes.Count: 0 } ? $"bar {how.Bar}" : null)
+            : how.Wait is { } waited ? RunReviews.Waited(waited, Trouble.Of(how.Marks, music?.Notes.GroupBy(n => n.WrittenId).ToDictionary(g => g.Key, g => g.First().Bar) ?? []), how.Passes)
+            : null;
         // Stopped before a key that could be judged (in the count-in, or with nothing played): there's no run to keep.
         if (how is { InTime: null, Wait: null or { Notes: 0 } }) return;
 

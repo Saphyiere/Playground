@@ -38,6 +38,12 @@ node Music/tools/checks/drills.mjs <folder for pictures>
 `drive.mjs` is the driver they share: `open()` gives a page to `go` to, `tap`, read with `evaluate`, wait on with `until`, and
 photograph with `shot`; `get` asks the preview itself (`keys/perform`, `seed/…`).
 
+`keys/perform` plays the run in progress, its knobs in the query: `right` (the share of notes right, the rest a key or two
+away), `lean` and `spread` (ms), `stop` (nothing from that bar on), `slips` and `early` (shares of notes), `roll` (ms between a
+chord's keys), `drift` (ms a beat from the first note on: `-10` a run that gets ahead of the click, `10` one that falls behind)
+and `hold` (each key down for this much of its note: `1.1` legato into the next, `0.5` detached); `live=true` plays each note
+as it's due. A run's review (concept, "A run's review") answers to each: rushed, uneven, wrong notes, detached.
+
 A line the engraver says it squeezed ("Justification is highly compressed": the slow trills' bar of sixteenths with a
 finger on each, at the tablet's width) is noted at the end of the exercise's line and not counted: it still reads.
 

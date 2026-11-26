@@ -119,30 +119,46 @@ else if (FirstRun)
     </div>
 </div>
 
-@if (result is not null)
+@if (result is not null && review is not null)
 {
-    <section class="mu-screen summary-figures" aria-label="The run">
-        <div class="mu-readouts">
-            @foreach (var (hand, run) in new[] { ("Right", result.Right), ("Left", result.Left) }.Where(r => r.Item2 is not null))
+    @* The run in two lines, what you did and next time; the figures, and a line on each, under Show details. A hand is named
+       there only when both played. *@
+    var named = result.Right is not null && result.Left is not null;
+    <section class="summary" aria-label="The run">
+        <div class="sum">
+            <section class="mu-screen sum-quick" aria-label="In short">
+                <ReviewLines Review="review" />
+                <div class="sum-quick-keys">
+                    <button type="button" class="mu-btn sum-more" aria-expanded="@On(Settings.SummaryDetails)" aria-controls="run-details" @onclick="ToggleDetails">@(Settings.SummaryDetails ? "Hide details" : "Show details")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+                </div>
+            </section>
+            @if (Settings.SummaryDetails)
             {
-                <div class="mu-readout @(run!.Valid ? "" : "miss")"><span class="mu-readout-label">@hand evenness</span><span class="mu-readout-value">@(run.Valid ? $"±{run.IoiSdPercent:0.0}%" : Slips(run))</span></div>
-            }
-            @if (result.SyncMeanMs is { } sync)
-            {
-                <div class="mu-readout"><span class="mu-readout-label">Hands apart</span><span class="mu-readout-value">@($"{Math.Abs(sync):0} ms")</span></div>
+                <section id="run-details" class="mu-screen summary-figures" aria-label="The figures">
+                    <div class="mu-readouts">
+                        @foreach (var (hand, run) in new[] { ("Right", result.Right), ("Left", result.Left) }.Where(r => r.Item2 is not null))
+                        {
+                            <div class="mu-readout @(run!.Valid ? "" : "miss")"><span class="mu-readout-label">@(named ? $"{hand} evenness" : "Evenness")</span><span class="mu-readout-value">@(run.Valid ? $"±{run.IoiSdPercent:0.0}%" : Slips(run))</span></div>
+                        }
+                        @if (result.SyncMeanMs is { } sync)
+                        {
+                            <div class="mu-readout"><span class="mu-readout-label">Hands apart</span><span class="mu-readout-value">@($"{Math.Abs(sync):0} ms")</span></div>
+                        }
+                    </div>
+                </section>
+                <ul class="summary-words">
+                    @foreach (var line in Words())
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
             }
         </div>
     </section>
-    <ul class="summary-words">
-        @foreach (var line in Words())
-        {
-            <li>@line</li>
-        }
-    </ul>
 }
-else if (outcome is { Wait: not null } or { InTime: not null })
+else if (review is not null && outcome is { Wait: not null } or { InTime: not null })
 {
-    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")">
+    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review">
         <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"Your own speed came to about {bpm:0} beats a minute, so In time starts at {state.Tempo:0}." : "Wait for me is practice for the notes: it doesn't count for evenness or move the tempo.")</li>
     </PlaySummary>
 }
@@ -188,6 +204,8 @@ else if (outcome is { Wait: not null } or { InTime: not null })
     private TechniqueState state = TechniqueState.New;
     private TechniqueResult? result;
     private PlayOutcome? outcome;
+    // The run in two lines: what you did, and next time.
+    private RunReview? review;
     private double? comfortable;
     private Sheet? sheet;
     private bool playing;
@@ -300,7 +318,13 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         music = new PlayMusic(score, score.Expected());
         state = await Store.GetTrackAsync<TechniqueState>(StateKey) ?? TechniqueState.New;
         if (routineSession?.Item is { } requested && routineSession.Rcm is null) state = state with { Tempo = requested.Tempo };
-        (result, outcome, comfortable) = (null, null, null);
+        (result, outcome, review, comfortable) = (null, null, null, null);
+    }
+
+    private async Task ToggleDetails()
+    {
+        Settings.SummaryDetails = !Settings.SummaryDetails;
+        await Store.SaveAsync(Settings);
     }
 
     private async Task SetTempo(double bpm)
@@ -311,7 +335,7 @@ else if (outcome is { Wait: not null } or { InTime: not null })
 
     private Task Starting()
     {
-        (playing, result, outcome, comfortable) = (true, null, null, null);
+        (playing, result, outcome, review, comfortable) = (true, null, null, null, null);
         return Task.CompletedTask;
     }
 
@@ -327,6 +351,10 @@ else if (outcome is { Wait: not null } or { InTime: not null })
 
         // Round a loop, each time round played to its end is a run of the set; anything else is one.
         runs += Math.Max(1, how.Passes.Count);
+        // Its review, but In time on one key, which its evenness gives once it's scored. Through the keys, no one key's sharps and
+        // flats are the ones to name.
+        review = how.InTime is { } played ? through ? RunReviews.InTime(played, null, how.Passes, StoppedAt(how)) : null
+            : RunReviews.Waited(how.Wait!, [], how.Passes);
         if (through)
         {
             // Through the keys is practice for the notes: kept as a run of the drill, with nothing for evenness and no tempo moved.
@@ -347,6 +375,8 @@ else if (outcome is { Wait: not null } or { InTime: not null })
             {
                 comfortable = 60_000 / (gapMs * item.NotesPerBeat);
                 state = state.Comfortable(comfortable.Value, Today);
+                // Its next is In time, started from that speed: said before anything's drawn.
+                if (review is { Focus: ReviewFocus.None }) review = review with { Next = "In time, a little under your own speed." };
                 if (Keeps) await Store.SaveTrackAsync(StateKey, state);
             }
             if (routineSession?.Execution is not null)
@@ -393,11 +423,19 @@ else if (outcome is { Wait: not null } or { InTime: not null })
         await (sheet?.ShowMarks(marks) ?? Task.CompletedTask);
         var sd = handRuns.Where(r => r.Valid).Select(r => r.IoiSdPercent).DefaultIfEmpty(0).Max();
         var tempo = ranAt = Tempo;
+        var before = state;
         if (Keeps)
         {
             state = state.After(result.Valid, result.Valid ? sd : null, Today);
             await Store.SaveTrackAsync(StateKey, state);
         }
+        // Its review, held to the evenness the run was; the next a step on, or where the tempo's moved, that. A run stopped before
+        // its end is reviewed as far as it went, as the play bar scored it: the notes not reached weren't left out.
+        var rcm = routineSession?.Rcm?.Activity;
+        var step = state.Tempo > before.Tempo ? "A little faster: the tempo's gone up." : RunReviews.StepOn(tempo, result.Valid ? rcm?.Rcm : null, rcm?.LevelName);
+        review = outcome is { InTime: { } far, Stopped: true, Passes.Count: 0 } ? RunReviews.InTime(far, null, null, StoppedAt(outcome), step)
+            : RunReviews.Technique(result, run, tempo, before.Target, outcome?.Passes, step);
+        if (state.Tempo < before.Tempo) review = review with { Next = "A little slower, for every note: the tempo's come down." };
         var measures = new
         {
             valid = result.Valid,
@@ -419,20 +457,23 @@ else if (outcome is { Wait: not null } or { InTime: not null })
 
         // Round a loop, how many times it went round, as every screen's summary says it; the evenness is the last pass's.
         if (outcome is { Loop: { } round, Passes: { Count: > 0 } passes }) yield return PlaySummary.PassesSaid(round, passes);
+        // A hand is named only when both played.
+        var named = result.Right is not null && result.Left is not null;
         foreach (var (hand, run) in new[] { ("Right hand", result.Right), ("Left hand", result.Left) })
         {
             if (run is null) continue;
+            string Of(string what) => named ? $"{hand}, {what}" : char.ToUpperInvariant(what[0]) + what[1..];
             if (!run.Valid)
             {
-                yield return $"{hand}: {Slips(run)}, marked on the music. This run doesn't count for evenness.";
+                yield return $"{(named ? $"{hand}: " : "")}{Slips(run)}, marked on the music. This run doesn't count for evenness.";
                 continue;
             }
 
-            yield return $"{hand}: the gaps between notes varied by {TechniqueScorer.Describe(run.IoiSdMs, noiseFloor)} (±{run.IoiSdPercent:0.0}% of the gap) at {run.Bpm:0} beats a minute{(Math.Abs(run.SlopeMsPerNote) > 0.5 ? $", {(run.SlopeMsPerNote < 0 ? "speeding up" : "slowing down")} steadily" : "")}.";
-            if (run.CrossingMs is { } crossing) yield return $"{hand}, thumb crossings: {(Math.Abs(crossing) < TechniqueScorer.HearingMs ? TechniqueScorer.Describe(crossing, noiseFloor) : $"{Math.Abs(crossing):0} ms {(crossing > 0 ? "late" : "early")}")}.";
-            if (run.SeamMs is { } seam) yield return $"{hand}, across the octaves: {TechniqueScorer.Describe(seam, noiseFloor)}.";
+            yield return $"{Of("evenness")}: the gaps between notes varied by {TechniqueScorer.Describe(run.IoiSdMs, noiseFloor)} (±{run.IoiSdPercent:0.0}% of the gap) at {run.Bpm:0} beats a minute{(Math.Abs(run.SlopeMsPerNote) > 0.5 ? $", {(run.SlopeMsPerNote < 0 ? "speeding up" : "slowing down")} steadily" : "")}.";
+            if (run.CrossingMs is { } crossing) yield return $"{Of("thumb crossings")}: {(Math.Abs(crossing) < TechniqueScorer.HearingMs ? TechniqueScorer.Describe(crossing, noiseFloor) : $"{Math.Abs(crossing):0} ms {(crossing > 0 ? "late" : "early")}")}.";
+            if (run.SeamMs is { } seam) yield return $"{Of("across the octaves")}: {TechniqueScorer.Describe(seam, noiseFloor)}.";
             var legato = run.LegatoMs >= 0 ? $"the keys overlapped {run.LegatoMs:0} ms on average" : $"a gap of {-run.LegatoMs:0} ms between keys on average";
-            yield return run.VelocitySd > 0 ? $"{hand}, touch: velocity varied by ±{run.VelocitySd:0}. Legato: {legato}." : $"{hand}, legato: {legato}.";
+            yield return run.VelocitySd > 0 ? $"{Of("touch")}: velocity varied by ±{run.VelocitySd:0}. Legato: {legato}." : $"{Of("legato")}: {legato}.";
         }
         if (result.SyncSdMs is { } syncSd) yield return $"The hands landed {Math.Abs(result.SyncMeanMs ?? 0):0} ms apart on average, give or take {TechniqueScorer.Describe(syncSd, noiseFloor)}.";
         if (state.InvalidInRow == 0 && !result.Valid && state.Tempo is { } t) yield return $"Next run a little slower: {t:0}.";
@@ -444,6 +485,9 @@ else if (outcome is { Wait: not null } or { InTime: not null })
                 : $"RCM {rcm.LevelName} asks at least ♩ {rcm.Rcm:0}; this run went at ♩ {ranAt:0}.";
         }
     }
+
+    // Where a run stopped before its end was stopped, for its review: none for one played to its end, or round a loop.
+    private static string? StoppedAt(PlayOutcome how) => how is { Stopped: true, Passes.Count: 0 } ? $"bar {how.Bar}" : null;
 
     // A run's slips, briefly: "1 wrong", "2 missed", "1 wrong, 1 extra".
     private static string Slips(HandRun run) => string.Join(", ", new[] { (run.Wrong, "wrong"), (run.Missed, "missed"), (run.Extras.Count, "extra") }.Where(s => s.Item1 > 0).Select(s => $"{s.Item1} {s.Item2}"));

@@ -1,0 +1,10 @@
+@using Prima.Core.Practice
+
+@* A run's review in two lines: what you did, its key what went right or what fell short, and next time, its key hollow. Each
+   label is as long as the other, so the words line up. *@
+<p class="sum-point review-did"><span class="sum-key @(Review.Focus == ReviewFocus.None ? "good" : "bad")" aria-hidden="true"></span><span class="mu-readout-label">This run</span><span>@Review.Did</span></p>
+<p class="sum-point review-next"><span class="sum-key next" aria-hidden="true"></span><span class="mu-readout-label">Next time</span><span>@Review.Next</span></p>
+
+@code {
+    [Parameter, EditorRequired] public RunReview Review { get; set; } = null!;
+}

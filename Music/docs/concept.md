@@ -965,6 +965,15 @@ the next time it starts, as of when it happened.
   (and staccatissimo, spiccato and portato), the last note under a slur when it's a quarter or shorter (lifted to end the slur),
   ornamented notes, and a note still down when a run is stopped before its end. The summary's **Held** is the share of judged
   notes held; holds don't change in-time accuracy, clean, or the level. Wait for me doesn't judge them.
+- How each hand played, for [a run's review](#a-runs-review) (in Prima's music a staff is a hand): how **even** the gaps between
+  its notes were against the gaps written (the spread of each gap's difference, in % of it, so a run that speeds up or slows
+  down steadily isn't uneven); how **joined** its notes were where one is written to last until the next (the median silence
+  between a key coming up and the next going down, in % of the gap, less than none an overlap; staccato notes, a slur's lifted
+  end and a key struck again aren't asked to join); and where the touch varies and nothing in that hand shapes its loudness (a
+  slur, an accent), how much the velocity varied, and each finger's mean over four notes of it or more. With both hands, where
+  they play at once, how long after the left's the right's keys land, on average and from one moment to the next. And how
+  far **ahead** of the click the run got from its first note to its last (behind it, less than none), on the line the tempo
+  drift comes from. None of these changes in-time accuracy, clean, or the level.
 - Expression, judged only where the music marks it, and apart from the notes and timing: it doesn't change in-time accuracy,
   clean, or the level (our choice). The marks are the score's own: a generated passage's, or a piece's own file's (its slurs,
   dynamics, crescendos, pedal and ornaments, read for this, apart from what the Library's grading and excerpt cuts read).
@@ -984,7 +993,8 @@ the next time it starts, as of when it happened.
 
 ### The summary
 
-The same after every run to a tempo (Sight-read, a Library piece). First **a few lines**, to take in at a glance, each with
+The same after every run to a tempo (Sight-read, a Library piece; on an exercise or a technique drill, [a run's
+review](#a-runs-review)'s two lines take the few lines' place). First **a few lines**, to take in at a glance, each with
 its bars: the **notes** (how many were right, what the others were, and the bars with the most of them) and the **timing**
 (the share of the right notes that were in time, since a wrong note has no timing to be out, and where it rushed, held back
 or was off the beat); then a line only for what there is to work on: notes
@@ -1019,6 +1029,45 @@ rises under it; the timing rises from the beat outwards, the notes that were off
 down, the ones let go early last. The bars come in from **the one with the most to fix**: the worst three a moment apart,
 then the others in a run, then the bars with nothing to fix. The map's marks grow in the same order, whenever it opens, and
 the page follows it down as it does. With the tablet set to remove animations, everything is there at once.
+
+### A run's review
+
+After a run of an exercise or a technique drill, two lines and nothing else: **This run**, what you did, and **Next time**,
+the one thing to work on, or with nothing to fix the step on ("A little faster.", in one of RCM's routines towards RCM's tempo,
+or where a drill's tempo has just moved, that). Everything else is under **Show details**: the summary's panels and bars, or on
+a drill its figures and a line on each. A hand is named only when both played and one did what the other didn't; with one
+hand, never, not even in the details. The figures it's drawn from are the run's scores ([How a passage is
+scored](#how-a-passage-is-scored), and a drill's evenness under [Drills](#drills)): it measures nothing of its own.
+
+The first line leads with the notes (every note right; a slip or two, and where when that's one place; or what went wrong with
+them), then what was good (steady or even, legato, the hands together), or the one thing that wasn't: "Every note right, but
+you got ahead of the click as you went." When there's more than one thing, the first of these is the one:
+
+1. **Keeping going**: a stop of more than a bar. "Keep going through a slip: the click won't wait."
+2. **The notes**: a sharp or flat of the key or the scale played as its plain letter ("F instead of F♯ twice", then "Think of
+   the F♯ before you start"); with both hands, the slips nearly all in one ("The left hand alone for a run or two, then
+   together"); most of them in two bars in a row, or on a drill in one part of it (going up, at the top, coming down, at the
+   thumb crossings), to play slowly on their own; or all through: many (Wait for me first, to learn them), a key off, left out.
+   One or two are counted, and asked about only when nothing bigger is.
+3. **With the click**: ahead of it or behind it by a tenth of a beat at the end of the run, where a note starts to be heard
+   apart from the click; or leaning one way all through by 12% of a beat; on a drill, also speeding up or slowing down within
+   the run by 15% of a gap.
+4. **What the music marks**: loud and soft, a crescendo or diminuendo, staccato, tenuto, slurs, accents, the pedal.
+5. **Evenness**: even to 8%, Prima's tightest evenness target (a drill's own target where that's wider), a little uneven to 12%
+   (or half as much again as the target), uneven past it. On a drill a bump at the thumb crossings or at each new octave is
+   named first, where it stands out from the rest (10 ms, and half as much again as the run's spread), and where it was less
+   even, going up or coming down. Where the gaps say nothing, notes well off the click.
+6. **The hands together**: within 25 ms on average, and 30 ms from one moment to the next.
+7. **Legato**: legato to 5% of the gap in silence, a little short of it to 25%, detached past that; and long notes let go
+   early.
+8. **Loudness**, where the piano's touch varies and the music asks for one loudness (no dynamics, slurs or accents): a finger
+   12 louder or softer (velocity) than the others, or the notes' velocity spread past 12.
+
+Wait for me's review is of the notes right first time, where the slips were, and the chords played a key at a time; with
+nothing to fix its next is In time, and on a drill's first run In time a little under your own speed. Round a loop the passes
+lead ("Four times round, every one clean but the third"), and the rest is the last pass's. A run stopped before its end is
+reviewed as far as it went ("Up to bar 5: every note right, steady and legato."). A piece, Sight-read and a routine's pieces
+keep the summary's few lines.
 
 ### Levels
 
@@ -1096,6 +1145,8 @@ fast one. Confusable notes are mixed. After each technique run the music is mark
 wrong, the note grey and the key you played beside it in red, each named above; outlined grey missed; and a red head beside a
 note for an extra key. The keys are lined up with the notes by the fewest slips, so one slip counts once instead of throwing out
 every note after it, and the result says how many were wrong, missed or extra. A run with a slip doesn't count for evenness.
+After a run, [a run's review](#a-runs-review) says in two lines what you did and what's next; under Show details are the
+evenness (each hand's, named, only with both), how far apart the hands landed, and a line on each measure.
 Technique results are compared with your own earlier runs, since there are no amateur norms; differences under about 10 ms are
 shown as below what anyone can hear. Repetitions are capped per set and per day, with
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
@@ -1114,8 +1165,8 @@ start, and the step is done with the arpeggio's third run, not the scale's.
 
 A technique drill's bar has **Loop** (see [Playing to a tempo](#playing-to-a-tempo)): the scale, arpeggio or pattern goes
 round whole, each time round a run of the set, and the evenness shown when it's stopped is the last pass's, from that pass's
-own keys; its summary says so first, as every screen's does ("2 passes of bars 1 to 2, right in time: 100% and 100%. The rest
-is the last pass."). Looping isn't held to five runs: it goes until Stop. Beside the key is **Through the keys**: every key one after
+own keys; its review leads with the passes ("Twice round, every one clean"), and its details say so first, as every screen's
+summary does ("2 passes of bars 1 to 2, right in time: 100% and 100%. The rest is the last pass."). Looping isn't held to five runs: it goes until Stop. Beside the key is **Through the keys**: every key one after
 another as one piece of music, from the key showing on through the list and round to the one before it, each named over
 its first note with its signature where it starts, in the form, octaves and hands chosen, at the tempo showing. A run
 through the keys is practice for the notes, summed up as an exercise's run is: it isn't measured for evenness, no key's
@@ -1149,7 +1200,8 @@ Prima writes each one's notes itself, in the key and for the hands you choose.
 | Ways to practice anything | Slow enough to be right, hands separately then together, small sections, fixing a mistake at once, the metronome ladder, mixing things up, sleeping on it, recording yourself, the hard bit first, when to stop |
 
 There are four kinds. One **played at the piano** (47 of them) shows its music with the fingering under the play bar every
-screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards. Its notes, timing and held notes
+screen with a tempo shares: In time, Wait for me or Listen, with the same summary afterwards, its few lines [a run's
+review](#a-runs-review)'s two. Its notes, timing and held notes
 are judged as a passage's are, and so, where its music marks them, are the touch (slurs and staccato), loud and soft, and the
 pedal. One **away from the keys** (sitting, the warm-ups, the pedal by itself) has nothing for Prima to follow: you do it and
 press Done, once a day. A **way to practice** is a few lines to read. And a **drill** opens the drill: all twelve are the

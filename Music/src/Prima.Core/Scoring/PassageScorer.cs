@@ -41,7 +41,21 @@ public enum WrongKind
 /// right one followed it at once), or missed.
 /// </summary>
 public sealed record NoteResult(string Id, int Midi, int Bar, Outcome Outcome, double? ErrorMs = null, double? ErrorPercent = null, Band? Band = null, int? Played = null, WrongKind? Wrong = null,
-    double? HeldPercent = null, bool LetGoEarly = false, bool Corrected = false, int? Velocity = null, Touch? Touch = null, Articulation Asked = Articulation.None);
+    double? HeldPercent = null, bool LetGoEarly = false, bool Corrected = false, int? Velocity = null, Touch? Touch = null, Articulation Asked = Articulation.None)
+{
+    /// <summary>Its staff: in Prima's music, 1 the right hand's and 2 the left's.</summary>
+    public int Staff { get; init; }
+}
+
+/// <summary>
+/// How one staff's notes were played (in Prima's music a staff is a hand), from its moments in order, each tick it has notes
+/// played right: how even the gaps between them were against the gaps written, as the spread of each gap's difference in % of
+/// it; how joined each moment was to the next where it's written to last until it, as the median silence between a key coming
+/// up and the next going down in % of the gap (less than none: still down, an overlap); and, where the touch varied and the
+/// staff asks for one loudness (no slur or accent shapes it), how much the keys' velocity did and each finger's mean, for
+/// fingers printed on four notes or more. Null where there's too little to go on: three gaps, joins or notes at least.
+/// </summary>
+public sealed record StaffPlaying(int Staff, double? GapSpreadPercent, double? SilencePercent, double? VelocitySd, IReadOnlyDictionary<int, double> VelocityByFinger);
 
 /// <summary>
 /// A passage's result (plan, Scoring a passage). In-time accuracy is the headline: right notes not graded off, out of the notes in
@@ -101,6 +115,23 @@ public sealed record PassageResult(
 
     /// <summary>Whether how hard the keys were struck varied: a piano set to Fixed touch sends one velocity, and loudness can't be judged.</summary>
     public bool TouchVaries { get; init; }
+
+    /// <summary>Each staff's notes as played: how even, how joined, how loud by finger.</summary>
+    public IReadOnlyList<StaffPlaying> Staves { get; init; } = [];
+
+    /// <summary>
+    /// Where both staves have notes at once: how far the upper staff's landed after the lower's on average (ms, less than none
+    /// before it), and how much that varied. Null with fewer than three such moments.
+    /// </summary>
+    public double? HandsApartMs { get; init; }
+
+    public double? HandsApartSdMs { get; init; }
+
+    /// <summary>
+    /// How far ahead of the click the run got from its first note to its last, by the line through when its notes came against
+    /// when they were due, in % of a beat: a run that speeds up gets ahead (more than none), one that slows down falls behind.
+    /// </summary>
+    public double? AheadPercent { get; init; }
 
     /// <summary>Right notes not graded off, out of the notes in the passage: the headline the levels and the 85% aim use.</summary>
     public double InTimeAccuracy => Expected == 0 ? 0 : (InTime + Audible) / (double)Expected;
@@ -293,15 +324,15 @@ public static class PassageScorer
                     : e.Articulation == Articulation.Tenuto && whole && writtenNs - held > Math.Max(0.1 * writtenNs, beatNs / 8) ? Touch.TenutoShort
                     : null;
                 return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Right, errors[i], percent, Grading.BandOf(percent),
-                    HeldPercent: judged ? held / writtenNs * 100 : null, LetGoEarly: judged && Grading.LetGoEarly(held, writtenNs, beatNs), Velocity: key.Velocity, Touch: touch, Asked: e.Articulation);
+                    HeldPercent: judged ? held / writtenNs * 100 : null, LetGoEarly: judged && Grading.LetGoEarly(held, writtenNs, beatNs), Velocity: key.Velocity, Touch: touch, Asked: e.Articulation) { Staff = e.Staff };
             }
             if (wrong.TryGetValue(i, out var pi))
             {
                 var played = notes[pi].Note.Midi;
                 var apart = Math.Abs(played - e.Midi);
-                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Wrong, Played: played, Wrong: apart <= 2 ? WrongKind.LostOnKeyboard : apart % 12 == 0 ? WrongKind.Octave : WrongKind.Reading, Corrected: corrected.Contains(i));
+                return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Wrong, Played: played, Wrong: apart <= 2 ? WrongKind.LostOnKeyboard : apart % 12 == 0 ? WrongKind.Octave : WrongKind.Reading, Corrected: corrected.Contains(i)) { Staff = e.Staff };
             }
-            return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Missed);
+            return new NoteResult(e.Id, e.Midi, e.Bar, Outcome.Missed) { Staff = e.Staff };
         }).ToList();
 
         var afterLean = errors.Values.Select(v => (v - lean) / beatMs * 100).ToArray();
@@ -311,12 +342,14 @@ public static class PassageScorer
         var onsets = notes.Select(n => n.At).Prepend(first - window).Append(last).Order().ToArray();
         var keptGoing = !onsets.Zip(onsets.Skip(1)).Any(g => g.Second - g.First > barNs && times.Any(t => t > g.First + window && t < g.Second - window));
 
-        // Zhukov's tempo drift: a line through played against expected times; a slope over 1 means it was played slower.
-        double? drift = null;
+        // Zhukov's tempo drift: a line through played against expected times; a slope over 1 means it was played slower. Along the
+        // same line, how far ahead of the click the run got from its first note due to its last.
+        double? drift = null, ahead = null;
         if (matched.Count >= 3)
         {
             var (_, slope) = Stats.Line([.. matched.Keys.Select(i => times[i])], [.. matched.Select(m => notes[m.Value].At)]);
             if (slope > 0) drift = (1 / slope - 1) * 100;
+            ahead = (1 - slope) * (matched.Keys.Max(i => times[i]) - matched.Keys.Min(i => times[i])) / beatNs * 100;
         }
 
         var perBar = expected.Select(e => e.Bar).Distinct().ToDictionary(b => b, b => results.Count(r => r.Bar == b && (r.Outcome != Outcome.Right || r.Band == Band.Off)));
@@ -417,6 +450,49 @@ public static class PassageScorer
             extraPedal.AddRange(downs.Where(d => d.Up - d.Down > beatNs / 2 && !marked.Any(m => d.Up > m.Down - beatNs / 4 && d.Down < m.Up + beatNs / 2)).Select(d => BarAt(d.Down)).Distinct());
         }
 
+        // How each staff was played, from its moments in order: each tick it has notes played right, when their keys went down on
+        // average. Two moments in a row give a gap, against the gap written, and where the first is written to last until the
+        // next, how joined they were: from its last key up to the next's first down. A moment that's lifted by design (staccato,
+        // a slur's end) or ends the run isn't asked to join, nor one whose key is struck again next, which must come up first.
+        double At(int i) => notes[matched[i]].At;
+        var staves = new List<StaffPlaying>();
+        foreach (var staff in expected.Select(e => e.Staff).Distinct().Order())
+        {
+            var moments = Enumerable.Range(0, expected.Count).Where(i => expected[i].Staff == staff).GroupBy(i => expected[i].Tick).OrderBy(g => g.Key)
+                .Select(g => (Tick: g.Key, Due: times[g.First()], All: g.ToList(), Played: g.Where(sounded.ContainsKey).ToList())).ToList();
+            var gaps = new List<double>();
+            var silences = new List<double>();
+            foreach (var (now, next) in moments.Zip(moments.Skip(1)))
+            {
+                var written = next.Due - now.Due;
+                if (now.Played.Count == 0 || next.Played.Count == 0 || written <= 0) continue;
+
+                gaps.Add((next.Played.Average(At) - now.Played.Average(At) - written) / written * 100);
+                var joins = now.All.Any(i => expected[i].Tick + expected[i].Length >= next.Tick) && now.All.All(i => !expected[i].Lifted)
+                    && now.Played.All(i => !sounded[i].Key.HeldToEnd) && !now.All.Any(i => next.All.Any(j => expected[j].Midi == expected[i].Midi));
+                if (joins) silences.Add((next.Played.Min(i => sounded[i].Key.OnNs) - now.Played.Max(i => sounded[i].Key.OffNs)) / written * 100);
+            }
+            // Its loudness, where it's to be one loudness: a slur's notes rise and fall with it, and an accent stands out.
+            var even = touchVaries && !Enumerable.Range(0, expected.Count).Any(i => expected[i].Staff == staff && (expected[i].Slur is not null || expected[i].Articulation == Articulation.Accent || markings.Stressed.Contains(expected[i].Id)));
+            var struck = Enumerable.Range(0, expected.Count).Where(i => expected[i].Staff == staff && sounded.ContainsKey(i)).ToList();
+            var byFinger = even
+                ? struck.Where(i => expected[i].Finger is not null).GroupBy(i => expected[i].Finger!.Value).Where(g => g.Count() >= 4).ToDictionary(g => g.Key, g => g.Average(i => (double)sounded[i].Key.Velocity))
+                : new Dictionary<int, double>();
+            staves.Add(new StaffPlaying(staff, gaps.Count >= 3 ? Stats.StandardDeviation([.. gaps]) : null, silences.Count >= 3 ? Stats.Median([.. silences]) : null,
+                even && struck.Count >= 3 ? Stats.StandardDeviation([.. struck.Select(i => (double)sounded[i].Key.Velocity)]) : null, byFinger));
+        }
+
+        // The hands together: where the upper staff and the lower both have notes played right at once, the upper's keys after the lower's.
+        double? apart = null, apartSd = null;
+        if (staves.Count == 2)
+        {
+            var (upper, lower) = (staves[0].Staff, staves[1].Staff);
+            var differences = Enumerable.Range(0, expected.Count).Where(sounded.ContainsKey).GroupBy(i => expected[i].Tick)
+                .Select(g => (Upper: g.Where(i => expected[i].Staff == upper).ToList(), Lower: g.Where(i => expected[i].Staff == lower).ToList()))
+                .Where(t => t.Upper.Count > 0 && t.Lower.Count > 0).Select(t => (t.Upper.Average(At) - t.Lower.Average(At)) / 1e6).ToArray();
+            if (differences.Length >= 3) (apart, apartSd) = (differences.Average(), Stats.StandardDeviation(differences));
+        }
+
         return new PassageResult(results, extra, lean, lean / beatMs * 100, Stats.StandardDeviation(afterLean), results.Count(r => r.Outcome == Outcome.Right) / minutes, keptGoing, drift, Stats.RootMeanSquare([.. errors.Values]), perBar, chordSpreads.Count == 0 ? null : chordSpreads.Average())
         {
             Dynamics = dynamics,
@@ -424,6 +500,10 @@ public static class PassageScorer
             Pedal = pedalled,
             ExtraPedal = extraPedal,
             TouchVaries = touchVaries,
+            Staves = staves,
+            HandsApartMs = apart,
+            HandsApartSdMs = apartSd,
+            AheadPercent = ahead,
         };
     }
 }

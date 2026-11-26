@@ -291,12 +291,16 @@ public class LoopTests
         }
         await view.InvokeAsync(bar.Instance.Stop);
 
-        // The evenness is there, and before it the line every screen's summary gives a loop.
+        // The review leads with the passes; under Show details the evenness is there, and before it the line every screen's
+        // summary gives a loop. One hand played, so none is named.
+        view.WaitForAssertion(() => Assert.StartsWith("Twice round, every one clean", view.Find(".review-did span:last-child").TextContent));
+        await view.Find(".sum-more").ClickAsync(new MouseEventArgs());
         view.WaitForAssertion(() => Assert.NotEmpty(view.FindAll(".summary-words li")));
         var words = view.FindAll(".summary-words li").Select(li => li.TextContent).ToList();
         Assert.StartsWith("2 passes of ", words[0]);
         Assert.EndsWith("The rest is the last pass.", words[0]);
-        Assert.Contains(words, w => w.StartsWith("Right hand"));
+        Assert.Contains(words, w => w.StartsWith("Evenness"));
+        Assert.DoesNotContain(words, w => w.Contains("hand"));
     }
 
     [Fact]
