@@ -97,7 +97,7 @@
             <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")" @key="@($"{Show} {Type} {Trains} {Level}")">
                 @if (shown.Count == 0)
                 {
-                    <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : "Nothing here.")</p>
+                    <p class="page-note">@(Search is { } words ? $"No exercises match “{words}”." : "No exercises in this section.")</p>
                 }
                 @foreach (var group in shown.GroupBy(e => Current("hanon") is null ? "" : e.HanonNumber <= 20 ? "Part I · 1–20" : e.HanonNumber <= 43 ? "Part II · 21–43" : "Part III · 44–60"))
                 {

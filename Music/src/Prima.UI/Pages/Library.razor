@@ -177,7 +177,7 @@
                 }
                 else if (listed == "rcm")
                 {
-                    <p class="section-note">Where RCM's 2022 piano syllabus lists a piece, to learn and play.</p>
+                    <p class="section-note">Levels from the 2022 Royal Conservatory of Music piano syllabus.</p>
                     @foreach (var level in pieces.Where(p => listings.ContainsKey(p.Id)).GroupBy(p => listings[p.Id].Level).OrderBy(g => g.Key))
                     {
                         <a class="col-item" href="@Address("rcm", level.Key.ToString())" aria-current="@(view == "rcm" && of == level.Key.ToString() ? "true" : null)"><span>RCM Level @level.Key</span><span class="n">@level.Count()</span></a>
@@ -185,7 +185,7 @@
                 }
                 else
                 {
-                    <p class="section-note">Where most of a piece reads.</p>
+                    <p class="section-note">The reading level of most bars in a piece.</p>
                     @foreach (var level in pieces.GroupBy(LevelOf).OrderBy(g => g.Key))
                     {
                         <a class="col-item" href="@Address("level", level.Key.ToString())" aria-current="@(view == "level" && of == level.Key.ToString() ? "true" : null)"><span>@(level.Key == 0 ? "Not graded" : $"Level {level.Key}")</span><span class="n">@level.Count()</span></a>
@@ -208,7 +208,7 @@
                     <button type="button" class="mu-btn" @onclick="LetBackIn">@(collectionOut.Count == 1 ? "Let it back in" : "Let them back in")</button>
                 </div>
             }
-            <p class="section-note library-credits">The pieces are public domain or openly licensed; the level shown is a piece's hardest excerpt (most of a piece reads lower).@(listings.Count > 0 ? " RCM's level is where its 2022 piano syllabus lists a piece." : "") <a href="library/credits">Where the music comes from</a></p>
+            <p class="section-note library-credits">The level shown is the difficulty of the hardest excerpt.@(listings.Count > 0 ? " RCM levels come from its 2022 piano syllabus." : "") <a href="library/credits">Music credits and licenses</a></p>
         </nav>
 
         <div class="lib-main">
@@ -227,14 +227,14 @@
                 {
                     @if (ownOut.All)
                     {
-                        <p class="page-note">Prima's own pieces are out of the Library: Remove library took them out, and Prima won't put them back by itself. Import MusicXML, MEI, ABC, MIDI or PDF files, or put Prima's own back.</p>
+                        <p class="page-note">The bundled pieces were removed. Restore the collection or import your own sheet music.</p>
                         <div class="control-row library-put-back">
                             <button type="button" class="mu-btn mu-primary" @onclick="PutBack">Put Prima's pieces back</button>
                         </div>
                     }
                     else
                     {
-                        <p class="page-note">The collection wasn't built into this copy of the app (Music/README.md says how). Import MusicXML, MEI, ABC, MIDI or PDF files meanwhile.</p>
+                        <p class="page-note">This version has no bundled collection. You can import your own sheet music.</p>
                     }
                 }
             }
@@ -270,7 +270,7 @@
                     }
                     @if (all.Count == 0 && names.Count == 0)
                     {
-                        <p class="page-note">Nothing here for “@search”.</p>
+                        <p class="page-note">No pieces match “@search”.</p>
                     }
                 </div>
             }
@@ -466,7 +466,7 @@
                     </ul>
                     @if (mine.Count == 0)
                     {
-                        <p class="page-note">Nothing uploaded yet. Import files brings in MusicXML, MEI, ABC, MIDI and PDF files, and zips of them.</p>
+                        <p class="page-note">Import a MusicXML, MEI, ABC, MIDI or PDF file, or a ZIP containing them.</p>
                     }
                 </div>
             }

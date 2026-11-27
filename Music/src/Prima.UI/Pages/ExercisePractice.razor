@@ -27,7 +27,7 @@ else
         var last = was.Last == Today ? "today" : was.Last.ToString("d MMMM", CultureInfo.InvariantCulture);
         var days = was.Days == 1 ? "1 day" : $"{was.Days} days";
         var times = was.Times == 1 ? "once" : $"{was.Times} times";
-        var fastest = was.CleanTempo is { } clean ? $" Fastest clean run In time: {clean:0}." : "";
+        var fastest = was.CleanTempo is { } clean ? $" Fastest clean run: {clean:0} BPM." : "";
         history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
     }
 
@@ -36,14 +36,14 @@ else
     // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
     // done of it, the key that puts it in one of your routines, and what comes next.
     RenderFragment about = @<text>
-        <h2 class="section-title">How</h2>
+        <h2 class="section-title">How to play</h2>
         <ol class="exercise-steps">
             @foreach (var step in exercise.How)
             {
                 <li>@step</li>
             }
         </ol>
-        <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Why" : "Notice")</h2>
+        <h2 class="section-title">@(exercise.Kind == ExerciseKind.Way ? "Purpose" : "What to notice")</h2>
         <p class="exercise-notice">@exercise.Notice</p>
         @if (ExerciseFocus.Of(exercise.Id) is { Count: > 0 } trains)
         {

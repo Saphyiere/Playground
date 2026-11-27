@@ -2,6 +2,7 @@ using System.Text.Json;
 using Prima.Core.Music;
 using Prima.Core.Practice;
 using Prima.Core.Scoring;
+using Prima.UI.Components;
 
 namespace Prima.UI.Practice;
 
@@ -33,6 +34,24 @@ public static class KeptRun
                 timing = new[] { Math.Round(r.LeanMs, 1), Math.Round(r.SteadinessPercent, 1) }, marked = Marked(r), trouble, marks }
             : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took, trouble, marks };
         return JsonSerializer.Serialize(measures);
+    }
+
+    public static List<SheetMark> MarksForBar(int bar, IReadOnlyList<ExpectedNote> expected, IReadOnlyList<PieceRun> runs, IReadOnlyDictionary<long, string> marksKept)
+    {
+        var inBar = expected.Where(n => n.Bar == bar).Select(n => n.Id).ToHashSet();
+        List<SheetMark> marks = [];
+        foreach (var run in runs.OrderByDescending(r => r.At).ThenByDescending(r => r.Id))
+        {
+            if (!marksKept.TryGetValue(run.Id, out var json)) continue;
+
+            using var left = JsonDocument.Parse(json);
+            var right = left.RootElement.GetProperty("right").EnumerateArray().Select(e => e.GetString() ?? "").Where(inBar.Contains).Select(id => new SheetMark(id, "right"));
+            var other = left.RootElement.GetProperty("other").EnumerateArray().Where(e => inBar.Contains(e[0].GetString() ?? ""))
+                .Select(e => new SheetMark(e[0].GetString()!, e[1].GetString()!, e[2].ValueKind == JsonValueKind.String ? e[2].GetString() : null, e[3].GetInt32(), Written: e.GetArrayLength() > 4 && e[4].ValueKind == JsonValueKind.String ? e[4].GetString() : null));
+            marks = [.. right, .. other];
+            if (marks.Count > 0) break;
+        }
+        return marks;
     }
 
     /// <summary>The keys played, each with its ms from the first, as an attempt keeps them.</summary>

@@ -8,7 +8,7 @@
 
 <PageHead Title="Welcome" Kicker="Prima: sight-reading and piano practice" />
 
-<p class="page-note">A few things, once. All of it stays on this tablet, and Settings changes any of it later.</p>
+<p class="page-note">Set up your practice preferences. You can change them in Settings.</p>
 
 <section class="settings-section" aria-labelledby="name-heading">
     <h2 id="name-heading" class="section-title">Your name</h2>
@@ -23,17 +23,17 @@
             <button type="button" class="mu-toggle" aria-pressed="@(minutes == m ? "true" : "false")" @onclick="() => minutes = m"><span class="mu-led"></span>@m minutes</button>
         }
     </div>
-    <p class="section-note">About twenty minutes holds the whole plan; on a busy day the five-minute plan still counts.</p>
+    <p class="section-note">A five-minute plan is also available on Today.</p>
 </section>
 
 <section class="settings-section" aria-labelledby="cue-heading">
     <h2 id="cue-heading" class="section-title">When will you practice?</h2>
     <input class="text-field" type="text" @bind="cue" placeholder="When I sit down after dinner, I’ll open Prima" aria-label="Your practice cue" />
-    <p class="section-note">A plan of the form “when X, I’ll Y” makes it more likely to happen. It shows on Today.</p>
+    <p class="section-note">This note appears on Today.</p>
 </section>
 
 <section class="settings-section" aria-labelledby="look-heading">
-    <h2 id="look-heading" class="section-title">Look</h2>
+    <h2 id="look-heading" class="section-title">Theme</h2>
     <div class="look-picker">
         @foreach (var look in Look.All)
         {
@@ -48,13 +48,13 @@
 <div class="control-row control-row-play">
     @if (Settings.CalibratedOn is null)
     {
-        <button type="button" class="mu-btn mu-primary" @onclick="Begin">Plug in the piano and set the timing</button>
-        <button type="button" class="mu-btn" @onclick="ToToday">Later: go to Today</button>
+        <button type="button" class="mu-btn mu-primary" data-action="calibrate" @onclick="Begin">Plug in the piano and set the timing</button>
+        <button type="button" class="mu-btn" data-action="go-today" @onclick="ToToday">Skip for now</button>
     }
     else
     {
         @* The timing is set already (as after Start over): that step is skipped. *@
-        <button type="button" class="mu-btn mu-primary" @onclick="ToToday">Go to Today</button>
+        <button type="button" class="mu-btn mu-primary" data-action="go-today" @onclick="ToToday">Go to Today</button>
     }
 </div>
 

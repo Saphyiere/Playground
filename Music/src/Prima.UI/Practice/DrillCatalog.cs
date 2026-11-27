@@ -14,13 +14,13 @@ public static class DrillCatalog
 {
     public static IReadOnlyList<DrillInfo> All { get; } =
     [
-        new("notes", "Notes", "Reading", "A note on the staff: play its key. Spaced review, landmarks first.", 1),
+        new("notes", "Notes", "Reading", "Play the note shown on the staff.", 1),
         new("endless", "Endless notes", "Reading", "One note after another until you stop: read them faster and faster, sharps and flats too.", 1),
-        new("ledger", "Ledger lines", "Reading", "Walk out from the staff past it, up or down, and back; then single notes out there. One ledger line, two, three.", 3),
-        new("intervals", "Intervals and shapes", "Reading", "A figure from a named note: play it by its distances.", 4),
-        new("chords", "Chords", "Reading", "A stack of notes: play it at once.", 4),
+        new("ledger", "Ledger lines", "Reading", "Read notes above and below the staff, up to three ledger lines away.", 3),
+        new("intervals", "Intervals and shapes", "Reading", "Start on the named note and play the pattern.", 4),
+        new("chords", "Chords", "Reading", "Play all the notes in the chord together.", 4),
         new("keys", "Key signatures", "Reading", "A signature: play its tonic, then a phrase with its sharps or flats.", 6),
-        new("rhythm", "Rhythm", "Reading", "A bar of beat, then the rhythm on any key; the click fades.", 12),
+        new("rhythm", "Rhythm", "Reading", "Tap the rhythm on any key. The click fades as you repeat it.", 12),
         new("geography", "Keyboard geography", "Reading", "A note or a leap: play it without looking down.", 4),
         new("playback", "Listen and play back", "Reading", "Hear a phrase on the piano, play it back, then see it written.", 3, NeedsPiano: true),
         new("scales", "Scales", "Technique", "A scale with its fingering, in time with the click; evenness after each run.", 1),

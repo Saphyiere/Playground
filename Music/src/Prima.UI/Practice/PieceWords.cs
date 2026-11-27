@@ -15,51 +15,69 @@ public static class PieceWords
         _ => $"on {day.ToString("d MMMM", CultureInfo.InvariantCulture)}",
     };
 
-    /// <summary>How a run was played: "In time at 84, right hand, from bar 13, stopped at bar 16", or "Wait for me, looping bars 13–16".</summary>
-    public static string How(PieceRun run)
-    {
-        var mode = run.InTime ? $"In time at {run.Tempo:0}" : "Wait for me";
-        var hand = run.Hands is "right" or "left" ? $", {run.Hands} hand" : "";
-        if (run.To is { } to) return $"{mode}{hand}, looping {Bars(run.From, to)}";
+    public static string How(PieceRun run) => $"{Short(run)} · {Hands(run.Hands)}";
 
-        var from = run.From > 1 ? $", from bar {run.From}" : "";
-        var stopped = run.Stopped && run.Bar is { } bar ? $", stopped at {Bar(bar)}" : "";
-        return mode + hand + from + stopped;
-    }
+    public static string Duration(TimeSpan time) => time.TotalHours >= 1 ? $"{(int)time.TotalHours} h {time.Minutes} min"
+        : time.TotalMinutes >= 1 ? $"{(int)time.TotalMinutes} min" : $"{(int)time.TotalSeconds} s";
 
-    /// <summary>
-    /// How a run went: "88 of 95 right, 91% right in time", or "22 of 23 right first time". Round a loop, how its passes went, from
-    /// the first to the last: "5 passes, right in time from 70% to 90%".
-    /// </summary>
-    public static string Went(PieceRun run)
-    {
-        var went = run.InTime ? $"{run.Right} of {run.Notes} right, {Share(run)} right in time" : $"{run.Right} of {run.Notes} right first time";
-        return run.Passes switch
-        {
-            [var first, .., var last] when run.InTime => $"{run.Passes.Count} passes, right in time from {first.RightInTime * 100:0}% to {last.RightInTime * 100:0}%",
-            [var first, .., var last] => $"{run.Passes.Count} passes, right first time from {first.Right} to {last.Right} of {last.Notes}",
-            [_] => $"one pass, {went}",
-            _ => went,
-        };
-    }
+    public static string Hands(string hands) => hands switch { "right" => "Right hand", "left" => "Left hand", _ => "Both hands" };
 
-    /// <summary>A run in a few words, for a list: "91% right in time at 84", "22 of 23 right first time, looping bars 13–16".</summary>
     public static string Short(PieceRun run)
     {
-        var went = run.InTime ? $"{Share(run)} right in time at {run.Tempo:0}" : $"{run.Right} of {run.Notes} right first time";
-        return run.To is { } to ? $"{went}, looping {Bars(run.From, to)}" : went;
+        var passage = run.To is { } to ? $"{(run.Passes.Count > 0 ? "Looped" : "Practiced")} {Bars(run.From, to)}"
+            : run.Stopped && run.Bar is { } stopped ? $"Stopped at {Bar(stopped)}"
+            : run.Stopped ? $"Started at {Bar(run.From)}" : run.From > 1 ? $"Played from {Bar(run.From)}" : "Played through the piece";
+        var pace = run.InTime ? run.Tempo is { } tempo ? $" at {tempo:0} BPM" : " at a set tempo" : " at your own pace";
+        return passage + pace;
     }
 
-    /// <summary>
-    /// What went wrong in a bar, in words: "2 wrong, 1 slip put right, 3 let go early", or with nothing wrong "nothing to fix".
-    /// </summary>
+    public static BarTrouble? Highlight(PieceRun run)
+    {
+        var trouble = run.Passes.LastOrDefault()?.Trouble;
+        return (trouble is { Count: > 0 } ? trouble : run.Trouble).Where(b => b.Weight > 0)
+            .OrderByDescending(b => b.Weight).ThenBy(b => b.Bar).FirstOrDefault();
+    }
+
+    public static string Went(PieceRun run)
+    {
+        var pass = run.Passes.LastOrDefault();
+        var trouble = Highlight(run);
+        var when = pass is null ? "" : " on the last pass";
+        if (trouble is not null) return Observation(trouble) + when + ".";
+        var notes = pass?.Notes ?? run.Notes;
+        var right = pass?.Right ?? run.Right;
+        if (notes == 0) return "No notes recorded.";
+        if (!run.InTime)
+        {
+            if (right == notes) return $"You played every note correctly on the first try{when}.";
+            return $"You played {right} of {notes} correctly on the first try{when}.";
+        }
+        if ((pass?.RightInTime ?? run.RightInTime) is { } share)
+        {
+            if (share == 1) return $"Every written note was correct and on time{when}.";
+            return $"{share * 100:0}% of the notes were correct and on time{when}.";
+        }
+        return $"You played {right} of {notes} correctly{when}.";
+    }
+
+    public static string Observation(BarTrouble bar)
+    {
+        var where = $"in {Bar(bar.Bar)}";
+        if (bar.Missed > 0) return $"You missed {BarWords.Count(bar.Missed, "note")} {where}";
+        if (bar.Wrong > 0) return $"You played {BarWords.Count(bar.Wrong, "wrong note")} {where}";
+        if (bar.Slips > 0) return $"You corrected {BarWords.Count(bar.Slips, "note")} {where}";
+        if (bar.Apart > 0) return $"The chord notes {where} landed separately";
+        if (bar.Off > 0)
+        {
+            var timing = bar.Ahead == bar.Off ? "early" : "outside the timing window";
+            return $"{BarWords.Count(bar.Off, "note")} {where} {(bar.Off == 1 ? "was" : "were")} {timing}";
+        }
+        return $"You released {BarWords.Count(bar.Early, "note")} early {where}";
+    }
+
     public static string Trouble(BarTrouble bar) => BarWords.Trouble(bar);
 
-    /// <summary>A bar in words: "bar 7", or the pickup before bar 1, "the upbeat".</summary>
-    public static string Bar(int n) => BarWords.Bar(n);
+    public static string Bar(int n) => n == 0 ? "the pickup" : $"bar {n}";
 
-    /// <summary>Bars in words: "bar 7", "bars 13–16", or from the pickup, "the upbeat to bar 4".</summary>
-    public static string Bars(int from, int to) => BarWords.Bars(from, to);
-
-    private static string Share(PieceRun run) => $"{(run.RightInTime ?? 0) * 100:0}%";
+    public static string Bars(int from, int to) => from == to ? Bar(from) : from == 0 ? $"the opening through bar {to}" : $"bars {from}–{to}";
 }

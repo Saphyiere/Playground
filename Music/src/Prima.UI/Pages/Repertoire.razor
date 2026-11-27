@@ -41,7 +41,7 @@ else if (note is not null)
     var shown = Shown();
     @if (Book.Current.Pieces.Count == 0 && Book.Current.Collections.Count == 0)
     {
-        <p class="page-note">Nothing here yet. A star on a piece in the Library keeps it here, with where it stands and what comes next. <a href="library">To the Library</a></p>
+        <p class="page-note">Star pieces in the Library to find them here. <a href="library">To the Library</a></p>
     }
     else
     {
@@ -94,7 +94,7 @@ else if (note is not null)
                     <article class="rep-card">
                         <div class="rep-top">
                             <div>
-                                <p class="rep-kicker">@kicker@if (card.Learned) { <span class="rep-done">@(kicker.Length > 0 ? " · " : "")Learned</span> }</p>
+                                <p class="rep-kicker">@kicker@if (card.Learned) { <span class="rep-done">@(kicker.Length > 0 ? " · " : "")All bars in time</span> }</p>
                                 <h3 class="rep-title"><a href="@($"library/{Uri.EscapeDataString(piece.Id)}")">@title</a></h3>
                             </div>
                             <button type="button" class="lb-star" aria-pressed="true" aria-label="@($"{piece.Title} is in your repertoire: choose its collections")" @onclick="e => starring = (piece, e.ClientX, e.ClientY)">
@@ -118,7 +118,7 @@ else if (note is not null)
                             }
                         </p>
                         <div class="rep-foot">
-                            <p class="rep-line"><b>@card.Ahead.Kind</b>@($" · {card.Ahead.What}")</p>
+                            <a class="band-link" data-piano="off" href="@($"library/{Uri.EscapeDataString(piece.Id)}/history")">Practice history</a>
                             <a class="mu-btn mu-primary lb-small" href="@($"library/{Uri.EscapeDataString(piece.Id)}")">Practice</a>
                         </div>
                     </article>
@@ -174,7 +174,7 @@ else if (note is not null)
 <StarMenu Piece="starring?.Piece" X="@(starring?.X ?? 0)" Y="@(starring?.Y ?? 0)" OnClose="() => starring = null" OnSaid="said => note = said" />
 
 @code {
-    private static readonly (string Key, string Label)[] Sorts = [("last", "Last played"), ("least", "Least learned"), ("most", "Most learned"), ("az", "A–Z")];
+    private static readonly (string Key, string Label)[] Sorts = [("last", "Last played"), ("least", "Fewest bars in time"), ("most", "Most bars in time"), ("az", "A–Z")];
 
     // A card's meter: this many lamps for the whole piece.
     private const int Segments = 24;
@@ -226,7 +226,7 @@ else if (note is not null)
         {
             while (Book.Current.Pieces.Where(k => pieces.ContainsKey(k.Piece) && !cardOf.ContainsKey(k.Piece)).Select(k => (pieces[k.Piece], k.Since)).ToList() is { Count: > 0 } missing)
             {
-                foreach (var card in await RepertoireCards.OfAsync(Store, missing, runs, DateOnly.FromDateTime(DateTime.Now))) cardOf[card.Piece.Id] = card;
+                foreach (var card in await RepertoireCards.OfAsync(Store, missing, runs)) cardOf[card.Piece.Id] = card;
             }
         }
         finally
@@ -278,8 +278,8 @@ else if (note is not null)
     }
 
     // Where a piece stands, in words, for its meter.
-    private static string Stands(PieceCard card) => card.Standing is not { Bars.Count: > 0 } standing ? (card.Done is null ? "Not played yet" : "Played; where it stands isn't known")
-        : $"{standing.Bars.Count(b => b.State is BarState.InTime or BarState.AtTempo)} of {standing.Bars.Count} bars there In time, {standing.Count(BarState.Reading)} more being read";
+    private static string Stands(PieceCard card) => card.Standing is not { Bars.Count: > 0 } standing ? (card.Done is null ? "Not played yet" : "Bar results unavailable")
+        : $"{standing.Bars.Count(b => b.State is BarState.InTime or BarState.AtTempo)} of {standing.Bars.Count} bars played in time. {standing.Count(BarState.Reading)} other bars practiced";
 
     // The pieces played in the last month that aren't kept, the latest first.
     private IEnumerable<(PieceRecord Piece, PieceHistory Done)> Lately(DateOnly today) =>

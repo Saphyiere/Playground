@@ -1,0 +1,12 @@
+<div class="control-row">
+    <span class="control-label">@Label</span>
+    <div class="play-mode">
+        <button type="button" class="play-mode-option" role="switch" aria-label="@Label" aria-checked="@(Value ? "true" : "false")" @onclick="() => Changed.InvokeAsync(!Value)">@(Value ? "On" : "Off")</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> Changed { get; set; }
+}

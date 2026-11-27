@@ -94,8 +94,7 @@ practice cue you set once ("When I sit down after
 dinner, I'll open the app"). The home mockups show it: the tempo knob or the record, the next passage on a small sheet, and the
 steps along the bottom. The day's passages come in a fixed order, so the one shown as up next is the one Sight-read gives. When
 every step is done, a line sums up the day. The pieces played today are in it, each with its runs and how the last went, and
-show as a line of their own before the plan is done. After the plan, **Then your pieces**: three of the repertoire's (below),
-the last played first, each with what comes next on it and a key that opens it; nothing when none is kept.
+show as a line of their own before the plan is done. After the plan, **Your pieces** lists the three most recently played repertoire pieces. Each links to the score and shows the last recorded practice.
 
 The first time, a welcome asks for a name (optional), the minutes a day, the cue and the look, then goes to the timing
 calibration or straight to Today. From the welcome the timing leads on: once its offset is kept, **Done** goes to Today. With
@@ -354,8 +353,7 @@ a PDF plays out; this is what came of it.
   3, List A (page 33)."); the line under a piece in the Library's lists ends "RCM 3"; and the list's switch has **RCM**: RCM
   Level 1 to 10, each with how many it holds, and each a list of its pieces under their composers (`library?by=rcm&of=3`).
   Where the music comes from says where the levels come from. The local collection's pieces and imports have none yet.
-- **A piece** opens on its front: its music, About this piece under it, and on its bar its level and two big keys,
-  **Practice** and **Play** ([practice.md](practice.md) has the design). At its head is **the way back**, a key named for
+- **A piece** opens on its front: its music, About this piece under it, and on its bar its level, **Practice**, **Play through** and **Practice history** ([practice.md](practice.md) has the design). At its head is **the way back**, a key named for
   where it goes: the list the piece was opened from ("Ludwig van Beethoven", "Uploaded pieces"), or the Library when it was
   opened from anywhere else. Only a tap presses Practice and Play, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
@@ -390,15 +388,10 @@ a PDF plays out; this is what came of it.
   music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
   A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practicing
   the Standard way) with the run's summary there instead; while a run plays the music has that space too. About this piece
-  starts with what's been done on it, from the runs kept: when it was last played, how that run was
-  played and how it went (round a loop, its bars, its passes and how they went from the first to the last); then how often
-  it's been played through In time (from its start to its end, not round a loop or stopped), with the last time and the
-  best; its runs, the days they were on, and the first; and **Next**, what the last practice session's look back said to do
-  first, with **Start there**, which starts a session set up for it. Then its level and why, and where it comes from: a
+  shows the last recorded run, its passage, hand and tempo. The piece details include its level and the
   collection's credit and licence, or for an uploaded piece when it was imported and the file it was, as that file was named
   ("Imported 17 November from Numb.pdf"; a PDF is kept under a name of Prima's own, and one imported before its name was kept
-  says only when). A run that reached fewer than eight notes, round a loop all its
-  passes together, is a false start, and isn't counted. A piece opens where it was left: the line that was at the top of the screen there again, and the
+  says only when). The profile totals include runs that reached at least eight notes across all passes. Practice history also includes shorter runs. A piece opens where it was left: the line that was at the top of the screen there again, and the
   bar it was to start from, or its loop. A notation piece shows whole in
   one scroll unless it's been set to Pages (kept for each piece; a run plays in the scroll all the same, a line at a time, and
   the piece opens in Pages again the next time). As pages: two systems at a time in landscape, the whole page
@@ -471,97 +464,11 @@ a PDF plays out; this is what came of it.
   cover; a key played on the piano carries on too. Finished from the cover, the session ends as of the last thing played, and
   one left paused until another day is finished that way, the piece opening on its front. The session is kept every half
   minute and as it pauses, and its playing time is the day's practice minutes as it's counted.
-- **How much Practice tells you** is one of three ways, in Settings and on the piece's Options, each a set of four settings
-  that Settings lets you change one by one. **Simple** says nothing of how it went: after a run the music keeps its marks
-  (none at all with Marks as you play off), and round a loop the bar counts the passes but doesn't score them. **Standard**
-  sums each run up under the music, and each pass in the bar as the next begins. **Hands-on** gives each run the in-depth
-  review (below), taking the screen, with **Again** (the run again, from the same bar; the piano's go key presses it) and
-  **Back to practicing**, which leaves every mark the run left on the music, and first among them, a little apart, **Finish
-  practice**, which goes back to practicing and finishes the session; and its loops wait for you after each pass.
-  Whether a loop waits is a setting of its own in every way (**Round a loop** on the Options: **Go straight on**, to drill a
-  riff over and over, or **Wait after each pass**, for a breather to look at it): waiting, each pass is a run of its own,
-  ended and kept as one, and the next starts with its key or the go key, but the loop still counts on: the bar says the pass
-  and how the last went, ↑ or ↓, and the summary lists every pass so far, as long as it's the same loop, hand and mode (in
-  Hands-on the review heads with the pass and how far it's come since pass 1). So is whether a run that comes to its end
-  starts over by itself, after its count-in, until you stop it (**At a run's end**: Wait for me or Go again). Whichever way,
-  every run and every pass is kept, so the look back has them all. After a run, if the summary under the music has left the
-  loop (or the bar the run had most to fix) off the screen, the music scrolls back to it, its first line near the top.
-- **The look back**, once a session is finished, takes the page, and starts with what the session came to, in words. A
-  sentence, then up to five lines, each about one thing, and a sixth on how the end went when it went worse (below), its
-  key lit for good news, red for something to work on and hollow for what's just so. Which lines depends on **the kind of
-  work** the session was, since wrong notes come before timing, and timing before touch:
-  - **Finding the notes** (half of the notes played were a hand at a time or in Wait for me, or In time with a quarter of
-    them wrong): the bars read and how (a hand at a time, together), how far they got hands together or with the click, the
-    stretch that moved most, the bar still going wrong, and what stayed since the session before: where a stretch was left
-    then against the first go at it today, which is the honest measure.
-  - **Getting them right** (In time with both hands, fewer than nineteen notes in twenty right): whether it holds together
-    played through, which is 85% right in time, the app's aim everywhere; the stretch that moved most; the bar still going
-    wrong; a stretch taken a step faster than it holds, or one that stayed where it was; and the whole piece against the last
-    time it was played through.
-  - **Timing and touch** (the notes there; under the piece's own tempo, or not yet steady): the share of the right notes in
-    time, which way the others are out and in which bars ("it runs ahead in bars 5–7"); loud and soft, the touch and the
-    pedal, each marking as it was last played, the ones not as marked named; notes let go early.
-  - **Playing it** (the notes there at the piece's own tempo, or within a tenth of it): the times through and how many had
-    every note right; the first one, cold, against the ones after; the bar that kept having a wrong note (one that went wrong
-    every time it was played is named, however few times through, and "the slips moved around" only when none did); a step
-    faster, if one was tried.
-  A session of 25 minutes or more whose end went worse than what came before is told so, as tiredness and not as the bars:
-  the same bars, hand, mode and tempo played again in its last three tenths and gone worse, or a stretch sinking as it was
-  gone round (unless it had just been taken a step faster: then the tempo's the likelier cause, and the line says that). It's
-  then judged by its best time through and not its last, and what's next is headed for next time. With no such thing to
-  say, the last line is where the playing time went.
+- **Piece feedback** applies to all library pieces. Minimal keeps the score visible, Standard shows a short summary and loop results, and Detailed opens the full review and pauses between repeats. **Customize feedback** controls the summary, loop result and pause independently. **Repeat automatically** is a separate playback choice. A full review or a paused loop waits for the player.
+- **Finish practice** shows playing time, run count and the last passage, hand and tempo. One observation describes the last run or completed loop pass. **View bar** opens the relevant measure. **Passages and results** expands the passage breakdown. **View details** opens note and timing statistics and the bar map. **Keep practicing** resumes the same session.
+- **Practice history** is available from Today, the profile, repertoire cards and each playable piece. It lists finished sessions by date and time, including short runs and standalone play-throughs. Opening a session shows its saved runs. Select a run or a bar to inspect its results and available note marks. Archive views read the saved records without restarting practice.
+- **Play through** starts at the beginning with both hands at the selected tempo. Afterward, the player can replay the piece, inspect the run or finish.
 
-  Then **where the piece stands**: every bar a cell, lighter the further along it is (not played; notes not there yet;
-  notes there, in time; at tempo, which is within a tenth of the piece's own), the bars played today underlined, and the
-  fastest it has held together played through. That's from every run kept on the piece, not this session's alone. A bar's
-  notes are there once two of its last four times In time with both hands were right (one of its first two): nine notes in
-  ten each time, so in a bar of fewer than ten played once, all of them. One bad time through at the end of a long session
-  doesn't undo a bar.
-
-  Beside it, **Next**: up to three things to do, each with why, from the session's own figures, and its **Practice it**,
-  which carries the session on with the step's bars, hand, mode and tempo set. Finding the notes, they're the bar still
-  going wrong in Wait for me, the bars read only a hand at a time together, a stretch that's right first time (or was tried
-  with the click) In time, slowly, and the four bars after the furthest read, a hand at a time. Getting them right: the bar
-  still going wrong a notch slower than it went wrong at, a stretch back where it held, and the whole piece: a notch up over
-  90% right in time, a notch down under 80%, else the same again, first thing next time. Timing and touch: the bars where
-  the timing goes out two notches slower, then the bars of a marking that hasn't come out. Playing it: the bar that kept
-  slipping, and once through, cold, first thing next time. No two steps are on the same bars in the same hand and mode
-  (the bar in Wait for me and the stretch round it with the click can both be there). The first of them stays on the
-  piece's front, under About this piece, as **Next**, with **Start there**; a session that leaves nothing to do leaves none
-  there.
-
-  Under those, **what was played**, as before: each stretch practiced (its bars: the whole piece, from a bar, or round a
-  loop, and runs that were all stopped on the way by the bars they reached, "Bars 1–8", as the words above name them; the
-  hand; In time or Wait for me) with each of its runs, or round a loop each pass, as a point on a line, the best named, its
-  first and last figures, the minutes it took, and its tempo, a step on the line where it changed.
-
-  A bar still going wrong, and one put right, come from the runs and passes that played it, in order: the last third of them
-  (the last time, at least) is how it stands now, the first third how it started. The bar still hard is the one with most to
-  fix in its last times, a wrong or missed note weighing three times anything else (a note off the beat or let go early, a
-  slip put right, a chord not together): one read-through names its worst bar. The bar put right is the one with most to
-  fix at first, played three times or more, that was clean in its last times.
-
-  **Keep practicing** carries the session on, **In-depth review** goes over it, and **Done** goes back to the piece's
-  front: the three stay at the foot of the screen as the page scrolls. Only taps press them.
-- **The in-depth review** goes over a session, or one run (Hands-on's, or Play's), taking the screen. A session's figures lead
-  with where it ended, not its average: its last stretch, named as the look back names it, first → last ("Bars 13–16,
-  first → last: 70% → 96%"), that stretch's tempo, and the time playing; one run's are its right in time and notes right.
-  Its lines go over every run and
-  pass: the notes (wrong, missed, slips put right and chord notes not together each named, and "every one" only when every
-  note was right), the timing (only the timing: the notes more than a tenth of a beat out, and where), the notes let go early, and
-  **Look at** and **Fixed**, the bar still hard and the bar put right, by the look back's rule. Its bars are shaded by what went wrong against the bar with
-  the most, so the worst is darkest whatever the session. A tap on a bar's cell, or on the bar on the music, outlines it there
-  with the marks the latest run that played it left on its notes; it opens on the bar still hard (or else the bar put right),
-  and **Practice bar N** loops the bar picked, with a bar either side. Up to 24 bars every bar has a cell. A longer piece shows
-  the bars that had something wrong, the most to fix first, up to 16, over a thin strip of the whole piece with each marked on
-  it, and **and 9 more** shows the rest. The pickup before bar 1 is "the upbeat" in its words, as it has no number on the strip.
-- **Play** is the piece played through, In time with the click, both hands, from its first bar to its end, full screen: the
-  music, and a slim strip with the piece's name, the tempo (tap it to change it) and **Start** (or the piano's go key), so the
-  tempo can be set first; then the bar, the time and Stop. Nothing is on the music while it plays, whatever the settings say:
-  no cursor and no marks. Once it's over every note is marked, and a line at the bottom says how it went (**93% right in
-  time** · 88 of 95 notes · look at bar 1), with **Again**, **Practice bar 1** (Practice, a session started looping that bar
-  with a bar either side), **In-depth review** and **Done**; the strip at the top keeps only the tempo then. A play-through is
-  kept as a run, counted in About's played through and its best, and its minutes are the day's.
 - **Screens over the music don't draw it again.** The look back, the in-depth review and Play cover the music or take it full
   screen; the music isn't drawn while it's hidden, and the last three sizes it was drawn at are kept, so coming back, leaving
   full screen or turning the tablet back puts the drawing back rather than laying out the piece again (seconds, on a long
@@ -710,15 +617,7 @@ Library keeps it here, and it can be put in **collections** under names of your 
 here with **New collection**. The collections are tabs after **Everything**, each with how many pieces it holds; the one shown
 can be renamed, or removed, which leaves its pieces kept.
 
-Each piece is a card: who it's by (a movement goes by its work's name, with the movement's own over it), **where it stands**
-as a row of twenty-four lamps for the whole of it, lit for the share of its bars whose notes are there In time with both
-hands and dim for the share played but not there yet (the bars' standing is the piece's own, as its screen has it); when it
-was last played and how that went, or since when it's kept; and **what comes next**, its last practice session's first step,
-with **Practice**, which opens it. A piece whose every bar holds at its own tempo (In time, where its music marks none) is
-**Learned**, and its next step is to keep it: once through, now and then. A piece not played yet starts with its first bars,
-a hand at a time; one with pages only says nothing plays along until it has its notes. The cards are sorted by when they were
-last played (the ones not played yet after them, the latest kept first), by the least or the most learned, or by name. A
-card's star opens where the piece is kept, to put it in a collection or take it out of the repertoire.
+Each repertoire card shows the piece, its composer and its most recent recorded practice. The bar meter shows which bars were played in time. **Practice history** opens that piece’s past sessions, and **Practice** opens its score. Cards can be sorted by last practice, number of bars in time as a share of the piece, or title. The star manages its collections.
 
 Under the cards, **Lately played, not starred**: the pieces played in the last month that aren't kept, eight at most, the
 latest first, each with ▶, when it was played and how that went, and a star that keeps it. A piece the Library no longer has
@@ -1043,42 +942,9 @@ the page follows it down as it does. With the tablet set to remove animations, e
 
 ### A run's review
 
-After a run of an exercise or a technique drill, two lines and nothing else: **This run**, what you did, and **Next time**,
-the one thing to work on, or with nothing to fix the step on ("A little faster.", in one of RCM's routines towards RCM's tempo,
-or where a drill's tempo has just moved, that). Everything else is under **Show details**: the summary's panels and bars, or on
-a drill its figures and a line on each. A hand is named only when both played and one did what the other didn't; with one
-hand, never, not even in the details. The figures it's drawn from are the run's scores ([How a passage is
-scored](#how-a-passage-is-scored), and a drill's evenness under [Drills](#drills)): it measures nothing of its own.
+After a run, the player sees one observation. Timed practice reports the recorded note or timing result. Wait for notes reports first-try accuracy. A loop uses its last completed pass. A specific bar can be inspected before the player chooses where to play again.
 
-The first line leads with the notes (every note right; a slip or two, and where when that's one place; or what went wrong with
-them), then what was good (steady or even, legato, the hands together), or the one thing that wasn't: "Every note right, but
-you got ahead of the click as you went." When there's more than one thing, the first of these is the one:
-
-1. **Keeping going**: a stop of more than a bar. "Keep going through a slip: the click won't wait."
-2. **The notes**: a sharp or flat of the key or the scale played as its plain letter ("F instead of F♯ twice", then "Think of
-   the F♯ before you start"); with both hands, the slips nearly all in one ("The left hand alone for a run or two, then
-   together"); most of them in two bars in a row, or on a drill in one part of it (going up, at the top, coming down, at the
-   thumb crossings), to play slowly on their own; or all through: many (Wait for me first, to learn them), a key off, left out.
-   One or two are counted, and asked about only when nothing bigger is.
-3. **With the click**: ahead of it or behind it by a tenth of a beat at the end of the run, where a note starts to be heard
-   apart from the click; or leaning one way all through by 12% of a beat; on a drill, also speeding up or slowing down within
-   the run by 15% of a gap.
-4. **What the music marks**: loud and soft, a crescendo or diminuendo, staccato, tenuto, slurs, accents, the pedal.
-5. **Evenness**: even to 8%, Prima's tightest evenness target (a drill's own target where that's wider), a little uneven to 12%
-   (or half as much again as the target), uneven past it. On a drill a bump at the thumb crossings or at each new octave is
-   named first, where it stands out from the rest (10 ms, and half as much again as the run's spread), and where it was less
-   even, going up or coming down. Where the gaps say nothing, notes well off the click.
-6. **The hands together**: within 25 ms on average, and 30 ms from one moment to the next.
-7. **Legato**: legato to 5% of the gap in silence, a little short of it to 25%, detached past that; and long notes let go
-   early.
-8. **Loudness**, where the piano's touch varies and the music asks for one loudness (no dynamics, slurs or accents): a finger
-   12 louder or softer (velocity) than the others, or the notes' velocity spread past 12.
-
-Wait for me's review is of the notes right first time, where the slips were, and the chords played a key at a time; with
-nothing to fix its next is In time, and on a drill's first run In time a little under your own speed. Round a loop the passes
-lead ("Four times round, every one clean but the third"), and the rest is the last pass's. A run stopped before its end is
-reviewed as far as it went ("Up to bar 5: every note right, steady and legato."). A piece, Sight-read and a routine's pieces
-keep the summary's few lines.
+**Show details** opens the graphs for notes, timing and note lengths, the expression marks the passage contains, and the bar map. Technique drills also show their measured evenness and hand coordination. An explicitly selected course or routine still offers its next activity.
 
 ### Levels
 

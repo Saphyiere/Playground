@@ -16,10 +16,10 @@ public sealed class SettingsFinder
     [
         new("practice", "Practice"),
         new("keyboard", "Keyboard & sound"),
-        new("look", "Look & music"),
+        new("look", "Display & notation"),
         new("claude", "Claude"),
-        new("app", "App & data"),
-        new("tools", "Tools"),
+        new("app", "Backups & updates"),
+        new("tools", "Practice tools"),
     ];
 
     private readonly List<Setting> settings = [];

@@ -21,18 +21,18 @@ public class WelcomeTests
         await using var host = new ComponentHost(keyboard: piano, clock: clock);
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         var welcome = host.Context.Render<Welcome>();
-        await welcome.InvokeAsync(() => Key(welcome, "Plug in the piano and set the timing")!.ClickAsync(new MouseEventArgs()));
+        await welcome.InvokeAsync(() => Key(welcome, "calibrate")!.ClickAsync(new MouseEventArgs()));
         Assert.Equal("http://localhost/tools/timing?from=welcome", nav.Uri);
 
         var timing = host.Context.Render<Timing>();
-        Assert.Null(Key(timing, "Done"));
+        Assert.Null(Key(timing, "finish"));
         await Calibrate(host, timing, piano, clock);
-        Assert.Null(Key(timing, "Done"));
+        Assert.Null(Key(timing, "finish"));
 
-        await timing.InvokeAsync(() => Key(timing, "Keep this offset")!.ClickAsync(new MouseEventArgs()));
-        Assert.StartsWith("Kept.", timing.Find(".control-row-play .control-note").TextContent);
-        Assert.Equal("Done", timing.Find(".control-row-play .mu-primary").TextContent);
-        await timing.InvokeAsync(() => Key(timing, "Done")!.ClickAsync(new MouseEventArgs()));
+        await timing.InvokeAsync(() => Key(timing, "save")!.ClickAsync(new MouseEventArgs()));
+        Assert.NotNull(host.Context.Services.GetRequiredService<PrimaSettings>().CalibratedOn);
+        Assert.Equal("finish", timing.Find(".control-row-play .mu-primary").GetAttribute("data-action"));
+        await timing.InvokeAsync(() => Key(timing, "finish")!.ClickAsync(new MouseEventArgs()));
         Assert.Equal("http://localhost/", nav.Uri);
     }
 
@@ -46,10 +46,10 @@ public class WelcomeTests
         var timing = host.Context.Render<Timing>();
         await Calibrate(host, timing, piano, clock);
 
-        await timing.InvokeAsync(() => Key(timing, "Keep this offset")!.ClickAsync(new MouseEventArgs()));
-        Assert.StartsWith("Kept.", timing.Find(".control-row-play .control-note").TextContent);
-        Assert.Null(Key(timing, "Done"));
-        Assert.Equal("Again", timing.Find(".control-row-play .mu-primary").TextContent);
+        await timing.InvokeAsync(() => Key(timing, "save")!.ClickAsync(new MouseEventArgs()));
+        Assert.NotNull(host.Context.Services.GetRequiredService<PrimaSettings>().CalibratedOn);
+        Assert.Null(Key(timing, "finish"));
+        Assert.Equal("start", timing.Find(".control-row-play .mu-primary").GetAttribute("data-action"));
     }
 
     // The owner, 15 November: no tour or guide yet, only these steps leading on cleanly. A new Prima opening on Today goes to the
@@ -67,7 +67,7 @@ public class WelcomeTests
         await welcome.InvokeAsync(() => welcome.Find(".control-row-play .mu-primary").ClickAsync(new MouseEventArgs()));
         var timing = host.Context.Render<Timing>();
         await Calibrate(host, timing, piano, clock);
-        await timing.InvokeAsync(() => Key(timing, "Keep this offset")!.ClickAsync(new MouseEventArgs()));
+        await timing.InvokeAsync(() => Key(timing, "save")!.ClickAsync(new MouseEventArgs()));
         await timing.InvokeAsync(() => timing.Find(".control-row-play .mu-primary").ClickAsync(new MouseEventArgs()));
         var today = host.Context.Render<Today>();
         today.WaitForAssertion(() => Assert.NotEmpty(today.FindAll(".today-steps .mu-step")));
@@ -90,7 +90,7 @@ public class WelcomeTests
 
         var keys = welcome.FindAll(".control-row-play button");
         var main = Assert.Single(keys);
-        Assert.Equal("Go to Today", main.TextContent);
+        Assert.Equal("go-today", main.GetAttribute("data-action"));
         Assert.Contains("mu-primary", main.ClassList);
         await welcome.InvokeAsync(() => main.ClickAsync(new MouseEventArgs()));
 
@@ -104,14 +104,14 @@ public class WelcomeTests
     // Start, a key on every click of the 16 a little after it, then the clock past the last: what was played is measured.
     private static async Task Calibrate(ComponentHost host, IRenderedComponent<Timing> timing, TestPiano piano, SetClock clock)
     {
-        await timing.InvokeAsync(() => Key(timing, "Start")!.ClickAsync(new MouseEventArgs()));
+        await timing.InvokeAsync(() => Key(timing, "start")!.ClickAsync(new MouseEventArgs()));
         var click = host.Context.Services.GetRequiredService<Click>();
         var first = click.Plan!.FirstMusicBeat;
         for (var beat = first; beat < first + 16; beat++) piano.Play(60, click.BeatTime(beat) + 20_000_000);
         clock.NowNs = click.BeatTime(first + 17);
-        timing.WaitForAssertion(() => Assert.NotNull(Key(timing, "Keep this offset")));
+        timing.WaitForAssertion(() => Assert.NotNull(Key(timing, "save")));
     }
 
-    private static IElement? Key<T>(IRenderedComponent<T> view, string words) where T : IComponent =>
-        view.FindAll("button").FirstOrDefault(b => b.TextContent.Trim() == words);
+    private static IElement? Key<T>(IRenderedComponent<T> view, string action) where T : IComponent =>
+        view.FindAll($"button[data-action={action}]").SingleOrDefault();
 }

@@ -31,7 +31,7 @@ else
         <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
         @if (result is not null)
         {
-            <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
+            <div class="mu-readout"><span class="mu-readout-label">Correct and on time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
         }
         <PlayTools Metronome="true" Running="@(session?.Phase is Phase.CountIn or Phase.Playing)" />
         <span class="play-bar-break" aria-hidden="true"></span>
@@ -104,11 +104,11 @@ else
 
     private string Words() => stage switch
     {
-        Stage.Ready => "The piano plays a short phrase after a bar of count-in. Listen without the music, then play it back in time.",
-        Stage.Listen => "Listening… When it's done, play it back: a bar of count-in, then the same phrase.",
+        Stage.Ready => "Listen to the phrase, then play it back at the same tempo.",
+        Stage.Listen => "Listen. After the next count-in, play the same phrase.",
         Stage.PlayBack => "Play it back in time.",
-        Stage.Shown => "Here it is written, marked against what you played. Then, if you like, improvise an answer to it: it's recorded, not scored.",
-        _ => "Your answer is kept. Next phrase when you're ready.",
+        Stage.Shown => "Compare your notes with the score. You can also record an improvised reply.",
+        _ => "Your reply was saved.",
     };
 
     private IReadOnlyList<(int Midi, double Beat, double Beats)> Notes() => [.. passage!.Score.Expected().Select(e => (e.Midi, e.Tick / (double)passage.Score.Meter.BeatTicks, e.Length / (double)passage.Score.Meter.BeatTicks))];

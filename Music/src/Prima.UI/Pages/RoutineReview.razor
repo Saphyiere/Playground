@@ -80,8 +80,8 @@ else if (job.State == RoutineGenerationState.Ready && draft is not null)
             {
                 <div class="control-row">
                     <span class="control-label">Mode</span>
-                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "wait")" @onclick='() => Change(position, item with { Mode = "wait" })'><span class="mu-led"></span>Wait for me</button>
-                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "time")" @onclick='() => Change(position, item with { Mode = "time" })'><span class="mu-led"></span>In time</button>
+                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "wait")" @onclick='() => Change(position, item with { Mode = "wait" })'><span class="mu-led"></span>Wait for notes</button>
+                    <button class="mu-toggle" type="button" data-piano="off" aria-pressed="@On(item.Mode == "time")" @onclick='() => Change(position, item with { Mode = "time" })'><span class="mu-led"></span>Timed</button>
                 </div>
             }
             @if (item.Kind == "exercise")
@@ -96,7 +96,7 @@ else if (job.State == RoutineGenerationState.Ready && draft is not null)
             }
             else
             {
-                <p class="control-note">@HandsName(item.Hands) · @(item.Mode == "time" ? "In time" : "Wait for me")</p>
+                <p class="control-note">@HandsName(item.Hands) · @(item.Mode == "time" ? "Timed" : "Wait for notes")</p>
             }
             @if (entry is { MaxStep: > 1 })
             {
@@ -140,7 +140,7 @@ else
         <div class="control-row">
             <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-retry" disabled="@busy" @onclick="Retry">Retry request</button>
             <a class="mu-btn" data-piano="off" href="routine/ask">Edit request</a>
-            <a class="mu-btn" data-piano="off" href="settings?tab=claude">Provider settings</a>
+            <a class="mu-btn" data-piano="off" href="settings?tab=claude">Claude settings</a>
         </div>
     </section>
 }

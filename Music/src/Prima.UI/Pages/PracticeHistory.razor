@@ -1,0 +1,199 @@
+@page "/history"
+@page "/library/{Id}/history"
+@inject PrimaStore Store
+@inject AppNavigation Navigation
+@using Prima.Core.Practice
+
+<PageTitle>Practice history · Prima</PageTitle>
+<PageHead Title="@(selected?.Title ?? "Practice history")" Kicker="@(selected is null ? pieceTitle : $"{selected.At.LocalDateTime:dddd, MMM d, yyyy} · {selected.At.LocalDateTime:t}")" Back="@BackLabel" OnBack="Back" />
+
+@if (!ready)
+{
+    <Waiting Shape="WaitShape.Card" Count="1" Label="Loading practice history" />
+}
+else if (selected is not null && review is not null)
+{
+    @if (details)
+    {
+        <DeepReview @key="selected" Kicker="Saved practice" Title="@selected.Title" Session="selected.Session" Runs="selected.Runs" Review="review" Bars="barNumbers" Picked="picked" OnPick="SelectBar" />
+        @if (picked is { } bar && mei is not null && barNumbers.Contains(bar))
+        {
+            <section class="settings-section">
+                <h2 class="section-title">@BarWords.Capital(PieceWords.Bar(bar))</h2>
+                <div class="sheet-frame">
+                    <Sheet @key="(selected, bar)" @ref="sheet" Mei="@mei" Measures="@((barNumbers.IndexOf(bar) + 1).ToString(CultureInfo.InvariantCulture))" OnPainted="_ => sheet?.ShowMarks(barMarks) ?? Task.CompletedTask" />
+                </div>
+                @if (barMarks.Count == 0) { <p class="section-note">No saved note marks for this bar.</p> }
+            </section>
+        }
+        @if (mei is null) { <p class="section-note">Sheet music is unavailable for this record.</p> }
+        <div class="control-row"><button type="button" class="mu-btn" data-action="back-to-summary" @onclick="() => details = false">Back to summary</button></div>
+    }
+    else
+    {
+        <LookBack Session="selected.Session" Runs="selected.Runs" Review="review" OnReview="() => OpenDetails()" OnViewBar="bar => OpenDetails(bar)" OnDone="Back" />
+        @if (selected.Session is not null && selected.Runs.Count > 0)
+        {
+            <section class="settings-section">
+                <h2 class="section-title">Runs</h2>
+                <ul class="piece-list history-entries">
+                    @foreach (var run in selected.Runs.Reverse())
+                    {
+                        <li><a class="piece-row" data-run="@run.Id" href="@($"{ListPath}?run={run.Id}")">
+                            <span class="piece-title">@run.At.ToLocalTime().ToString("t") · @PieceWords.Short(run)</span>
+                            <span class="piece-meta">@PieceWords.Hands(run.Hands)</span>
+                        </a></li>
+                    }
+                </ul>
+            </section>
+        }
+    }
+}
+else if (SessionId is not null || RunId is not null)
+{
+    <p class="page-note">This practice record is unavailable.</p>
+}
+else if (entries.Count == 0)
+{
+    <p class="page-note">Finished practice sessions and individual play-throughs will appear here.</p>
+}
+else
+{
+    @foreach (var day in entries.Take(limit).GroupBy(e => DateOnly.FromDateTime(e.At.LocalDateTime)))
+    {
+        <section class="settings-section">
+            <h2 class="section-title">@day.Key.ToString("dddd, MMM d, yyyy")</h2>
+            <ul class="piece-list history-entries">
+                @foreach (var entry in day)
+                {
+                    var last = entry.Runs.LastOrDefault();
+                    <li><a class="piece-row" data-session="@entry.Session?.Id" data-run="@(entry.Session is null ? last?.Id : null)" href="@($"{ListPath}?{entry.Query}")">
+                        <span class="piece-title">@entry.At.ToLocalTime().ToString("t") · @(Id is null ? entry.Title : entry.Session is null ? "Individual run" : "Practice session")</span>
+                        <span class="piece-meta">@(entry.Session is { } session ? $"{PieceWords.Duration(session.Playing)} playing · {BarWords.Count(entry.Runs.Count, "run")}" : Id is null ? "Individual run" : "")
+                            @if (last is not null) { <text>@(entry.Session is not null || Id is null ? " · " : "")@(entry.Runs.Count > 1 ? "Last run · " : "")@PieceWords.How(last)</text> }
+                        </span>
+                    </a></li>
+                }
+            </ul>
+        </section>
+    }
+    @if (limit < entries.Count)
+    {
+        <button type="button" class="mu-btn" @onclick="() => limit += 30">Show more sessions</button>
+    }
+}
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "session")] public long? SessionId { get; set; }
+    [SupplyParameterFromQuery(Name = "run")] public long? RunId { get; set; }
+
+    private sealed record Entry(string Piece, string Title, PracticeSession? Session, IReadOnlyList<PieceRun> Runs)
+    {
+        public DateTimeOffset At => Session?.Started ?? Runs[0].At;
+        public string Query => Session is null ? $"run={Runs[0].Id}" : $"session={Session.Id}";
+    }
+
+    private List<Entry> entries = [];
+    private Entry? selected;
+    private Entry? parentSession;
+    private SessionReview? review;
+    private string? pieceTitle;
+    private string? mei;
+    private List<int> barNumbers = [];
+    private IReadOnlyList<ExpectedNote> expected = [];
+    private Dictionary<long, string> savedMarks = [];
+    private List<SheetMark> barMarks = [];
+    private Sheet? sheet;
+    private int? picked;
+    private int limit = 30;
+    private bool ready;
+    private bool details;
+    private int selectionVersion;
+    private string ListPath => Id is null ? "history" : $"library/{Uri.EscapeDataString(Id)}/history";
+    private string BackLabel => parentSession is not null ? "Session" : SessionId is not null || RunId is not null ? "Practice history" : Navigation.PreviousName ?? (Id is null ? "Today" : "Piece");
+
+    protected override async Task OnInitializedAsync()
+    {
+        var pieces = (await Store.GetPiecesAsync()).ToDictionary(p => p.Id, p => p.Title);
+        pieceTitle = Id is null ? "Library pieces" : pieces.GetValueOrDefault(Id);
+        var sessions = await Store.GetSessionsAsync(Id);
+        var runs = await Store.GetPieceRunsAsync(Id);
+        var bySession = runs.ToLookup(r => (r.Piece, r.Run.Session), r => r.Run);
+        var known = sessions.Select(s => (s.Piece, (long?)s.Id)).ToHashSet();
+        foreach (var session in sessions.Where(s => s.Finished is not null))
+        {
+            entries.Add(new(session.Piece, pieces.GetValueOrDefault(session.Piece, "Removed piece"), session, [.. bySession[(session.Piece, session.Id)].OrderBy(r => r.At).ThenBy(r => r.Id)]));
+        }
+        foreach (var (piece, run) in runs.Where(r => !known.Contains((r.Piece, r.Run.Session))))
+            entries.Add(new(piece, pieces.GetValueOrDefault(piece, "Removed piece"), null, [run]));
+        entries = [.. entries.OrderByDescending(e => e.At).ThenByDescending(e => e.Session?.Id ?? e.Runs[0].Id)];
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var version = ++selectionVersion;
+        (ready, details, review, picked, sheet, mei) = (false, false, null, null, null, null);
+        barNumbers = [];
+        expected = [];
+        parentSession = null;
+        selected = null;
+        if (RunId is { } runId && SessionId is null)
+        {
+            var entry = entries.FirstOrDefault(e => e.Runs.Any(r => r.Id == runId));
+            if (entry is not null)
+            {
+                parentSession = entry.Session is null ? null : entry;
+                selected = entry with { Session = null, Runs = [entry.Runs.First(r => r.Id == runId)] };
+            }
+        }
+        else if (SessionId is { } sessionId && RunId is null) selected = entries.FirstOrDefault(e => e.Session?.Id == sessionId);
+        if (selected is { } record)
+        {
+            try
+            {
+                var notation = await Store.GetMeiAsync(record.Piece);
+                if (version != selectionVersion) return;
+                if (notation is not null)
+                {
+                    var score = await Task.Run(() => MeiReader.Read(notation));
+                    if (version != selectionVersion) return;
+                    barNumbers = [.. score.Bars.Select(b => b.Number)];
+                    expected = score.Expected();
+                    mei = notation;
+                }
+            }
+            catch (Exception error) when (error is FormatException or InvalidOperationException or ArgumentException or System.Xml.XmlException)
+            {
+                // The recorded results remain readable without usable notation.
+            }
+            if (version != selectionVersion) return;
+            if (barNumbers.Count == 0) barNumbers = [.. record.Runs.SelectMany(r => r.Passes.SelectMany(p => p.Trouble).Concat(r.Trouble)).Select(b => b.Bar).Distinct().Order()];
+            var lastBar = Math.Max(barNumbers.LastOrDefault(), record.Runs.Select(r => r.To ?? r.Bar ?? r.From).DefaultIfEmpty(1).Max());
+            review = SessionReview.Of(record.Runs, lastBar);
+        }
+        Navigation.Name(selected is null ? "Practice history" : "Saved practice");
+        ready = true;
+    }
+
+    private Task Back() => parentSession is not null ? Navigation.ReturnToAsync($"{ListPath}?{parentSession.Query}")
+        : SessionId is not null || RunId is not null ? Navigation.ReturnToAsync(ListPath)
+        : Navigation.BackAsync(Id is null ? "" : $"library/{Uri.EscapeDataString(Id)}");
+
+    private async Task OpenDetails(int? requestedBar = null)
+    {
+        if (selected is not { } entry || review is null) return;
+        var marks = await Store.GetRunMarksAsync([.. entry.Runs.Select(r => r.Id)]);
+        if (!ReferenceEquals(selected, entry)) return;
+        savedMarks = marks;
+        details = true;
+        if ((requestedBar ?? review.Hard?.Bar ?? review.Fixed?.Bar ?? barNumbers.Cast<int?>().FirstOrDefault()) is { } first) SelectBar(first);
+    }
+
+    private void SelectBar(int bar)
+    {
+        picked = bar;
+        barMarks = KeptRun.MarksForBar(bar, expected, selected!.Runs, savedMarks);
+    }
+
+}

@@ -77,11 +77,11 @@
     {
         @if (ShowResult && last?.InTime is { } timed)
         {
-            <div class="mu-readout play-result @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">Right in time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
+            <div class="mu-readout play-result @(timed.InTimeAccuracy < 0.8 ? "miss" : "")"><span class="mu-readout-label">Correct and on time</span><span class="mu-readout-value">@($"{timed.InTimeAccuracy * 100:0}%")</span></div>
         }
         else if (ShowResult && last?.Wait is { Notes: > 0 } waited)
         {
-            <div class="mu-readout play-result @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Right first time</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
+            <div class="mu-readout play-result @(waited.RightFirstTime < waited.Notes * 0.9 ? "miss" : "")"><span class="mu-readout-label">Correct on first try</span><span class="mu-readout-value">@waited.RightFirstTime/@waited.Notes</span></div>
         }
         @* The tempo as its figure; tapped, its − and + and a field to type it, under it. With a metronome it's shown whatever the
            mode, since the metronome goes at it: after the metronome's key and before the mode, with the music's own tempo beside it
@@ -121,9 +121,9 @@
         }
         @if (ShowMode)
         {
-            <div class="play-mode" role="radiogroup" aria-label="How it follows you">
-                <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.InTime)" @onclick="() => SetMode(PlayMode.InTime)">In time</button>
-                <button type="button" role="radio" class="play-mode-option" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for me</button>
+            <div class="play-mode" role="radiogroup" aria-label="Practice mode">
+                <button type="button" role="radio" class="play-mode-option" data-mode="time" aria-checked="@On(Mode == PlayMode.InTime)" @onclick="() => SetMode(PlayMode.InTime)">Timed</button>
+                <button type="button" role="radio" class="play-mode-option" data-mode="wait" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for notes</button>
             </div>
         }
         @if (!HasMetronome && Mode == PlayMode.InTime)

@@ -15,22 +15,17 @@ namespace Prima.UI.Tests;
 /// </summary>
 public class EngineBarTests
 {
-    // The bar's keys in order: each by its label, or its words.
-    private static List<string> Keys<T>(IRenderedComponent<T> view) where T : IComponent
+    private static void AssertOrder<T>(IRenderedComponent<T> view, params string[] selectors) where T : IComponent
     {
-        // The metronome appears when the player has rendered the loaded score's beats.
         view.WaitForElement(".play-bar .play-metronome");
-        return [.. view.Find(".play-bar").QuerySelectorAll("button").Select(b => b.GetAttribute("aria-label") is { Length: > 0 } label ? label : b.TextContent.Trim())];
-    }
-
-    // The keys every bar shares, in the order every bar has them: the tools (the metronome's settings, full screen), then the run's
-    // (the metronome, the tempo, the mode, the start key).
-    private static void InTheEnginesOrder(List<string> keys, string start)
-    {
-        string[] order = ["Metronome", "Full screen", "Start the metronome", "Tempo", "In time", "Wait for me", start];
-        var at = order.Select(k => keys.FindIndex(key => key == k || k == "Tempo" && key.StartsWith("Tempo ", StringComparison.Ordinal) || k == "Full screen" && key == "Leave full screen")).ToList();
-        Assert.All(at, i => Assert.True(i >= 0, $"Missing from the bar: {string.Join(", ", order.Where((_, n) => at[n] < 0))}. It has {string.Join(", ", keys)}."));
-        Assert.True(at.SequenceEqual(at.Order()), $"Out of order: {string.Join(", ", keys)}.");
+        var keys = view.Find(".play-bar").QuerySelectorAll("button").ToArray();
+        var previous = -1;
+        foreach (var selector in selectors)
+        {
+            var index = Array.FindIndex(keys, key => key.Matches(selector));
+            Assert.True(index > previous, $"{selector} is missing or out of order.");
+            previous = index;
+        }
     }
 
     [Fact]
@@ -43,24 +38,19 @@ public class EngineBarTests
         pieceView.WaitForElement(".pause-keys .mu-primary");
         await pieceView.InvokeAsync(() => pieceView.Find(".pause-keys .mu-primary").ClickAsync(new MouseEventArgs()));
         pieceView.WaitForElement(".play-bar [data-piano=go]");
-        var pieceKeys = Keys(pieceView);
-        InTheEnginesOrder(pieceKeys, "Play");
-        // A piece's own tools come first among them: What's this and its Options.
-        Assert.True(pieceKeys.IndexOf("What's this?") < pieceKeys.IndexOf("Options") && pieceKeys.IndexOf("Options") < pieceKeys.IndexOf("Metronome"));
+        string[] common = ["[data-action=metronome-options]", "[data-action=fullscreen]", ".play-metronome", ".play-tempo-figure", "[data-mode=time]", "[data-mode=wait]", "[data-piano=go]"];
+        AssertOrder(pieceView, ["[data-action=explain]", "[data-action=options]", .. common]);
 
         var exercise = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, "five"));
         exercise.WaitForAssertion(() => Assert.NotNull(exercise.FindComponent<PlayAlong>().Instance.Music));
-        var exerciseKeys = Keys(exercise);
-        InTheEnginesOrder(exerciseKeys, "Play");
-        // An exercise's words are its Options, in the same place as a piece's; its Loop is beside the mode.
-        Assert.True(exerciseKeys.IndexOf("Options") < exerciseKeys.IndexOf("Metronome"));
-        Assert.True(exerciseKeys.FindIndex(k => k.StartsWith("Loop", StringComparison.Ordinal)) > exerciseKeys.IndexOf("Wait for me"));
+        AssertOrder(exercise, ["[data-action=options]", .. common]);
+        AssertOrder(exercise, "[data-mode=wait]", ".play-loop button");
         exercise.Dispose();
 
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("drills/scales");
         var scales = host.Context.Render<TechniquePractice>();
         scales.WaitForAssertion(() => Assert.NotNull(scales.FindComponent<PlayAlong>().Instance.Music));
-        InTheEnginesOrder(Keys(scales), "Run");
+        AssertOrder(scales, common);
         scales.Dispose();
 
         // An exercise draws its music in a piece's paper frame, the way a piece's is drawn.

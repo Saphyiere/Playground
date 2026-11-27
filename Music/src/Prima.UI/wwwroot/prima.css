@@ -1538,6 +1538,32 @@ a {
     gap: 28px;
 }
 
+.feedback-options .control-row + .control-row {
+    margin-top: var(--space-3);
+}
+
+.settings-panel > .settings-section + .settings-section:not([hidden]) {
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--seam);
+}
+
+.piece-list.history-entries {
+    grid-template-columns: 1fr;
+}
+.history-entries .piece-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.look-story .section-note {
+    color: var(--on-screen);
+}
+
+.look-stretches > summary {
+    cursor: pointer;
+    padding-block: var(--space-2);
+}
+
 .settings-section[hidden] {
     display: none;
 }

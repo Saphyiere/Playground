@@ -3,7 +3,7 @@
    backup… (this tablet's copies, or a folder or a file chosen with the tablet's picker, then which copy, and what it replaces,
    what's here being kept first); and Export everything, to send on. The copies held stand first, newest first, each saying what
    it was kept from before (an update that didn't check out, a restore, Start over, Remove library, Reset settings) and when, with
-   Restore it… and Let it go of its own. Work goes on in the background, its progress on the meter. *@
+   actions to restore it or remove its protection. Work goes on in the background, its progress on the meter. *@
 @implements IDisposable
 @inject Syncer Sync
 @inject ISyncPicker Picker
@@ -16,18 +16,18 @@
 
 @foreach (var kept in status.Holding)
 {
-    <div class="copies-held" role="@(kept.Held!.From == SyncHeldFrom.Update ? "alert" : "group")" aria-label="@Head(kept)">
+    <div class="copies-held" data-held="@(kept.Held!.Copy)" role="@(kept.Held!.From == SyncHeldFrom.Update ? "alert" : "group")" aria-label="@Head(kept)">
         <p class="copies-held-head"><span class="mu-led"></span>@Head(kept)</p>
         <p class="section-note">@Said(kept)</p>
         <div class="control-row">
-            <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="() => ChooseHeld(kept)">Restore it…</button>
-            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="() => LetGo(kept)">Let it go</button>
+            <button type="button" class="mu-btn mu-primary" data-action="restore-held" data-piano="off" disabled="@status.Busy" @onclick="() => ChooseHeld(kept)">Restore this backup…</button>
+            <button type="button" class="mu-btn" data-action="release-held" disabled="@status.Busy" @onclick="() => LetGo(kept)">Remove backup protection</button>
         </div>
     </div>
 }
 
 <div class="control-row">
-    <span class="control-label">Last copy</span>
+    <span class="control-label">Last backup</span>
     @if (status.Last is { } last)
     {
         <span class="key-figure">@SyncText.When(last.Made)</span>
@@ -40,15 +40,15 @@
 </div>
 @if (status.Copies > 0)
 {
-    <div class="control-row">
-        <span class="control-label">Copies kept</span>
-        <span class="control-note">@status.Copies @(status.Copies == 1 ? "copy" : "copies"), @SyncText.Size(status.Stored) together</span>
+    <div class="control-row" data-backup-storage>
+        <span class="control-label">Backups</span>
+        <span class="control-note">@status.Copies @(status.Copies == 1 ? "copy" : "copies"), @SyncText.Size(status.Stored) total</span>
     </div>
     <p class="section-note copies-kept">@Shared()</p>
 }
 <div class="control-row">
-    <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="BackUpNow">@if (status.Step == SyncStep.Copying) { <Busy /><span>Copying</span> } else { <span>Back up now</span> }</button>
-    <button type="button" class="mu-btn" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
+    <button type="button" class="mu-btn" data-action="backup" disabled="@status.Busy" @onclick="BackUpNow">@if (status.Step == SyncStep.Copying) { <Busy /><span>Copying</span> } else { <span>Back up now</span> }</button>
+    <button type="button" class="mu-btn" data-action="choose-backup" disabled="@status.Busy" aria-expanded="@(restoring ? "true" : "false")" @onclick="OpenRestore">Restore from a backup…</button>
     <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="Export">@if (status.Step == SyncStep.Exporting) { <Busy /><span>Exporting</span> } else { <span>Export everything</span> }</button>
 </div>
 @if (status.Progress is { } progress)
@@ -75,7 +75,7 @@
             }
             else
             {
-                <p class="section-note">@($"This tablet has no copy of its own yet. Choose the folder copies are in ({Sync.Store.Name}, a folder for each time Prima was installed), or an export.")</p>
+                <p class="section-note">No backups found on this tablet. Choose a backup folder or an exported file.</p>
             }
         }
         else
@@ -84,7 +84,7 @@
                 @foreach (var copy in found)
                 {
                     <li>
-                        <button type="button" class="copy-choice" aria-pressed="@(chosen == copy ? "true" : "false")" @onclick="() => chosen = copy">
+                        <button type="button" class="copy-choice" data-held="@copy.Held?.Copy" aria-pressed="@(chosen == copy ? "true" : "false")" @onclick="() => chosen = copy">
                             <span class="mu-led"></span>
                             <span class="copy-when">@SyncText.When(copy.Made)</span>
                             <span class="copy-what">@SyncText.Size(copy.Size) · @copy.Summary</span>
@@ -96,20 +96,20 @@
         }
         <div class="control-row">
             <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="PickFolder">Choose a folder…</button>
-            <button type="button" class="mu-btn" disabled="@status.Busy" @onclick="PickFile">Choose a file…</button>
+            <button type="button" class="mu-btn" data-action="choose-file" disabled="@status.Busy" @onclick="PickFile">Choose a file…</button>
             <button type="button" class="mu-btn" @onclick="CloseRestore">Cancel</button>
         </div>
         @if (chosen is { } choice)
         {
-            <p class="section-note">Everything in Prima now is replaced by the copy from @SyncText.When(choice.Made): @Replaced(choice). Claude's key and the problems kept stay as they are. What's here is kept first, held, so the restore can be undone.</p>
+            <p class="section-note">@Replaced(choice) @(unkept == choice ? "Prima couldn’t back up your current data. You can cancel or restore without that backup." : "Prima backs up your current data first so you can undo the restore.")</p>
             <div class="control-row">
-                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, true)">Restore this copy</button>
+                <button type="button" class="mu-btn mu-primary" data-action="restore" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, true)">Restore this copy</button>
                 @if (unkept == choice)
                 {
                     @* What's here couldn't be kept first (the status says why): restoring without it is a choice of its own. *@
-                    <button type="button" class="mu-btn" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, false)">Restore without keeping what's here</button>
+                    <button type="button" class="mu-btn" data-action="restore-without-backup" data-piano="off" disabled="@status.Busy" @onclick="() => Restore(choice, false)">Restore without a backup</button>
                 }
-                <button type="button" class="mu-btn" @onclick="() => chosen = null">Keep what's here</button>
+                <button type="button" class="mu-btn" @onclick="() => chosen = null">Cancel restore</button>
             </div>
         }
     </div>
@@ -137,14 +137,14 @@
 
     // What's said under the buttons: what was just picked, or how the last piece of work went, or what the copies are.
     private string Note => note ?? (status.Message.Length > 0 ? status.Message : Sync.Store.SurvivesUninstall
-        ? $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name} on this tablet, where uninstalling Prima doesn't reach it: after practice and as Prima starts once the last is a day old (never while you're playing), and before each update, restore, Start over, Remove library and Reset settings. Only what changed is written."
-        : $"Prima keeps a copy of everything but Claude's key in {Sync.Store.Name}, which uninstalling Prima deletes on this Android version: Export everything keeps one elsewhere.");
+        ? $"Prima backs up daily when you open the app or finish practicing, and before updates, restores and resets. Backups in {Sync.Store.Name} survive an uninstall."
+        : $"Android removes backups in {Sync.Store.Name} when you uninstall Prima. Use Export everything to save a copy elsewhere.");
 
     // Why the copies take so little together: the music imported is kept once for them all, so each copy costs about a copy of the
     // data file.
     private string Shared() => status.Last?.Manifest.Files.FirstOrDefault(f => f.Path == "prima.db") is { } data
-        ? $"The music imported is kept once for all of them, so each copy adds about the size of Prima's data file, {SyncText.Size(data.Size)}."
-        : "The music imported is kept once for all of them.";
+        ? $"Backups share imported music. Each backup adds about {SyncText.Size(data.Size)}."
+        : "Backups share imported music.";
 
     private void Changed(SyncStatus now) => _ = InvokeAsync(() =>
     {
@@ -217,7 +217,7 @@
             }
             var copies = new List<SyncCopy>();
             foreach (var store in stores) copies.AddRange(await Sync.FindCopiesAsync(store));
-            if (copies.Count == 0) note = "That folder holds no copies of Prima's.";
+            if (copies.Count == 0) note = "No Prima backups found in that folder.";
             Add(copies);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -238,7 +238,7 @@
             }
             if (await Sync.OpenFileAsync(path) is not { } copy)
             {
-                note = $"{Path.GetFileName(path)} isn't a copy of Prima's: an export (a .zip) or a Prima database (.db) is.";
+                note = "Choose a Prima export (.zip) or database (.db).";
                 return;
             }
             Add([copy]);
@@ -303,7 +303,7 @@
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            note = $"It couldn't be let go: {e.Message}";
+            note = $"Couldn’t remove backup protection. {e.Message}";
         }
     }
 
@@ -317,23 +317,22 @@
     };
 
     // A held copy's head: what it was kept from before, and when it was taken.
-    private static string Head(SyncCopy kept) => $"Kept from {From(kept.Held!)} · {SyncText.When(kept.Made)}";
+    private static string Head(SyncCopy kept) => $"Backup {From(kept.Held!)} · {SyncText.When(kept.Made)}";
 
     // Why a held copy is kept, and until when.
     private static string Said(SyncCopy kept) => kept.Held!.From switch
     {
-        SyncHeldFrom.Update => $"After the update, Prima's data had less than the copy taken just before it: {kept.Held.Why}.",
-        SyncHeldFrom.Restore => $"Everything Prima had when {kept.Held.Why} ({kept.Summary}).",
-        _ => $"Everything Prima had before {kept.Held.Why} ({kept.Summary}).",
-    } + " It's kept, whatever copies come after, until you restore it or let it go.";
+        SyncHeldFrom.Update => $"Prima found missing data after the update. {kept.Held.Why}.",
+        _ => kept.Summary + ".",
+    } + " This backup is protected until you restore it or remove protection.";
 
     // Where a copy is, and what it was kept from before when it's held.
-    private static string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where} · from {From(held)}" : copy.Where;
+    private static string Where(SyncCopy copy) => copy.Held is { } held ? $"{copy.Where} · {From(held)}" : copy.Where;
 
     // What a restore replaces: everything for a whole copy, the data file alone for a database on its own.
     private static string Replaced(SyncCopy copy) => copy.Manifest.Items.Count == 1 && copy.Manifest.Items[0].Kind == SyncItemKind.Database
-        ? "its settings, levels, history and routines (the music imported stays, as this file holds none)"
-        : "its settings, levels, history, routines and the music imported";
+        ? "This database backup replaces your settings, levels, practice history and routines."
+        : "This backup replaces your settings, levels, practice history, routines and imported music.";
 
     public void Dispose()
     {

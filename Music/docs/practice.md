@@ -6,6 +6,8 @@ questions the same day, and built the same week. Every screen there is used, and
 yours to set. Where the owner didn't say, my picks are marked *(pick)*. [concept.md](concept.md) describes it with the rest of
 the piece's page.
 
+The current feedback controls and practice history are described in [the app concept](concept.md). The sections below record the original November 12 design.
+
 ## The piece's front: Practice or Play
 
 - A notation piece opens on its music, with About this piece under it (what's been done on it), and two big keys on its bar:

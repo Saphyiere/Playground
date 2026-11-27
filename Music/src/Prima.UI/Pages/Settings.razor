@@ -23,8 +23,8 @@
    open a tab, and bring a section into view (settings?tab=app&section=problems). The search beside the heading finds a setting in
    any tab by its name, its choices or what it says, and shows each where it is, under its tab's name; cleared, the tabs come back.
    Each setting is a Setting in a SettingsSection, which hold the words it's found by (SettingsFinder). *@
-<PageHead Title="Settings" Kicker="Kept on this tablet">
-    <input class="text-field settings-search" type="search" placeholder="Find a setting: count-in, headphones…" aria-label="Find a setting by its name, a choice or what it says" @bind="finder.Query" @bind:event="oninput" />
+<PageHead Title="Settings">
+    <input class="text-field settings-search" type="search" placeholder="Search settings" aria-label="Search settings" @bind="finder.Query" @bind:event="oninput" />
 </PageHead>
 
 @if (!finder.Searching)
@@ -38,47 +38,37 @@
 }
 else if (!finder.FoundAny)
 {
-    <p class="page-note">Nothing in Settings for “@finder.Query.Trim()”.</p>
+    <p class="page-note">No settings found for “@finder.Query.Trim()”.</p>
 }
 
 <div id="settings-panel" class="settings-panel" role="@(finder.Searching ? null : "tabpanel")" aria-labelledby="@(finder.Searching ? null : $"settings-tab-{finder.Tab}")">
 <CascadingValue Value="finder" IsFixed="true">
 
 @* Practice *@
-<SettingsSection Tab="practice" Id="profile" Title="Profile">
-    <Setting Name="Name" Words="Optional">
-        <div class="control-row">
-            <label class="control-label" for="profile-name">Name</label>
-            <input id="profile-name" class="text-field text-field-short" type="text" @bind="name" @bind:after="SaveProfile" placeholder="Optional" />
-        </div>
+<SettingsSection Tab="practice" Id="practice" Title="Piece feedback">
+    <Setting Name="Feedback preset" Words="@($"Custom Simple Hands-on Practicing a piece {string.Join(' ', PrimaSettings.WayNames.Select(w => w.Name))}")" Note="@Options.FeedbackDescription">
+        <FeedbackPreset Way="@Options.Way" Chosen="way => Save(() => Options.UseWay(way))" />
     </Setting>
-    <Setting Name="Minutes a day" Words="@(string.Join(' ', Minutes))" Note="@(gradually ?? "Prima never raises this by itself. About twenty minutes holds the whole plan.")">
-        <div class="control-row">
-            <span class="control-label">Minutes a day</span>
-            @foreach (var m in Minutes)
-            {
-                <button type="button" class="mu-toggle" aria-pressed="@On(Options.DailyMinutes == m)" @onclick="() => ChooseMinutes(m)"><span class="mu-led"></span>@m</button>
-            }
-        </div>
-    </Setting>
-    <Setting Name="Your cue" Words="When I sit down after dinner, I’ll open Prima">
-        <div class="control-row">
-            <label class="control-label" for="profile-cue">Your cue</label>
-            <input id="profile-cue" class="text-field" type="text" @bind="cue" @bind:after="SaveProfile" placeholder="When I sit down after dinner, I’ll open Prima" />
-        </div>
-    </Setting>
-    <Setting Name="Note review" Words="@(string.Join(' ', ClefChoices.Select(c => c.Label)))">
-        <div class="control-row">
-            <span class="control-label">Note review</span>
-            @foreach (var (value, label) in ClefChoices)
-            {
-                <button type="button" class="mu-toggle" aria-pressed="@On(Options.Clefs == value)" @onclick="() => Save(() => Options.Clefs = value)"><span class="mu-led"></span>@label</button>
-            }
-        </div>
-    </Setting>
+    <details class="routine-history feedback-options" open="@finder.Searching">
+        <summary>Customize feedback</summary>
+        <Setting Name="Run feedback" Words="Customize feedback After a run None Nothing Summary Review">
+            <div class="control-row" role="group" aria-label="Run feedback">
+                <span class="control-label">Run feedback</span>
+                <button type="button" class="mu-toggle" data-feedback="nothing" aria-pressed="@On(Options.AfterRun == "nothing")" @onclick='() => Save(() => Options.AfterRun = "nothing")'><span class="mu-led"></span>None</button>
+                <button type="button" class="mu-toggle" data-feedback="summary" aria-pressed="@On(Options.AfterRun == "summary")" @onclick='() => Save(() => Options.AfterRun = "summary")'><span class="mu-led"></span>Summary</button>
+                <button type="button" class="mu-toggle" data-feedback="review" aria-pressed="@On(Options.AfterRun == "review")" @onclick='() => Save(() => Options.AfterRun = "review")'><span class="mu-led"></span>Review</button>
+            </div>
+        </Setting>
+        <Setting Name="Show last loop result" Words="Round a loop Each pass's figure On Off">
+            <SettingSwitch Label="Show last loop result" Value="Options.PassFigure" Changed="value => Save(() => Options.PassFigure = value)" />
+        </Setting>
+        <Setting Name="Pause between repeats" Words="Loop wait after each pass On Off">
+            <SettingSwitch Label="Pause between repeats" Value="Options.PassWaits" Changed="value => Save(() => Options.PassWaits = value)" />
+        </Setting>
+    </details>
 </SettingsSection>
 
-<SettingsSection Tab="practice" Id="practice" Title="Practice">
+<SettingsSection Tab="practice" Id="playback" Title="Playback">
     <Setting Name="Count-in" Words="One bar, Two bars">
         <div class="control-row">
             <span class="control-label">Count-in</span>
@@ -86,58 +76,62 @@ else if (!finder.FoundAny)
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.CountInBars == 2)" @onclick="() => Save(() => Options.CountInBars = 2)"><span class="mu-led"></span>Two bars</button>
         </div>
     </Setting>
-    <Setting Name="Look before playing" Words="@(string.Join(' ', LookChoices.Select(c => c.Label)))" Note="How long Sight-read shows a passage before the count-in starts by itself. Start (or the C♯ above middle C) begins it sooner, whenever you're ready.">
+    <Setting Name="Repeat automatically" Words="At a run's end Go again manual restart Off On" Note='@(Options.AfterRun == "review" ? "The full review pauses playback." : "Starts the next run after the count-in.")'>
+        <SettingSwitch Label="Repeat automatically" Value="Options.RunAgain" Changed="value => Save(() => Options.RunAgain = value)" />
+    </Setting>
+    <Setting Name="On the score" Words="Show cursor, Mark notes as I play, Marks as you play" Note="Timed practice still records your notes when live marks are off.">
         <div class="control-row">
-            <span class="control-label">Look before playing</span>
+            <span class="control-label">On the score</span>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Cursor)" @onclick="() => Save(() => Options.Cursor = !Options.Cursor)"><span class="mu-led"></span>Show cursor</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.LiveMarks)" @onclick="() => Save(() => Options.LiveMarks = !Options.LiveMarks)"><span class="mu-led"></span>Mark notes as I play</button>
+        </div>
+    </Setting>
+</SettingsSection>
+
+<SettingsSection Tab="practice" Id="reading" Title="Sight-reading and note drills">
+    <Setting Name="Sight-reading preview" Words="@(string.Join(' ', LookChoices.Select(c => c.Label)))" Note="Time to look at a new passage before the count-in.">
+        <div class="control-row">
+            <span class="control-label">Sight-reading preview</span>
             @foreach (var (seconds, label) in LookChoices)
             {
                 <button type="button" class="mu-toggle" aria-pressed="@On(Options.LookSeconds == seconds)" @onclick="() => Save(() => Options.LookSeconds = seconds)"><span class="mu-led"></span>@label</button>
             }
         </div>
     </Setting>
-    <Setting Name="While playing" Words="Cursor, Marks as you play" Note="What shows on the music while a run plays In time, in the Library, Sight-read and the drills with a tempo. With the cursor off, the music still scrolls as you play. With the marks off, every note is still judged, and marked when the run ends. Wait for me always shows where it's waiting.">
+    <Setting Name="Clefs for note drills" Words="@(string.Join(' ', ClefChoices.Select(c => c.Label)))">
         <div class="control-row">
-            <span class="control-label">While playing</span>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.Cursor)" @onclick="() => Save(() => Options.Cursor = !Options.Cursor)"><span class="mu-led"></span>Cursor</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.LiveMarks)" @onclick="() => Save(() => Options.LiveMarks = !Options.LiveMarks)"><span class="mu-led"></span>Marks as you play</button>
-        </div>
-    </Setting>
-    <Setting Name="Practicing a piece" Words="@(string.Join(' ', PrimaSettings.WayNames.Select(w => w.Name)))" Note="How much Practice tells you as you go, on a Library piece. Simple says nothing of how it went, to learn a piece in peace: loops, In time, Wait for me and the hands, with the marks on the music (none at all with Marks as you play off). Standard sums each run up under the music, and each pass round a loop in the bar. Hands-on goes over each run on a screen of its own, and a loop waits for you after each pass. Each sets the four below, which you can change one by one; the piece's Options change them too.">
-        <div class="control-row">
-            <span class="control-label">Practicing a piece</span>
-            @foreach (var (way, name) in PrimaSettings.WayNames)
+            <span class="control-label">Clefs for note drills</span>
+            @foreach (var (value, label) in ClefChoices)
             {
-                <button type="button" class="mu-toggle" aria-pressed="@On(Options.Way == way)" @onclick="() => Save(() => Options.UseWay(way))"><span class="mu-led"></span>@name</button>
+                <button type="button" class="mu-toggle" aria-pressed="@On(Options.Clefs == value)" @onclick="() => Save(() => Options.Clefs = value)"><span class="mu-led"></span>@label</button>
             }
         </div>
     </Setting>
-    <Setting Name="After a run" Words="Nothing, Its summary, Its review">
+    <Setting Name="Show note names after mistakes" Words="After a wrong note Show letter name on staff On Off">
+        <SettingSwitch Label="Show note names after mistakes" Value="Options.LetterNames" Changed="value => Save(() => Options.LetterNames = value)" />
+    </Setting>
+</SettingsSection>
+
+<SettingsSection Tab="practice" Id="profile" Title="Practice goals and profile">
+    <Setting Name="Name" Words="Optional">
         <div class="control-row">
-            <span class="control-label">After a run</span>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "nothing")" @onclick='() => Save(() => Options.AfterRun = "nothing")'><span class="mu-led"></span>Nothing</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "summary")" @onclick='() => Save(() => Options.AfterRun = "summary")'><span class="mu-led"></span>Its summary</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.AfterRun == "review")" @onclick='() => Save(() => Options.AfterRun = "review")'><span class="mu-led"></span>Its review</button>
+            <label class="control-label" for="profile-name">Name</label>
+            <input id="profile-name" class="text-field text-field-short" type="text" @bind="name" @bind:after="SaveProfile" placeholder="Optional" />
         </div>
     </Setting>
-    <Setting Name="Round a loop" Words="Each pass's figure, Wait after each pass">
+    <Setting Name="Daily practice goal" Words="@($"Minutes a day {string.Join(' ', Minutes)} min")" Note="@gradually">
         <div class="control-row">
-            <span class="control-label">Round a loop</span>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.PassFigure)" @onclick="() => Save(() => Options.PassFigure = !Options.PassFigure)"><span class="mu-led"></span>Each pass's figure</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.PassWaits)" @onclick="() => Save(() => Options.PassWaits = !Options.PassWaits)"><span class="mu-led"></span>Wait after each pass</button>
+            <span class="control-label">Daily practice goal</span>
+            @foreach (var m in Minutes)
+            {
+                <button type="button" class="mu-toggle" aria-pressed="@On(Options.DailyMinutes == m)" @onclick="() => ChooseMinutes(m)"><span class="mu-led"></span>@m min</button>
+            }
         </div>
     </Setting>
-    <Setting Name="At a run's end" Words="Wait for me, Go again" Note="Going again, a run that comes to its end starts over after its count-in, until you stop it. A practice session counts its time playing (a run going, or keys played) and idle, and pauses after 15 minutes with nothing played.">
+    <Setting Name="Daily practice note" Note="Shown on Today." Words="When I sit down after dinner, I’ll open Prima">
         <div class="control-row">
-            <span class="control-label">At a run's end</span>
-            <button type="button" class="mu-toggle" aria-pressed="@On(!Options.RunAgain)" @onclick="() => Save(() => Options.RunAgain = false)"><span class="mu-led"></span>Wait for me</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.RunAgain)" @onclick="() => Save(() => Options.RunAgain = true)"><span class="mu-led"></span>Go again</button>
-        </div>
-    </Setting>
-    <Setting Name="After a wrong note" Words="Say its name, Only show it" Note="In the note drills: the right note named in the words and in grey over it on the staff, or only shown. Either way it's on the staff, grey beside the key you played in red.">
-        <div class="control-row">
-            <span class="control-label">After a wrong note</span>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = true)"><span class="mu-led"></span>Say its name</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(!Options.LetterNames)" @onclick="() => Save(() => Options.LetterNames = false)"><span class="mu-led"></span>Only show it</button>
+            <label class="control-label" for="profile-cue">Daily practice note</label>
+            <input id="profile-cue" class="text-field" type="text" @bind="cue" @bind:after="SaveProfile" placeholder="When I sit down after dinner, I’ll open Prima" />
         </div>
     </Setting>
 </SettingsSection>
@@ -147,16 +141,16 @@ else if (!finder.FoundAny)
     <Setting Words="@($"Plug in your keyboard {Keyboard.Name}")">
         <KeyboardLamp />
     </Setting>
-    <Setting Name="Sound from the piano" Words="On, Off" Note="@PianoSoundNote">
+    <Setting Name="Play demo notes on the piano" Words="On, Off" Note="@PianoSoundNote">
         <div class="control-row">
-            <span class="control-label">Sound from the piano</span>
+            <span class="control-label">Play demo notes on the piano</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.SendToPiano)" @onclick="() => Save(() => Options.SendToPiano = true)"><span class="mu-led"></span>On</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.SendToPiano)" @onclick="() => Save(() => Options.SendToPiano = false)"><span class="mu-led"></span>Off</button>
         </div>
     </Setting>
-    <Setting Name="Piano buttons" Words="On, Off" Note="Between runs, the C♯ above middle C presses the screen's main button (Start, Next, Run, Another set, the look's Start) and the D♯ beside it presses Again, so you needn't reach for the tablet. Press the key on its own: one played among other notes, in a passage you're trying, doesn't count. The buttons they press are marked C♯4 and D♯4. While a run plays, every key is music.">
+    <Setting Name="Piano shortcuts" Words="On, Off" Note="Between runs, press C♯4 to start or continue, or D♯4 to repeat.">
         <div class="control-row">
-            <span class="control-label">Piano buttons</span>
+            <span class="control-label">Piano shortcuts</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = true)"><span class="mu-led"></span>On</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.PianoButtons)" @onclick="() => Save(() => Options.PianoButtons = false)"><span class="mu-led"></span>Off</button>
         </div>
@@ -165,9 +159,9 @@ else if (!finder.FoundAny)
        keys. The piano's own still come through. *@
     @if (Services.GetService(typeof(StandInKeyboard)) is StandInKeyboard standIn)
     {
-        <Setting Name="Stand-in piano" Words="On, Off, test, without the piano, debug" Note="In a build from the PC only, for trying Prima without the piano: with it on, Prima plays as if one were plugged in, and DevTools plays its keys (DotNet.invokeMethodAsync('Prima.UI', 'StandIn', …)). The piano's own keys still come through.">
+        <Setting Name="Simulated piano" Words="On, Off, test, without the piano, debug" Note="Use a simulated keyboard for testing.">
             <div class="control-row">
-                <span class="control-label">Stand-in piano</span>
+                <span class="control-label">Simulated piano</span>
                 <button type="button" class="mu-toggle" data-action="stand-in-on" aria-pressed="@On(standIn.On)" @onclick="() => standIn.Plug(true, StandInKeyboard.Called)"><span class="mu-led"></span>On</button>
                 <button type="button" class="mu-toggle" data-action="stand-in-off" aria-pressed="@On(!standIn.On)" @onclick="() => standIn.Plug(false)"><span class="mu-led"></span>Off</button>
             </div>
@@ -182,24 +176,24 @@ else if (!finder.FoundAny)
     </Setting>
 </SettingsSection>
 
-<SettingsSection Tab="keyboard" Id="click" Title="Click">
-    <Setting Name="Where" Words="Tablet, On the piano, headphones" Note="With headphones in the piano, the tablet's speaker isn't heard: on the piano, the click is in its headphones, in the sound chosen below. Redo the timing after changing this.">
+<SettingsSection Tab="keyboard" Id="click" Title="Metronome">
+    <Setting Name="Play click through" Words="Tablet, On the piano, headphones" Note="Choose Piano to hear the click through piano headphones. Recalibrate timing after changing the output.">
         <div class="control-row">
-            <span class="control-label">Where</span>
+            <span class="control-label">Play click through</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = true)"><span class="mu-led"></span>On the piano</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = true)"><span class="mu-led"></span>Piano</button>
         </div>
     </Setting>
     @* The click on the piano: Prima's own, sent as sound over the piano's USB cable (the P-225 is a USB audio interface), or one
        of the piano's own sounds over MIDI. Which work depends on the piano and the tablet, so each can be tried by ear. *@
-    <Setting Name="On the piano" Words="Prima's click, metronome, wood block, piano key, headphones, USB audio" Note="Prima's click is the Sound below, sent to the piano over its USB cable. Metronome and Wood block are the piano's own drum sounds; Piano key is a high note in its piano voice. Try them in the headphones: if one plays an ordinary piano note, the piano doesn't take that sound from the tablet.">
+    <Setting Name="Piano click sound" Words="Prima's click, metronome, wood block, piano key, headphones, USB audio, Preview sound" Note="Preview the sound through the piano or its headphones.">
         <div class="control-row">
-            <span class="control-label">On the piano</span>
+            <span class="control-label">Piano click sound</span>
             @foreach (var (sound, name) in PianoClicks)
             {
                 <button type="button" class="mu-toggle" aria-pressed="@On(Options.PianoClick == sound)" @onclick="() => Save(() => Options.PianoClick = sound)"><span class="mu-led"></span>@name</button>
             }
-            <button type="button" class="mu-btn" data-action="try-click" disabled="@(!Keyboard.CanSend)" @onclick="TryClick">@(trying ? "Stop" : "Try it")</button>
+            <button type="button" class="mu-btn" data-action="try-click" disabled="@(!Keyboard.CanSend)" @onclick="TryClick">@(trying ? "Stop" : "Preview sound")</button>
         </div>
     </Setting>
     <Setting Name="Sound" Words="Wood, Beep">
@@ -219,7 +213,7 @@ else if (!finder.FoundAny)
 </SettingsSection>
 
 @* Look & music *@
-<SettingsSection Tab="look" Id="look" Title="Look" Note="The sheet music stays black on paper in both; the look is everything around it.">
+<SettingsSection Tab="look" Id="look" Title="Theme" Note="The theme changes the controls around the sheet music.">
     <Setting Words="@(string.Join(' ', Look.All.Select(l => $"{l.Name} {l.Description}")))">
         <div class="look-picker">
             @foreach (var look in Look.All)
@@ -237,25 +231,25 @@ else if (!finder.FoundAny)
 
 @* The font and the size, with the two bars that show them, are one setting: a search for either shows both, and the music. *@
 <SettingsSection Tab="look" Id="notation" Title="Notation">
-    <Setting Words="@($"Music font, {string.Join(", ", Fonts)}, Sheet size, Smaller, Printed, Larger")">
+    <Setting Words="@($"Notation font, Music font, {string.Join(", ", Fonts)}, Sheet music size, Sheet size, Smaller, Standard, Printed, Larger")">
         <div class="control-row">
-            <span class="control-label">Music font</span>
+            <span class="control-label">Notation font</span>
             @foreach (var font in Fonts)
             {
                 <button type="button" class="mu-toggle" aria-pressed="@On(Options.MusicFont == font)" @onclick="() => Save(() => Options.MusicFont = font)"><span class="mu-led"></span>@font</button>
             }
         </div>
         <div class="control-row">
-            <span class="control-label">Sheet size</span>
+            <span class="control-label">Sheet music size</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize < 0)" @onclick="() => Save(() => Options.SheetSize = -1)"><span class="mu-led"></span>Smaller</button>
-            <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize == 0)" @onclick="() => Save(() => Options.SheetSize = 0)"><span class="mu-led"></span>Printed</button>
+            <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize == 0)" @onclick="() => Save(() => Options.SheetSize = 0)"><span class="mu-led"></span>Standard</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.SheetSize > 0)" @onclick="() => Save(() => Options.SheetSize = 1)"><span class="mu-led"></span>Larger</button>
         </div>
         <Sheet Mei="@Sample" Class="settings-sheet" />
     </Setting>
-    <Setting Name="Lyrics" Words="On, Off" Note="A song's words, under its notes, each verse and each voice's on a line of its own. Off, a song's sheet is the music alone. A song's options have it too.">
+    <Setting Name="Show lyrics" Words="On, Off" Note="Show the words below the notes.">
         <div class="control-row">
-            <span class="control-label">Lyrics</span>
+            <span class="control-label">Show lyrics</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = true)"><span class="mu-led"></span>On</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.Lyrics)" @onclick="() => Save(() => Options.Lyrics = false)"><span class="mu-led"></span>Off</button>
         </div>
@@ -263,18 +257,18 @@ else if (!finder.FoundAny)
 </SettingsSection>
 
 @* Claude *@
-<SettingsSection Tab="claude" Id="claude" Title="Claude" Note="Claude can read a PDF's printed notes into notation, so the piece works like the rest of the Library. It uses your Anthropic API key, kept in the tablet's secure storage apart from Prima's data, so Back up never carries it. Only the pages you ask it to read are sent.">
-    <Setting Name="Key" Words="@($"Test, Remove, Keep it, None on this tablet, Look for the key file, {keyNote}")">
+<SettingsSection Tab="claude" Id="claude" Title="Claude" Note="Claude can turn selected PDF pages into sheet music you can play in Prima. Check the notes before saving.">
+    <Setting Name="Anthropic API key" Words="@($"Test key, Remove key, Cancel, Import key file, Look for the key file, {keyNote}")" Note="Stored securely on this tablet. Excluded from backups.">
         <div class="control-row">
-            <span class="control-label">Key</span>
+            <span class="control-label">Anthropic API key</span>
             @if (maskedKey is { } masked)
             {
                 <span class="key-figure" aria-label="@($"The key on this tablet, ending {masked[^4..]}")">@masked</span>
-                <button type="button" class="mu-btn" disabled="@testing" @onclick="TestKey">@if (testing) { <Busy /><span>Testing</span> } else { <span>Test</span> }</button>
+                <button type="button" class="mu-btn" disabled="@testing" @onclick="TestKey">@if (testing) { <Busy /><span>Testing</span> } else { <span>Test key</span> }</button>
                 @if (removingKey)
                 {
-                    <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="RemoveKey">Remove it</button>
-                    <button type="button" class="mu-btn" @onclick="() => removingKey = false">Keep it</button>
+                    <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="RemoveKey">Remove key</button>
+                    <button type="button" class="mu-btn" @onclick="() => removingKey = false">Cancel</button>
                 }
                 else
                 {
@@ -284,12 +278,12 @@ else if (!finder.FoundAny)
             else
             {
                 <span class="key-figure none">None on this tablet</span>
-                <button type="button" class="mu-btn" @onclick="LookForKey">Look for the key file</button>
+                <button type="button" class="mu-btn" @onclick="LookForKey">Import key file</button>
             }
         </div>
         @if (removingKey)
         {
-            <p class="section-note" role="status">Prima forgets the key; reading another PDF needs it pushed again. The key itself stays good in the Claude Console until you disable it there.</p>
+            <p class="section-note" role="status">This removes the key from Prima. You can also revoke it in the Claude Console.</p>
         }
         else if (keyNote is { } note)
         {
@@ -301,9 +295,9 @@ else if (!finder.FoundAny)
     </Setting>
     @if (maskedKey is null)
     {
-        <Setting Name="Adding one" Words="Claude Console, an API key in the workspace for your apps, monthly spend limit, claude-key.txt, plug the tablet into the PC, adb push, Shift+Delete, Look for the key file">
-            <div class="control-row control-row-top">
-                <span class="control-label">Adding one</span>
+        <Setting Name="How to add a key" Words="Claude Console, an API key in the workspace for your apps, monthly spend limit, claude-key.txt, plug the tablet into the PC, adb push, Shift+Delete, Look for the key file">
+            <details class="routine-history" open="@finder.Searching">
+                <summary>How to add a key</summary>
                 <ol class="key-howto">
                     <li>In the Claude Console, make an API key in the workspace for your apps, the one with a monthly spend limit.</li>
                     <li>Save the key alone in a text file named claude-key.txt, anywhere but the repo.</li>
@@ -311,16 +305,16 @@ else if (!finder.FoundAny)
                         Plug the tablet into the PC, open Prima once so its folder is there, and copy the file across:
                         <pre class="key-command">adb push claude-key.txt /sdcard/Android/data/com.saphyiere.prima/files/</pre>
                     </li>
-                    <li>Delete the file on the PC with Shift+Delete. Prima takes the key into secure storage the next time it opens, or now with Look for the key file, and deletes the copy on the tablet.</li>
+                    <li>Delete the file on the PC with Shift+Delete. Prima takes the key into secure storage the next time it opens, or when you select Import key file, and deletes the copy on the tablet.</li>
                 </ol>
-            </div>
+            </details>
         </Setting>
     }
     @if (maskedKey is not null || spend.Count > 0)
     {
-        <Setting Name="This month" Words="@($"{SpendText()}, cost, spend")" Note="What Anthropic charged for each piece read, as Prima counts it. The workspace's monthly spend limit is set in the Claude Console.">
+        <Setting Name="Estimated cost this month" Words="@($"{SpendText()}, cost, spend")" Note="Based on recorded requests. Manage your spending limit in the Claude Console.">
             <div class="control-row control-row-top">
-                <span class="control-label">This month</span>
+                <span class="control-label">Estimated cost this month</span>
                 <div class="spend">
                     <p class="spend-head"><span class="spend-total">@Money(spend.Sum(s => s.Cost))</span><span class="control-note">@SpendText()</span></p>
                     @if (spend.Count > 0)
@@ -342,10 +336,10 @@ else if (!finder.FoundAny)
 
 @* App & data: Updates, your data, and the problems Prima kept. Another section about the data (keeping it in step with the PC, say)
    joins them as a SettingsSection with Tab="app", its Setting holding the words it's found by. *@
-<SettingsSection Tab="app" Id="updates" Title="Updates" Note="New versions of Prima come from the repo's releases on GitHub. Android replaces the app with one only when it's signed with the same key as this copy, so your data stays; Prima keeps a full copy of it first (Your data, below), in case.">
-    <Setting Name="This tablet" Words="@($"Check, version, Newest, Install, {Updates.Status.Message}")">
+<SettingsSection Tab="app" Id="updates" Title="Updates" Note="Prima backs up your data before installing an update.">
+    <Setting Name="Installed version" Words="@($"Check, version, Newest, Install, {Updates.Status.Message}")">
         <div class="control-row">
-            <span class="control-label">This tablet</span>
+            <span class="control-label">Installed version</span>
             <span class="key-figure">@(Updates.Status.FromPc ? "1.0 · from the PC" : Updates.Status.Installed)</span>
             <button type="button" class="mu-btn" disabled="@UpdateBusy" @onclick="() => Updates.CheckAsync(evenIfRecent: true)">@if (Updates.Status.Step == UpdateStep.Checking) { <Busy /><span>Checking</span> } else { <span>Check</span> }</button>
         </div>
@@ -396,27 +390,27 @@ else if (!finder.FoundAny)
    Remove library and Reset settings. Each is asked twice, the key and then the one that does it, under what goes and what stays,
    and keeps a copy of everything first, held in Your data and named for it; when it can't, it says why, and doing it without a
    copy is a key of its own. *@
-<SettingsSection Tab="app" Id="data" Title="Your data" Note="Everything is on this tablet: settings, levels, notes, every attempt and the music imported. Nothing leaves it unless you send it.">
-    <Setting Name="Last copy" Words="Copies kept, Back up now, Restore from a backup, Export everything, backup, backups, a copy, copies, sync, restore, export, zip, Choose a folder, Choose a file, Documents, Prima backups, Claude's key">
+<SettingsSection Tab="app" Id="data" Title="Your data" Note="Back up your practice history, settings and library.">
+    <Setting Name="Last backup" Words="Last copy, Copies kept, Back up now, Restore from a backup, Export everything, backup, backups, a copy, copies, sync, restore, export, zip, Choose a folder, Choose a file, Documents, Prima backups, Claude's key">
         <DataCopies />
     </Setting>
     <Setting Words="@DataKeyWords">
         <div class="control-row data-keys">
             @if (asking is { } key)
             {
-                <button type="button" class="mu-btn mu-primary" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: true)">@key.Does</button>
+                <button type="button" class="mu-btn mu-primary" data-action="confirm-reset" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: true)">@key.Does</button>
                 @if (notKept is not null)
                 {
                     @* The copy couldn't be kept first (the note says why): going ahead without one is a choice of its own. *@
-                    <button type="button" class="mu-btn" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: false)">@key.WithoutCopy</button>
+                    <button type="button" class="mu-btn" data-action="reset-without-backup" data-piano="off" disabled="@working" @onclick="() => Do(key, keepCopy: false)">@key.WithoutCopy</button>
                 }
-                <button type="button" class="mu-btn" disabled="@working" @onclick="() => (asking, notKept) = (null, null)">@key.Keep</button>
+                <button type="button" class="mu-btn" data-action="cancel-reset" disabled="@working" @onclick="() => (asking, notKept) = (null, null)">Cancel</button>
             }
             else
             {
                 @foreach (var each in DataKeys)
                 {
-                    <button type="button" class="mu-btn" @onclick="() => (asking, dataNote) = (each, null)">@(each.Name)…</button>
+                    <button type="button" class="mu-btn" data-setting-reset="@each.Name" @onclick="() => (asking, dataNote) = (each, null)">@(each.Label)…</button>
                 }
             }
         </div>
@@ -478,31 +472,31 @@ else if (!finder.FoundAny)
 
 @* Tools: the glossary, the metronome, the keyboard check and the timing, each a screen of its own (their addresses are as they
    were: a link or the welcome that opened one still does). *@
-<SettingsSection Tab="tools" Id="tools" Title="Tools">
+<SettingsSection Tab="tools" Id="tools" Title="Practice tools">
     <div class="tool-grid">
         <Setting Name="Glossary" Words="Where the notes live, every symbol and word on a sheet of music, what it is, how it's played, how it sounds">
             <a class="tool-card" href="glossary">
                 <span class="tool-card-name">Glossary</span>
-                <span class="tool-card-text">Where the notes live, and every symbol and word on a sheet of music: what it is, how it's played, how it sounds.</span>
+                <span class="tool-card-text">Look up notes and symbols on sheet music.</span>
             </a>
         </Setting>
         <Setting Name="Metronome" Words="Count-in, click, fade to the count-in only, silence">
             <a class="tool-card" href="tools/metronome">
                 <span class="tool-card-name">Metronome</span>
-                <span class="tool-card-text">A count-in, and a click that can fade to the count-in only or to silence.</span>
+                <span class="tool-card-text">Set a tempo and practice with a click.</span>
             </a>
         </Setting>
         <Setting Name="Keyboard check" Words="@($"Each key you press, velocity, pedals, the whole keyboard, the MIDI path's jitter, {Keyboard.Name}")">
             <a class="tool-card" href="tools/keyboard">
                 <span class="tool-card-name">Keyboard check</span>
-                <span class="tool-card-text">Each key you press, its velocity and the pedals; the whole keyboard; the MIDI path's jitter.</span>
+                <span class="tool-card-text">Check that Prima receives your keys and pedals.</span>
                 <span class="tool-card-meta">@(Keyboard.Name is null ? "No keyboard plugged in" : Keyboard.Name)</span>
             </a>
         </Setting>
         <Setting Name="Timing" Words="Calibrate, the delay taken off every note, 16 beats">
             <a class="tool-card" href="tools/timing">
                 <span class="tool-card-name">Timing</span>
-                <span class="tool-card-text">Play any key with the click for 16 beats, and the delay is taken off every note from then on.</span>
+                <span class="tool-card-text">Measure the delay between your keyboard and the click.</span>
                 <span class="tool-card-meta">@(Options.CalibratedOn is { } day ? $"{Options.TimingOffsetMs:+0;−0;0} ms, {day.ToString("d MMM", CultureInfo.InvariantCulture)}" : "Not calibrated yet")</span>
             </a>
         </Setting>
@@ -608,8 +602,8 @@ else if (!finder.FoundAny)
         }
     }
 
-    private string PianoSoundNote => "Duet, Hear first and Listen and play back play their notes on the piano itself, on channel 16."
-        + (Keyboard.Name is not null && !Keyboard.CanSend ? " This piano doesn't take notes from the tablet, so they're hidden." : "");
+    private string PianoSoundNote => "Play demos and duet parts through the connected piano."
+        + (Keyboard.Name is not null && !Keyboard.CanSend ? " This keyboard cannot play notes sent by the tablet." : "");
 
     private async Task TestKey()
     {
@@ -735,26 +729,24 @@ else if (!finder.FoundAny)
     /// the one that does it without a copy; the one that leaves things as they are; what it says goes and what stays; and what it
     /// does, said of nothing when its copy couldn't be kept ("so nothing was cleared").
     /// </summary>
-    private sealed record DataKey(string Name, string Does, string WithoutCopy, string Keep, string Says, string Past);
+    // Name also identifies the protected backup in existing installations.
+    private sealed record DataKey(string Name, string Label, string Does, string WithoutCopy, string Says, string Past);
 
-    private const string CopyFirst = "A copy of everything is kept first, held in Your data until you restore it or let it go.";
+    private const string CopyFirst = "Prima makes a protected backup first.";
 
-    private static readonly DataKey StartingOver = new("Start over", "Clear my progress", "Clear it without a copy", "Keep it",
-        "This clears everything Prima keeps about your playing: levels, note cards, every run, practice day and session (and so the streak), routines and requests, which sight-reading passages have come up, and on each piece what's next, where you were, its tempo and the hand practiced. The settings and the Library stay as they are, with the music imported and the collection. Then Prima opens on its welcome, as it did the first time. " + CopyFirst,
-        "cleared");
+    private static readonly DataKey StartingOver = new("Start over", "Clear practice progress", "Clear practice progress", "Clear without a backup",
+        "Clears your practice history, levels, streak, routines and saved practice positions. Your library and settings are kept. " + CopyFirst, "cleared");
 
-    private static readonly DataKey RemovingLibrary = new("Remove library", "Remove every piece", "Remove them without a copy", "Keep them",
-        "This takes every piece out of the Library, Prima's own too, with their files, readings and excerpts, and Prima won't put its own back by itself: the Library has a key that does. Your progress stays (the runs on the pieces that go still count), and so do the settings. " + CopyFirst,
-        "removed");
+    private static readonly DataKey RemovingLibrary = new("Remove library", "Remove library", "Remove all pieces", "Remove without a backup",
+        "Removes every piece, including imported files, converted scores and excerpts. Your practice records are kept. " + CopyFirst, "removed");
 
-    private static readonly DataKey ResettingSettings = new("Reset settings", "Reset the settings", "Reset them without a copy", "Keep them",
-        "This puts everything on this screen back as a new install has it: your name, minutes and cue, the practice and keyboard settings, the timing, the click, the look and the notation. Claude's key and the copies in Your data stay, and so do your progress and the Library. Then Prima opens on its welcome, which asks for the timing again. " + CopyFirst,
-        "reset");
+    private static readonly DataKey ResettingSettings = new("Reset settings", "Reset settings", "Reset settings", "Reset without a backup",
+        "Restores default settings, including your profile and keyboard calibration. Your library, practice history, API key and backups are kept. " + CopyFirst, "reset");
 
     private static readonly DataKey[] DataKeys = [StartingOver, RemovingLibrary, ResettingSettings];
 
     // What they're found by: their names, their keys' words, and what they're about.
-    private static readonly string DataKeyWords = string.Join(", ", DataKeys.SelectMany(k => new[] { k.Name, k.Does, k.WithoutCopy, k.Keep }))
+    private static readonly string DataKeyWords = string.Join(", ", DataKeys.SelectMany(k => new[] { k.Name, k.Label, k.Does, k.WithoutCopy, "Cancel" }))
         + ", progress, every piece, Prima's own pieces, the welcome, a new install";
 
     // Does what the key asked does, a copy of everything kept first and held (Your data shows it), unless keeping one failed and the

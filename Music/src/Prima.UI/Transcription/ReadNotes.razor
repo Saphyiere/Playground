@@ -63,7 +63,7 @@ else if (job is { State: not ConversionState.Ready })
         <div class="mu-readout" data-cost-kind="job" data-cost-unknown="@(job.HasUnknownCost ? "true" : "false")"><span class="mu-readout-label">@(job.HasUnknownCost ? "Known subtotal · total uncertain" : "Known cost")</span><span class="mu-readout-value">@Money(job.KnownCost)@(job.HasUnknownCost ? " + unknown" : "")</span></div>
     </section>
     <section class="pdfread-progress">
-        <p class="pdfread-words">You can leave this screen. Completed batches are saved on this tablet, and a notification will bring you back when conversion finishes. Cancel stops this conversion.</p>
+        <p class="pdfread-words">You can leave this screen. Prima saves each completed batch and notifies you when the music is ready to review.</p>
         @if (job.Problem is { Length: > 0 } problem)
         {
             <div class="pdfread-error" role="alert"><p>@problem</p></div>
@@ -203,10 +203,10 @@ else if (stage == Stage.Estimate)
             }
             else
             {
-                <p class="pdfread-words">The model reads small batches of complete bars. Prima checks and saves each batch before continuing. Review the notation against the print before keeping it.</p>
+                <p class="pdfread-words">Claude converts the selected pages into playable sheet music. Review the notes against the PDF before saving.</p>
                 <p class="pdfread-words muted">Pressing Convert to notation sends the confirmed bar images to the selected provider. Conversion keeps running when you leave this screen; only Cancel stops it. Provider charges vary by model and token use.</p>
                 <div class="pdfread-actions">
-                    <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="convert-start" disabled="@(starting || !prepared || SystemsIn(from, to) == 0 || !HasConfirmedSource || string.IsNullOrWhiteSpace(model))" @onclick="ReadAll">Convert to notation</button>
+                    <button type="button" data-piano="off" class="mu-btn mu-primary" data-action="convert-start" disabled="@(starting || !prepared || SystemsIn(from, to) == 0 || !HasConfirmedSource || string.IsNullOrWhiteSpace(model))" @onclick="ReadAll">Send selected pages to Claude</button>
                 </div>
             }
         </div>

@@ -9,8 +9,8 @@
 @using Prima.UI.Routines
 @using Playground.AI.Assist
 
-<PageTitle>Ask for routine · Prima</PageTitle>
-<PageHead Title="Ask for routine" Kicker="Practice that fits you">
+<PageTitle>Ask Claude for a routine · Prima</PageTitle>
+<PageHead Title="Ask Claude for a routine" Kicker="Routines">
     <a class="mu-btn" data-piano="off" href="exercises">Back to exercises</a>
 </PageHead>
 
@@ -93,7 +93,7 @@ else
         <h2 class="section-title">Your recent practice</h2>
         <p class="section-note">Reading, timing, and technique are considered separately. A skill you have not practiced stays unknown.</p>
         <details>
-            <summary>Evidence used for this request</summary>
+            <summary>Practice details to send</summary>
             <ul class="summary-words">
                 @foreach (var skill in evidence?.Skills ?? [])
                 {
@@ -112,11 +112,11 @@ else
             <label class="control-label" for="routine-model">Model · @Provider.ProviderId</label>
             <input id="routine-model" class="text-field" type="text" data-piano="off" @bind="model" @bind:after="SaveForm" />
         </div>
-        <p class="section-note">Generate sends a summary of your practice and relevant notes from the selected piece to this provider. The request keeps running when you leave the screen. Your current routine stays in place until you accept a new one.</p>
+        <p class="section-note">Claude receives your practice summary and any selected music. You can leave while it prepares a routine, then review it before using it.</p>
         @if (problem is not null) { <p class="section-note" role="alert" data-state="request-error">@problem</p> }
         <div class="control-row">
             <button class="mu-btn mu-primary" type="button" data-piano="off" data-action="routine-generate" disabled="@(!CanGenerate)" @onclick="Generate">@if (submitting) { <Busy /><span>Starting</span> } else { <span>Generate routine</span> }</button>
-            <a class="mu-btn" data-piano="off" href="settings?tab=claude">Provider settings</a>
+            <a class="mu-btn" data-piano="off" href="settings?tab=claude">Claude settings</a>
         </div>
     </section>
 }

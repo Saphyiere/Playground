@@ -13,11 +13,11 @@
     @Extra
     @if (OnExplain.HasDelegate)
     {
-        <button type="button" class="mu-btn piece-tool" aria-label="What's this?" aria-pressed="@On(Explaining)" disabled="@Running" @onclick="() => OnExplain.InvokeAsync()"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
+        <button type="button" class="mu-btn piece-tool" data-action="explain" aria-label="What's this?" aria-pressed="@On(Explaining)" disabled="@Running" @onclick="() => OnExplain.InvokeAsync()"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
     }
     @if (OnOptions.HasDelegate)
     {
-        <button type="button" class="mu-btn piece-tool" aria-label="Options" aria-pressed="@On(OptionsOpen)" disabled="@Running" @onclick="() => OnOptions.InvokeAsync()">
+        <button type="button" class="mu-btn piece-tool" data-action="options" aria-label="Options" aria-pressed="@On(OptionsOpen)" disabled="@Running" @onclick="() => OnOptions.InvokeAsync()">
             <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
         </button>
     }
@@ -25,7 +25,7 @@
     {
         @* The metronome's settings, under its key: the click's (Settings › Click's), where it's heard, its sound and how loud. *@
         <span class="piece-tool-pick">
-            <button type="button" class="mu-btn piece-tool" aria-label="Metronome" aria-expanded="@On(metronomeOpen)" disabled="@Running" @onclick="() => metronomeOpen = !metronomeOpen">
+            <button type="button" class="mu-btn piece-tool" data-action="metronome-options" aria-label="Metronome" aria-expanded="@On(metronomeOpen)" disabled="@Running" @onclick="() => metronomeOpen = !metronomeOpen">
                 <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M5.5 17.5L8 3H12L14.5 17.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><path d="M10 14L14.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="13.1" cy="8.4" r="1.6" fill="currentColor" /></svg>
             </button>
             @if (metronomeOpen && !Running)
@@ -47,7 +47,7 @@
     }
     @if (ShowFullScreen)
     {
-        <button type="button" class="mu-btn piece-tool" aria-label="@(Full.On ? "Leave full screen" : "Full screen")" aria-pressed="@On(Full.On)" @onclick="ToggleFullScreen">
+        <button type="button" class="mu-btn piece-tool" data-action="fullscreen" aria-label="@(Full.On ? "Leave full screen" : "Full screen")" aria-pressed="@On(Full.On)" @onclick="ToggleFullScreen">
             <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="@(Full.On ? "M8 3v5H3M17 8h-5V3M12 17v-5h5M3 12h5v5" : "M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5")" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </button>
     }

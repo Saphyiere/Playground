@@ -10,11 +10,7 @@
 
 <PageHead Title="Timing" Kicker="Tools"><KeyboardLamp /></PageHead>
 
-<p class="page-note">Play any key with the click: one bar of count-in, then 16 beats. The median of how early or late your notes
-    land is kept as the timing offset and taken off every note from then on, and the piano's own notes (Listen, play along, Duet)
-    are played that much after the beat, so they land with yours. It holds the click's sound reaching you, the MIDI path
-    and your own habit of playing a little early together, since they can't be told apart without a loop of wires. So the lean you
-    see afterwards is measured from today: it shows change, not your habit in absolute terms.</p>
+<p class="page-note">After the count-in, tap any key on each of the next 16 beats. Prima uses the result to adjust for timing delay.</p>
 
 <section class="mu-screen timing-screen" aria-label="Calibration">
     <div class="mu-screen-head"><span>Calibration</span><span>@Plan.Bpm bpm · 4/4</span></div>
@@ -35,7 +31,7 @@
     @if (LeadsOn && !running)
     {
         @* From the welcome, once an offset is kept: on to Today, as the main key. *@
-        <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="ToToday">Done</button>
+        <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="finish" @onclick="ToToday">Done</button>
     }
     @if (Keyboard.Name is null)
     {
@@ -48,12 +44,12 @@
     else
     {
         @* Not the piano's go key: the key you tap with may be that C♯. *@
-        <button type="button" class="mu-btn @(LeadsOn ? "" : "mu-primary")" data-piano="off" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
+        <button type="button" class="mu-btn @(LeadsOn ? "" : "mu-primary")" data-piano="off" data-action="start" @onclick="Start">@(result is null && !tooFew ? "Start" : "Again")</button>
         @if (result is not null)
         {
             @if (!(LeadsOn && saved))
             {
-                <button type="button" class="mu-btn" @onclick="Save">Keep this offset</button>
+                <button type="button" class="mu-btn" data-action="save" @onclick="Save">Save calibration</button>
             }
             @if (saved)
             {

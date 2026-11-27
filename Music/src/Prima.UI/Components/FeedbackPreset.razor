@@ -1,0 +1,12 @@
+<div class="control-row" role="group" aria-label="Feedback preset">
+    <span class="control-label">Feedback preset</span>
+    @foreach (var (value, name) in PrimaSettings.WayNames)
+    {
+        <button type="button" class="mu-toggle" data-preset="@value" aria-pressed="@(Way == value ? "true" : "false")" @onclick="() => Chosen.InvokeAsync(value)"><span class="mu-led"></span>@name</button>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Way { get; set; }
+    [Parameter] public EventCallback<string> Chosen { get; set; }
+}

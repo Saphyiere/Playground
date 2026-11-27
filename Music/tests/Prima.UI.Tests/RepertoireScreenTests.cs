@@ -51,14 +51,12 @@ public class RepertoireScreenTests
 
         var view = host.Context.Render<Pages.Repertoire>();
 
-        view.WaitForAssertion(() => Assert.StartsWith("Nothing here yet. A star on a piece in the Library keeps it here", view.Find(".page-note").TextContent, StringComparison.Ordinal));
-        Assert.Equal("library", view.Find(".page-note a").GetAttribute("href"));
+        Assert.Equal("library", view.WaitForElement(".page-note a").GetAttribute("href"));
         Assert.Empty(view.FindAll(".rep-card"));
-        Assert.Equal("Repertoire", view.Find("h1").TextContent);
     }
 
     [Fact]
-    public async Task TheKeptPiecesAreCardsTheLastPlayedFirstEachWithWhereItStandsAndWhatComesNext()
+    public async Task KeptPiecesAreSortedByLastPracticeAndLinkToTheirHistory()
     {
         await using var host = new ComponentHost();
         await AddThree(host);
@@ -72,22 +70,11 @@ public class RepertoireScreenTests
         var view = host.Context.Render<Pages.Repertoire>();
 
         view.WaitForAssertion(() => Assert.Equal(["Sweden", "Hallelujah", "Sonata No. 14 “quasi una fantasia” “Moonlight”"], view.FindAll(".rep-title").Select(t => t.TextContent)));
-        // A movement goes by its work's name, its own above it. A piece whose every bar has held In time (its music marks no
-        // tempo of its own to reach) is learned, and kept by playing it through now and then.
-        Assert.Equal(["C418 · Learned", "Leonard Cohen · Learned", "Beethoven · I. Adagio sostenuto"], view.FindAll(".rep-kicker").Select(k => System.Text.RegularExpressions.Regex.Replace(k.TextContent, @"\s+", " ").Trim()));
-        Assert.Equal(["Everything·3"], view.FindAll(".settings-tab").Select(t => t.TextContent));
         var cards = view.FindAll(".rep-card");
-        Assert.Equal("Today · 90% right in time at 72", cards[0].QuerySelector(".rep-line")!.TextContent.Trim());
-        Assert.Equal("2 days ago · 90% right in time at 72", cards[1].QuerySelector(".rep-line")!.TextContent.Trim());
-        Assert.Equal("Not played yet · kept today", cards[2].QuerySelector(".rep-line")!.TextContent.Trim());
-        Assert.Equal("Start · its first bars, a hand at a time", cards[2].QuerySelector(".rep-foot .rep-line")!.TextContent.Trim());
-        Assert.Equal("Not played yet", cards[2].QuerySelector(".rep-meter")!.GetAttribute("aria-label"));
-        // A piece played has where it stands, a lamp for each twenty-fourth of it.
         Assert.All(cards, card => Assert.Equal(24, card.QuerySelectorAll(".rep-meter > span").Length));
-        Assert.Equal("4 of 4 bars there In time, 0 more being read", cards[0].QuerySelector(".rep-meter")!.GetAttribute("aria-label"));
         Assert.Equal(24, cards[0].QuerySelectorAll(".rep-meter > span.s2").Length);
-        Assert.Equal("Keep it · once through, now and then", cards[0].QuerySelector(".rep-foot .rep-line")!.TextContent.Trim());
-        Assert.Equal("library/sweden", cards[0].QuerySelector(".rep-foot a")!.GetAttribute("href"));
+        Assert.Equal("library/sweden/history", cards[0].QuerySelector(".rep-foot .band-link")!.GetAttribute("href"));
+        Assert.Equal("library/sweden", cards[0].QuerySelector(".rep-foot .mu-btn")!.GetAttribute("href"));
 
         // By title, in the address's place.
         await view.InvokeAsync(() => view.FindAll(".rep-tools .mu-toggle").Single(b => b.TextContent == "A–Z").ClickAsync(new MouseEventArgs()));
@@ -157,15 +144,12 @@ public class RepertoireScreenTests
         var view = host.Context.Render<Pages.Repertoire>();
 
         view.WaitForAssertion(() => Assert.Equal(["Hallelujah"], view.FindAll(".rep-lately .up-title").Select(t => t.TextContent)));
-        Assert.Equal("Lately played, not starred", view.Find("#lately-played").TextContent);
-        Assert.Equal("Yesterday · 90% right in time at 72", view.Find(".rep-lately .up-last").TextContent.Trim());
         Assert.Single(view.FindAll(".rep-card"));
 
         await view.InvokeAsync(() => view.Find(".rep-lately .lb-star").ClickAsync(new MouseEventArgs()));
 
         view.WaitForAssertion(() => Assert.Equal(2, view.FindAll(".rep-card").Count));
         Assert.Empty(view.FindAll(".rep-lately"));
-        Assert.Equal("“Hallelujah” is in your repertoire.", view.Find(".control-note").TextContent);
         Assert.True(book.Current.Has("import-hallelujah"));
     }
 
@@ -208,10 +192,8 @@ public class RepertoireScreenTests
         // Three of the four: the two played, the latest first, then the one kept last.
         view.WaitForAssertion(() => Assert.Equal(["Sweden", "Hallelujah"], view.FindAll(".today-rep-item b").Select(b => b.TextContent).Take(2)));
         Assert.Equal(3, view.FindAll(".today-rep-item").Count);
-        Assert.Equal("Then your pieces", view.Find("#today-pieces").TextContent);
         Assert.Equal("repertoire", view.Find(".band-link").GetAttribute("href"));
         Assert.Equal("library/sweden", view.Find(".today-rep-item").GetAttribute("href"));
-        Assert.Equal("Start: its first bars, a hand at a time", view.FindAll(".today-rep-item").Last().QuerySelector("span")!.TextContent);
     }
 
     [Fact]

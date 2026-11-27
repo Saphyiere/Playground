@@ -26,10 +26,10 @@
     @if (stage == Stage.Choose && Spot == 1)
     {
         <section class="mu-screen reading-start" aria-label="One spot">
-            <div class="mu-screen-head"><span>One spot</span><span>@(spotFrom is null ? "" : $"Bar {spotBar}")</span></div>
+            <div class="mu-screen-head"><span>Bar practice</span><span>@(spotFrom is null ? "" : $"Bar {spotBar}")</span></div>
             <p class="page-panel-line">@(spotFrom is null
-                ? "Nothing to fix today: every passage so far was clean. Read one more instead, or pick a piece from the Library."
-                : $"Bar {spotBar} of the passage you read at {spotFrom.At.ToLocalTime():HH:mm} had the most to fix. Play it 20% slower, then the bars around it at its tempo.")</p>
+                ? "No bar to revisit from today’s passages."
+                : $"Bar {spotBar} of the passage you read at {spotFrom.At.ToLocalTime():HH:mm} had the most recorded errors. This exercise starts 20% slower.")</p>
         </section>
         <div class="control-row control-row-play">
             @if (spotFrom is null)
@@ -119,13 +119,13 @@
         {
             <section class="summary" aria-label="How it went">
                 <PlaySummary Outcome="waited" StoppedAt="@($"bar {waited.Bar}")">
-                    <li>Wait for me is practice for the notes: it doesn't move your level or count as one of today's passages.</li>
+                    <li>Wait for notes records first-try accuracy. Timed passages count toward your level.</li>
                 </PlaySummary>
                 <div class="control-row">
                     @if (spotPart == 1)
                     {
-                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Now the bars around it</button>
-                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">The bar again</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">Repeat this bar</button>
                     }
                     else
                     {
@@ -156,8 +156,8 @@
                 <div class="control-row">
                     @if (spotPart == 1)
                     {
-                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Now the bars around it</button>
-                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">The bar again</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">Repeat this bar</button>
                     }
                     else if (spotPart == 2)
                     {
@@ -581,7 +581,7 @@
         if (result is null || passage is null) yield break;
 
         if (ready?.Piece is { } from) yield return $"From {from.Title}{(from.Composer is { Length: > 0 } c ? $" by {c}" : "")}{(from.Tier == "B" && from.Credit is { } credit ? $". {credit}" : "")}.";
-        if (!result.KeptGoing) yield return "You stopped for more than a bar. Next time keep the beat going, even past a wrong note.";
+        if (!result.KeptGoing) yield return "You paused for more than one bar.";
     }
 
     private string PhaseName() => stage switch

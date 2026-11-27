@@ -9,54 +9,52 @@
 
 <PageHead Title="@(Settings.Name is { Length: > 0 } name ? name : "You")" Kicker="Profile and progress"><a class="mu-btn" href="settings">Profile in Settings</a></PageHead>
 
-<p class="page-note">Progress shows as trends over weeks, not single sessions: mixed practice feels worse at the time and works better later. Timing usually improves fast at first and then levels off; a plateau after early gains is normal, not a sign of anything wrong.</p>
-
 <section class="settings-section" aria-labelledby="pieces-heading">
-    <h2 id="pieces-heading" class="section-title">Pieces</h2>
+    <div class="band-head"><h2 id="pieces-heading" class="section-title">Recent piece practice</h2><a class="band-link" href="history">Practice history</a></div>
     @if (pieceRows.Count == 0)
     {
-        <p class="section-note">The Library's pieces show here once you've played them.</p>
+        <p class="section-note">Your recent library pieces will appear here.</p>
     }
     else
     {
         <table class="you-table">
-            <thead><tr><th>Piece</th><th>Runs</th><th>Days</th><th>Last played</th><th>The last run</th><th>Played through, at best</th></tr></thead>
+            <thead><tr><th>Piece</th><th>Runs</th><th>Days</th><th>Last played</th><th>Last run</th></tr></thead>
             <tbody>
                 @foreach (var (id, title, done) in pieceRows)
                 {
                     <tr>
-                        <td><a href="@($"library/{Uri.EscapeDataString(id)}")">@title</a></td>
+                        <td><a href="@($"library/{Uri.EscapeDataString(id)}/history")">@title</a></td>
                         <td>@done.Runs</td>
                         <td>@done.Days</td>
                         <td>@PieceWords.When(done.Last.Day, Day0)</td>
-                        <td>@PieceWords.How(done.Last): @PieceWords.Went(done.Last)</td>
-                        <td>@(done.BestThrough is { } best ? $"{PieceWords.Short(best)} ({done.Throughs} {(done.Throughs == 1 ? "time" : "times")} through)" : "Not yet")</td>
+                        <td>@PieceWords.How(done.Last)</td>
                     </tr>
                 }
             </tbody>
         </table>
-        <p class="section-note">From the runs kept on each piece, the latest played first. A run of fewer than @PieceHistory.MinNotes notes is a false start, and isn't counted.</p>
+        <p class="section-note">These totals count runs of @PieceHistory.MinNotes or more notes. Open practice history for shorter runs.</p>
     }
 </section>
 
 <section class="settings-section" aria-labelledby="reading-heading">
-    <h2 id="reading-heading" class="section-title">Reading</h2>
+    <h2 id="reading-heading" class="section-title">Sight-reading</h2>
     <div class="you-grid">
         <div class="mu-screen you-figure"><div class="mu-readout"><span class="mu-readout-label">Reading score</span><span class="mu-readout-value you-hero">@(reading?.Score.ToString("0.0", CultureInfo.InvariantCulture) ?? "–")</span><span class="mu-readout-label">Level @(reading?.Level ?? 1) at @(reading?.Tempo ?? 60) bpm</span></div></div>
-        <Trend Title="Right in time" Values="@Weekly(passages, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
+        <Trend Title="Notes correct and on time" Values="@Weekly(passages, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
         <Trend Title="Correct notes a minute" Values="@Weekly(passages, a => Measure(a, "perMinute"))" Labels="weekLabels" />
         <Trend Title="Passages a week" Values="@WeeklyCount(passages)" Labels="weekLabels" LastIsPartial="true" />
     </div>
+    <p class="section-note">@BarsThisWeek() bars read this week.</p>
+    <details class="routine-history"><summary>Reading statistics</summary>
     <ul class="summary-words">
-        <li>Kept going in @Share(passages.Where(ThisMonth), a => Measure(a, "keptGoing") == 1) of passages this month; clean (every note right, kept going) in @Share(passages.Where(ThisMonth), a => a.Clean).</li>
-        <li>Zhukov's four, this month: tempo drift @Mean(passages.Where(ThisMonth), a => Measure(a, "drift"), "0.0")%, @Mean(passages.Where(ThisMonth), a => Measure(a, "extra"), "0.0") extra and @Mean(passages.Where(ThisMonth), a => Measure(a, "missed") + Measure(a, "wrong"), "0.0") missed notes a passage, RMS timing @Mean(passages.Where(ThisMonth), a => Measure(a, "rmsMs"), "0") ms.</li>
-        <li>Lost on the keyboard (a key or two away): @Mean(passages.Where(ThisMonth), a => Measure(a, "lost"), "0.0") a passage, apart from reading errors.</li>
-        <li>@BarsThisWeek() bars read this week: volume is the main lever.</li>
+        <li>You played through @Share(passages.Where(ThisMonth), a => Measure(a, "keptGoing") == 1) of passages this month without stopping.</li>
+        <li>Average per passage: @Mean(passages.Where(ThisMonth), a => Measure(a, "extra"), "0.0") extra notes and @Mean(passages.Where(ThisMonth), a => Measure(a, "missed"), "0.0") missed notes.</li>
+        <li>Timing variation (RMS): @Mean(passages.Where(ThisMonth), a => Measure(a, "rmsMs"), "0") ms. Tempo drift: @Mean(passages.Where(ThisMonth), a => Measure(a, "drift"), "0.0")%.</li>
         @if (ReadAheadCompare() is { } compare)
         {
             <li>@compare</li>
         }
-    </ul>
+    </ul></details>
 </section>
 
 <section class="settings-section" aria-labelledby="notes-heading">
@@ -84,7 +82,7 @@
 <section class="settings-section" aria-labelledby="rhythm-heading">
     <h2 id="rhythm-heading" class="section-title">Rhythm</h2>
     <div class="you-grid">
-        <Trend Title="In time" Values="@Weekly(rhythms, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
+        <Trend Title="Beats on time" Values="@Weekly(rhythms, a => a.Headline)" Labels="weekLabels" Format="@(v => $"{(v) * 100:0}%")" Range="(0.5, 1.0)" />
         <Trend Title="Steadiness" Values="@Weekly(rhythms, a => Measure(a, "steadiness"))" Labels="weekLabels" Format="@(v => $"±{v:0.0}%")" />
     </div>
     <ul class="summary-words">
@@ -97,7 +95,7 @@
     <h2 id="technique-heading" class="section-title">Technique</h2>
     @if (techniqueRows.Count == 0)
     {
-        <p class="section-note">Scales, arpeggios and finger patterns show here once you've run them.</p>
+        <p class="section-note">Your scale, arpeggio and finger-pattern results will appear here.</p>
     }
     else
     {
@@ -110,7 +108,7 @@
                 }
             </tbody>
         </table>
-        <p class="section-note">Compared only with your own earlier runs: there are no norms for amateurs. Under about 10 ms is below what anyone can hear.</p>
+        <p class="section-note">These figures compare your technique runs over time.</p>
     }
 </section>
 
@@ -210,7 +208,7 @@
         var plain = month.Where(a => a.Variant is null && pairs.Contains((a.Level, a.Tempo)) && a.Headline is not null).ToList();
         if (ahead.Count == 0 || plain.Count == 0) return null;
 
-        return $"Read ahead against plain reading at the same level and tempo: {(ahead.Average(a => a.Headline!.Value)) * 100:0}% right in time against {(plain.Average(a => a.Headline!.Value)) * 100:0}%.";
+        return $"Notes correct and on time at the same level and tempo: {(ahead.Average(a => a.Headline!.Value)) * 100:0}% with a preview and {(plain.Average(a => a.Headline!.Value)) * 100:0}% without.";
     }
 
     private void BuildTechnique(List<AttemptRecord> all, Dictionary<string, string> tracks)

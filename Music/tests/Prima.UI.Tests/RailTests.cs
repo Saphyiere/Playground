@@ -91,7 +91,7 @@ public class RailTests
         Assert.True(nav.History.First().Options.ReplaceHistoryEntry);
 
         var settings = host.Context.Render<Pages.Settings>();
-        settings.WaitForAssertion(() => Assert.Equal("Tools", settings.Find("[role=tab][aria-selected=true]").TextContent));
+        settings.WaitForAssertion(() => Assert.Equal("settings-tab-tools", settings.Find("[role=tab][aria-selected=true]").Id));
         Assert.Equal(["Glossary", "Metronome", "Keyboard check", "Timing"], settings.FindAll("#tools .tool-card-name").Select(n => n.TextContent));
         Assert.Equal(["glossary", "tools/metronome", "tools/keyboard", "tools/timing"], settings.FindAll("#tools .tool-card").Select(a => a.GetAttribute("href")));
 

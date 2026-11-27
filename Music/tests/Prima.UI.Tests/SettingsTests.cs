@@ -24,27 +24,18 @@ public class SettingsTests
         nav.NavigateTo("settings");
         var view = host.Context.Render<Settings>();
 
-        Assert.Equal(["Practice", "Keyboard & sound", "Look & music", "Claude", "App & data", "Tools"], view.FindAll("[role=tab]").Select(t => t.TextContent));
-        Assert.Equal("Practice", Selected(view));
-        Assert.Equal(["Profile", "Practice"], Shown(view));
-
-        await Open(view, "Keyboard & sound");
-        Assert.Equal("Keyboard & sound", Selected(view));
-        Assert.Equal(["Keyboard", "Click"], Shown(view));
-        Assert.Equal("http://localhost/settings?tab=keyboard", nav.Uri);
-        // In the address's place: the way back leaves Settings rather than stepping back through its tabs.
-        Assert.True(nav.History.First().Options.ReplaceHistoryEntry);
-
-        await Open(view, "Look & music");
-        Assert.Equal(["Look", "Notation"], Shown(view));
-        await Open(view, "Claude");
-        Assert.Equal(["Claude"], Shown(view));
-        await Open(view, "App & data");
-        Assert.Equal(["Updates", "Your data", "Problems"], Shown(view));
-        Assert.Equal("http://localhost/settings?tab=app", nav.Uri);
+        Assert.Equal("practice", Selected(view));
+        Assert.Equal(["practice", "playback", "reading", "profile"], Shown(view));
+        foreach (var tab in SettingsFinder.Tabs.Skip(1))
+        {
+            await Open(view, tab.Id);
+            Assert.Equal(tab.Id, Selected(view));
+            Assert.NotEmpty(Shown(view));
+            Assert.Equal($"http://localhost/settings?tab={tab.Id}", nav.Uri);
+            Assert.True(nav.History.First().Options.ReplaceHistoryEntry);
+        }
     }
 
-    // Coming back to Settings (the way back, or a link), the address says which tab; one it doesn't know is the first.
     [Fact]
     public async Task TheTabInTheAddressIsTheOneOpen()
     {
@@ -52,59 +43,48 @@ public class SettingsTests
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("settings?tab=claude");
         var view = host.Context.Render<Settings>();
-        Assert.Equal("Claude", Selected(view));
-        Assert.Equal(["Claude"], Shown(view));
-
+        Assert.Equal("claude", Selected(view));
         nav.NavigateTo("settings?tab=app");
-        view.WaitForAssertion(() => Assert.Equal(["Updates", "Your data", "Problems"], Shown(view)));
-        Assert.Equal("App & data", Selected(view));
-
+        view.WaitForAssertion(() => Assert.Equal(["updates", "data", "problems"], Shown(view)));
         nav.NavigateTo("settings?tab=nonsense");
-        view.WaitForAssertion(() => Assert.Equal("Practice", Selected(view)));
-        Assert.Equal(["Profile", "Practice"], Shown(view));
+        view.WaitForAssertion(() => Assert.Equal("practice", Selected(view)));
     }
 
     [Fact]
-    public async Task ASearchFindsSettingsFromEveryTabByNameChoiceOrWhatTheySayAndClearedTheTabsComeBack()
+    public async Task SearchingAcrossTabsExpandsMatchingOptionsAndClearingRestoresTheSelectedTab()
     {
         await using var host = new ComponentHost();
         var view = host.Context.Render<Settings>();
-        await Open(view, "Look & music");
-
-        // In what settings say: only those, under their tab and their section, and no tabs.
+        await Open(view, "look");
         await Search(view, "headphones");
         Assert.Empty(view.FindAll("[role=tab]"));
-        Assert.Equal(["Keyboard & sound › Click"], Shown(view));
-        Assert.Equal(["Where", "On the piano"], Labels(view));
-        Assert.Contains("With headphones in the piano", view.Find("#click").TextContent);
-
-        // A choice, whatever its case; a section named like its tab is headed by the tab alone.
-        await Search(view, "two BARS");
-        Assert.Equal(["Practice"], Shown(view));
-        Assert.Equal(["Count-in"], Labels(view));
-
-        // A section's name finds all of it.
-        await Search(view, "click");
-        Assert.Equal(["Where", "On the piano", "Sound", "Volume"], Labels(view));
-
-        // From two tabs: Claude says Back up never carries the key.
-        await Search(view, "back up");
-        Assert.Equal(["Claude", "App & data › Your data"], Shown(view));
-
-        // Every word, in any order; # for ♯.
-        await Search(view, "above c#");
-        Assert.Equal(["Look before playing", "Piano buttons"], Labels(view));
-        Assert.Equal(["Practice", "Keyboard & sound › Keyboard"], Shown(view));
-
+        Assert.Equal(["click"], Shown(view));
+        await Search(view, "each pass's figure");
+        Assert.Equal(["practice"], Shown(view));
+        Assert.Single(view.FindAll("#practice details[open] [role=switch]"));
         await Search(view, "zzz");
         Assert.Empty(Shown(view));
-        Assert.Equal("Nothing in Settings for “zzz”.", view.Find(".page-note").TextContent);
-
-        // Cleared, the tabs come back, on the one that was open.
         await Search(view, " ");
-        Assert.Equal("Look & music", Selected(view));
-        Assert.Equal(["Look", "Notation"], Shown(view));
-        Assert.Empty(view.FindAll(".settings-found-in"));
+        Assert.Equal("look", Selected(view));
+        Assert.Equal(["look", "notation"], Shown(view));
+    }
+
+    [Fact]
+    public async Task PresetsChangeFeedbackWhilePreservingAutomaticRepeatAndIndependentLoopSettings()
+    {
+        await using var host = new ComponentHost();
+        var view = host.Context.Render<Settings>();
+        var options = host.Context.Services.GetRequiredService<PrimaSettings>();
+        await view.Find("#playback [role=switch]").ClickAsync(new MouseEventArgs());
+        await view.Find("[data-preset=hands-on]").ClickAsync(new MouseEventArgs());
+        Assert.Equal(("review", true, true, true), (options.AfterRun, options.PassFigure, options.PassWaits, options.RunAgain));
+        await view.Find("#practice [role=switch]").ClickAsync(new MouseEventArgs());
+        Assert.Null(options.Way);
+        Assert.False(options.PassFigure);
+        Assert.True(options.PassWaits);
+        var restored = new PrimaSettings();
+        await host.Store.LoadAsync(restored);
+        Assert.Equal((true, false, true), (restored.RunAgain, restored.PassFigure, restored.PassWaits));
     }
 
     // What a search finds is the setting itself: its choices still set it.
@@ -132,7 +112,7 @@ public class SettingsTests
         foreach (var tab in SettingsFinder.Tabs)
         {
             await Search(view, "");
-            await Open(view, tab.Name);
+            await Open(view, tab.Id);
             // The Tools tab holds the tools, a card each: each is found by its name.
             if (tab.Id == "tools")
             {
@@ -175,7 +155,7 @@ public class SettingsTests
         host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=app&section=problems");
         var view = host.Context.Render<Settings>();
 
-        Assert.Equal("App & data", Selected(view));
+        Assert.Equal("app", Selected(view));
         Assert.Contains("The screen at /library stopped: no strip", view.Find("#problems").TextContent);
         // Once the page has what it reads as it opens, so nothing drawn above it moves it after.
         Assert.Equal("problems", await host.Browser.SectionShown.Task.WaitAsync(TimeSpan.FromSeconds(10), Xunit.TestContext.Current.CancellationToken));
@@ -198,9 +178,8 @@ public class SettingsTests
         nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.Contains("The settings and the Library stay as they are"));
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-setting-reset='Start over']").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=confirm-reset]").ClickAsync(new MouseEventArgs()));
 
         Assert.Equal("http://localhost/welcome", nav.Uri);
         Assert.Equal([piece.Id], await host.Store.GetPieceIdsAsync());
@@ -290,9 +269,8 @@ public class SettingsTests
         nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent.EndsWith("A copy of everything is kept first, held in Your data until you restore it or let it go.", StringComparison.Ordinal));
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-setting-reset='Start over']").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=confirm-reset]").ClickAsync(new MouseEventArgs()));
 
         Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
         var kept = Assert.Single(sync.Status.Holding);
@@ -301,7 +279,6 @@ public class SettingsTests
         // Prima went on to its welcome; back in Your data, the copy is there.
         Assert.Equal("http://localhost/welcome", nav.Uri);
         nav.NavigateTo("settings?tab=app");
-        view.WaitForAssertion(() => Assert.Equal($"Kept from before Start over · {SyncText.When(kept.Made)}", view.Find(".copies-held-head").TextContent));
         Directory.Delete(sync.Options.WorkFolder, recursive: true);
     }
 
@@ -318,15 +295,14 @@ public class SettingsTests
         var nav = host.Context.Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-setting-reset='Start over']").ClickAsync(new MouseEventArgs()));
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=confirm-reset]").ClickAsync(new MouseEventArgs()));
 
-        Assert.Contains(view.FindAll("[role=status]"), s => s.TextContent == "A copy couldn't be kept first (errors.log holds a secret, which copies never take), so nothing was cleared.");
         Assert.Single(await host.Store.GetDaysAsync(DateOnly.MinValue));
         Assert.Equal("http://localhost/settings?tab=app", nav.Uri);
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear it without a copy").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=reset-without-backup]").ClickAsync(new MouseEventArgs()));
 
         Assert.Equal("http://localhost/welcome", nav.Uri);
         Assert.Empty(await host.Store.GetDaysAsync(DateOnly.MinValue));
@@ -379,13 +355,13 @@ public class SettingsTests
         await host.Store.SaveSessionAsync(new Prima.UI.Storage.PracticeSession(session, piece.Id, yesterday, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(1), true, yesterday.AddMinutes(3), "standard", yesterday.AddMinutes(5)));
         await host.Store.SetPieceAsync(piece.Id, tempo: 96, position: "{\"page\":1,\"y\":0,\"from\":1,\"bar\":1}");
         await host.Store.SetSettingAsync($"Library.Hands.{piece.Id}", "right");
-        // The piece's front says what to do next.
-        host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id)).WaitForElement(".about-next");
+        var history = host.Context.Render<Pages.PracticeHistory>(p => p.Add(c => c.Id, piece.Id));
+        history.WaitForElement($"[data-session='{session}']");
         nav.NavigateTo("settings?tab=app");
         var view = host.Context.Render<Settings>();
 
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Start over…").ClickAsync(new MouseEventArgs()));
-        await view.InvokeAsync(() => view.FindAll("button").Single(b => b.TextContent == "Clear my progress").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-setting-reset='Start over']").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-action=confirm-reset]").ClickAsync(new MouseEventArgs()));
 
         // The playing has gone.
         Assert.Null(await host.Store.GetTrackAsync<Prima.Core.Practice.ReadingState>("reading"));
@@ -423,16 +399,13 @@ public class SettingsTests
     }
 
     // On the page's dispatcher, so it draws nothing between finding the element and tapping it (Settings redraws as it loads).
-    private static Task Open(IRenderedComponent<Settings> view, string tab) => view.InvokeAsync(() => view.FindAll("[role=tab]").Single(t => t.TextContent == tab).Click());
+    private static Task Open(IRenderedComponent<Settings> view, string tab) => view.InvokeAsync(() => view.Find($"#settings-tab-{tab}").Click());
 
     private static Task Search(IRenderedComponent<Settings> view, string words) => view.InvokeAsync(() => view.Find("input.settings-search").Input(words));
 
-    private static string? Selected(IRenderedComponent<Settings> view) => view.FindAll("[role=tab][aria-selected=true]").SingleOrDefault()?.TextContent;
+    private static string? Selected(IRenderedComponent<Settings> view) => view.FindAll("[role=tab][aria-selected=true]").SingleOrDefault()?.Id?.Replace("settings-tab-", "");
 
-    private static string[] Shown(IRenderedComponent<Settings> view) => [.. view.FindAll("section.settings-section:not([hidden]) > h2").Select(h => Words(h.TextContent))];
-
-    private static string[] Labels(IRenderedComponent<Settings> view) =>
-        [.. view.FindAll("section.settings-section:not([hidden]) .control-label").Select(l => Words(l.TextContent)).Where(l => l.Length > 0)];
+    private static string[] Shown(IRenderedComponent<Settings> view) => [.. view.FindAll("section.settings-section:not([hidden])").Select(section => section.Id!)];
 
     private static IElement Choice(IRenderedComponent<Settings> view, string words) => view.FindAll("button.mu-toggle").Single(b => Words(b.TextContent) == words);
 

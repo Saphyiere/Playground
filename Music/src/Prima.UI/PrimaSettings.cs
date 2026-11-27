@@ -85,17 +85,17 @@ public sealed class PrimaSettings
 
     /// <summary>
     /// The ways of practicing a piece, each a set of the settings after it, which can then be changed one by one: what shows after a
-    /// run, each pass's figure round a loop, whether a loop waits for you after each pass, and whether a run goes again by itself.
+    /// run, each pass's figure round a loop, and whether to pause between repeats. Automatic repeat is a separate playback preference.
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, (string AfterRun, bool PassFigure, bool PassWaits, bool RunAgain)> Ways = new Dictionary<string, (string, bool, bool, bool)>
+    public static readonly IReadOnlyDictionary<string, (string AfterRun, bool PassFigure, bool PassWaits)> Ways = new Dictionary<string, (string, bool, bool)>
     {
-        ["simple"] = ("nothing", false, false, false),
-        ["standard"] = ("summary", true, false, false),
-        ["hands-on"] = ("review", true, true, false),
+        ["simple"] = ("nothing", false, false),
+        ["standard"] = ("summary", true, false),
+        ["hands-on"] = ("review", true, true),
     };
 
     /// <summary>The ways' names, in order, for choosing one.</summary>
-    public static readonly (string Way, string Name)[] WayNames = [("simple", "Simple"), ("standard", "Standard"), ("hands-on", "Hands-on")];
+    public static readonly (string Way, string Name)[] WayNames = [("simple", "Minimal"), ("standard", "Standard"), ("hands-on", "Detailed")];
 
     /// <summary>What shows after a run in Practice: "nothing" (it's ready to go again), "summary" (under the music) or "review" (taking the screen).</summary>
     public string AfterRun { get; set; } = "summary";
@@ -110,8 +110,16 @@ public sealed class PrimaSettings
     public bool RunAgain { get; set; }
 
     /// <summary>The way of practicing the settings make up, or null when they've been changed from all three.</summary>
-    public string? Way => Ways.FirstOrDefault(w => w.Value == (AfterRun, PassFigure, PassWaits, RunAgain)).Key;
+    public string? Way => Ways.FirstOrDefault(w => w.Value == (AfterRun, PassFigure, PassWaits)).Key;
 
-    /// <summary>Practicing a way: its settings.</summary>
-    public void UseWay(string way) => (AfterRun, PassFigure, PassWaits, RunAgain) = Ways[way];
+    public string FeedbackDescription => Way switch
+    {
+        "simple" => "Stay on the score after each run.",
+        "standard" => "See a short summary after each run and a result after each loop.",
+        "hands-on" => "Open the full review after each run and pause between loop repeats.",
+        _ => "Custom feedback settings.",
+    };
+
+    /// <summary>Apply a feedback preset.</summary>
+    public void UseWay(string way) => (AfterRun, PassFigure, PassWaits) = Ways[way];
 }

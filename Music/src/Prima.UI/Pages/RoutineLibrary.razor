@@ -20,7 +20,7 @@
         <button type="button" class="mu-btn" data-piano="off" data-action="new-routine" @onclick="Name">New routine</button>
         <button type="button" class="mu-btn" data-piano="off" data-action="rcm-routine" aria-expanded="@(choosingRcm ? "true" : "false")" @onclick="ChooseRcm">RCM technique</button>
         <a class="mu-btn" data-piano="off" href="exercises?show=hanon">Hanon routines</a>
-        <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask Claude for one</a>
+        <a class="mu-btn" data-piano="off" data-action="ask-routine" href="routine/ask">Ask Claude for a routine</a>
     </div>
 </PageHead>
 
@@ -84,7 +84,7 @@ else
                     <article class="rep-card rt-card" data-routine="@routine.Revision" data-state="@(routine.Revision == active?.Revision ? "now" : null)">
                         <div class="rep-top">
                             <div>
-                                <p class="rep-kicker">@About(routine, true)@if (routine.Revision == active?.Revision) { <span class="rt-today">On Today</span> }</p>
+                                <p class="rep-kicker">@About(routine, true)@if (routine.Revision == active?.Revision) { <span class="rt-today">Daily routine</span> }</p>
                                 <h3 class="rep-title"><a href="@($"routines/{routine.Revision}")">@Called(routine)</a></h3>
                             </div>
                             <button type="button" class="lb-star" aria-pressed="true" aria-label="@($"{Called(routine)} is starred: take its star off")" @onclick="() => Star(routine, false)">

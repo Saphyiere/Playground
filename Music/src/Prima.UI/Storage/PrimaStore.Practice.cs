@@ -240,9 +240,9 @@ public sealed partial class PrimaStore
     public event Action? Practiced;
 
     /// <summary>A piece's sessions, oldest first.</summary>
-    public Task<List<PracticeSession>> GetSessionsAsync(string piece) => RunAsync(async c =>
+    public Task<List<PracticeSession>> GetSessionsAsync(string? piece = null) => RunAsync(async c =>
         (await c.QueryAsync<(long Id, string Piece, string Started, double Playing, double Idle, long Paused, string LastPlayed, string Way, string? Finished)>(
-            "SELECT Id, Piece, Started, Playing, Idle, Paused, LastPlayed, Way, Finished FROM PracticeSession WHERE Piece = @piece ORDER BY Started", new { piece }))
+            "SELECT Id, Piece, Started, Playing, Idle, Paused, LastPlayed, Way, Finished FROM PracticeSession WHERE @piece IS NULL OR Piece = @piece ORDER BY Started, Id", new { piece }))
         .Select(r => new PracticeSession(r.Id, r.Piece, DateTimeOffset.Parse(r.Started, CultureInfo.InvariantCulture), TimeSpan.FromSeconds(r.Playing), TimeSpan.FromSeconds(r.Idle), r.Paused == 1,
             DateTimeOffset.Parse(r.LastPlayed, CultureInfo.InvariantCulture), r.Way, r.Finished is null ? null : DateTimeOffset.Parse(r.Finished, CultureInfo.InvariantCulture))).ToList());
 

@@ -18,10 +18,10 @@ else
         <div class="mu-screen-head"><span>Problem</span><span>Kept in Settings</span></div>
         <h2 class="mu-screen-title">This screen stopped</h2>
         <p class="page-panel-line problem-said">@CurrentException.GetType().Name: @CurrentException.Message</p>
-        <p class="page-panel-line">Prima kept what happened in Settings › Problems, and in @ProblemLog.FileName in its folder on the tablet. The rest of Prima still works.</p>
+        <p class="page-panel-line">Find the error details in the problem log.</p>
         <div class="control-row">
             <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Recover">Try again</button>
-            <a class="mu-btn" data-piano="off" href="settings?tab=app&amp;section=problems">See it in Settings</a>
+            <a class="mu-btn" data-piano="off" href="settings?tab=app&amp;section=problems">Open problem log</a>
             <a class="mu-btn" data-piano="off" href="">Today</a>
         </div>
     </section>

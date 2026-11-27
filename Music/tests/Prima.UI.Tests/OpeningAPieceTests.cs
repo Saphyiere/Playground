@@ -104,10 +104,9 @@ public class OpeningAPieceTests
         Assert.Equal("Ludwig van Beethoven", page.WaitForElement(".reading-head .way-back").TextContent);
         Assert.Equal("Sonata No. 21 'Waldstein', Op. 53: III. Rondo", page.Find(".reading-head h1").TextContent);
         Assert.Equal("Ludwig van Beethoven · Piano sonatas", page.Find(".reading-head .page-kicker").TextContent);
-        Assert.Equal(["Level", "Bars"], page.FindAll(".piece-front-bar .mu-readout-label").Select(l => l.TextContent));
         Assert.Equal("400", page.FindAll(".piece-front-bar .mu-readout-value")[1].TextContent);
         Assert.Equal("Getting its music ready", page.Find(".piece-front-bar .bar-note").TextContent);
-        Assert.All(page.FindAll(".piece-front-bar .piece-key"), key => Assert.True(key.HasAttribute("disabled")));
+        Assert.All(page.FindAll(".piece-front-bar button.piece-key"), key => Assert.True(key.HasAttribute("disabled")));
         Assert.NotNull(page.Find(".piece-frame .sheet.sheet-whole .sheet-wait .sheet-wait-sweep"));
         Assert.NotNull(page.Find(".piece-about"));
 
@@ -116,7 +115,7 @@ public class OpeningAPieceTests
         Assert.Equal("Cancel", page.Find(".piece-wait .mu-btn").TextContent);
         await Eventually(() => Assert.Single(host.Browser.Renders));
         Assert.Equal("Cancel", page.Find(".piece-wait .mu-btn").TextContent);
-        Assert.All(page.FindAll(".piece-front-bar .piece-key"), key => Assert.True(key.HasAttribute("disabled")));
+        Assert.All(page.FindAll(".piece-front-bar button.piece-key"), key => Assert.True(key.HasAttribute("disabled")));
 
         // Cancel goes back to the list.
         await page.InvokeAsync(() => page.Find(".piece-wait .mu-btn").ClickAsync(new MouseEventArgs()));
@@ -135,7 +134,7 @@ public class OpeningAPieceTests
         // Its first lines drawn: the bar says how far it has got, its keys are on, and the card has Stop.
         await Says(page, 6, 38, "coming");
         Assert.Equal("Line 6 of 38", page.Find(".piece-front-bar .bar-note").TextContent);
-        Assert.All(page.FindAll(".piece-front-bar .piece-key"), key => Assert.False(key.HasAttribute("disabled")));
+        Assert.All(page.FindAll(".piece-front-bar button.piece-key"), key => Assert.False(key.HasAttribute("disabled")));
         Assert.Equal("The rest is on its way", page.Find(".piece-wait .piece-wait-what").TextContent);
         Assert.Equal("Line 6 of 38 · read and scroll what's here, or start from bar 1.", page.Find(".piece-wait .piece-wait-more").TextContent);
         Assert.Equal(3, page.FindAll(".piece-wait-meter .on").Count);
@@ -147,7 +146,7 @@ public class OpeningAPieceTests
         await Says(page, 8, 38, "stopped");
         Assert.Empty(page.FindAll(".piece-wait"));
         Assert.Equal("Stopped at line 8 of 38", page.Find(".piece-front-bar .bar-note").TextContent);
-        Assert.All(page.FindAll(".piece-front-bar .piece-key"), key => Assert.False(key.HasAttribute("disabled")));
+        Assert.All(page.FindAll(".piece-front-bar button.piece-key"), key => Assert.False(key.HasAttribute("disabled")));
         await page.InvokeAsync(() => page.Find(".piece-front-bar .bar-note-key").ClickAsync(new MouseEventArgs()));
         Assert.Equal(1, host.Browser.SheetRests);
 

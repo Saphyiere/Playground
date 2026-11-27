@@ -135,17 +135,18 @@ else
                 @* Its keys are off until there's music on the paper to play from: its first lines are enough. *@
                 <div class="piece-actions">
                     <button type="button" class="mu-btn mu-primary piece-key" data-piano="off" disabled="@(!Playable)" @onclick="StartPractice">Practice</button>
-                    <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(!Playable)" @onclick="OpenPlay">Play</button>
+                    <button type="button" class="mu-btn piece-key" data-piano="off" disabled="@(!Playable)" @onclick="OpenPlay">Play through</button>
+                    <a class="mu-btn piece-key" data-piano="off" href="@($"library/{Uri.EscapeDataString(Id)}/history")">Practice history</a>
                 </div>
             </section>
         }
-        else if (stage == Stage.LookBack && session is not null && review is not null && story is not null)
+        else if (stage == Stage.LookBack && session is not null && review is not null)
         {
-            <LookBack Session="session" Review="review" Story="story" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnStep="PracticeStep" OnDone="Done" />
+            <LookBack Session="session" Review="review" Runs="reviewed" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnViewBar="bar => OpenReview(Stage.LookBack, bar)" OnDone="Done" />
         }
         else if (stage == Stage.Review && review is not null)
         {
-            <DeepReview Kicker="@ReviewKicker()" Title="@piece.Title" Figures="ReviewFigures()" Review="review" Bars="BarNumbers()" Picked="picked" OnPick="PickBar" />
+            <DeepReview Kicker="@ReviewKicker()" Title="@piece.Title" Session="@(reviewFrom == Stage.LookBack ? session : null)" Runs="reviewed" PassNumber="@(reviewFrom == Stage.Practice ? waited.Count : 0)" Review="review" Bars="BarNumbers()" Picked="picked" OnPick="PickBar" />
         }
         else if (stage == Stage.Play)
         {
@@ -325,27 +326,17 @@ else
                                 <span class="control-label">Play along</span>
                                 <button type="button" class="mu-toggle" aria-pressed="@On(!playAlong)" @onclick="() => SetPlayAlong(false)"><span class="mu-led"></span>Off</button>
                                 <button type="button" class="mu-toggle" aria-pressed="@On(playAlong)" disabled="@(handStaff is null || !Keyboard.CanSend || !Settings.SendToPiano)" @onclick="() => SetPlayAlong(true)"><span class="mu-led"></span>The other hand</button>
-                                <span class="control-note">@(!Keyboard.CanSend || !Settings.SendToPiano ? "Needs the piano to play notes from the tablet (Settings)." : handStaff is null ? "Choose a hand, and the piano plays the other In time." : "The piano plays the other hand In time.")</span>
+                                <span class="control-note">@(!Keyboard.CanSend || !Settings.SendToPiano ? "Needs the piano to play notes from the tablet (Settings)." : handStaff is null ? "Choose one hand to hear the other part during timed practice." : "The piano plays the other part during timed practice.")</span>
                             </div>
                         }
+                        <FeedbackPreset Way="@Settings.Way" Chosen="UseWay" />
+                        <p class="section-note">@Settings.FeedbackDescription</p>
+                        <SettingSwitch Label="Pause between repeats" Value="Settings.PassWaits" Changed="SetPassWaits" />
+                        <p class="section-note">These feedback settings apply to all library pieces.</p>
                         <div class="control-row">
-                            <span class="control-label">Practice</span>
-                            @foreach (var (way, name) in PrimaSettings.WayNames)
-                            {
-                                <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Way == way)" @onclick="() => UseWay(way)"><span class="mu-led"></span>@name</button>
-                            }
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">Round a loop</span>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.PassWaits)" @onclick="() => SetPassWaits(false)"><span class="mu-led"></span>Go straight on</button>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.PassWaits)" @onclick="() => SetPassWaits(true)"><span class="mu-led"></span>Wait after each pass</button>
-                            <span class="control-note">@(Settings.PassWaits ? "Each pass ends the run, to look at; play it again when you're ready." : "The loop goes round until you stop it.")</span>
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">While playing</span>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Cursor)" @onclick="() => ShowWhilePlaying(!Settings.Cursor, Settings.LiveMarks)"><span class="mu-led"></span>Cursor</button>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => ShowWhilePlaying(Settings.Cursor, !Settings.LiveMarks)"><span class="mu-led"></span>Marks as you play</button>
-                            <span class="control-note">@(Settings is { Cursor: true, LiveMarks: true } ? "Turn either off for less on the page as you play." : Settings.LiveMarks ? "The music still scrolls with the run." : "Every note is still judged, and marked when the run ends.")</span>
+                            <span class="control-label">On the score</span>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Cursor)" @onclick="() => ShowWhilePlaying(!Settings.Cursor, Settings.LiveMarks)"><span class="mu-led"></span>Show cursor</button>
+                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => ShowWhilePlaying(Settings.Cursor, !Settings.LiveMarks)"><span class="mu-led"></span>Mark notes as I play</button>
                         </div>
                         <div class="control-row">
                             <span class="control-label">Start at</span>
@@ -355,7 +346,7 @@ else
                                 <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
                             }
                         </div>
-                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Select Loop to repeat the passage. Tap inside to restart at that bar. While stopped, tap outside to extend the loop or drag a handle to resize it. × ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it (While playing turns either off). Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
+                        <details class="routine-history"><summary>Playing and looping</summary><p class="section-note">Tap a bar to start there. Select Loop and drag the handles to set the passage. Timed follows the set tempo. Wait for notes pauses until you play the correct notes or chord.</p></details>
                     }
                     <div class="control-row">
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
@@ -407,14 +398,10 @@ else
         {
             @* Play's very quick review, at the bottom: the headline and a few words. *@
             <section class="mu-screen play-quick" aria-label="How it went">
-                <p class="play-quick-line"><b>@($"{result.InTimeAccuracy * 100:0}%") right in time</b> · @result.Right of @result.Expected notes@(result.WorstBar is { } worst ? $" · look at {PieceWords.Bar(worst)}" : "")@(played.Stopped ? $" · stopped at {PieceWords.Bar(played.Bar)}" : "")</p>
+                <p class="play-quick-line">@(latestRun?.Id == lastRun ? PieceWords.Went(latestRun) : $"{result.Right} of {result.Expected} notes were correct.")</p>
                 <div class="play-quick-keys">
-                    <button type="button" class="mu-btn mu-primary" @onclick="PlayAgain">Again</button>
-                    @if (result.WorstBar is { } look)
-                    {
-                        <button type="button" class="mu-btn" data-piano="off" @onclick="() => PracticeBar(look)">Practice @PieceWords.Bar(look)</button>
-                    }
-                    <button type="button" class="mu-btn" data-piano="off" @onclick="ReviewPlay">In-depth review</button>
+                    <button type="button" class="mu-btn mu-primary" @onclick="PlayAgain">Play again</button>
+                    <button type="button" class="mu-btn" data-piano="off" @onclick="ReviewPlay">View details</button>
                     <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
                 </div>
             </section>
@@ -458,27 +445,11 @@ else
         <section class="settings-section piece-about" aria-labelledby="about-heading">
             <h2 id="about-heading" class="section-title">About this piece</h2>
             <ul class="summary-words">
-                @* What's been done on it, from the runs kept: the last one, then how often it's been played through and played at all. *@
-                @if (history is { } done)
+                @* The latest recorded run, including short practice attempts. *@
+                @if (latestRun is { } last)
                 {
                     var today = DateOnly.FromDateTime(DateTime.Now);
-                    <li>Last played @PieceWords.When(done.Last.Day, today): @PieceWords.How(done.Last), @PieceWords.Went(done.Last).</li>
-                    @if (done.Runs > 1)
-                    {
-                        var through = done switch
-                        {
-                            { LastThrough: { } last, BestThrough: { } best } when last != best => $"Played through {done.Throughs} times In time: {PieceWords.Short(last)} the last time, {PieceWords.Short(best)} at best. ",
-                            { LastThrough: { } last, Throughs: > 1 } => $"Played through {done.Throughs} times In time, the last the best: {PieceWords.Short(last)}. ",
-                            { LastThrough: { } last } => $"Played through once In time: {PieceWords.Short(last)}. ",
-                            _ => "",
-                        };
-                        <li>@through@done.Runs runs on @done.Days @(done.Days == 1 ? "day" : "days"), the first @PieceWords.When(done.Since, today).</li>
-                    }
-                }
-                @* What to do next, as the last practice session left it: its first step, a tap away. *@
-                @if (stage == Stage.Front && next is { Steps: [var step, ..] })
-                {
-                    <li class="about-next"><span><b>Next:</b> @step.What. @step.Why</span> <button type="button" class="mu-btn" data-piano="off" @onclick="() => PracticeStep(step)">Start there</button></li>
+                    <li>Last practiced @PieceWords.When(last.Day, today) · @PieceWords.How(last)</li>
                 }
                 @if (piece.Reasons is { Length: > 0 } reasons)
                 {
@@ -555,13 +526,9 @@ else
     private TimeSpan counted;
     private bool covered;
     private int ticks;
-    // The look back's and the in-depth review's: the runs gone over, summed up, the session in words (with where the piece stands
-    // and what to do next), the bar picked and where the review was opened from. A run to start once the page has its play bar
-    // again. And what to do next as the last session left it, for the piece's front, with the day it was.
+    // The runs in the current review, and the stage to return to when it closes.
     private SessionReview? review;
     private List<PieceRun> reviewed = [];
-    private SessionStory? story;
-    private (DateOnly Day, IReadOnlyList<NextStep> Steps)? next;
     private int? picked;
     private Stage reviewFrom;
     private bool startAfterRender;
@@ -611,7 +578,7 @@ else
     private IJSObjectReference? bars;
     private string? shownChoice;
     // What's been done on the piece, from its runs kept.
-    private PieceHistory? history;
+    private PieceRun? latestRun;
     // The first bar on the screen, as bars.js tells it: where the piece opens the next time. And whether it's been put back there.
     private int? seen;
     private bool placed;
@@ -751,9 +718,7 @@ else
                 view = stored.GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
                 handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
                 StartAt(FirstBar);
-                var kept = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
-                history = PieceHistory.Of(kept);
-                next = SessionStory.Next(kept, Shape, DateOnly.FromDateTime(DateTime.Now));
+                latestRun = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).MaxBy(r => (r.At, r.Id));
                 // A session left going is paused, to carry on or finish; one left until another day (played before today, and longer
                 // ago than a pause: not one played on past midnight) is finished as of the last thing played in it, and the piece
                 // opens on its front.
@@ -1366,7 +1331,7 @@ else
             outcome = null;
             if (!Settings.LiveMarks && sheet is not null) await sheet.ClearMarks();
         }
-        if (stage == Stage.Practice && Settings.RunAgain && !how.Stopped) startAfterRender = true;
+        if (stage == Stage.Practice && Settings.RunAgain && !how.Stopped && (how.Loop is null || !Settings.PassWaits)) startAfterRender = true;
         // The loop, or the bar to look at, in view again, if the summary or the run has left it off the screen.
         else if (stage == Stage.Practice) revealBars = loopTo is { } to ? (from, to) : how.InTime?.WorstBar is { } worst ? (worst, worst) : null;
     }
@@ -1381,7 +1346,7 @@ else
         lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, KeptRun.Keys(how), null, measures, notes == 0 ? null : right / (double)notes, clean, null));
         // Practice's minutes are its clock's, counted as it goes; Play's are its run's.
         if (stage != Stage.Practice) await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
-        history = PieceHistory.Of((await Store.GetPieceRunsAsync(Id)).Select(r => r.Run));
+        latestRun = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).MaxBy(r => (r.At, r.Id));
     }
 
     // Play's run is the whole piece, both hands, whatever bar and hand Practice has chosen.
@@ -1463,15 +1428,8 @@ else
     {
         if (session is null) return;
 
-        var runs = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).ToList();
-        reviewed = [.. runs.Where(r => r.Session == session.Id)];
+        reviewed = [.. (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).Where(r => r.Session == session.Id).OrderBy(r => r.At)];
         review = SessionReview.Of(reviewed, LastBar);
-        // In words, with every run kept on the piece before this session behind it: what it came to, where the piece stands
-        // now, and what to do next, which the piece's front keeps for next time. A session that left nothing to do leaves the
-        // front no Next, as the piece opened again shows; one with no run in it leaves the last one's.
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        story = SessionStory.Of(reviewed, runs.Where(r => r.Session != session.Id), Shape, today);
-        if (reviewed.Count > 0) next = story.Steps.Count > 0 ? (today, story.Steps) : null;
         // Finished while Print showed a PDF's print: the notation back, for the look back to take the page (the print's would).
         if (print) await TogglePrint();
         (stage, outcome, picked) = (Stage.LookBack, null, null);
@@ -1491,7 +1449,7 @@ else
     // Done: back to the piece's front, the session over.
     private async Task Done()
     {
-        (stage, session, clock, review, story, reviewed, picked, outcome) = (Stage.Front, null, null, null, null, [], null, null);
+        (stage, session, clock, review, reviewed, picked, outcome) = (Stage.Front, null, null, null, [], null, null);
         if (sheet is not null)
         {
             await sheet.ClearMarks();
@@ -1508,12 +1466,12 @@ else
 
     // The in-depth review of the runs gone over, taking the screen: the bar still hard at the end picked to start with, as the
     // look back names it, or else the bar put right, or else the bar with most to fix.
-    private async Task OpenReview(Stage from)
+    private async Task OpenReview(Stage from, int? requestedBar = null)
     {
         (reviewFrom, stage, marksKept) = (from, Stage.Review, await Store.GetRunMarksAsync([.. reviewed.Select(r => r.Id)]));
         if (!fullScreen) await ToggleFullScreen();
         StateHasChanged();
-        var first = review?.Hard?.Bar ?? review?.Fixed?.Bar ?? review?.Bars.Values.OrderByDescending(b => b.Weight).ThenBy(b => b.Bar).FirstOrDefault()?.Bar;
+        var first = requestedBar ?? review?.Hard?.Bar ?? review?.Fixed?.Bar ?? review?.Bars.Values.OrderByDescending(b => b.Weight).ThenBy(b => b.Bar).FirstOrDefault()?.Bar;
         if (first is { } bar) await PickBar(bar);
     }
 
@@ -1524,19 +1482,7 @@ else
         picked = bar;
         if (sheet is null) return;
 
-        var inBar = expected.Where(n => n.Bar == bar).Select(n => n.Id).ToHashSet();
-        List<SheetMark> marks = [];
-        foreach (var run in reviewed.OrderByDescending(r => r.At))
-        {
-            if (!marksKept.TryGetValue(run.Id, out var json)) continue;
-
-            using var left = JsonDocument.Parse(json);
-            var right = left.RootElement.GetProperty("right").EnumerateArray().Select(e => e.GetString() ?? "").Where(inBar.Contains).Select(id => new SheetMark(id, "right"));
-            var other = left.RootElement.GetProperty("other").EnumerateArray().Where(e => inBar.Contains(e[0].GetString() ?? ""))
-                .Select(e => new SheetMark(e[0].GetString()!, e[1].GetString()!, e[2].ValueKind == JsonValueKind.String ? e[2].GetString() : null, e[3].GetInt32(), Written: e[4].ValueKind == JsonValueKind.String ? e[4].GetString() : null));
-            marks = [.. right, .. other];
-            if (marks.Count > 0) break;
-        }
+        var marks = KeptRun.MarksForBar(bar, expected, reviewed, marksKept);
         await sheet.ShowMarks(marks);
         await sheet.Outline(MeasureOf(bar));
     }
@@ -1547,31 +1493,6 @@ else
         Stage.Play => $"Played through · {DateTime.Now.ToString("dddd d MMMM", CultureInfo.InvariantCulture)} · at {tempo:0}",
         _ => reviewed is [var run] ? $"{PieceWords.How(run)} · {DateTime.Now.ToString("dddd d MMMM", CultureInfo.InvariantCulture)}" : "",
     };
-
-    // The review's figures. A session's lead with where it ended, not its average: its last stretch, first to last, and that
-    // stretch's tempo, then the time playing. One run's are its own; a pass of a loop that waits after each, with the passes before.
-    private List<(string, string)> ReviewFigures()
-    {
-        if (review is null) return [];
-
-        if (reviewFrom == Stage.LookBack && session is not null && review.Stretches.MaxBy(s => s.Last.At) is { } last)
-        {
-            var (name, first, end) = (LookBack.Name(last, true), LookBack.Said(last, last.First), LookBack.Said(last, last.Last));
-            List<(string, string)> led = last.Points.Count > 1 ? [($"{name}, first → last", $"{first} → {end}")] : [(name, end)];
-            if (last is { InTime: true, First.Tempo: { } began, Last.Tempo: { } ended }) led.Add(("Tempo", began == ended ? $"{ended:0}" : $"{began:0} → {ended:0}"));
-            led.Add(("Playing", PracticeStrip.Said(session.Playing)));
-            return led;
-        }
-
-        List<(string, string)> figures = review.RightInTime is { } share ? [("Right in time", $"{share * 100:0}%")] : [];
-        figures.Add(("Notes right", $"{review.Right}/{review.Notes}"));
-        if (reviewFrom == Stage.Practice && waited is [var once, .., var now])
-        {
-            figures.Add(("Pass", $"{waited.Count}"));
-            figures.Add(("Since pass 1", once.RightInTime is { } then ? $"{then * 100:0}% → {now.RightInTime * 100:0}%" : $"{once.Right}/{once.Notes} → {now.Right}/{now.Notes}"));
-        }
-        return figures;
-    }
 
     // The piece's bars by number, in order.
     private List<int> BarNumbers() => score is null ? [] : [.. score.Bars.Select(b => b.Number)];
@@ -1608,46 +1529,6 @@ else
         if (session is not null) await CarryOn();
         else await StartPractice();
     }
-
-    // Practice a step of what to do next, from the look back or the piece's front: its bars (a loop, or from a bar on), its hand,
-    // its mode and its tempo set, and the session carried on (or, from the front, one started). The play bar reads the mode
-    // kept for it as it's made, which it is anew as Practice comes back to the page: so the step's mode is kept first.
-    private async Task PracticeStep(NextStep step)
-    {
-        if (!barStarts.ContainsKey(step.From)) return;
-        if (sheet is not null)
-        {
-            await sheet.ClearMarks();
-            await sheet.Outline(null);
-        }
-        (from, loopTo, chosen, picked, played, outcome) = (step.From, step.To is { } to ? Math.Min(to, LastBar) : null, step.From > FirstBar, null, null, null);
-        if (twoHands)
-        {
-            handStaff = step.Hands switch { "right" => 1, "left" => 2, _ => null };
-            await Store.SetSettingAsync(HandsKey, HandName);
-        }
-        if (step.Tempo is { } at) await SetTempo(at);
-        await Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), step.InTime ? "time" : "wait");
-        if (session is not null) await CarryOn();
-        else await StartPractice();
-    }
-
-    // What the look back and the piece's front need of the piece: its bars, its own tempo, whether it's for two hands, the
-    // notes written in each bar, and the order a run plays the bars in.
-    private PieceShape Shape => new(FirstBar, LastBar, originalTempo, twoHands) { Notes = barNotes ??= BarNotes(), Order = barOrder ??= BarOrder() };
-
-    private List<int>? barNotes;
-    private List<int>? barOrder;
-
-    // The notes written in each bar from the first to the last by number, a bar of rests having none.
-    private List<int> BarNotes()
-    {
-        var counts = expected.GroupBy(n => n.Bar).ToDictionary(g => g.Key, g => g.Count());
-        return [.. Enumerable.Range(FirstBar, LastBar - FirstBar + 1).Select(bar => counts.GetValueOrDefault(bar))];
-    }
-
-    // The bars by number as a run from the first to the end plays them, through the repeats: which bars a run played twice.
-    private List<int>? BarOrder() => score is null ? null : [.. score.PlayOrder().Select(i => score.Bars[i].Number)];
 
     // The way of practicing, or whether a loop waits after each pass, chosen on the piece's Options: kept in Settings, for every piece.
     private async Task UseWay(string way)

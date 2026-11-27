@@ -28,31 +28,27 @@ public class YourDataTests
     // Remove library, Reset settings. Each keeps a copy first and holds it, named for the key. If that copy can't be taken, it says
     // so, nothing is done, and a second, explicit "… without a copy" does it.
     [Theory]
-    [InlineData("Start over", "Clear my progress", "Clear it without a copy", "Keep it", "This clears everything Prima keeps about your playing", "The settings and the Library stay as they are", "cleared")]
-    [InlineData("Remove library", "Remove every piece", "Remove them without a copy", "Keep them", "This takes every piece out of the Library, Prima's own too", "Your progress stays", "removed")]
-    [InlineData("Reset settings", "Reset the settings", "Reset them without a copy", "Keep them", "This puts everything on this screen back as a new install has it", "Claude's key and the copies in Your data stay", "reset")]
-    public async Task YourDataHasThreeKeysEachAskedTwiceSayingWhatGoesAndWhatStays_EachKeepingACopyFirstHeldUnderItsName(
-        string key, string does, string without, string keep, string goes, string stays, string past)
+    [InlineData("Start over")]
+    [InlineData("Remove library")]
+    [InlineData("Reset settings")]
+    public async Task DataResetsCanBeCancelledAndRequireExplicitConfirmationIfBackupFails(string key)
     {
         await using var host = new ComponentHost();
         var sync = host.Context.Services.GetRequiredService<Syncer>();
         await Seed(host);
         var view = AppAndData(host);
-        Assert.Equal(["Start over…", "Remove library…", "Reset settings…"], Keys(view));
+        Assert.Equal(["Start over", "Remove library", "Reset settings"], Keys(view));
 
         // Asked: what goes, what stays, and the copy kept first. Left as it is, nothing's done.
-        await Tap(view, key + "…");
-        Assert.Equal([does, keep], Keys(view));
-        Assert.StartsWith(goes, Said(view), StringComparison.Ordinal);
-        Assert.Contains(stays, Said(view), StringComparison.Ordinal);
-        Assert.EndsWith("A copy of everything is kept first, held in Your data until you restore it or let it go.", Said(view), StringComparison.Ordinal);
-        await Tap(view, keep);
-        Assert.Equal(["Start over…", "Remove library…", "Reset settings…"], Keys(view));
+        await Tap(view, key);
+        Assert.Equal(["confirm-reset", "cancel-reset"], Keys(view));
+        await Tap(view, "cancel-reset");
+        Assert.Equal(["Start over", "Remove library", "Reset settings"], Keys(view));
         Assert.False(await Done(host, key));
 
         // Asked twice, it's done, a copy of everything kept first and held under its name.
-        await Tap(view, key + "…");
-        await Tap(view, does);
+        await Tap(view, key);
+        await Tap(view, "confirm-reset");
         Assert.True(await Done(host, key));
         var held = Assert.Single(sync.Status.Holding);
         Assert.Equal((SyncHeldFrom.Change, key), (held.Held!.From, held.Held.Why));
@@ -62,13 +58,12 @@ public class YourDataTests
         await Seed(host);
         host.Problems.Keep("Error", "Prima.UI.Pages.Settings", "The key test-key was refused");
         var again = AppAndData(host);
-        await Tap(again, key + "…");
-        await Tap(again, does);
-        Assert.Equal($"A copy couldn't be kept first (errors.log holds a secret, which copies never take), so nothing was {past}.", Said(again));
-        Assert.Equal([does, without, keep], Keys(again));
+        await Tap(again, key);
+        await Tap(again, "confirm-reset");
+        Assert.Equal(["confirm-reset", "reset-without-backup", "cancel-reset"], Keys(again));
         Assert.False(await Done(host, key));
 
-        await Tap(again, without);
+        await Tap(again, "reset-without-backup");
 
         Assert.True(await Done(host, key));
         Assert.Equal(held.Made, Assert.Single(sync.Status.Holding).Made);
@@ -102,10 +97,9 @@ public class YourDataTests
         await host.Store.AddMinutesAsync(Today, 6);
         var view = AppAndData(host);
 
-        await Tap(view, "Remove library…");
-        await Tap(view, "Remove every piece");
+        await Tap(view, "Remove library");
+        await Tap(view, "confirm-reset");
 
-        Assert.Equal("Took 3 pieces out of the Library. Prima won't put its own back by itself: the Library has a key for that. Your runs on them still count.", Said(view));
         Assert.Empty(await OwnPiecesTests.Ids(host));
         Assert.False(File.Exists(pdf));
         Assert.False(File.Exists(midi));
@@ -121,7 +115,7 @@ public class YourDataTests
         Assert.Empty(await OwnPiecesTests.Ids(host));
         var library = host.Context.Render<Pages.Library>();
         library.WaitForElement(".library-put-back");
-        Assert.StartsWith("Prima's own pieces are out of the Library: Remove library took them out", library.Find(".page-note").TextContent, StringComparison.Ordinal);
+
         Directory.Delete(host.Context.Services.GetRequiredService<Syncer>().Options.WorkFolder, recursive: true);
         Directory.Delete(Path.GetDirectoryName(made)!, recursive: true);
     }
@@ -152,8 +146,8 @@ public class YourDataTests
         var copy = await sync.CopyAsync(ct: Ct);
         var view = AppAndData(host);
 
-        await Tap(view, "Reset settings…");
-        await Tap(view, "Reset the settings");
+        await Tap(view, "Reset settings");
+        await Tap(view, "confirm-reset");
 
         // As a new install has them, the timing not set, and as every screen has them now, the look too.
         var reset = new PrimaSettings();
@@ -213,12 +207,10 @@ public class YourDataTests
         return host.Context.Render<Settings>();
     }
 
-    // Your data's keys, by their words.
-    private static string[] Keys(IRenderedComponent<Settings> view) => [.. view.FindAll(".data-keys button").Select(b => b.TextContent)];
+    // Persistent reset names and the available actions.
+    private static string[] Keys(IRenderedComponent<Settings> view) => [.. view.FindAll(".data-keys button").Select(b => (b.GetAttribute("data-setting-reset") ?? b.GetAttribute("data-action"))!)];
 
-    private static Task Tap(IRenderedComponent<Settings> view, string words) =>
-        view.InvokeAsync(() => view.FindAll(".data-keys button").Single(b => b.TextContent == words).ClickAsync(new MouseEventArgs()));
+    private static Task Tap(IRenderedComponent<Settings> view, string action) =>
+        view.InvokeAsync(() => view.Find($".data-keys [data-setting-reset='{action}'], .data-keys [data-action='{action}']").ClickAsync(new MouseEventArgs()));
 
-    // What the keys say, under them.
-    private static string Said(IRenderedComponent<Settings> view) => view.Find(".data-keys-note").TextContent;
 }

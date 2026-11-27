@@ -17,7 +17,7 @@
 <PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
-<p class="page-note full-hide">Tap the first bar's beat, then the rhythm, on any key. @StageWords(state.StageForTry(tryIndex))</p>
+<p class="page-note full-hide">Tap the beat for one bar, then tap the rhythm on any key. @StageWords(state.StageForTry(tryIndex))</p>
 
 <section class="reading-bar play-bar piece-bar" aria-label="Where you are">
     @if (session is { Phase: Phase.CountIn })
@@ -28,7 +28,7 @@
     <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
     @if (result is not null)
     {
-        <div class="mu-readout"><span class="mu-readout-label">In time</span><span class="mu-readout-value">@($"{(result.Accuracy) * 100:0}%")</span></div>
+        <div class="mu-readout"><span class="mu-readout-label">Beats on time</span><span class="mu-readout-value">@($"{(result.Accuracy) * 100:0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
     }
@@ -102,8 +102,8 @@
     private static string StageWords(ClickStage s) => s switch
     {
         ClickStage.Throughout => "The click plays throughout.",
-        ClickStage.CountInOnly => "The click plays the count-in only: keep the pulse yourself.",
-        _ => "No click: the count-in shows on the screen, and the pulse is yours.",
+        ClickStage.CountInOnly => "The click stops after the count-in.",
+        _ => "Follow the count-in on screen, then play without the click.",
     };
 
     protected override async Task OnParametersSetAsync()

@@ -51,11 +51,11 @@
 
 @if (through)
 {
-    <p class="page-note full-hide">Every key one after another, from @choice.Key.Name, at the tempo showing. It's practice for the notes: it isn't measured for evenness, and no key's tempo moves.</p>
+    <p class="page-note full-hide">Play in each key, starting in @choice.Key.Name. The tempo stays the same.</p>
 }
 else if (FirstRun)
 {
-    <p class="page-note full-hide">First, play it once in Wait for me, at your own speed and without the click. The In time runs then start a little slower than that, which is how speed is built.</p>
+    <p class="page-note full-hide">Play once at your own pace. Timed practice starts just below that tempo.</p>
 }
 @if (!playing && (runs >= 3 || (From == "today" && Key == "scales")))
 {
@@ -190,7 +190,7 @@ else if (FirstRun)
 else if (review is not null && outcome is { Wait: not null } or { InTime: not null })
 {
     <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review">
-        <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"Your own speed came to about {bpm:0} beats a minute, so In time starts at {state.Tempo:0}." : "Wait for me is practice for the notes: it doesn't count for evenness or move the tempo.")</li>
+        <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"You played at about {bpm:0} BPM. Timed practice starts at {state.Tempo:0} BPM." : "Wait for notes records first-try accuracy.")</li>
     </PlaySummary>
 }
 </div>

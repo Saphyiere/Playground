@@ -7,9 +7,9 @@ namespace Prima.UI.Library;
 
 /// <summary>
 /// A piece kept in the repertoire as its card shows it: since when it's kept, what's been done on it, where it stands bar by
-/// bar and what comes next, from the runs kept on it. A piece not played yet, or one with pages only, has no standing.
+/// bar from its saved runs. A piece not played yet, or one with pages only, has no standing.
 /// </summary>
-public sealed record PieceCard(PieceRecord Piece, DateTimeOffset Since, PieceHistory? Done, PieceStanding? Standing, NextStep? Next)
+public sealed record PieceCard(PieceRecord Piece, DateTimeOffset Since, PieceHistory? Done, PieceStanding? Standing)
 {
     /// <summary>The share of its bars whose notes are there In time, both hands.</summary>
     public double There => Share(BarState.InTime, BarState.AtTempo);
@@ -22,19 +22,6 @@ public sealed record PieceCard(PieceRecord Piece, DateTimeOffset Since, PieceHis
     /// </summary>
     public bool Learned => Standing is { Bars.Count: > 0 } standing
         && standing.Bars.All(b => b.State == BarState.AtTempo || standing.Own is null && b.State == BarState.InTime);
-
-    /// <summary>
-    /// What comes next on it: its last practice session's first step, how to keep one that's learned, or how to begin one not
-    /// played yet; what kind of step, and the step.
-    /// </summary>
-    public (string Kind, string What) Ahead => this switch
-    {
-        { Learned: true } => ("Keep it", "once through, now and then"),
-        { Next: { } step } => ("Next", step.What),
-        { Piece.PlaysAlong: false } => ("Pages only", "nothing plays along until it has its notes"),
-        { Done: null } => ("Start", "its first bars, a hand at a time"),
-        _ => ("Next", "a practice session on it says what"),
-    };
 
     private double Share(params BarState[] states) => Standing is { Bars.Count: > 0 } standing ? (double)standing.Bars.Count(b => states.Contains(b.State)) / standing.Bars.Count : 0;
 }
@@ -52,10 +39,10 @@ public static class RepertoireCards
     public static string Called(PieceRecord piece) => Named(piece) is (var work, { } part) ? $"{work}: {part}" : $"“{piece.Title}”";
 
     /// <summary>
-    /// A card for each piece: its history from its runs, and for one that plays along and has been played, its standing and next
-    /// step from its score, read away from the screen's thread.
+    /// A card for each piece: its history from its runs, and for one that plays along and has been played, its standing
+    /// from its score, computed off the UI thread.
     /// </summary>
-    public static async Task<List<PieceCard>> OfAsync(PrimaStore store, IEnumerable<(PieceRecord Piece, DateTimeOffset Since)> pieces, ILookup<string, PieceRun> runs, DateOnly today)
+    public static async Task<List<PieceCard>> OfAsync(PrimaStore store, IEnumerable<(PieceRecord Piece, DateTimeOffset Since)> pieces, ILookup<string, PieceRun> runs)
     {
         var cards = new List<PieceCard>();
         foreach (var (piece, since) in pieces)
@@ -64,7 +51,7 @@ public static class RepertoireCards
             var done = PieceHistory.Of(kept);
             if (done is null || !piece.PlaysAlong || await store.GetMeiAsync(piece.Id) is not { } mei)
             {
-                cards.Add(new PieceCard(piece, since, done, null, null));
+                cards.Add(new PieceCard(piece, since, done, null));
                 continue;
             }
             cards.Add(await Task.Run(() =>
@@ -72,12 +59,12 @@ public static class RepertoireCards
                 try
                 {
                     var shape = PieceShape.Of(MeiReader.Read(mei));
-                    return new PieceCard(piece, since, done, PieceStanding.Of(kept, shape), SessionStory.Next(kept, shape, today)?.Steps.FirstOrDefault());
+                    return new PieceCard(piece, since, done, PieceStanding.Of(kept, shape));
                 }
                 // Music that can't be read back leaves the card what its runs say.
                 catch (Exception e) when (e is FormatException or InvalidOperationException or ArgumentException)
                 {
-                    return new PieceCard(piece, since, done, null, null);
+                    return new PieceCard(piece, since, done, null);
                 }
             }));
         }
