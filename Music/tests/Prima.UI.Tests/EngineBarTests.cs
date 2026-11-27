@@ -16,8 +16,12 @@ namespace Prima.UI.Tests;
 public class EngineBarTests
 {
     // The bar's keys in order: each by its label, or its words.
-    private static List<string> Keys<T>(IRenderedComponent<T> view) where T : IComponent =>
-        [.. view.Find(".play-bar").QuerySelectorAll("button").Select(b => b.GetAttribute("aria-label") is { Length: > 0 } label ? label : b.TextContent.Trim())];
+    private static List<string> Keys<T>(IRenderedComponent<T> view) where T : IComponent
+    {
+        // The metronome appears when the player has rendered the loaded score's beats.
+        view.WaitForElement(".play-bar .play-metronome");
+        return [.. view.Find(".play-bar").QuerySelectorAll("button").Select(b => b.GetAttribute("aria-label") is { Length: > 0 } label ? label : b.TextContent.Trim())];
+    }
 
     // The keys every bar shares, in the order every bar has them: the tools (the metronome's settings, full screen), then the run's
     // (the metronome, the tempo, the mode, the start key).
