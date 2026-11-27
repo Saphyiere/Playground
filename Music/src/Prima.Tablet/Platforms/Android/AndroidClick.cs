@@ -6,7 +6,8 @@ using Prima.UI.Host;
 namespace Prima.Tablet;
 
 /// <summary>
-/// The click on the tablet's speaker (or wherever Android routes audio). A writer thread streams 48 kHz audio 10 ms at a time,
+/// The click on the tablet's speaker (or wherever Android routes audio), or on the piano's own audio over USB, heard in its
+/// headphones, when that's asked for and Android lists the piano as an audio output. A writer thread streams 48 kHz audio 10 ms at a time,
 /// silence with each click placed on its exact frame, so the frame count never stops. The audio timestamp pairs a frame with the
 /// moment it sounded on the system clock, so each beat's time is known exactly once it's settled. It's polled every 50 ms until it
 /// is, then every 10 s. Until then, beat times are estimated from when the track started, and Approximate says so.
@@ -36,7 +37,17 @@ public sealed class AndroidClick : IClick
         get { lock (gate) return stampFrame < 0; }
     }
 
-    public void Start(ClickPlan plan, ClickSoundKind sound, double volume)
+    public bool CanPlayOnPiano => PianoOutput() is not null;
+
+    // The piano as an audio output: plugged in by USB, it's a USB audio interface as well as MIDI (the P-225 is), so what's played
+    // to it is heard in its headphones.
+    private static AudioDeviceInfo? PianoOutput()
+    {
+        var audio = (AudioManager?)Android.App.Application.Context.GetSystemService(Android.Content.Context.AudioService);
+        return audio?.GetDevices(GetDevicesTargets.Outputs)?.FirstOrDefault(d => d.Type == AudioDeviceType.UsbDevice);
+    }
+
+    public void Start(ClickPlan plan, ClickSoundKind sound, double volume, bool onPiano)
     {
         Stop();
         (this.plan, accent, plain) = (plan, ClickSound.Render(sound, true, Rate, volume), ClickSound.Render(sound, false, Rate, volume));
@@ -44,6 +55,8 @@ public sealed class AndroidClick : IClick
         var format = new AudioFormat.Builder().SetSampleRate(Rate)!.SetEncoding(Encoding.PcmFloat)!.SetChannelMask(ChannelOut.Mono)!.Build()!;
         var minimum = AudioTrack.GetMinBufferSize(Rate, ChannelOut.Mono, Encoding.PcmFloat);
         track = new AudioTrack.Builder().SetAudioAttributes(attributes).SetAudioFormat(format).SetTransferMode(AudioTrackMode.Stream).SetBufferSizeInBytes(System.Math.Max(minimum, Rate * 4 / 10)).Build();
+        // On the piano: this track to its audio, whatever the rest of the tablet's sound goes to.
+        if (onPiano && PianoOutput() is { } piano) track.SetPreferredDevice(piano);
         lock (gate) stampFrame = -1;
         // Beat 0 is about a quarter second after the track starts; the timestamp says exactly when.
         firstFrame = Rate * Click.LeadNs / 1_000_000_000L;

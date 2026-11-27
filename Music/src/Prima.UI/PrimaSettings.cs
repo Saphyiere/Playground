@@ -1,4 +1,5 @@
 using Prima.Core.Timing;
+using Prima.UI.Host;
 
 namespace Prima.UI;
 
@@ -17,8 +18,11 @@ public sealed class PrimaSettings
     /// <summary>When the timing was last calibrated, or null if never.</summary>
     public DateOnly? CalibratedOn { get; set; }
 
-    /// <summary>The click as notes on the piano rather than on the tablet's speaker.</summary>
+    /// <summary>The click heard on the piano, in its headphones, rather than on the tablet's speaker.</summary>
     public bool ClickOnPiano { get; set; }
+
+    /// <summary>What the click on the piano sounds like: Prima's own click as audio over USB, or one of the piano's own sounds.</summary>
+    public PianoClickSound PianoClick { get; set; } = PianoClickSound.Audio;
 
     public ClickSoundKind ClickSound { get; set; } = ClickSoundKind.Wood;
 

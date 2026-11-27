@@ -144,7 +144,7 @@ public class YourDataTests
         options.UseWay("hands-on");
         (options.SendToPiano, options.PianoButtons) = (false, false);
         (options.TimingOffsetMs, options.TappingSpreadMs, options.CalibratedOn) = (18, 14, Today.AddDays(-20));
-        (options.ClickOnPiano, options.ClickSound, options.ClickVolume) = (true, ClickSoundKind.Beep, 50);
+        (options.ClickOnPiano, options.ClickSound, options.ClickVolume, options.PianoClick) = (true, ClickSoundKind.Beep, 50, Prima.UI.Host.PianoClickSound.WoodBlock);
         (options.MusicFont, options.SheetSize, options.Lyrics, options.Welcomed) = ("Bravura", 1, false, true);
         (options.SoftVelocity, options.LoudVelocity) = (30, 110);
         await host.Store.SaveAsync(options);
@@ -178,7 +178,7 @@ public class YourDataTests
 
     // What's on the Settings screen, and the welcome done or not.
     private static object OnTheScreen(PrimaSettings s) => (s.Name, s.DailyMinutes, s.Cue, s.Clefs, s.CountInBars, s.LookSeconds, s.Cursor, s.LiveMarks, s.AfterRun, s.PassFigure, s.PassWaits,
-        s.RunAgain, s.LetterNames, s.SendToPiano, s.PianoButtons, s.TimingOffsetMs, s.TappingSpreadMs, s.CalibratedOn, s.ClickOnPiano, s.ClickSound, s.ClickVolume, s.MusicFont,
+        s.RunAgain, s.LetterNames, s.SendToPiano, s.PianoButtons, s.TimingOffsetMs, s.TappingSpreadMs, s.CalibratedOn, s.ClickOnPiano, s.ClickSound, s.PianoClick, s.ClickVolume, s.MusicFont,
         s.SheetSize, s.Lyrics, s.Welcomed);
 
     // Something for each key to do: a practice day for Start over, a piece for Remove library, a setting for Reset settings.

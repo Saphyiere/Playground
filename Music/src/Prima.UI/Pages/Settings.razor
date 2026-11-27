@@ -11,6 +11,7 @@
 @inject ProblemLog Problems
 @inject Playground.Sync.Syncer Sync
 @inject IJSRuntime JS
+@inject Prima.UI.Host.Click ClickTrack
 @inject IServiceProvider Services
 @using Playground.AI.Assist
 @using Playground.Updates
@@ -182,11 +183,23 @@ else if (!finder.FoundAny)
 </SettingsSection>
 
 <SettingsSection Tab="keyboard" Id="click" Title="Click">
-    <Setting Name="Where" Words="Tablet, On the piano" Note="With headphones in the piano, the tablet's speaker isn't heard: the click on the piano plays short high notes on channel 16 instead. Redo the timing after changing this.">
+    <Setting Name="Where" Words="Tablet, On the piano, headphones" Note="With headphones in the piano, the tablet's speaker isn't heard: on the piano, the click is in its headphones, in the sound chosen below. Redo the timing after changing this.">
         <div class="control-row">
             <span class="control-label">Where</span>
             <button type="button" class="mu-toggle" aria-pressed="@On(!Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
             <button type="button" class="mu-toggle" aria-pressed="@On(Options.ClickOnPiano)" @onclick="() => Save(() => Options.ClickOnPiano = true)"><span class="mu-led"></span>On the piano</button>
+        </div>
+    </Setting>
+    @* The click on the piano: Prima's own, sent as sound over the piano's USB cable (the P-225 is a USB audio interface), or one
+       of the piano's own sounds over MIDI. Which work depends on the piano and the tablet, so each can be tried by ear. *@
+    <Setting Name="On the piano" Words="Prima's click, metronome, wood block, piano key, headphones, USB audio" Note="Prima's click is the Sound below, sent to the piano over its USB cable. Metronome and Wood block are the piano's own drum sounds; Piano key is a high note in its piano voice. Try them in the headphones: if one plays an ordinary piano note, the piano doesn't take that sound from the tablet.">
+        <div class="control-row">
+            <span class="control-label">On the piano</span>
+            @foreach (var (sound, name) in PianoClicks)
+            {
+                <button type="button" class="mu-toggle" aria-pressed="@On(Options.PianoClick == sound)" @onclick="() => Save(() => Options.PianoClick = sound)"><span class="mu-led"></span>@name</button>
+            }
+            <button type="button" class="mu-btn" data-action="try-click" disabled="@(!Keyboard.CanSend)" @onclick="TryClick">@(trying ? "Stop" : "Try it")</button>
         </div>
     </Setting>
     <Setting Name="Sound" Words="Wood, Beep">
@@ -678,6 +691,9 @@ else if (!finder.FoundAny)
     {
         Updates.Changed -= Redraw;
         Problems.Kept -= ProblemKept;
+        // A click being tried stops with the screen.
+        tryingFor?.Cancel();
+        if (trying) ClickTrack.Stop();
     }
 
     private async Task InstallUpdate()
@@ -795,5 +811,37 @@ else if (!finder.FoundAny)
     {
         change();
         return Store.SaveAsync(Options);
+    }
+
+    private static readonly (PianoClickSound Sound, string Name)[] PianoClicks =
+        [(PianoClickSound.Audio, "Prima's click"), (PianoClickSound.MetronomeClick, "Metronome"), (PianoClickSound.WoodBlock, "Wood block"), (PianoClickSound.PianoKey, "Piano key")];
+
+    // Try it: two bars of the click on the piano in the sound chosen, at 96 a minute, in fours; pressed again, it stops.
+    private bool trying;
+    private CancellationTokenSource? tryingFor;
+
+    private async Task TryClick()
+    {
+        tryingFor?.Cancel();
+        if (trying)
+        {
+            (trying, tryingFor) = (false, null);
+            ClickTrack.Stop();
+            return;
+        }
+
+        var stop = tryingFor = new CancellationTokenSource();
+        trying = true;
+        ClickTrack.Start(new ClickPlan(96, 4, 0, ClickStage.Throughout), Options.PianoClick);
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8 * 60 / 96.0) + TimeSpan.FromMilliseconds(400), stop.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        ClickTrack.Stop();
+        trying = false;
     }
 }

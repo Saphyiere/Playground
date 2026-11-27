@@ -12,7 +12,8 @@ namespace Prima.Tablet;
 /// <summary>
 /// The piano over USB MIDI, through Android's MidiManager: it opens the first device that sends MIDI (the P-225B on its USB TO HOST
 /// port), follows plugging in and out, and hands each message to the Core's parser with Android's timestamp (System.nanoTime).
-/// Active Sensing goes to the jitter measure; notes on Prima's own channel (16) are dropped in case the piano echoes them back.
+/// Active Sensing goes to the jitter measure; notes on Prima's own channel (16) and on the drums' (10, the click's) are dropped in
+/// case the piano echoes them back.
 /// A key or pedal the piano says on two channels (two voices layered, its Dual) is passed on once (<see cref="OneVoice"/>).
 /// Notes for the piano wait on a thread of their own and go out 10 ms early with their exact timestamp, so they're on time whether
 /// or not the device holds timestamped messages until then.
@@ -134,7 +135,7 @@ public sealed class AndroidKeyboard : IKeyboard
         lock (gate)
         {
             parser.Read(bytes.AsSpan(offset, count), timestamp, parsed);
-            events = [.. parsed.Where(e => e.Kind == MidiKind.ActiveSensing || e.Channel != OwnChannel && voice.Hears(e))];
+            events = [.. parsed.Where(e => e.Kind == MidiKind.ActiveSensing || e.Channel is not (OwnChannel or Prima.UI.Host.Click.DrumChannel) && voice.Hears(e))];
             parsed.Clear();
         }
 

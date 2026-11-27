@@ -834,7 +834,14 @@ line:
   after a run, each pass's figure, whether a loop waits after each pass, and whether a run goes again at its end), and whether
   the right note is named after a wrong one in a note drill).
 - **Keyboard & sound**: the keyboard (the device, sending notes to the piano, the piano buttons, timing) and the click (where it
-  sounds, its sound and volume).
+  sounds, its sound and volume). On the piano, heard in its headphones, the click is one of four, each tried there by ear with
+  **Try it** (two bars at 96): **Prima's click**, the tablet's own Wood or Beep sent to the piano as sound over its USB cable (the
+  P-225 is a USB audio interface as well as MIDI; where the tablet doesn't list it as an audio output, a piano key plays
+  instead), **Metronome**, the piano's own drum sounds on channel 10 (General MIDI's metronome click, its bell on each
+  bar's first beat), **Wood block** (its high and low wood blocks on channel 10), or **Piano key**, a high note in its piano voice
+  on Prima's channel, as the click on the piano first was. The P-225 plays all 16 channels it's sent and takes no MIDI clock, so
+  its own metronome can't be kept in time with Prima's; whether its drums answer on channel 10 only the piano can say. Notes the
+  piano sends back on channel 10 or 16 aren't taken for keys played.
 - **Look & music**: the look (Studio or Vinyl) and the notation (the music font and the sheet's size, with two bars to show them,
   and whether a song's lyrics are printed under its notes, on unless turned off; a song's Options have the same switch).
 - **Claude**.
@@ -1506,7 +1513,8 @@ details.
 Only the devices can settle:
 
 - How much timing jitter the keyboard and Android's MIDI path add.
-- Where the click sounds (the tablet's speaker, or the piano as a USB audio device) and its delay.
+- Where the click sounds (the tablet's speaker, or the piano as a USB audio device) and its delay, and which of the click's sounds
+  on the piano the P-225 plays as they're meant (its drums on channel 10, its audio over USB).
 - Whether the piano plays the notes Prima sends it, and whether it echoes them back.
 
 Being researched: the Library's public-domain sources, importing PDFs, and page turns (`library.md`).

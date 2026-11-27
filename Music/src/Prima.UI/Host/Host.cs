@@ -50,8 +50,17 @@ public interface IClick
     /// <summary>True while beat times are estimates, before the audio has a timestamp.</summary>
     bool Approximate { get; }
 
-    /// <summary>Starts clicking to <paramref name="plan"/>, beat 0 a moment from now, at <paramref name="volume"/> (0 to 1).</summary>
-    void Start(ClickPlan plan, ClickSoundKind sound, double volume);
+    /// <summary>
+    /// Whether the click's audio can go to the piano itself now: the piano is plugged in by USB, and the system lists it as an
+    /// audio output (the P-225 is a USB audio interface as well as MIDI), so the click is heard in its headphones.
+    /// </summary>
+    bool CanPlayOnPiano { get; }
+
+    /// <summary>
+    /// Starts clicking to <paramref name="plan"/>, beat 0 a moment from now, at <paramref name="volume"/> (0 to 1): to the piano's
+    /// audio when <paramref name="onPiano"/> and it can, otherwise wherever the system sends audio.
+    /// </summary>
+    void Start(ClickPlan plan, ClickSoundKind sound, double volume, bool onPiano);
 
     void Stop();
 
@@ -99,7 +108,9 @@ public sealed class GridClick(IClock clock) : IClick
 
     public bool Approximate => false;
 
-    public void Start(ClickPlan plan, ClickSoundKind sound, double volume) => (startNs, this.plan, Running) = (clock.NowNs + Click.LeadNs, plan, true);
+    public bool CanPlayOnPiano => false;
+
+    public void Start(ClickPlan plan, ClickSoundKind sound, double volume, bool onPiano) => (startNs, this.plan, Running) = (clock.NowNs + Click.LeadNs, plan, true);
 
     public void Stop() => Running = false;
 

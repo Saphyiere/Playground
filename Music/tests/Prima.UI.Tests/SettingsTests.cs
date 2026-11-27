@@ -71,11 +71,11 @@ public class SettingsTests
         var view = host.Context.Render<Settings>();
         await Open(view, "Look & music");
 
-        // In what a setting says: only it, under its tab and its section, and no tabs.
+        // In what settings say: only those, under their tab and their section, and no tabs.
         await Search(view, "headphones");
         Assert.Empty(view.FindAll("[role=tab]"));
         Assert.Equal(["Keyboard & sound › Click"], Shown(view));
-        Assert.Equal(["Where"], Labels(view));
+        Assert.Equal(["Where", "On the piano"], Labels(view));
         Assert.Contains("With headphones in the piano", view.Find("#click").TextContent);
 
         // A choice, whatever its case; a section named like its tab is headed by the tab alone.
@@ -85,7 +85,7 @@ public class SettingsTests
 
         // A section's name finds all of it.
         await Search(view, "click");
-        Assert.Equal(["Where", "Sound", "Volume"], Labels(view));
+        Assert.Equal(["Where", "On the piano", "Sound", "Volume"], Labels(view));
 
         // From two tabs: Claude says Back up never carries the key.
         await Search(view, "back up");

@@ -4,6 +4,7 @@ using Dapper;
 using Microsoft.Data.Sqlite;
 using Playground.Kit;
 using Prima.Core.Timing;
+using Prima.UI.Host;
 using Prima.UI.Looks;
 
 namespace Prima.UI.Storage;
@@ -26,6 +27,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string CalibratedKey = "Timing.CalibratedOn";
     private const string ClickOnPianoKey = "Click.OnPiano";
     private const string ClickSoundKey = "Click.Sound";
+    private const string PianoClickKey = "Click.PianoSound";
     private const string ClickVolumeKey = "Click.Volume";
     private const string SendToPianoKey = "Keyboard.SendToPiano";
     private const string PianoButtonsKey = "Keyboard.PianoButtons";
@@ -75,6 +77,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.CalibratedOn = DateOnly.TryParse(saved.GetValueOrDefault(CalibratedKey), CultureInfo.InvariantCulture, out var day) ? day : null;
         settings.ClickOnPiano = saved.GetValueOrDefault(ClickOnPianoKey) == "true";
         settings.ClickSound = Enum.TryParse<ClickSoundKind>(saved.GetValueOrDefault(ClickSoundKey), out var sound) ? sound : defaults.ClickSound;
+        settings.PianoClick = Enum.TryParse<PianoClickSound>(saved.GetValueOrDefault(PianoClickKey), out var onPiano) ? onPiano : defaults.PianoClick;
         settings.ClickVolume = (int?)Number(ClickVolumeKey) ?? defaults.ClickVolume;
         settings.SendToPiano = saved.GetValueOrDefault(SendToPianoKey) != "false";
         settings.PianoButtons = saved.GetValueOrDefault(PianoButtonsKey) != "false";
@@ -113,7 +116,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         keys = new[]
         {
             NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey,
-            SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, ClickVolumeKey,
+            SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, PianoClickKey, ClickVolumeKey,
             LookSetting.Key, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
         },
     }));
@@ -128,6 +131,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (CalibratedKey, settings.CalibratedOn?.ToString("O", CultureInfo.InvariantCulture)),
             (ClickOnPianoKey, settings.ClickOnPiano ? "true" : "false"),
             (ClickSoundKey, settings.ClickSound.ToString()),
+            (PianoClickKey, settings.PianoClick.ToString()),
             (ClickVolumeKey, settings.ClickVolume.ToString(CultureInfo.InvariantCulture)),
             (SendToPianoKey, settings.SendToPiano ? "true" : "false"),
             (PianoButtonsKey, settings.PianoButtons ? "true" : "false"),
