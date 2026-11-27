@@ -1097,20 +1097,31 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     const due = beats ? q => zero + along(beats, q, 0, 1) : q => start + (q - startQuarter) * msPerQuarter;
     const moment = beats ? t => along(beats, t - zero, 1, 0) : t => startQuarter + (t - start) / msPerQuarter;
     const opens = due(Math.min(points[0].q, startQuarter));
-    const [first, last] = [due(points[0].q), due(points[points.length - 1].q)];
-    const way = [];
-    points.forEach((here, i) => {
-        const offset = last > first ? (due(here.q) - first) / (last - first) : 0;
-        const before = points[i - 1];
-        if (before && (before.end || before.system !== here.system)) way.push({ offset, transform: placed(before) });
-        way.push({ offset, transform: placed(here) });
-    });
+    const lastBar = path?.bars.at(-1);
+    const first = due(path?.bars[0]?.[1] ?? points[0].q);
+    const last = due(lastBar ? lastBar[1] + lastBar[2] : points[points.length - 1].q);
+    // Keep one cycle in the browser. A seek can have a short first stretch before the
+    // selection wraps back to its beginning; it has its own animation and count-in.
+    const split = path?.introBars ? path.bars[path.introBars][1] : null;
+    const entry = split == null ? [] : points.filter(p => p.q < split || (p.q === split && p.end));
+    const cycle = split == null ? points : points.filter(p => p.q > split || (p.q === split && !p.end));
+    const segments = [];
+    if (entry.length) segments.push({ points: entry, start: first, end: due(split), iterations: 1 });
+    if (cycle.length) segments.push({ points: cycle, start: split == null ? first : due(split), end: last, iterations: path?.iterations ?? 1 });
     line.style.opacity = "";
     line.style.transform = placed(points[0]);
-    if (shown && last > first) {
-        // Until the music's first moment it waits at the first place, and after the last it stays at the last.
-        const move = line.animate(way, { duration: last - first, fill: "both" });
-        move.startTime = first;
+    for (const segment of segments) {
+        const duration = segment.end - segment.start;
+        if (!shown || duration <= 0) continue;
+        const way = [];
+        segment.points.forEach((here, i) => {
+            const offset = Math.max(0, Math.min(1, (due(here.q) - segment.start) / duration));
+            const before = segment.points[i - 1];
+            if (before && (before.end || before.system !== here.system)) way.push({ offset, transform: placed(before) });
+            way.push({ offset, transform: placed(here) });
+        });
+        const move = line.animate(way, { duration, iterations: segment.iterations, fill: segment === segments[0] ? "both" : "forwards" });
+        move.startTime = segment.start;
         state.moves.push(move);
     }
     if (shown && beatMs > 0 && opens > now) {
@@ -1124,16 +1135,26 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
     // The line being played is kept in view: at once the first (or the one the music has reached, for a cursor given its way
     // again part-way), and each one after when its first moment comes. Nothing else is done from here while the cursor moves,
     // so the page is free for the keys.
-    const lines = points.filter((p, i) => i > 0 && p.system !== points[i - 1].system);
-    const reached = () => lines.findLastIndex(p => due(p.q) <= performance.now() + 1);
+    const lines = [];
+    let previous = points[0].system;
+    for (const segment of segments) {
+        const changes = segment.points.filter((p,i) => i === 0 || p.system !== segment.points[i - 1].system);
+        for (let pass = 0; pass < segment.iterations; pass++) {
+            for (const change of changes) {
+                if (previous !== change.system) lines.push({ at: due(change.q) + pass * (segment.end - segment.start), system: change.system });
+                previous = change.system;
+            }
+        }
+    }
+    const reached = () => lines.findLastIndex(p => p.at <= performance.now() + 1);
     const begun = reached();
     follow(element, (begun >= 0 ? lines.splice(0, begun + 1)[begun] : points[0]).system);
     const onward = () => {
         const next = reached();
         if (next >= 0) follow(element, lines.splice(0, next + 1)[next].system);
-        if (lines.length > 0) state.timer = setTimeout(onward, due(lines[0].q) - performance.now());
+        if (lines.length > 0) state.timer = setTimeout(onward, lines[0].at - performance.now());
     };
-    if (lines.length > 0) state.timer = setTimeout(onward, due(lines[0].q) - performance.now());
+    if (lines.length > 0) state.timer = setTimeout(onward, lines[0].at - performance.now());
     // Read ahead's covers move with the music at every frame.
     if (!bars) return;
     const frame = now => {
@@ -1147,8 +1168,12 @@ export function cursorStart(element, msUntilStart, msPerQuarter, startQuarter, w
 // Along a line through points ([x, y] pairs, in order of both), the y at an x (`from` and `to` say which of the pair is which),
 // carried on as the first or last stretch goes before and after them.
 function along(points, x, from, to) {
-    let i = 1;
-    while (i < points.length - 1 && points[i][from] < x) i++;
+    let i = 1, high = points.length - 1;
+    while (i < high) {
+        const mid = Math.floor((i + high) / 2);
+        if (points[mid][from] < x) i = mid + 1;
+        else high = mid;
+    }
     const [a, b] = [points[i - 1], points[i]];
     return b[from] === a[from] ? a[to] : a[to] + (x - a[from]) * (b[to] - a[to]) / (b[from] - a[from]);
 }

@@ -16,4 +16,8 @@ public sealed record SheetMark(string Id, string Kind, string? Played = null, in
 /// starts at and how many it lasts) and what's printed in those bars (the bar's place, a note's or rest's id, and its quarters
 /// from the bar's start).
 /// </summary>
-public sealed record CursorPath(IReadOnlyList<(int Index, double Quarter, double Quarters)> Bars, IReadOnlyList<(int Index, string Id, double Quarter)> Printed);
+public sealed record CursorPath(IReadOnlyList<(int Index, double Quarter, double Quarters)> Bars, IReadOnlyList<(int Index, string Id, double Quarter)> Printed)
+{
+    public int IntroBars { get; init; }
+    public int Iterations { get; init; } = 1;
+}

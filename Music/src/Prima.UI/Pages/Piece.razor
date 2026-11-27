@@ -355,7 +355,7 @@ else
                                 <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
                             }
                         </div>
-                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Loop on its tab loops it: then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or drag a handle, or drag along the strip for a loop over those bars; × ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it (While playing turns either off). Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
+                        <p class="section-note">Tap a bar, on the music or the strip of bars under the bar, to start from it, and while you play to go back to it (‹ Bar goes back a bar). Select Loop to repeat the passage. Tap inside to restart at that bar. While stopped, tap outside to extend the loop or drag a handle to resize it. × ends it. @(twoHands ? "Right or Left listens for that hand alone and dims the other's notes. " : "")In time counts in a bar, then the click keeps the tempo and the cursor moves with the beat, each note marked as you play it (While playing turns either off). Wait for me waits at each note or chord until you've played its keys. A run follows the music's repeats. Listen has the piano play it from the same bar, at the tempo, after a bar of count-in: the hand chosen (and the other, with play along), or both; nothing is marked, so play along or just listen.</p>
                     }
                     <div class="control-row">
                         <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
@@ -638,6 +638,9 @@ else
     private bool twoHands;
     private int? handStaff;
     private PlayMusic? music;
+    // The prepared whole loop stays intact when a tap moves its starting point.
+    private PlayMusic? wholeLoop;
+    private int? cueBar;
     // The play bar; the options in place of the music; full screen; a loop from the start bar to its last; the piano playing the
     // other hand.
     private PlayAlong? play;
@@ -1152,7 +1155,21 @@ else
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
         var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
         var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Sounds))).ToList();
-        music = new PlayMusic(score, [.. notes.Where(n => handStaff is null || n.Staff == handStaff)], beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
+        music = new PlayMusic(score, notes.Where(n => handStaff is null || n.Staff == handStaff).ToArray(), beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
+        wholeLoop = loop is not null ? music : null;
+        cueBar = null;
+    }
+
+    private void Seek(int bar)
+    {
+        if (wholeLoop is not null && loopTo is { } end)
+        {
+            var cue = Math.Clamp(bar, from, end);
+            if (cueBar == cue) return;
+            music = wholeLoop.EnterLoopAt(cue);
+            cueBar = music.EntryIndex == 0 ? from : cue;
+        }
+        else if (music is null || from != bar) StartAt(bar);
     }
 
     // The start key's words: what it plays, from where, and the hand. With a hand they're shorter ("Loop 13–16, right hand",
@@ -1166,6 +1183,7 @@ else
             {
                 // Word joiners keep the bars' numbers together where the key's words take two lines.
                 var range = $"{from}\u2060–\u2060{to}";
+                if (cueBar is { } entry && entry != from) return $"Loop {range} from bar {entry}{(hand is null ? "" : $", {hand} hand")}";
                 if (hand is null) return to == from ? $"Loop bar {from}" : $"Loop bars {range}";
                 return to == from ? $"Loop bar {from}, {hand} hand" : $"Loop {range}, {hand} hand";
             }
@@ -1186,20 +1204,19 @@ else
         StartAt(from);
     }
 
-    // Back a bar while playing (to the loop's start, in a loop), or to a tapped note's bar: the run stops and starts again there,
-    // still listening if it was.
-    private Task Back(int bar) => Restart(loopTo is null ? Math.Max(FirstBar, bar - 1) : from);
+    // Back moves one bar within the selection. A tapped bar restarts in the same playing or listening mode.
+    private Task Back(int bar) => Restart(Math.Max(loopTo is null ? FirstBar : from, bar - 1));
 
     private async Task Restart(int bar)
     {
         if (play is null) return;
 
-        StartAt(bar);
+        Seek(bar);
         if (music is null) return;
 
         restarting = true;
-        await play.Restart(music);
-        restarting = false;
+        try { await play.Restart(music); }
+        finally { restarting = false; }
     }
 
     private string HandsKey => $"Library.Hands.{Id}";
@@ -1215,9 +1232,7 @@ else
         await Store.SetSettingAsync(HandsKey, HandName);
     }
 
-    // A bar tapped on the music, anywhere in it, or on the strip: the start goes there, lit. In a loop, the loop's nearer end goes
-    // there instead: past either end it stretches the loop, inside it trims it (the end, when the bar is as near both). While
-    // playing, the run starts again from it. As pages, the page with the bar shows (one tapped on the strip may be on another).
+    // A tap inside a loop cues that bar. At rest a tap outside extends the loop, and its handles resize it.
     [JSInvokable]
     public async Task Chose(int bar)
     {
@@ -1235,9 +1250,9 @@ else
 
         if (loopTo is { } last)
         {
-            var end = bar > last || bar > from && last - bar <= bar - from;
-            if (end) loopTo = bar;
-            StartAt(end ? from : bar);
+            if (bar < from) StartAt(bar);
+            else if (bar > last) SetLoop(bar);
+            else Seek(bar);
         }
         else
         {

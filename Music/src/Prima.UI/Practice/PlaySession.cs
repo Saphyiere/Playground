@@ -21,6 +21,7 @@ public enum Phase
 /// </summary>
 public sealed class PlaySession : IDisposable
 {
+    private readonly Lock ending = new();
     private readonly Click click;
     private readonly IKeyboard keyboard;
     private readonly IClock clock;
@@ -32,6 +33,7 @@ public sealed class PlaySession : IDisposable
     private readonly List<(double Beat, int Midi, bool On)> pianoToCome = [];
     private Timer? watch;
     private double endBeat;
+    private double firstBeat;
     private long lateNs;
     private long[]? beatTimes;
 
@@ -98,6 +100,7 @@ public sealed class PlaySession : IDisposable
         // The click is heard until the music's end; its beats go on, silent, for the beat the run waits after it.
         plan = plan with { End = beats };
         (Plan, Expected, endBeat, lateNs) = (plan, expected, beats, (long)(lateMs * 1e6));
+        firstBeat = expected.Count == 0 ? 0 : Math.Min(0, expected.Min(e => e.Beat));
         registry.Current = this;
         click.Start(plan);
         // Each key down at its beat and up just before its last; a key let go where the next starts goes up first.
@@ -163,41 +166,49 @@ public sealed class PlaySession : IDisposable
     /// <summary>Ends the run now, keeping what was played.</summary>
     public void Finish()
     {
-        if (Phase == Phase.Done) return;
-
-        watch?.Dispose();
-        watch = null;
-        lock (pianoToCome) pianoToCome.Clear();
-        if (Plan is not null) beatTimes = [.. Enumerable.Range(0, (int)Math.Ceiling(Plan.BeatOf(endBeat)) + 4).Select(click.BeatTime)];
-        click.Stop();
-        keyboard.Silence();
-        var now = clock.NowNs;
-        lock (played)
+        lock (ending)
         {
-            foreach (var (midi, (on, velocity)) in held) played.Add(new PlayedNote(midi, on, now, velocity) { HeldToEnd = true });
-            held.Clear();
-            if (damperDown is { } down) damper.Add((down, now));
-            damperDown = null;
+            if (Phase is not (Phase.CountIn or Phase.Playing) || registry.Current != this) return;
+            watch?.Dispose();
+            watch = null;
+            lock (pianoToCome) pianoToCome.Clear();
+            if (Plan is not null) beatTimes = [.. Enumerable.Range(0, (int)Math.Ceiling(Plan.BeatOf(endBeat)) + 4).Select(click.BeatTime)];
+            click.Stop();
+            keyboard.Silence();
+            var now = clock.NowNs;
+            lock (played)
+            {
+                foreach (var (midi, (on, velocity)) in held) played.Add(new PlayedNote(midi, on, now, velocity) { HeldToEnd = true });
+                held.Clear();
+                if (damperDown is { } down) damper.Add((down, now));
+                damperDown = null;
+            }
+            Phase = Phase.Done;
         }
-        SetPhase(Phase.Done);
+        Changed?.Invoke();
     }
 
     /// <summary>Stops without a result.</summary>
     public void Stop()
     {
-        watch?.Dispose();
-        watch = null;
-        lock (pianoToCome) pianoToCome.Clear();
-        if (Phase is Phase.CountIn or Phase.Playing)
+        lock (ending)
         {
-            click.Stop();
-            keyboard.Silence();
+            watch?.Dispose();
+            watch = null;
+            lock (pianoToCome) pianoToCome.Clear();
+            var wasPlaying = Phase is Phase.CountIn or Phase.Playing;
+            Phase = Phase.Idle;
+            if (wasPlaying && registry.Current == this)
+            {
+                click.Stop();
+                keyboard.Silence();
+            }
         }
-        Phase = Phase.Idle;
     }
 
     private void Tick()
     {
+        if (Phase is not (Phase.CountIn or Phase.Playing) || registry.Current != this) return;
         var now = clock.NowNs;
 
         // The piano's part goes out a little ahead of each note, its time worked out then from the click's beats as they stand.
@@ -217,7 +228,10 @@ public sealed class PlaySession : IDisposable
             pianoToCome.RemoveRange(0, sent);
         }
 
-        if (Phase == Phase.CountIn && now >= TimeAt(Math.Min(0, Expected.Count == 0 ? 0 : Expected.Min(e => e.Beat))) - 50_000_000) SetPhase(Phase.Playing);
+        if (Phase == Phase.CountIn && now >= TimeAt(firstBeat) - 50_000_000)
+        {
+            lock (ending) { if (Phase == Phase.CountIn && registry.Current == this) SetPhase(Phase.Playing); }
+        }
         if (now >= TimeAt(endBeat + 1)) Finish();
     }
 

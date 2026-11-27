@@ -192,7 +192,7 @@
     {
         if (module is null) return;
 
-        var way = path is null ? null : new { bars = path.Bars.Select(b => new object[] { b.Index, b.Quarter, b.Quarters }), events = path.Printed.Select(e => new object[] { e.Index, e.Id, e.Quarter }) };
+        var way = path is null ? null : new { bars = path.Bars.Select(b => new object[] { b.Index, b.Quarter, b.Quarters }), events = path.Printed.Select(e => new object[] { e.Index, e.Id, e.Quarter }), introBars = path.IntroBars, iterations = path.Iterations };
         var beats = times?.Select(t => new[] { t.Quarter, t.Ms });
         await module.InvokeVoidAsync("cursorStart", element, msUntilStart, msPerQuarter, startQuarter, readAheadQuarters, beatMs, msUntilBeat, way, shown, beats);
     }

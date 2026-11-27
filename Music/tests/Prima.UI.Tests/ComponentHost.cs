@@ -208,6 +208,7 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public double[] PageRatios { get; set; } = [0.75];
     /// <summary>What sheets gave Verovio to engrave: the music, and the options with it.</summary>
     public List<(string Mei, JsonElement Options)> Renders { get; } = [];
+    public List<JsonElement> CursorPaths { get; } = [];
     /// <summary>What sheets were asked to do with their marks, in order: showMarks, markLive, clearMarks.</summary>
     public List<string> Marks { get; } = [];
     /// <summary>
@@ -251,6 +252,8 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
             if (DrawsPieces && options.GetProperty("layout").GetString() != "line" && args[3] is DotNetObjectReference<Prima.UI.Components.Sheet> sheet) await sheet.Value.Progress(1, 1, "done");
         }
         if (identifier is "showMarks" or "markLive" or "clearMarks") lock (Marks) Marks.Add(identifier);
+        if (identifier == "cursorStart" && args?.ElementAtOrDefault(7) is { } path)
+            CursorPaths.Add(JsonSerializer.SerializeToElement(path));
         if (identifier == "stop") SheetStops++;
         if (identifier == "rest") SheetRests++;
         if (identifier == "show" && args is null or []) ListsPlaced++;

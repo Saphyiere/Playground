@@ -16,21 +16,16 @@ public sealed class AndroidClick : IClick
 {
     private const int Rate = 48_000;
     private const int Chunk = Rate / 100;
+    private const long FirstFrame = Rate * Click.LeadNs / 1_000_000_000L;
 
     private readonly Lock gate = new();
-    private readonly AudioTimestamp stamp = new();
-    private AudioTrack? track;
-    private System.Threading.Thread? writer;
-    private volatile bool running;
+    private volatile AudioTrack? track;
     private ClickPlan? plan;
-    private float[] accent = [];
-    private float[] plain = [];
-    private long firstFrame;
     private long startedNs;
     private long stampFrame = -1;
     private long stampNs;
 
-    public bool Running => running;
+    public bool Running => track is not null;
 
     public bool Approximate
     {
@@ -50,70 +45,87 @@ public sealed class AndroidClick : IClick
     public void Start(ClickPlan plan, ClickSoundKind sound, double volume, bool onPiano)
     {
         Stop();
-        (this.plan, accent, plain) = (plan, ClickSound.Render(sound, true, Rate, volume), ClickSound.Render(sound, false, Rate, volume));
+        var accent = ClickSound.Render(sound, true, Rate, volume);
+        var plain = ClickSound.Render(sound, false, Rate, volume);
         var attributes = new AudioAttributes.Builder().SetUsage(AudioUsageKind.Media)!.SetContentType(AudioContentType.Sonification)!.Build()!;
         var format = new AudioFormat.Builder().SetSampleRate(Rate)!.SetEncoding(Encoding.PcmFloat)!.SetChannelMask(ChannelOut.Mono)!.Build()!;
         var minimum = AudioTrack.GetMinBufferSize(Rate, ChannelOut.Mono, Encoding.PcmFloat);
-        track = new AudioTrack.Builder().SetAudioAttributes(attributes).SetAudioFormat(format).SetTransferMode(AudioTrackMode.Stream).SetBufferSizeInBytes(System.Math.Max(minimum, Rate * 4 / 10)).Build();
+        var output = new AudioTrack.Builder().SetAudioAttributes(attributes).SetAudioFormat(format).SetTransferMode(AudioTrackMode.Stream).SetBufferSizeInBytes(System.Math.Max(minimum, Rate * 4 / 10)).Build();
         // On the piano: this track to its audio, whatever the rest of the tablet's sound goes to.
-        if (onPiano && PianoOutput() is { } piano) track.SetPreferredDevice(piano);
-        lock (gate) stampFrame = -1;
-        // Beat 0 is about a quarter second after the track starts; the timestamp says exactly when.
-        firstFrame = Rate * Click.LeadNs / 1_000_000_000L;
-        startedNs = JavaSystem.NanoTime();
-        track.Play();
-        running = true;
-        writer = new System.Threading.Thread(() => Write(track)) { IsBackground = true, Name = "Prima click", Priority = ThreadPriority.Highest };
-        writer.Start();
+        if (onPiano && PianoOutput() is { } piano) output.SetPreferredDevice(piano);
+        lock (gate)
+        {
+            (this.plan, stampFrame, startedNs) = (plan, -1, JavaSystem.NanoTime());
+            output.Play();
+            track = output;
+        }
+        new System.Threading.Thread(() => Write(output, plan, accent, plain)) { IsBackground = true, Name = "Prima click", Priority = ThreadPriority.Highest }.Start();
     }
 
     public void Stop()
     {
-        if (!running) return;
-
-        running = false;
-        writer?.Join(500);
-        track?.Stop();
-        track?.Release();
-        (track, writer) = (null, null);
+        lock (gate)
+        {
+            if (track is not { } output) return;
+            track = null;
+            // Pause interrupts a blocking Write. The owning writer releases its own track.
+            output.Pause();
+        }
     }
 
     public long BeatTime(int beat)
     {
-        var frame = FrameOf(beat);
-        lock (gate) return stampFrame < 0 ? startedNs + frame * 1_000_000_000L / Rate : AudioClock.TimeOf(frame, stampFrame, stampNs, Rate);
+        lock (gate)
+        {
+            var frame = FrameOf(plan, beat);
+            return stampFrame < 0 ? startedNs + frame * 1_000_000_000L / Rate : AudioClock.TimeOf(frame, stampFrame, stampNs, Rate);
+        }
     }
 
-    private long FrameOf(int beat) => firstFrame + (long)System.Math.Round((plan?.Offset(beat) ?? 0) * Rate / 1e9);
+    private static long FrameOf(ClickPlan? plan, int beat) => FirstFrame + (long)System.Math.Round((plan?.Offset(beat) ?? 0) * Rate / 1e9);
 
-    private void Write(AudioTrack output)
+    private void Write(AudioTrack output, ClickPlan plan, float[] accent, float[] plain)
     {
+        using var stamp = new AudioTimestamp();
         var buffer = new float[Chunk];
         var written = 0L;
         var nextPoll = 0L;
-        while (running)
+        try
         {
-            System.Array.Clear(buffer);
-            // Every click that overlaps this chunk: from the beat that may still be ringing to the last that starts in it.
-            var from = (int)System.Math.Max(0, System.Math.Floor(plan!.BeatAt((written - accent.Length - firstFrame) * 1e9 / Rate)));
-            for (var beat = from; FrameOf(beat) < written + Chunk; beat++)
+            while (track == output)
             {
-                if (!plan.Sounds(beat)) continue;
+                System.Array.Clear(buffer);
+                // Every click that overlaps this chunk: from the beat that may still be ringing to the last that starts in it.
+                var from = (int)System.Math.Max(0, System.Math.Floor(plan.BeatAt((written - accent.Length - FirstFrame) * 1e9 / Rate)));
+                for (var beat = from; FrameOf(plan, beat) < written + Chunk; beat++)
+                {
+                    if (!plan.Sounds(beat)) continue;
 
-                var click = plan.Accent(beat) ? accent : plain;
-                var start = FrameOf(beat) - written;
-                for (var i = (int)System.Math.Max(0, start); i < Chunk && i - start < click.Length; i++) buffer[i] += click[i - start];
+                    var click = plan.Accent(beat) ? accent : plain;
+                    var start = FrameOf(plan, beat) - written;
+                    for (var i = (int)System.Math.Max(0, start); i < Chunk && i - start < click.Length; i++) buffer[i] += click[i - start];
+                }
+
+                var sent = output.Write(buffer, 0, Chunk, WriteMode.Blocking);
+                if (sent <= 0 || track != output) break;
+                written += sent;
+
+                var now = JavaSystem.NanoTime();
+                if (now < nextPoll) continue;
+
+                var settled = output.GetTimestamp(stamp) && stamp.FramePosition > 0;
+                if (settled)
+                {
+                    lock (gate) { if (track == output) (stampFrame, stampNs) = (stamp.FramePosition, stamp.NanoTime); }
+                }
+                nextPoll = now + (settled ? 10_000_000_000L : 50_000_000L);
             }
-
-            if (output.Write(buffer, 0, Chunk, WriteMode.Blocking) < 0) break;
-            written += Chunk;
-
-            var now = JavaSystem.NanoTime();
-            if (now < nextPoll) continue;
-
-            var settled = output.GetTimestamp(stamp) && stamp.FramePosition > 0;
-            if (settled) lock (gate) (stampFrame, stampNs) = (stamp.FramePosition, stamp.NanoTime);
-            nextPoll = now + (settled ? 10_000_000_000L : 50_000_000L);
+        }
+        finally
+        {
+            lock (gate) { if (track == output) track = null; }
+            output.Release();
+            output.Dispose();
         }
     }
 }

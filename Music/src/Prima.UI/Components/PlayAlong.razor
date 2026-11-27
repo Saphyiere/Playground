@@ -316,6 +316,10 @@
     private PlaySession? session;
     // A run moving to another bar (Restart): the bar stays as it plays, not showing Start and the mode for the moment in between.
     private bool moving;
+    private PlayMusic? requestedMove;
+    private Task? moveTask;
+    private bool stopping;
+    private long generation;
     // The metronome going, and what it was started with (the tempo, beats a bar, and where and how the click's heard), so a change
     // to any of them starts it again with the change.
     private (double Tempo, int Beats, bool OnPiano, ClickSoundKind Sound, int Volume)? ticking;
@@ -327,6 +331,8 @@
     private int bar;
     private bool listening;
     private Dictionary<string, Spelled> pitches = [];
+    private Score? indexedScore;
+    private IReadOnlyList<ExpectedNote>? indexedNotes;
     private Dictionary<string, ExpectedNote> notes = [];
     private TaskCompletionSource? savedCompletion;
     private readonly Dictionary<string, SheetMark> drawn = [];
@@ -338,6 +344,7 @@
     private (int From, int To)? loop;
     private long passFrom;
     private long passTicks;
+    private int fullPassesAvailable;
     private readonly List<PiecePass> passes = [];
     // Going again by itself (Again): each run played to its end since Start, as a pass, for the run count and the last figure.
     private readonly List<PiecePass> runs = [];
@@ -489,19 +496,31 @@
     /// Starts again with other music (the piece from another bar) in place of the run going, which ends there with nothing of
     /// it judged, marked or kept: it's the same go at the piece, moved. Listen stays Listen.
     /// </summary>
-    public async Task Restart(PlayMusic with)
+    public Task Restart(PlayMusic with)
     {
-        var listen = Listening;
+        if (disposed || stopping || (!Running && moveTask is null)) return Task.CompletedTask;
+        requestedMove = with;
+        return moveTask ??= MoveToLatest(Listening);
+    }
+
+    private async Task MoveToLatest(bool listen)
+    {
         moving = true;
         try
         {
-            session?.Stop();
-            savedCompletion?.TrySetResult();
-            if (wait is not null) Registry.DrillAnswer = null;
-            wait = null;
-            await Run(with, listen);
+            await Task.Yield();
+            while (!disposed && !stopping && requestedMove is { } next)
+            {
+                requestedMove = null;
+                ticker?.Dispose();
+                session?.Stop();
+                savedCompletion?.TrySetResult();
+                if (wait is not null) Registry.DrillAnswer = null;
+                wait = null;
+                await Run(next, listen);
+            }
         }
-        finally { moving = false; }
+        finally { moving = false; moveTask = null; }
     }
 
     private async Task ListenNeeds()
@@ -517,7 +536,7 @@
     // Whether a run started.
     private async Task<bool> Run(PlayMusic? with, bool listen, bool again = false)
     {
-        if (Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return false;
+        if (disposed || stopping || Running || savedCompletion is { Task.IsCompleted: false } || (with ?? Music) is not { Notes.Count: > 0 }) return false;
         if (!listen && Keyboard.Name is null)
         {
             _ = InvokeAsync(StartNeeds);
@@ -528,9 +547,11 @@
         if (!again) runs.Clear();
         StopMetronome();
         tempoOpen = false;
+        var version = ++generation;
         await OnStarting.InvokeAsync();
-        if ((with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return false;
+        if (disposed || version != generation || (with ?? Music) is not { Notes.Count: > 0 } music || SheetOf() is not { } sheet) return false;
         if (!listen) await OnPracticeStarting.InvokeAsync();
+        if (disposed || version != generation) return false;
         // Loop on the bar: the music's round, as many times as fill half an hour (until stopped, for anyone's purposes). A
         // screen with a loop of its own has made it already, Listen plays the music as it's written, and a rhythm tapped on
         // any key isn't scored a pass at a time, so it isn't looped.
@@ -541,13 +562,27 @@
         ticker?.Dispose();
         (session, wait, playing, stoppedNs, last, ticker, listening) = (null, null, music, null, null, null, listen);
         savedCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
-        notes = music.Notes.ToDictionary(n => n.Id);
-        barOf = music.Notes.GroupBy(n => n.WrittenId).ToDictionary(g => g.Key, g => g.First().Bar);
+        if (!ReferenceEquals(indexedScore, music.Score))
+        {
+            indexedScore = music.Score;
+            pitches = music.Score.Bars.SelectMany(b => b.Voices.SelectMany(v => v.Events.OfType<Notes>().SelectMany(n => n.Tones))).GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First().Pitch);
+        }
+        var sourceNotes = music.Notes is ArraySegment<ExpectedNote> { Array: { } source } ? source : music.Notes;
+        if (!ReferenceEquals(indexedNotes, sourceNotes))
+        {
+            indexedNotes = sourceNotes;
+            notes = sourceNotes.ToDictionary(n => n.Id);
+            barOf = sourceNotes.GroupBy(n => n.WrittenId).ToDictionary(g => g.Key, g => g.First().Bar);
+        }
         drawn.Clear();
         heard.Clear();
         hinted = null;
         await sheet.ClearMarks();
+        if (disposed || version != generation)
+        {
+            savedCompletion?.TrySetResult();
+            return false;
+        }
         var first = music.Notes.MinBy(n => n.Tick)!;
         bar = first.Bar;
         // Every bar the run plays and when, a bar with nothing to play too: the bar the readout names, and the cursor's path.
@@ -558,6 +593,12 @@
         {
             loop = (music.Score.Bars[bars[0].Index].Number, music.Score.Bars[bars[count - 1].Index].Number);
             (passFrom, passTicks) = (bars[0].Start, bars.Take(count).Sum(b => b.Length));
+            fullPassesAvailable = bars.Count / count;
+            if (music.EntryIndex > 0)
+            {
+                passFrom += passTicks;
+                fullPassesAvailable--;
+            }
         }
 
         if (Mode == PlayMode.WaitForMe && !listen && !RhythmOnly)
@@ -576,7 +617,8 @@
         // any piano part, expects nothing, and hears the click only in the count-in.
         var from = music.FromTick / (double)music.BeatTicks;
         double Beat(ExpectedNote n) => n.Tick / (double)music.BeatTicks - from;
-        bar = music.Score.Bars[bars[0].Index].Number;
+        var barIndex = music.EntryIndex;
+        bar = music.Score.Bars[bars[barIndex].Index].Number;
         var timed = music.Notes.Select(n => (n.Midi, Beat(n), n.Length / (double)music.BeatTicks)).ToList();
         // The piano holds a staccato note half its length.
         IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. music.Notes.Select(n => (n.Midi, Beat(n), n.Sounds / (double)music.BeatTicks)), .. music.PianoPart ?? []] : music.PianoPart;
@@ -588,7 +630,7 @@
             {
                 try { await Ended(run); completion.TrySetResult(); }
                 catch (Exception error) { completion.TrySetException(error); throw; }
-                if (run == session) await Round(music);
+                if (!disposed && run == session && version == generation) await Round(music);
             }
             else StateHasChanged();
         });
@@ -605,39 +647,62 @@
         // Each note judged as it's played and marked at once; the summary's marks replace these.
         var (timeAt, heardAt) = Judged(run, music);
         var live = listen || RhythmOnly ? null : new LiveJudge(music.Notes, timeAt, music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
-        if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => Draw(live.Play(key, heardAt(at)) is { } mark ? [mark] : []));
-        ticker = new Timer(_ => _ = InvokeAsync(async () =>
+        if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => version == generation && run == session
+            ? Draw(live.Play(key, heardAt(at)) is { } mark ? [mark] : []) : Task.CompletedTask);
+        var tickQueued = 0;
+        ticker = new Timer(_ =>
         {
-            var now = Clock.NowNs;
-            var at = music.Score.Bars[bars.LastOrDefault(b => run.TimeAt(b.Start / (double)music.BeatTicks - from) <= now, bars[0]).Index].Number;
-            var elapsed = ShowTime ? (int)Math.Max(0, (now - run.TimeAt(0)) / 1e9) : 0;
-            if (at != bar || elapsed != seconds)
+            if (Interlocked.Exchange(ref tickQueued, 1) != 0) return;
+            _ = InvokeAsync(async () =>
             {
-                (bar, seconds) = (at, elapsed);
-                StateHasChanged();
-            }
-            if (live is not null) await Draw(live.Due(heardAt(now)));
-            // Round a loop, a time round is scored once the next has begun and a late key for its last note has had its chance.
-            var next = passFrom + (passes.Count + 1) * passTicks;
-            if (loop is null || live is null || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
+                try
+                {
+                    if (disposed || version != generation || run != session || !Running) return;
+                    var now = Clock.NowNs;
+                    while (barIndex + 1 < bars.Count && run.TimeAt(bars[barIndex + 1].Start / (double)music.BeatTicks - from) <= now) barIndex++;
+                    var at = music.Score.Bars[bars[barIndex].Index].Number;
+                    var elapsed = ShowTime ? (int)Math.Max(0, (now - run.TimeAt(0)) / 1e9) : 0;
+                    if (at != bar || elapsed != seconds)
+                    {
+                        (bar, seconds) = (at, elapsed);
+                        StateHasChanged();
+                    }
+                    if (live is not null) await Draw(live.Due(heardAt(now)));
+                    // Round a loop, a time round is scored once the next has begun and a late key for its last note has had its chance.
+                    var next = passFrom + (passes.Count + 1) * passTicks;
+                    if (version != generation || loop is null || live is null || passes.Count >= fullPassesAvailable || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
 
-            var pass = Pass(music, run, passes.Count, expression: false);
-            passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes) });
-            StateHasChanged();
-        }), null, 100, 100);
+                    var pass = Pass(music, run, passes.Count, expression: false);
+                    passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes) });
+                    StateHasChanged();
+                }
+                finally { Volatile.Write(ref tickQueued, 0); }
+            });
+        }, null, 100, 100);
         StateHasChanged();
         // The cursor once the click's beat times are set: waiting where the music starts through the count-in, then with the beat
         // along the run's own path, so it goes back at a repeat as the notes do. The path is each of the run's bars, with the
         // quarter it starts at and how many it lasts, and what's printed in them: each note and rest, both hands', with its
         // quarters from its bar's start. So the cursor keeps the beat through rests and through bars the hand played has nothing in.
         await Task.Delay(50);
-        var printed = bars.Select(b => b.Index).Distinct().SelectMany(index => music.Score.Bars[index].Voices.SelectMany(v => v.Events).SelectMany(e => e switch
+        if (disposed || stopping || requestedMove is not null || version != generation || run != session || !Running) return true;
+        var introBars = 0;
+        var iterations = 1;
+        var visibleBars = bars.Count - music.EntryIndex;
+        if (music.LoopBars is { } cycle && bars.Count > cycle)
+        {
+            introBars = music.EntryIndex == 0 ? 0 : cycle - music.EntryIndex;
+            iterations = (visibleBars - introBars) / cycle;
+            visibleBars = introBars + cycle;
+        }
+        var cursorBars = bars.Skip(music.EntryIndex).Take(visibleBars).ToList();
+        var printed = cursorBars.Select(b => b.Index).Distinct().SelectMany(index => music.Score.Bars[index].Voices.SelectMany(v => v.Events).SelectMany(e => e switch
         {
             Notes { Grace: false } n => [(index, n.Tones[0].Id, n.Start / (double)Ticks.Quarter)],
             Rest { Hidden: false } r => [(index, r.Id, r.Start / (double)Ticks.Quarter)],
             _ => Array.Empty<(int, string, double)>(),
         }));
-        var path = new CursorPath([.. bars.Select(b => (b.Index, music.QuarterOf(b.Start), b.Length / (double)Ticks.Quarter))], [.. printed]);
+        var path = new CursorPath([.. cursorBars.Select(b => (b.Index, music.QuarterOf(b.Start), b.Length / (double)Ticks.Quarter))], [.. printed]) { IntroBars = introBars, Iterations = iterations };
         // Where the tempo isn't the one set, the cursor keeps to the beats: each one's quarter, and when it's due after the run's
         // beat 0, and the last one's end.
         List<(double Quarter, double Ms)>? times = null;
@@ -660,23 +725,29 @@
     /// <summary>Ends the run where it is: In time scores what was due by now, Wait for me what was reached.</summary>
     public async Task Stop()
     {
-        if (wait is not null)
+        stopping = true;
+        requestedMove = null;
+        try
         {
-            await EndWait(true);
-            return;
+            if (moveTask is { } move) await move;
+            generation++;
+            if (wait is not null)
+            {
+                await EndWait(true);
+                return;
+            }
+            if (session is not { Phase: Phase.CountIn or Phase.Playing } run) return;
+            stoppedNs = Clock.NowNs;
+            run.Finish();
         }
-        if (session is not { Phase: Phase.CountIn or Phase.Playing } run) return;
-
-        stoppedNs = Clock.NowNs;
-        run.Finish();
+        finally { stopping = false; }
     }
 
     /// <summary>Stop and await the owner's persisted outcome before navigation or host suspension.</summary>
     public async Task StopAndSaveAsync()
     {
-        var completion = savedCompletion;
         await Stop();
-        if (completion is not null) await completion.Task;
+        if (savedCompletion is { } completion) await completion.Task;
     }
 
     private async Task Ended(PlaySession run)
@@ -702,7 +773,7 @@
         // to run its course is the same: its times round after the last key weren't played.
         var lastKey = run.Played.Count == 0 ? long.MinValue : (long)(run.Played.Max(p => p.OnNs) - Settings.TimingOffsetMs * 1e6 + Grading.WindowNs(beatNs));
         var until = stoppedNs is { } at ? Math.Min(at, lastKey) : loop is not null ? lastKey : long.MaxValue;
-        var due = until == long.MaxValue ? music.Notes : music.Notes.Where(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
+        var due = until == long.MaxValue ? music.Notes : music.Notes.TakeWhile(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= until).ToList();
         // Expression too, where the music marks it: loudness on your own soft-to-loud range when it's been measured.
         (int, int)? range = Settings is { SoftVelocity: { } soft, LoudVelocity: { } loud } ? (soft, loud) : null;
         var (timeAt, heardAt) = Judged(run, music);
@@ -711,7 +782,7 @@
         // Round a loop, how many times round were played to their end: when one was, the run's result is the last one's (below),
         // and the whole run, which can be a great many notes, isn't scored for nothing.
         var whole = 0;
-        if (loop is not null && due.Count > 0)
+        if (loop is not null && fullPassesAvailable > 0 && due.Count > 0)
         {
             var (reached, lastOfFirst) = (due.Max(n => n.Tick), music.Notes.Where(n => n.Tick < passFrom + passTicks).Max(n => n.Tick));
             whole = reached < lastOfFirst ? 0 : (int)((reached - lastOfFirst) / passTicks) + 1;
@@ -808,15 +879,16 @@
     // Wait for me: each key judged, marked, and the cursor moved on once a step's keys are all down together.
     private void Heard(MidiEvent e)
     {
-        if (wait is null || e.Kind != MidiKind.NoteOn) return;
+        if (wait is not { } judge || e.Kind != MidiKind.NoteOn) return;
 
         _ = InvokeAsync(async () =>
         {
-            if (wait is not { } judge) return;
+            if (wait != judge) return;
 
             heard.Add(new PlayedNote(e.Note, e.TimeNs, e.TimeNs, e.Velocity));
             var (marks, moved) = judge.Play(e.Note, e.TimeNs);
             await Draw(marks);
+            if (wait != judge) return;
             // A chord played a key at a time has "together" over its top note until it's played so (a chord marked to be rolled,
             // "in one roll"). That's what to do next, not how a note went, so it shows whatever Settings says of the marks.
             var word = judge.Apart ? PlayMusic.SheetId(judge.Current.MaxBy(n => n.Midi)!.Id) : null;
@@ -830,7 +902,7 @@
             if (!moved) return;
             // Round a loop, a step in the next time round means the one before it was played to its end: a pass, its marks as they
             // stand all its own.
-            while (loop is not null && (judge.Done || judge.Current[0].Tick >= passFrom + (passes.Count + 1) * passTicks))
+            while (loop is not null && passes.Count < fullPassesAvailable && (judge.Done || judge.Current[0].Tick >= passFrom + (passes.Count + 1) * passTicks))
             {
                 var pass = judge.Stretch(passFrom + passes.Count * passTicks, passFrom + (passes.Count + 1) * passTicks);
                 passMarks = [.. drawn.Values];
@@ -851,6 +923,7 @@
 
     private async Task EndWait(bool stopped)
     {
+        var version = generation;
         if (wait is not { } judge) return;
         var completion = savedCompletion;
 
@@ -871,7 +944,7 @@
         StateHasChanged();
         try { await OnFinished.InvokeAsync(last); completion?.TrySetResult(); }
         catch (Exception error) { completion?.TrySetException(error); throw; }
-        if (playing is { } music) await Round(music);
+        if (!disposed && version == generation && playing is { } music) await Round(music);
     }
 
     // A run played to its end where the bar goes round (Again): counted, and started again. Stop is the way out; leaving ends it.
@@ -913,6 +986,9 @@
 
     public void Dispose()
     {
+        var abandoned = Running || moving;
+        generation++;
+        requestedMove = null;
         disposed = true;
         StopMetronome();
         Lifecycle.Pausing -= Hush;
@@ -921,5 +997,6 @@
         if (wait is not null) Registry.DrillAnswer = null;
         ticker?.Dispose();
         session?.Dispose();
+        if (abandoned) savedCompletion?.TrySetResult();
     }
 }

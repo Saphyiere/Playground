@@ -34,6 +34,27 @@ public sealed record PlayMusic(Score Score, IReadOnlyList<ExpectedNote> Notes, l
     /// <summary>A loop: the run is its first this-many bars again and again, each time round a pass. Null when it isn't one.</summary>
     public int? LoopBars { get; init; }
 
+    /// <summary>Where a restarted loop enters its first pass. Later passes play the whole original selection.</summary>
+    public int EntryIndex { get; init; }
+
+    public PlayMusic EnterLoopAt(int bar)
+    {
+        if (Order is null || LoopBars is not { } count) return this;
+        var entry = 0;
+        while (entry < count && Score.Bars[Order[entry]].Number != bar) entry++;
+        if (entry == 0 || entry == count) return this;
+        var start = Score.BarTimes([.. Order.Take(entry + 1)])[entry].Start;
+        var at = 0;
+        while (at < Notes.Count && Notes[at].Tick < start) at++;
+        var offset = (start - FromTick) / (double)BeatTicks;
+        return this with
+        {
+            EntryIndex = entry, FromTick = start,
+            Notes = Notes is ExpectedNote[] array ? new ArraySegment<ExpectedNote>(array, at, array.Length - at) : [.. Notes.Skip(at)],
+            PianoPart = PianoPart is null ? null : [.. PianoPart.Where(n => n.Beat >= offset).Select(n => (n.Midi, n.Beat - offset, n.Beats))],
+        };
+    }
+
     /// <summary>
     /// The bars that go round when the play bar's Loop is on, by their place in the score, in order: an exercise's without its
     /// close, so the pattern goes straight on. Null: every bar.
