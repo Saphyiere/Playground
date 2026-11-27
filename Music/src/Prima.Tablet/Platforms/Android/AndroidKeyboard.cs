@@ -70,15 +70,15 @@ public sealed class AndroidKeyboard : IKeyboard
     public void Silence()
     {
         lock (outgoing) outgoing.Clear();
-        try
-        {
-            // flush() drops what the device still holds, which can include note-offs, so all notes off follows it.
-            toPiano?.Flush();
-            toPiano?.Send([0xB0 | (OwnChannel - 1), 123, 0], 0, 3);
-        }
-        catch (Java.IO.IOException)
-        {
-        }
+        // Never Android's flush(): it swaps the USB device's queue of timed messages for an empty one without the lock its output
+        // thread holds, and when that thread is between finding the next message and taking it, it takes from the empty queue and
+        // throws, in system_server. Android's whole interface restarts with it: the tablet seemed to restart whenever a run or the
+        // metronome stopped while the click played on the piano (TB390FU, Android 16, 26 Nov 2026; twice, two runs stopping one
+        // after the other). What Android already holds goes out within SendEarlyNs, so All Notes Off follows just after it, on
+        // Prima's channel and the drums' (the click's), and nothing sounding is left held.
+        var after = JavaSystem.NanoTime() + 2 * SendEarlyNs;
+        Send([0xB0 | (OwnChannel - 1), 123, 0], after);
+        Send([0xB0 | (Prima.UI.Host.Click.DrumChannel - 1), 123, 0], after);
     }
 
     // On the main thread: opens the first device that sends MIDI, a USB one if there's a choice.

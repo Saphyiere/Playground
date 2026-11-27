@@ -1359,6 +1359,10 @@ a drop.
   goes out a fifth of a second ahead, its time worked out then from the click's beats: the tablet's click knows when its beats
   really sound only once its audio timestamp settles, a moment after it starts, so notes timed at the start came early by the
   speaker's delay.
+- **Stopping what the piano plays** (a run, Listen, the metronome) drops the notes still to go and sends All Notes Off just after
+  what Android already holds, on Prima's channel and the drums'. It never asks Android to flush its queue: on the tablet
+  (Android 16) a flush can collide with Android's own USB MIDI thread, which then crashes Android's system process, and the
+  whole tablet seemed to restart when a run or the metronome stopped while the click played on the piano (26 November 2026).
 - **Latency** is calibrated once (play along to a click; the median offset is taken out). The piano's own notes are played that
   much after the beat, so they land where yours do: the piano's hand with yours in play along, Listen with the way you hear
   the beat. How much timing jitter the keyboard
