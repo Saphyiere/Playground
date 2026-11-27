@@ -6,7 +6,9 @@ namespace Prima.Core.Tests;
 
 public class ExerciseTests
 {
-    public static TheoryData<string> Played => new(Exercises.All.Where(e => e.Kind == ExerciseKind.Played).Select(e => e.Id));
+    // Generated patterns join at a removable close. Numbered Hanon studies have their own
+    // written repeats and changing keys, checked against the edition in HanonTests.
+    public static TheoryData<string> Played => new(Exercises.All.Where(e => e.Kind == ExerciseKind.Played && e.HanonNumber is null).Select(e => e.Id));
 
     private static readonly Key C = new(0);
 
@@ -170,7 +172,7 @@ public class ExerciseTests
     [Theory]
     [InlineData("jump", new[] { "octave-jump", "jump-ladder", "chord-jump", "cadence-far", "waltz" })]
     [InlineData("pedal chord", new[] { "pedal-changes" })]
-    [InlineData("THUMB under", new[] { "arpeggio-groups", "thumb-three" })]
+    [InlineData("THUMB under", new[] { "arpeggio-groups", "thumb-three", "hanon-32", "hanon-33", "hanon-34", "hanon-35", "hanon-36", "hanon-37" })]
     [InlineData("finger strength", new[] { "five", "long-short", "hanon", "independence", "trill-2-3", "trill-1-2", "trill-1-3", "arpeggio-groups", "thirds", "trill-bursts" })]
     [InlineData("xylophone", new string[0])]
     public void Search_finds_exercises_by_every_word(string search, string[] found)
@@ -182,7 +184,7 @@ public class ExerciseTests
     public void Keys_come_easiest_first_and_only_those_an_exercise_offers()
     {
         // Every exercise that's played can be taken into other keys, from C.
-        Assert.All(Exercises.All.Where(e => e.Kind == ExerciseKind.Played), e => Assert.True(Exercises.KeysOf(e).Count >= 10 && Exercises.KeysOf(e)[0] == C, e.Id));
+        Assert.All(Exercises.All.Where(e => e.Kind == ExerciseKind.Played && e.HanonNumber is null), e => Assert.True(Exercises.KeysOf(e).Count >= 10 && Exercises.KeysOf(e)[0] == C, e.Id));
         Assert.Equal(Technique.Order, Exercises.KeysOf(Exercises.Find("five")!));
         Assert.Equal(Technique.Order, Exercises.KeysOf(Exercises.Find("triad-walk")!));
         // One that's major by its nature has the twelve major keys.
@@ -363,8 +365,9 @@ public class ExerciseTests
         Assert.Null(Exercises.Find("thumb-six"));
         Assert.DoesNotContain(Exercises.All, e => e.Id == "thumb-four");
         // Every family is in the catalogue, in a section, after the exercises that were there.
-        Assert.Equal(ExerciseFamilies.All.Select(e => e.Id), Exercises.All.Skip(Exercises.All.Count - ExerciseFamilies.All.Count).Select(e => e.Id));
-        Assert.Equal(["thirds", "bounce", "octave-scale"], Exercises.All.Where(e => e.Section == "double").Select(e => e.Id));
+        var generated = Exercises.All.Where(e => e.HanonNumber is null).ToList();
+        Assert.Equal(ExerciseFamilies.All.Select(e => e.Id), generated.TakeLast(ExerciseFamilies.All.Count).Select(e => e.Id));
+        Assert.Equal(["thirds", "bounce", "octave-scale"], generated.Where(e => e.Section == "double").Select(e => e.Id));
     }
 
     // Its card in the catalogue shows its shape, how its notes move: every one to play has one, from its own music in C, in time

@@ -286,7 +286,7 @@ public sealed class RoutineService(PrimaStore store, IInferenceProvider provider
             var items = standard.Activities.Select(a => (Exercise: Exercises.Find(a.Id), a.Minutes)).Where(a => a.Exercise is not null && OwnRoutines.CanHave(a.Exercise))
                 .Select(a => OwnRoutines.Activity(a.Exercise!, a.Minutes)).ToList();
             // Listed newest first: each a second older than the one before it, so they come in their own order.
-            if (items.Count > 0) await store.SaveOwnRoutineAsync(Own(standard.Title, items) with { Summary = standard.Purpose, Accepted = now.AddSeconds(-at) });
+            if (items.Count > 0) await store.SaveOwnRoutineAsync(Own(standard.Title, items) with { Summary = standard.Purpose, Accepted = now.AddSeconds(-at), StandardKey = standard.Key });
             (done, added) = ([.. done, standard.Key], true);
         }
         if (added) await store.SaveTrackAsync(StandardTrack, done);

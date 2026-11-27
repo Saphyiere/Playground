@@ -103,6 +103,12 @@ public static class ExerciseFocus
         ["pedal-changes"] = ["pedal"],
     };
 
+    static ExerciseFocus()
+    {
+        foreach (var exercise in Hanon.All)
+            ByExercise.Add(exercise.Id, [.. Hanon.Focus(exercise.HanonNumber!.Value)]);
+    }
+
     /// <summary>What an exercise trains, in the list's order; nothing for one to read.</summary>
     public static IReadOnlyList<Focus> Of(string exerciseId) => ByExercise.TryGetValue(exerciseId, out var keys) ? [.. All.Where(f => keys.Contains(f.Key))] : [];
 

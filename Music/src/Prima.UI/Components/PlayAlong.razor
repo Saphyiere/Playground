@@ -224,6 +224,9 @@
     /// </summary>
     [Parameter] public bool Again { get; set; }
 
+    /// <summary>When a key-rotation routine continues, take the next key's score after saving the finished run.</summary>
+    [Parameter] public Func<PlayMusic?>? NextMusic { get; set; }
+
     /// <summary>
     /// Loop on the bar. Lit, a run doesn't end: the music's bars that go round (<see cref="PlayMusic.Round"/>: an exercise's
     /// without its close, or all of them) are played again and again until Stop, In time without a break and with no count-in
@@ -381,11 +384,11 @@
         kept = stored.GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
         (asked, Mode) = (Ask, Ask ?? kept.Value);
         await ModeChanged.InvokeAsync(Mode);
-        Looping = ShowLoop && stored.GetValueOrDefault(LoopKeyOf(Name)) == "on";
+        Looping = ShowLoop && NextMusic is null && stored.GetValueOrDefault(LoopKeyOf(Name)) == "on";
         if (Looping) await LoopChanged.InvokeAsync(true);
     }
 
-    private async Task SetLoop(bool on)
+    public async Task SetLoop(bool on)
     {
         if (Running) return;
 
@@ -874,11 +877,11 @@
     // A run played to its end where the bar goes round (Again): counted, and started again. Stop is the way out; leaving ends it.
     private async Task Round(PlayMusic music)
     {
-        if (disposed || !Again || last is not { Stopped: false } run) return;
+        if (disposed || (!Again && NextMusic is null) || last is not { Stopped: false } run) return;
 
         if (run.InTime is { } timed) runs.Add(new PiecePass(timed.Right, timed.Expected, timed.InTimeAccuracy));
         else if (run.Wait is { } waited) runs.Add(new PiecePass(waited.RightFirstTime, waited.Notes, null));
-        await Run(music, listen: false, again: true);
+        await Run(NextMusic?.Invoke() ?? music, listen: false, again: true);
     }
 
     private async Task Draw(IReadOnlyList<LiveMark> marks)

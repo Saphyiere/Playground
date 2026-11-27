@@ -5,6 +5,7 @@
 @using System.Text.Json
 @using Prima.Core.Generation
 @using Prima.Core.Practice
+@using Prima.Core.Routines
 
 <PageTitle>@(exercise?.Name ?? "Exercise") · Prima</PageTitle>
 <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
@@ -18,7 +19,8 @@ else
 {
     var choosing = keys.Count > 1 || exercise.Hands.Count > 1 || family is not null;
     // What comes after this one in its section. In a routine, the routine's bar has its next.
-    var next = routineSession?.IsRoutine == true ? null : Exercises.All.SkipWhile(e => e.Id != Id).Skip(1).FirstOrDefault(e => e.Section == exercise.Section);
+    var next = routineSession?.IsRoutine == true || Place is not null ? null : exercise.HanonNumber is int n ? Hanon.All.ElementAtOrDefault(n)
+        : Exercises.All.SkipWhile(e => e.Id != Id).Skip(1).FirstOrDefault(e => e.Section == exercise.Section && e.HanonNumber is null);
     var history = "Not tried yet.";
     if (was is not null)
     {
@@ -29,7 +31,7 @@ else
         history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
     }
 
-    <PageHead Title="@exercise.Name" Kicker="@Exercises.Sections.First(s => s.Key == exercise.Section).Name" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
+    <PageHead Title="@exercise.Name" Kicker="@(Place is not null ? Book ? "Complete Hanon" : "Hanon Through the Keys" : Exercises.Sections.First(s => s.Key == exercise.Section).Name)" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
 
     // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
     // done of it, the key that puts it in one of your routines, and what comes next.
@@ -50,6 +52,25 @@ else
         @if (ExerciseFamilies.LessonOf(exercise.Id) is { } lesson)
         {
             <p class="control-note exercise-lesson">The idea is from a lesson by @lesson.By, <a href="@lesson.Url" target="_blank" rel="noopener">“@lesson.Title”</a> The words and the notes here are Prima's.</p>
+        }
+        @if (exercise.HanonNumber is int edition)
+        {
+            <p class="control-note exercise-lesson">C. L. Hanon · Schirmer edition, 1900. Prima re-engraving of
+                <a href="@($"https://ranote.zzxxccvv.com/en/s/hanon-{edition:000}")" target="_blank" rel="noopener">RANOTE’s score</a>.
+                @if (edition <= 20)
+                {
+                    <span>From the Mutopia edition by Steve Taylor and Javier Ruiz-Alma. <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</span>
+                }
+                else
+                {
+                    <span><a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</span>
+                    @if (edition <= 38) { <span> Additional fingering from James Brigham’s public-domain edition.</span> }
+                }
+            </p>
+            @if (key != new Key(0) && !Hanon.PrintedKeys(edition) && !Hanon.AsPrintedOnly(edition))
+            {
+                <p class="control-note">This transposition keeps the original study’s finger numbers.</p>
+            }
         }
         @if (exercise.Kind != ExerciseKind.Way)
         {
@@ -89,10 +110,34 @@ else
     {
         <p class="control-note full-hide" role="status">@routineNote</p>
     }
-    @if (exercise.Kind == ExerciseKind.Played)
+    @if (exercise.HanonNumber is not null && music is null)
+    {
+        <Waiting Shape="WaitShape.Row" Count="1" Label="Opening the exercise" />
+    }
+    else if (exercise.Kind == ExerciseKind.Played)
     {
         <div @key="Id" class="exercise exercise-played practice-page">
-            <p class="exercise-does full-hide">@exercise.Does</p>
+            @if (Place is { } bookmark && keys.Count > 0 && music is not null)
+            {
+                <div class="control-row full-hide" aria-label="Hanon routine">
+                    <label class="control-label" for="hanon-study">Study</label>
+                    <select class="text-field" id="hanon-study" value="@bookmark.Number" disabled="@playing" @onchange="SelectStudy">
+                        @foreach (var study in Hanon.All.Where(e => Book || !Hanon.AsPrintedOnly(e.HanonNumber!.Value)))
+                        {
+                            <option value="@study.HanonNumber">@study.Name</option>
+                        }
+                    </select>
+                    @if (!Book)
+                    {
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(bookmark.Cycle)" disabled="@playing" @onclick="() => CycleKeys(bookmark)"><span class="mu-led"></span>Cycle keys</button>
+                    }
+                    <button type="button" class="mu-btn" data-piano="off" data-action="hanon-next" disabled="@playing" @onclick="Advance">@(Book && (!Hanon.PrintedKeys(bookmark.Number) || key == keys[^1]) ? bookmark.Number == 60 ? "Finish book" : "Next study" : "Next key")</button>
+                </div>
+            }
+            else if (exercise.HanonNumber is null)
+            {
+                <p class="exercise-does full-hide">@exercise.Does</p>
+            }
             @if (routineSession?.Rcm is { } rcm)
             {
                 <p class="section-note full-hide rcm-asks">@rcm.Played. @rcm.Activity.Asks@(rcm.Activity.Differs is { } differs ? $" {differs}" : "")</p>
@@ -129,8 +174,8 @@ else
                 </section>
             }
 
-            <PlayAlong @ref="player" Name="exercises" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped"
-                       OriginalTempo="exercise.Tempo" OnOptions="ToggleWords" OptionsOpen="wordsOpen" />
+            <PlayAlong @ref="player" Name="@(Place is null ? "exercises" : Book ? "hanon-book" : "hanon-keys")" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped"
+                       OriginalTempo="exercise.Tempo" OnOptions="ToggleWords" OptionsOpen="wordsOpen" NextMusic="@(Place is { Cycle: true } && !Book ? () => music : null)" />
 
             <div class="piece-stage">
                 <div class="piece-frame sheet-frame piece-frame-scroll @(wordsOpen ? "piece-frame-hidden" : "")" data-follow="">
@@ -156,7 +201,14 @@ else
                                 <span class="key-piano-name">@exercise.KeyName(key)</span>
                                 @* Through the keys: all of them one after another as one piece of music, from the key showing on
                                    through the list and round to the one before it, each running into the next. *@
-                                <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All {keys.Count}, from {exercise.KeyName(key)}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
+                                @if (exercise.HanonNumber is null)
+                                {
+                                    <button type="button" class="mu-toggle exercise-through" aria-pressed="@On(through)" disabled="@playing" aria-label="@(through ? $"Through the keys: on. All {keys.Count}, from {exercise.KeyName(key)}" : "Through the keys: off. This key alone")" @onclick="() => GoThrough(!through)"><span class="mu-led"></span>Through the keys</button>
+                                }
+                                else if (Place is null && routineSession?.IsRoutine != true)
+                                {
+                                    <a class="mu-btn" data-piano="off" href="@($"routines/hanon/keys?study={exercise.HanonNumber}&fifths={key.Fifths}&minor={key.Minor}")">Through the Keys</a>
+                                }
                             </div>
                         }
                         @if (family is not null && variant is not null)
@@ -204,6 +256,10 @@ else
                 }
             </div>
 
+            @if (exercise.HanonNumber is not null && !wordsOpen)
+            {
+                <p class="control-note full-hide"><strong>Technique</strong> · @exercise.Notice</p>
+            }
             @if (outcome is not null)
             {
                 <section class="summary" aria-label="How it went">
@@ -225,6 +281,9 @@ else
 
 @code {
     [Parameter] public string Id { get; set; } = "";
+    [Parameter] public HanonPlace? Place { get; set; }
+    [Parameter] public bool Book { get; set; }
+    [Parameter] public EventCallback<HanonPlace> PlaceChanged { get; set; }
 
     [SupplyParameterFromQuery(Name = "execution")] public string? ExecutionId { get; set; }
     private RoutineSession? routineSession;
@@ -262,7 +321,15 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (exercise?.Id == Id && routineSession?.Execution?.Id == ExecutionId) return;
+        if (exercise?.Id == Id && routineSession?.Execution?.Id == ExecutionId)
+        {
+            if (Place is { } place && key != place.Key)
+            {
+                key = place.Key;
+                Build();
+            }
+            return;
+        }
 
         (exercise, family, variant, music) = (null, null, null, null);
         routineSession = new(Routines);
@@ -286,7 +353,8 @@ else
         key = last is not null && keys.Contains(new Key(last.Fifths, last.Minor)) ? new Key(last.Fifths, last.Minor) : keys[0];
         hands = last is not null && exercise.Hands.Contains(last.Hands) ? last.Hands : exercise.Hands[0];
         tempo = last?.Tempo ?? exercise.Tempo;
-        through = last?.Through == true;
+        through = exercise.HanonNumber is null && last?.Through == true;
+        if (Place is not null) key = Place.Key;
         // An activity of one of Claude's routines is the one key it was planned in.
         if (routineSession.Item is { } requested) (key, hands, tempo, through) = (new Key(requested.Fifths, requested.Minor), requested.Hands, requested.Tempo, false);
         // One of RCM's technique: the key and hands its day brings, at RCM's tempo in this music's beat.
@@ -307,10 +375,11 @@ else
     private void Build()
     {
         var score = through ? Exercises.Through(exercise!, key, hands, Written, keys) : Written(key, hands);
-        var round = Exercises.Round(exercise!, score);
-        if (loop) score = score.WithRepeat(round[0], round[^1]);
+        var numbered = exercise!.HanonNumber is not null;
+        var round = numbered ? Hanon.PlayOrder(score) : Exercises.Round(exercise, score);
+        if (loop && !numbered) score = score.WithRepeat(round[0], round[^1]);
         mei = MeiWriter.Write(score, tempo);
-        music = new PlayMusic(score, score.Expected()) { Round = round };
+        music = numbered ? new PlayMusic(score, score.Performed(round)) { Order = round, Round = round } : new PlayMusic(score, score.Expected()) { Round = round };
         (outcome, review) = (null, null);
     }
 
@@ -323,6 +392,22 @@ else
         (key, hands) = (toKey, toHands);
         Build();
         await Keep();
+        if (Place is { } place && place.Key != key) await PlaceChanged.InvokeAsync(place.At(place.Number, key));
+    }
+
+    private Task SelectStudy(ChangeEventArgs args) => Place is { } place && int.TryParse(args.Value?.ToString(), out var number) && number is >= 1 and <= 60
+        ? PlaceChanged.InvokeAsync(place.At(number, key)) : Task.CompletedTask;
+
+    private async Task Advance()
+    {
+        if (Place is not { } place) return;
+        var next = place.Next(Book);
+        await PlaceChanged.InvokeAsync(next);
+        if (next.Number == place.Number && !next.Complete && key != next.Key)
+        {
+            key = next.Key;
+            Build();
+        }
     }
 
     // One of a family's variations set to another of its options. Where what's chosen has keys of its own (the thumb's notes
@@ -342,10 +427,18 @@ else
     }
 
     // The play bar's Loop, as it's read when the bar opens and as it's turned on or off: the repeat's signs go on or come off.
-    private void Looped(bool on)
+    private async Task Looped(bool on)
     {
         loop = on;
+        if (on && !Book && Place is { Cycle: true } place)
+            await PlaceChanged.InvokeAsync(place with { Cycle = false });
         if (exercise?.Kind == ExerciseKind.Played && music is not null && !playing) Build();
+    }
+
+    private async Task CycleKeys(HanonPlace place)
+    {
+        if (!place.Cycle && player is { Looping: true }) await player.SetLoop(false);
+        await PlaceChanged.InvokeAsync(place with { Cycle = !place.Cycle });
     }
 
     private async Task SetTempo(double bpm)
@@ -431,6 +524,8 @@ else
         }
         started = DateTime.Now;
         await Recount();
+        if (Place is not null && !how.Stopped && how.Loop is null && how.TimesThrough > 0 && (Book || Place.Cycle))
+            await Advance();
     }
 
     // One with nothing for Prima to follow is done when you say so; in a routine, as a run of its activity.

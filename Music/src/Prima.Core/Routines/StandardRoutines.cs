@@ -50,5 +50,7 @@ public static class StandardRoutines
             [A("arm-drop", 1), A("drop", 2), A("soft-loud", 2), A("slurs", 2), A("slur-walk", 2), A("detached", 2), A("shake", 1), A("swell", 3), A("pedal-alone", 1), A("pedal-changes", 3)]),
         new("light-day", "Light day", "any", "A short, easy day that keeps the habit while the hands recover: the day after a heavy one, or a week each month.",
             [A("bench", 1), A("balance", 1), A("side-video", 2), A("wrist-circles", 2), A("slurs", 2), A("notes", 3), A("stretches", 1)]),
+        new("hanon-focus", "Hanon Focus", "beginner", "Practise a small forearm turn in No. 6, then use it for the changing reaches in No. 5. Start with one hand and a short group.",
+            [A("hanon-06", 3), A("hanon-05", 3)]),
     ];
 }

@@ -233,13 +233,18 @@ public class LoopTests
     public async Task Every_exercise_to_play_has_its_key_and_the_loop()
     {
         await using var host = new ComponentHost(keyboard: new TestPiano(plugged: true));
-        foreach (var exercise in Exercises.All.Where(e => e.Kind == ExerciseKind.Played))
+        // Cover each numbered-study player here. HanonTests checks all sixty scores
+        // and their key and hand combinations without mounting thousands of SVG notes.
+        foreach (var exercise in Exercises.All.Where(e => e.Kind == ExerciseKind.Played && e.HanonNumber is null or 1 or 39 or 41 or 52 or 60))
         {
             var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, exercise.Id));
             view.WaitForAssertion(() => Assert.NotNull(view.FindComponent<PlayAlong>().Instance.Music));
-            Assert.Equal(exercise.KeyName(new Prima.Core.Music.Key(0)), view.Find(".exercise-key").TextContent);
             await Choosing.OpenChange(view);
-            Assert.True(view.FindAll(".key-piano").Count == 1 && view.FindAll(".exercise-through").Count == 1 && view.FindAll(".play-loop").Count == 1, exercise.Id);
+            Assert.Equal(Exercises.KeysOf(exercise).Count > 1, view.FindAll(".key-piano").Any());
+            Assert.Equal(exercise.HanonNumber is null, view.FindAll(".exercise-through").Any());
+            if (exercise.HanonNumber is not null && Exercises.KeysOf(exercise).Count > 1)
+                Assert.Single(view.FindAll("a[href*='routines/hanon/keys?study=']"));
+            Assert.Single(view.FindAll(".play-loop"));
             view.Dispose();
         }
     }

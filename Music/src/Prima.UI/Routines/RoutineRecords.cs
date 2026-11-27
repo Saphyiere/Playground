@@ -27,6 +27,7 @@ public sealed record RoutineDefinition(string Id, string Revision, DateTimeOffse
 
     /// <summary>Whether it's one of your own.</summary>
     [JsonIgnore] public bool Own => Provider == Yours;
+    public string? StandardKey { get; init; }
 }
 
 public sealed record RoutineItemProgress(string ItemId, RoutineItemState State = RoutineItemState.NotStarted,

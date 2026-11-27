@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Generation/HanonScores/*.mei.gz" LogicalName="Hanon/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Generation/HanonScores/openings.json" LogicalName="Hanon/openings.json" />
     <!-- Asking Claude: reading a PDF's systems into notation (Transcription/). -->
     <ProjectReference Include="..\..\..\Kit\Playground.AI.Assist\Playground.AI.Assist.csproj" />
   </ItemGroup>

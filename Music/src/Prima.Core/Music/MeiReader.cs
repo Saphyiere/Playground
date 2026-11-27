@@ -35,6 +35,12 @@ public static class MeiReader
 
         // Tie elements sit in the bar where the tie starts, so they're gathered from the whole score first.
         var tied = score.Descendants(Mei + "tie").Select(t => (Start: Id((string?)t.Attribute("startid")), End: Id((string?)t.Attribute("endid")))).ToList();
+        var fingers = new Dictionary<string, int>();
+        foreach (var fing in score.Descendants(Mei + "fing"))
+        {
+            if (fing.Attribute("startid") is { } target && int.TryParse(fing.Value.Trim(), out var finger) && finger is >= 1 and <= 5)
+                fingers.TryAdd(Id(target.Value), finger);
+        }
         var bars = new List<Bar>();
         // Each bar's metre, and the marks the bars hold beside their staves (slurs, dynamics, pedal…), placed once all are read.
         var meters = new List<Meter>();
@@ -63,7 +69,7 @@ public static class MeiReader
                 var accidentals = new Dictionary<(Step, int), int>();
                 foreach (var layer in staff.Elements(Mei + "layer"))
                 {
-                    var reader = new LayerReader(key, ppq, accidentals, tied);
+                    var reader = new LayerReader(key, ppq, accidentals, tied, fingers);
                     reader.ReadChildren(layer, 1, 1);
                     voices.Add(new Voice(staffNumber, reader.Events, (int?)layer.Attribute("n") ?? 1));
                     length = Math.Max(length, reader.Tick);
@@ -100,7 +106,7 @@ public static class MeiReader
             }
             var tempoMarks = tempos.OrderBy(t => t.Start).ToList();
             var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter, Tempos = tempoMarks };
-            controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn" or "arpeg").Select(e => (bars.Count, e)));
+            controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn" or "arpeg" or "fermata").Select(e => (bars.Count, e)));
             meters.Add(meter);
             bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });
             startsNext = right == "rptboth";
@@ -143,6 +149,7 @@ public static class MeiReader
                 "trill" => MarkKind.Trill,
                 "mordent" => MarkKind.Mordent,
                 "turn" => MarkKind.Turn,
+                "fermata" => MarkKind.Fermata,
                 _ => null,
             };
             if (kind is null) continue;
@@ -233,7 +240,7 @@ public static class MeiReader
     }
 
     // Walks a layer's children in order, keeping the tick, through beams, tuplets and grace groups.
-    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied)
+    private sealed class LayerReader(Key key, int ppq, Dictionary<(Step, int), int> accidentals, List<(string Start, string End)> tied, Dictionary<string, int> fingers)
     {
         public List<Event> Events { get; } = [];
 
@@ -326,6 +333,7 @@ public static class MeiReader
             return new Tone(id, new Spelled(step, alter, sounds))
             {
                 Ottava = sounds - octave,
+                Finger = fingers.TryGetValue(id, out var finger) ? finger : null,
                 TieToNext = tie is "i" or "m" || tied.Any(t => t.Start == id),
                 TiedFromPrevious = tie is "t" or "m" || tied.Any(t => t.End == id),
             };

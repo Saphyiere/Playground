@@ -53,6 +53,8 @@ public sealed record Exercise(string Id, string Section, string Name, ExerciseLe
 
     public Func<Key, HandUse, Score>? Music { get; init; }
 
+    public int? HanonNumber { get; init; }
+
     public ExerciseKeys Keys { get; init; }
 
     public IReadOnlyList<HandUse> Hands { get; init; } = [];
@@ -373,13 +375,14 @@ public static class Exercises
 
         // ——— The families: each in its section, after the ones above ———
         .. ExerciseFamilies.All,
+        .. Hanon.All,
     ];
 
     /// <summary>An exercise by its id, or by the id of one that has since become part of a family.</summary>
     public static Exercise? Find(string id) => All.FirstOrDefault(e => e.Id == id) ?? (ExerciseFamilies.Formerly(id) is { } now ? All.FirstOrDefault(e => e.Id == now.Family) : null);
 
     /// <summary>The keys an exercise offers, easiest first, in the boards' order.</summary>
-    public static IReadOnlyList<Key> KeysOf(Exercise exercise) => exercise.Keys switch
+    public static IReadOnlyList<Key> KeysOf(Exercise exercise) => exercise.HanonNumber is int n ? Hanon.Keys(n) : exercise.Keys switch
     {
         ExerciseKeys.All => Technique.Order,
         ExerciseKeys.WhiteThumb => WhiteAt(0, 3, 4),

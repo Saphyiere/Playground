@@ -402,6 +402,7 @@ public static class MeiWriter
             MarkKind.PedalUp => ("pedal", [("dir", "up")]),
             MarkKind.OctaveUp => ("octave", [("dis", "8"), ("dis.place", "above")]),
             MarkKind.Fermata => ("fermata", []),
+            MarkKind.Roll => ("arpeg", []),
             MarkKind.Trill => ("trill", []),
             MarkKind.Text => ("dir", [("place", "above")]),
             _ => ("mordent", []),

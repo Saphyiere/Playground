@@ -1,0 +1,56 @@
+@page "/routines/hanon/{Mode}"
+@using Prima.Core.Generation
+@using Prima.Core.Routines
+@inject PrimaStore Store
+@inject NavigationManager Nav
+@inject AppNavigation Navigation
+
+@if (place is not null)
+{
+    @if (place.Complete)
+    {
+        <PageHead Title="Complete Hanon" Kicker="End of the book" />
+        <div class="control-row">
+            <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="() => Save(new())">Start again at No. 1</button>
+            <a class="mu-btn" href="exercises?show=hanon">Hanon exercises</a>
+        </div>
+    }
+    else
+    {
+        <ExercisePractice Id="@Hanon.Id(place.Number)" Place="place" Book="@(Mode == "book")" PlaceChanged="Save" />
+    }
+}
+
+@code {
+    [Parameter] public string Mode { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "study")] public int? Study { get; set; }
+    [SupplyParameterFromQuery(Name = "fifths")] public int? Fifths { get; set; }
+    [SupplyParameterFromQuery(Name = "minor")] public bool? Minor { get; set; }
+
+    private HanonPlace? place;
+    private string? loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Mode is not ("book" or "keys")) { Nav.NavigateTo("routines", replace: true); return; }
+        if (loaded != Mode)
+        {
+            loaded = Mode;
+            var opening = new HanonPlace(Cycle: Mode == "keys");
+            place = await Store.GetTrackAsync<HanonPlace>($"hanon:{Mode}") ?? opening;
+            if (place.Number is < 1 or > 60) place = opening;
+            Navigation.Name(Mode == "book" ? "Complete Hanon" : "Hanon Through the Keys");
+        }
+        if (Study is >= 1 and <= 60)
+        {
+            await Save(place!.At(Study.Value, new Key(Fifths ?? 0, Minor == true)));
+            Nav.NavigateTo($"routines/hanon/{Mode}", replace: true);
+        }
+    }
+
+    private async Task Save(HanonPlace next)
+    {
+        await Store.SaveTrackAsync($"hanon:{Mode}", next);
+        place = next;
+    }
+}

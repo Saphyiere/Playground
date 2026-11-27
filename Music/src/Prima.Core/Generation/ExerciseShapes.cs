@@ -24,6 +24,7 @@ public static class ExerciseShapes
         }
         var shape = exercise switch
         {
+            { HanonNumber: int n } => Hanon.Opening(n),
             { Kind: ExerciseKind.Played, Music: { } music } => Opening(music(Exercises.KeysOf(exercise)[0], exercise.Hands[0])),
             { Kind: ExerciseKind.Drill } => Drill(exercise.Id),
             _ => [],

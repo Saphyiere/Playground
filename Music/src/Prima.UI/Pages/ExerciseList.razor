@@ -35,6 +35,7 @@
             {
                 <a class="col-item" href="@Address(show: key)" aria-current="@Current(show: key)"><span>@label</span><span class="n">@Picked(key).Count()</span></a>
             }
+            <a class="col-item" href="@Address(show: "hanon")" aria-current="@Current("hanon")"><span>Hanon</span><span class="n">@Hanon.All.Count</span></a>
             <p class="col-title">Catalogue · @Exercises.All.Count</p>
             <p class="col-by">
                 @foreach (var (key, label) in Lists)
@@ -81,14 +82,28 @@
                     <p class="col-sub">@(shown.Count == 1 ? "1" : $"{shown.Count}") · @about</p>
                 </div>
             </div>
+            @if (Current("hanon") is not null)
+            {
+                <div class="control-row">
+                    @if (focusRoutine is not null)
+                    {
+                        <a class="mu-btn" data-piano="off" href="@($"routines/{focusRoutine}")">Hanon Focus</a>
+                    }
+                    <a class="mu-btn" data-piano="off" href="routines/hanon/keys">Through the Keys</a>
+                    <a class="mu-btn" data-piano="off" href="routines/hanon/book">Complete Hanon</a>
+                </div>
+            }
             @* Keyed by the list shown, so another list's cards arrive whole. *@
             <div class="lib-col" data-keep="exercises" data-at="@($"{Show} {Type} {Trains} {Level}")" @key="@($"{Show} {Type} {Trains} {Level}")">
                 @if (shown.Count == 0)
                 {
                     <p class="page-note">@(Search is { } words ? $"Nothing for “{words}”." : "Nothing here.")</p>
                 }
-                <div class="ex-cards">
-                    @foreach (var exercise in shown)
+                @foreach (var group in shown.GroupBy(e => Current("hanon") is null ? "" : e.HanonNumber <= 20 ? "Part I · 1–20" : e.HanonNumber <= 43 ? "Part II · 21–43" : "Part III · 44–60"))
+                {
+                    @if (group.Key.Length > 0) { <h3 class="col-title">@group.Key</h3> }
+                    <div class="ex-cards">
+                    @foreach (var exercise in group)
                     {
                         var was = Done(exercise);
                         <div class="ex-card-at">
@@ -124,6 +139,7 @@
                         </div>
                     }
                 </div>
+                }
             </div>
         </div>
     </div>
@@ -160,6 +176,7 @@
     private HashSet<(string Kind, string Target)> mine = [];
     private (Exercise Exercise, double X, double Y)? adding;
     private string? note;
+    private string? focusRoutine;
     private string? search;
     private bool ready;
 
@@ -175,7 +192,9 @@
         // What an exercise's or a drill's way back says.
         Navigation.Name("Exercises");
         done = await Store.GetDoneAsync("exercise", [.. Exercises.All.Where(e => e.Route is not null).Select(e => KindOf(e.Route!))]);
-        Mine((await Routines.RoutinesAsync()).Where(r => r.Own).ToList());
+        var own = (await Routines.RoutinesAsync()).Where(r => r.Own).ToList();
+        focusRoutine = own.FirstOrDefault(r => r.StandardKey == "hanon-focus")?.Revision;
+        Mine(own);
         ready = true;
     }
 
@@ -228,6 +247,7 @@
         : Trains is { } trains ? ByType(Exercises.All.Where(e => ExerciseFocus.Trains(e.Id, trains)))
         : Level is { } level ? ByType(Exercises.All.Where(e => e.ToPlay && LevelKey(e.Level) == level))
         : Show is "lately" ? Picked("lately")
+        : Show is "hanon" ? Hanon.All
         : ByType(Picked(Show ?? "start"));
 
     private static IEnumerable<Exercise> ByType(IEnumerable<Exercise> exercises) =>
@@ -242,6 +262,7 @@
         {
             "new" => ("Not tried yet", "to play, not played yet"),
             "lately" => ("Played lately", "the last month's, the latest first"),
+            "hanon" => ("Hanon", "The Virtuoso Pianist in 60 Exercises"),
             _ => ("Start here", "the ones for the first weeks"),
         };
 
