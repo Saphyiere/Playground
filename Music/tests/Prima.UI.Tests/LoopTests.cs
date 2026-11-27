@@ -225,8 +225,15 @@ public class LoopTests
 
         // It opens again as it was left: under two, through its six keys.
         var again = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, "thumb-three"));
-        again.WaitForAssertion(() => Assert.Equal(25, again.FindComponent<PlayAlong>().Instance.Music?.Score.Bars.Count));
-        Assert.Equal(["Under 2 fingers", "Through the keys"], Choosing.Facts(again));
+        again.WaitForAssertion(() =>
+        {
+            Assert.Equal(25, again.FindComponent<PlayAlong>().Instance.Music?.Score.Bars.Count);
+            Assert.Equal(2, again.FindAll(".choice-card .choice-fact").Count);
+        });
+        await Choosing.OpenChange(again);
+        Assert.Equal("true", again.Find(".exercise-through").GetAttribute("aria-pressed"));
+        var options = again.FindAll("[data-variation='under'] .choice-pad");
+        Assert.True(options.Count > 1 && options[0].GetAttribute("aria-pressed") == "true");
     }
 
     [Fact]
