@@ -45,13 +45,14 @@ public readonly record struct Transposition(int Steps, int Semitones)
     }
 
     /// <summary>
-    /// The way from a score's key (<see cref="Score.Key"/>) to another with the same mode: the nearer way, up or down, unless that
-    /// takes a note off the piano (below A0, over C8) and the other way doesn't; of a tritone either way, toward middle C. A key
-    /// with the score's own signature is the score as written.
+    /// The way from a score's key to another with the same mode: the nearer way, up or down, unless that takes a note off the
+    /// piano (below A0, over C8) and the other way doesn't; of a tritone either way, toward middle C. The score's key is
+    /// <paramref name="own"/> where it's given (the key it's in, which its signature doesn't always write: Bach's French Suite
+    /// No. 2 is C minor in two flats), its first signature's otherwise. The score's own key is the score as written.
     /// </summary>
-    public static Transposition To(Score score, Key key)
+    public static Transposition To(Score score, Key key, Key? own = null)
     {
-        var fifths = key.Fifths - score.Key.Fifths;
+        var fifths = key.Fifths - (own ?? score.Key).Fifths;
         if (fifths == 0) return None;
 
         var up = Up(fifths);
@@ -65,15 +66,17 @@ public readonly record struct Transposition(int Steps, int Semitones)
     }
 
     /// <summary>
-    /// The twelve keys a score can be played in, in its mode (its <see cref="Score.Key"/>'s), from C up: its own as written, and
-    /// each other spelled for the piece: so that none of its keys passes seven sharps or flats, then with the fewest sharps or
-    /// flats any of its keys has (G♭ major or F♯ by where it modulates to), then the fewest notes that would take a double sharp
-    /// or flat they didn't have, then the fewest where it starts, then sharps for a piece written in sharps (or none) and flats
-    /// for one in flats.
+    /// The twelve keys a score can be played in, in the mode of its own key (<paramref name="own"/> where it's given, its first
+    /// signature's otherwise), from C up: its own as written, and each other spelled for the piece: so that none of its printed
+    /// signatures passes seven sharps or flats, then with the fewest sharps or flats any of them has (G♭ major or F♯ by where it
+    /// modulates to), then the fewest notes that would take a double sharp or flat they didn't have, then the fewest where it
+    /// starts, then sharps for a piece in sharps (or none) and flats for one in flats. It's the signatures that are moved, so it's
+    /// theirs that count: Mozart's Fantasia K. 475, in C minor with none, is offered E♭ minor, whose signature is three flats,
+    /// not D♯ minor, whose would be nine sharps.
     /// </summary>
-    public static IReadOnlyList<Key> Keys(Score score)
+    public static IReadOnlyList<Key> Keys(Score score, Key? ownKey = null)
     {
-        var own = score.Key;
+        var own = ownKey ?? score.Key;
         var sections = score.WithSignatures().Select(s => s.Key.Fifths).Distinct().ToList();
         var tones = Sounding(score).ToList();
         var keys = new List<Key>();

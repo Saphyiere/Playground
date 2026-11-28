@@ -13,11 +13,12 @@ namespace Prima.UI.Pages;
 /// </summary>
 public partial class Piece
 {
-    // The music as written (its MEI, and the score read from it in the key it's in), the twelve keys it can be played in, the way
-    // from its own to the one on the stand, and the level it reads at there once that's graded: its hardest, most of it, and why.
+    // The music as written (its MEI, and the score read from it, with its signatures as printed), the key it's in, the twelve keys
+    // it can be played in, the way from its own to the one on the stand, and the level it reads at there once that's graded: its
+    // hardest, most of it, and why.
     private string? writtenMei;
     private Score? written;
-    private Score? asRead;
+    private Key ownKey;
     private IReadOnlyList<Key> keysOffered = [];
     private Transposition transposed;
     private (int Level, int Typical, string Reasons)? keyGrade;
@@ -25,8 +26,9 @@ public partial class Piece
     // Kept for each piece, as the view and the hand are: the key's sharps (over 0) or flats (under), none as written.
     private string KeyKey => $"Library.Key.{Id}";
 
-    // The key it's written in, as KeyFinder tells it from where it starts (a minor piece's minor, though its file says major).
-    private Key OwnKey => written?.Key ?? new Key(0);
+    // The key it's written in, as KeyFinder tells it from where it starts: a minor piece's minor, though its file says major, and
+    // a key its signature doesn't write (Bach's C minor in two flats). Its signatures are the score's.
+    private Key OwnKey => ownKey;
 
     // The key on the stand.
     private Key KeyNow => transposed.Of(OwnKey);
@@ -36,17 +38,17 @@ public partial class Piece
     private async Task<(string Mei, Score Score)> InItsKey(string mei, Score score)
     {
         var titles = new[] { piece?.Title, piece?.Work };
-        var (inItsKey, offered) = await Task.Run(() =>
+        var (found, offered) = await Task.Run(() =>
         {
-            var found = score with { Key = KeyFinder.Find(score, titles).FirstOrDefault()?.Key ?? score.Key };
-            return (found, Transposition.Keys(found));
+            var own = KeyFinder.Find(score, titles).FirstOrDefault()?.Key ?? score.Key;
+            return (own, Transposition.Keys(score, own));
         });
-        (writtenMei, written, asRead, keysOffered) = (mei, inItsKey, score, offered);
+        (writtenMei, written, ownKey, keysOffered) = (mei, score, found, offered);
         var kept = (await Store.GetSettingsAsync()).GetValueOrDefault(KeyKey);
         if (!int.TryParse(kept, NumberStyles.Integer, CultureInfo.InvariantCulture, out var fifths)) return (mei, score);
 
         var keynote = (OwnKey with { Fifths = Math.Clamp(fifths, -7, 7) }).TonicPitchClass;
-        transposed = Transposition.To(inItsKey, keysOffered.FirstOrDefault(k => k.TonicPitchClass == keynote, OwnKey));
+        transposed = Transposition.To(score, keysOffered.FirstOrDefault(k => k.TonicPitchClass == keynote, OwnKey), OwnKey);
         if (!transposed.Moves) return (mei, score);
 
         var by = transposed;
@@ -66,15 +68,15 @@ public partial class Piece
     // again from it. What a run left on the music, and a loop's passes so far, were in the key before: they go.
     private async Task ChooseKey(Key key)
     {
-        if (playing || written is null || writtenMei is null || asRead is null) return;
-        var to = Transposition.To(written, key);
+        if (playing || written is null || writtenMei is null) return;
+        var to = Transposition.To(written, key, OwnKey);
         if (to == transposed) return;
 
         transposed = to;
         keyGrade = null;
         await Store.SetSettingAsync(KeyKey, to.Moves ? key.Fifths.ToString(CultureInfo.InvariantCulture) : null);
         var writtenText = writtenMei;
-        (mei, score) = to.Moves ? await Task.Run(() => Moved(writtenText, to)) : (writtenText, asRead);
+        (mei, score) = to.Moves ? await Task.Run(() => Moved(writtenText, to)) : (writtenText, written);
         expected = score.Expected();
         (meiDocument, measureIds, outcome, waitedLoop) = (null, null, null, null);
         waited = [];

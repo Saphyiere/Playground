@@ -228,6 +228,26 @@ public partial class TransposeTests
     }
 
     [Fact]
+    public void AKeyItsSignatureDoesntWriteMovesByItsKeyAndIsSpelledByItsSignature()
+    {
+        // C minor written with no signature, as Mozart's Fantasia K. 475 is, its flats printed; with G♭s, which E♭ minor would
+        // spell B double flat. D♯ minor's signature would be nine sharps from its none: so it's E♭ minor, three flats from none.
+        var mei = Piece("0", "c4 eb4 gb4 ab4");
+        var written = MeiReader.Read(mei);
+        var own = new Key(-3, Minor: true);
+        var keys = Transposition.Keys(written, own);
+
+        Assert.Equal((own, new Key(-6, Minor: true)), (keys[0], keys[3]));
+        var by = Transposition.To(written, keys[3], own);
+        Assert.Equal(new Transposition(2, 3), by);
+        var moved = MeiTranspose.Apply(mei, by);
+        Assert.Equal("3f", At(XDocument.Parse(moved).Descendants(Mei + "keySig").First(), "sig"));
+        Assert.Equal(["E♭4", "G♭4", "A4", "C♭5"], Enumerable.Range(1, 4).Select(i => Pitch(MeiReader.Read(moved), $"n{i}")));
+        // As written is the score's own key, not its signature's.
+        Assert.Equal(Transposition.None, Transposition.To(written, own, own));
+    }
+
+    [Fact]
     public void ANoteUnderAn8vaMovesWithItsPrintedNote()
     {
         // B5 printed under the line sounds B6: up a major second it's C♯6 printed, sounding C♯7, the line where it was.
