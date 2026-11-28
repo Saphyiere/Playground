@@ -91,16 +91,15 @@ public static partial class MeiTranspose
         return document.ToString(SaveOptions.DisableFormatting);
     }
 
-    // A key signature written on the element (a scoreDef's or staffDef's key.sig, its keySig, or a keySig itself), moved: the key
-    // it was, or none where it writes none.
+    // A key signature written on the element (a scoreDef's or staffDef's key.sig, or MEI 5's keysig, as the Open Hymnal's hymns
+    // have it; its keySig; or a keySig itself), moved: the key it was, or none where it writes none.
     private static Key? MoveKey(XElement element, Transposition by)
     {
-        var holder = element.Name.LocalName == "keySig" ? element : element.Attribute("key.sig") is not null ? element : element.Element(Mei + "keySig");
+        var attribute = element.Name.LocalName == "keySig" ? null : new[] { "key.sig", "keysig" }.FirstOrDefault(a => element.Attribute(a) is not null);
+        var holder = element.Name.LocalName == "keySig" || attribute is not null ? element : element.Element(Mei + "keySig");
         if (holder is null) return null;
 
-        var (sig, mode, pname, accid) = holder == element && element.Name.LocalName != "keySig"
-            ? ("key.sig", "key.mode", "key.pname", "key.accid")
-            : ("sig", "mode", "pname", "accid");
+        var (sig, mode, pname, accid) = attribute is not null ? (attribute, "key.mode", "key.pname", "key.accid") : ("sig", "mode", "pname", "accid");
         if (Fifths((string?)holder.Attribute(sig)) is not { } fifths) return null;
 
         var key = new Key(fifths, (string?)holder.Attribute(mode) == "minor");

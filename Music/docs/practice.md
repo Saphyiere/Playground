@@ -23,8 +23,8 @@ The current feedback controls and practice history are described in [the app con
   ([concept.md](concept.md#playing-to-a-tempo)): the head (the way back, the title, About, full screen), the music, a run's
   review under it, the play bar near the hands (More, the hands Left · Right · Both, In time and Wait for me, the tempo,
   Loop, Listen, Play), and the foot, with the strip of bars to start from and loop on its left. More has the rest: the click,
-  the view and lyrics, What's this, the cursor and the marks, how much Practice tells you, play along. You start each run as
-  before.
+  the view and lyrics, What's this, the cursor and the marks, the key it's played in, how much Practice tells you, play along.
+  You start each run as before.
 - **Two clocks** at the foot's right (none in full screen, which is for the music): **Playing**, the time a run or Listen is going
   or you're playing the piano yourself, the music stopped too (going over a bar on your own counts: a key within the last
   ten seconds *(pick)*); and **Idle**, the rest of the session: looking at the music, working out a fingering, a drink of

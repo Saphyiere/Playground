@@ -150,6 +150,23 @@ public partial class TransposeTests
     }
 
     [Fact]
+    public void EveryWayAKeySignatureIsWrittenMoves()
+    {
+        // MEI 4's key.sig on the score, MEI 5's keysig (as the Open Hymnal's hymns have it), and a key change with its tonic named.
+        var mei = Piece("0", "f4 c4", "key=1s f4 c4")
+            .Replace("<scoreDef><staffGrp>", """<scoreDef keysig="1s"><staffGrp>""").Replace("""<keySig sig="0"/>""", "")
+            .Replace("""<scoreDef><keySig sig="1s"/></scoreDef>""", """<scoreDef key.sig="2s"/><scoreDef><keySig sig="1s" pname="e" mode="minor"/></scoreDef>""");
+
+        var moved = XDocument.Parse(MeiTranspose.Apply(mei, new Transposition(1, 2)));
+        var defs = moved.Descendants(Mei + "scoreDef").ToList();
+
+        Assert.Equal(("3s", "4s"), (At(defs[0], "keysig"), At(defs[1], "key.sig")));
+        Assert.Equal(("3s", "f", "minor"), (At(defs[2].Element(Mei + "keySig")!, "sig"), At(defs[2].Element(Mei + "keySig")!, "pname"), At(defs[2].Element(Mei + "keySig")!, "mode")));
+        // The F the score's G major gave a sharp: a G sharp, which A major gives too.
+        Assert.Equal(("g", "s"), (At(Notes(moved.ToString())["n1"], "pname"), At(Notes(moved.ToString())["n1"], "accid.ges")));
+    }
+
+    [Fact]
     public void AKeyThatWouldPassSevenSharpsIsWrittenInFlats()
     {
         // C major, then E major; moved up to E major its E major would be G♯ major (8 sharps): it's A♭ major, and its notes with it.

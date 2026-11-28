@@ -412,8 +412,9 @@ a PDF plays out; this is what came of it.
   under it, the play bar, and the foot, with **the strip** of its bars on its left and the session's clocks and **Finish
   practice** on its right. **About** shows About this piece in place of the music, until it's pressed again (without Remove
   from the Library, which is the front's). **More**, first on the bar, has the rest: the click (below); the view, a song's
-  lyrics, the print of a PDF whose notes are read, **What's this** (below), the cursor and the marks; how much Practice tells
-  you after a run and whether a loop waits after each pass; and play along. **Full screen** leaves only the music, the review
+  lyrics, the print of a PDF whose notes are read, **What's this** (below), the cursor and the marks; **Key**, the key it's
+  played in (below); When I slip; how much Practice tells you after a run and whether a loop waits after each pass; and play
+  along. **Full screen** leaves only the music, the review
   and the bar, the tablet's own bars hidden too, in either orientation; the key, on the bar then, or leaving the piece, brings
   everything back. A piece fits the screen, only its music scrolling, and after a run (practicing the Standard way) the run's
   summary is under it, over the bar; while a run plays the music has that space too. About this piece
@@ -485,6 +486,23 @@ a PDF plays out; this is what came of it.
   headline (**right in time**: the share of the notes played right and not off the beat; or right first time), so how it went
   is on the screen with it, as in full screen: its few lines fit, and its details scroll in the review's own share of the
   screen. It doesn't move your level.
+- **In another key**: More's **Key** is an octave of the piano, each key named as the key it picks is written, the piece's own
+  lit, with its name beside it and **As written**; one tap plays the piece in that key, kept for the piece until it's changed
+  (a minor piece offers minor keys: its key is KeyFinder's, from its file's mode, its title or how it sounds). The music is
+  moved there before anything is read from it (`MeiTranspose`, every id kept), so the sheet, the notes a run listens for,
+  Listen, the other hand played along, the names of wrong keys and what's kept all go by the key on the stand. It goes the
+  nearer way, up or down, unless a note would leave the piano (A0 to C8); a tritone goes toward middle C. Each key is spelled
+  for the piece: none of its keys past seven sharps or flats (G♭ major or F♯ by where it modulates; one that would pass
+  them anyway is written as its enharmonic, G♯ major as A♭), then the fewest double sharps and flats. Every note keeps its
+  place in its key: a printed sharp, flat or natural stays printed, a tied note takes its accidental from the note before,
+  and a note that would take a double sharp or flat it didn't have is spelled as the new key spells it (C major's G♯ is a G
+  natural in B major, not F double sharp). Chord symbols, every key signature and an ornament's accidental move with it.
+  Clefs and octave lines stay where they are, so a far key can take the music onto ledger lines. Its fingering is left out
+  (the fingers were the written key's), and it has a level of its own, graded as an import is: the front's bar shows the key
+  and that level, and About says where it's written. One piece, one history: each run keeps its key ("Played through the
+  piece in D major at 72 BPM"), the marks on a bar come from runs in the key on the stand, and Practice history shows a bar
+  in the key the run that marked it was played in. A PDF whose notes aren't read has its Key off in More: "Convert to
+  notation first".
 - **Practice** starts a practice session on the piece in full screen, hiding the navigation and Android system bars. Returning
   to Practice from a review or reopening an unfinished session also enters full screen. The full-screen button can still
   bring the surrounding controls back; finishing the session restores them for the look back. Outside full screen, two clocks sit
@@ -504,7 +522,7 @@ a PDF plays out; this is what came of it.
   minute and as it pauses, and its playing time is the day's practice minutes as it's counted.
 - **Piece feedback** applies to all library pieces. Minimal keeps the score visible, Standard shows a short summary and loop results, and Detailed opens the full review and pauses between repeats. **Customize feedback** controls the summary, loop result and pause independently. **Repeat automatically** is a separate playback choice. A full review or a paused loop waits for the player.
 - **Finish practice** shows [the session's quick review](#the-quick-review): playing time, runs and loops, what the session came to and the places that still need help, the session run by run (**Where it went wrong**) or in order (**Over time**), and **Next** with **Practice it**. **Passages and results** expands the passage breakdown. **Details** opens the in-depth review. **Keep practicing** resumes the same session.
-- **Practice history** is available from Today, the profile, repertoire cards and each playable piece. It lists finished sessions by date and time, including short runs and standalone play-throughs. Opening a session shows its saved runs. Select a run or a bar to inspect its results and available note marks. Archive views read the saved records without restarting practice.
+- **Practice history** is available from Today, the profile, repertoire cards and each playable piece. It lists finished sessions by date and time, including short runs and standalone play-throughs. Opening a session shows its saved runs. Select a run or a bar to inspect its results and available note marks: a bar is drawn in the key the run that marked it was played in ("Bar 7 · in D major"). Archive views read the saved records without restarting practice.
 - **Play through** starts at the beginning with both hands at the selected tempo. Afterward, the player can replay the piece, inspect the run or finish.
 
 - **Screens over the music don't draw it again.** The look back, the in-depth review and Play cover the music or take it full
@@ -524,8 +542,8 @@ a PDF plays out; this is what came of it.
   lying along a staff, the ties under a system or a dashed octave line isn't taken for one, however much ink it adds up to.
   Where a scan's lines are too broken to follow, the rows that are more than half ink count instead.
 - **A PDF's bar** is the notation's play bar, its keys in the same places: its page turns and its page, More (the click; the
-  view, half-page turns, beats a bar and bars a line; the print or the notation, once its notes are read; **Hear it on the
-  piano**), then the tempo, which the scroll goes at. Nothing played on it is followed, so it has no hands, mode or Play: its
+  view, half-page turns, beats a bar and bars a line; the print or the notation, once its notes are read; Key, off until its
+  notes are read; **Hear it on the piano**), then the tempo, which the scroll goes at. Nothing played on it is followed, so it has no hands, mode or Play: its
   own keys end it where Play would be, **Scroll** (in Scroll at the tempo) and **Convert to notation**, the one to press
   orange. **About**, in its head, shows About this piece in the print's place, with Remove from the Library, since a PDF has
   no front.
@@ -1326,8 +1344,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   many of those ahead of it, let go early, slips put right, chords not together), for the run and for each pass; how long it
   took; In time, its lean against the click and how steady it was, and how each marking was played, as marked or not (each
   dynamic and hairpin, each bar's staccato, tenuto and accents, its gaps under slurs, the pedal); and the marks it left on
-  the music, for the in-depth review. A run kept before 15 November has no time, lean or markings, and the look back says
-  less of it.
+  the music, for the in-depth review; and, played in a key it isn't written in, the way there (letters and semitones) and
+  the key's name. A run kept before 15 November has no time, lean or markings, and the look back says less of it.
 - **Pieces**: the collection's, a local collection's and imported pieces (kept apart, so a newer bundle or a local collection
   built again never takes out the others), with their sources (an uploaded piece's, the name of the file it was imported
   from), licences and tiers (A: public domain or CC BY; SA: share-alike;
@@ -1335,7 +1353,8 @@ Everything lives in one SQLite file on the tablet, with the music imported and w
   pickup 0, so the numbers printed are the ones Prima says). A PDF keeps its file, its systems found on each page with their
   bars, its metre and tempo, and where you were, and once its notes are read and kept, their MEI as its notation. A notation
   piece keeps where it was left too: its page, the bar it was to start from, its loop's last bar, and the first bar on the
-  screen. Imported
+  screen; and as settings, as its view and hand are, the key it's played in (`Library.Key.{id}`, its sharps or flats), its
+  stored MEI as written. Imported
   files, and a local collection's PDFs and MIDI, sit beside the data file. Prima's own pieces kept out of the Library (all of
   them after Remove library, and each one removed by hand, by its id) are kept as settings, so a copy and a restore carry them,
   until the Library puts them back; so are the collection's pieces removed by hand, by id, until they're let back in. The

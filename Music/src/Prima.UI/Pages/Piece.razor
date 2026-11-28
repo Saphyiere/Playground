@@ -88,6 +88,11 @@ else
                     {
                         <li>About level @anchor, where its collection sits. Its notes aren't read yet: Convert to notation, on its bar.</li>
                     }
+                    @* Played in a key it isn't written in: which, and its level there where that's another. *@
+                    @if (transposed.Moves)
+                    {
+                        <li>Played in @KeyNow.Name, written in @OwnKey.Name@(keyGrade is { } graded && graded.Level != piece.Level ? $": level {graded.Level} in {KeyNow.Name}, for {graded.Reasons}" : "").</li>
+                    }
                     @if (listing is { } listed)
                     {
                         <li>@listed.Sentence</li>
@@ -148,6 +153,11 @@ else
             @* The piece's front: its level, and Practice or Play, which only a tap starts. *@
             <section class="reading-bar piece-bar piece-front-bar" aria-label="The piece">
                 <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
+                @* Played in a key it isn't written in (chosen in Practice's More): which. *@
+                @if (transposed.Moves)
+                {
+                    <div class="mu-readout piece-key-now"><span class="mu-readout-label">Key</span><span class="mu-readout-value">@KeyNow.Name</span></div>
+                }
                 @if (piece.Bars is { } count)
                 {
                     <div class="mu-readout"><span class="mu-readout-label">Bars</span><span class="mu-readout-value">@count</span></div>
@@ -382,6 +392,17 @@ else
                     @printKey
                 </MoreMusic>
                 <More>
+                    @* A print alone has no notes to move: its key comes once it's notation. *@
+                    @if (mei is null)
+                    {
+                        <div class="more-group more-key" role="group" aria-label="Key">
+                            <h3 class="more-head">Key</h3>
+                            <div class="control-row change-key-row">
+                                <KeyPiano Keys="[]" Value="new Key(0)" Disabled="true" />
+                            </div>
+                            <p class="section-note">Convert to notation first, and it can be played in any key.</p>
+                        </div>
+                    }
                     @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
                     {
                         <div class="more-group" role="group" aria-label="Hear it">
@@ -469,6 +490,16 @@ else
                     @printKey
                 </MoreMusic>
                 <More>
+                    @* The key it's played in: one on the piano's octave, named as it's written, or As written. *@
+                    <div class="more-group more-key" role="group" aria-label="Key">
+                        <h3 class="more-head">Key</h3>
+                        <div class="control-row change-key-row">
+                            <KeyPiano Keys="keysOffered" Value="KeyNow" ValueChanged="ChooseKey" Disabled="playing" />
+                            <span class="key-piano-name">@KeyNow.Name</span>
+                            <button type="button" class="mu-toggle" data-action="as-written" data-piano="off" aria-pressed="@On(!transposed.Moves)" disabled="@playing" @onclick="() => ChooseKey(OwnKey)"><span class="mu-led"></span>As written</button>
+                        </div>
+                        <p class="section-note">@KeyNote()</p>
+                    </div>
                     @* When I slip: what a wrong or missed note does to a run, kept for the piece (Piece.Slips.cs). *@
                     <SlipChoice Way="slipWay" WayChanged="SetSlipWay" />
                     <div class="more-group" role="group" aria-label="After a run">
@@ -712,6 +743,8 @@ else
             {
                 // Read away from the screen's thread: a long piece takes a moment.
                 (score, lyrics) = await Task.Run(() => (MeiReader.Read(text), SongWords.Has(text)));
+                // In the key chosen for it, when one is: its music moved there before anything is read from it (Piece.Key.cs).
+                (text, score) = await InItsKey(text, score);
                 expected = score.Expected();
                 // The piece's own tempo, as its score marks it (an imported MIDI file's, or a PDF's MIDI's), in its first metre's beats
                 // as the tempo is (♩. in 6/8).
@@ -943,7 +976,7 @@ else
         ? $"Practiced · {session.Started.LocalDateTime.ToString("dddd d MMMM", CultureInfo.InvariantCulture)}"
         : string.Join(" · ", new[] { piece!.Composer, piece.Work }.Where(s => !string.IsNullOrEmpty(s)));
 
-    private string LevelText() => piece!.Level is { } level ? (piece.IsPdf && mei is null ? $"~{level}" : $"{level}") : "–";
+    private string LevelText() => LevelNow is { } level ? (piece!.IsPdf && mei is null ? $"~{level}" : $"{level}") : "–";
 
     private string PlaceText() => Pdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
 
@@ -1384,8 +1417,8 @@ else
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var (right, notes, clean) = KeptRun.Figures(how);
-        var measures = KeptRun.Measures(how, RunFrom(), RunHands(), stage == Stage.Practice ? session?.Id : null, stage == Stage.Play, expected.ToDictionary(n => n.Id, n => n.Bar), (DateTime.Now - started).TotalSeconds);
-        lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, piece!.Level, how.Mode == PlayMode.InTime ? tempo : null, null, null, KeptRun.Keys(how), null, measures, notes == 0 ? null : right / (double)notes, clean, null));
+        var measures = KeptRun.Measures(how, RunFrom(), RunHands(), stage == Stage.Practice ? session?.Id : null, stage == Stage.Play, expected.ToDictionary(n => n.Id, n => n.Bar), (DateTime.Now - started).TotalSeconds, RunKey);
+        lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, LevelNow, how.Mode == PlayMode.InTime ? tempo : null, null, null, KeptRun.Keys(how), null, measures, notes == 0 ? null : right / (double)notes, clean, null));
         // Practice's minutes are its clock's, counted as it goes; Play's are its run's.
         if (stage != Stage.Practice) await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
         latestRun = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).MaxBy(r => (r.At, r.Id));
@@ -1550,7 +1583,7 @@ else
         picked = bar;
         if (sheet is null) return;
 
-        var marks = KeptRun.MarksForBar(bar, expected, reviewed, marksKept);
+        var marks = KeptRun.MarksForBar(bar, expected, reviewed, marksKept, transposed);
         await sheet.ShowMarks(marks);
         await sheet.Outline(MeasureOf(bar));
     }
