@@ -2551,6 +2551,21 @@ a.mu-btn {
     gap: 10px;
 }
 
+/* In Porcelain and Night the review's two kinds take the look's own: wrong notes its miss red, off the beat an amber that reads
+   on white (and on Night's near-black), and an empty cell or a baseline its hairline. Scoped to the review, so the rest of the
+   summary keeps what the look gives it. */
+html[data-theme="porcelain"] :is(.qr, .look-back) {
+    --chart-bad: var(--note-miss);
+    --chart-beat: #b97a08;
+    --chart-off: #e6e6e6;
+}
+
+html[data-theme="porcelain-night"] :is(.qr, .look-back) {
+    --chart-bad: var(--note-miss);
+    --chart-beat: #f2c14e;
+    --chart-off: #2a2d34;
+}
+
 /* The top lines up with the chart under it: the figure over the rows' names, the words over the columns, the keys at the end. */
 .qr-top {
     display: grid;
