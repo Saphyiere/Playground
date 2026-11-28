@@ -146,6 +146,40 @@ public class SettingsTests
         }
     }
 
+    // Porcelain's accent: offered only with Porcelain or Night, chosen with a tap, kept with the settings, and the same in Night.
+    [Fact]
+    public async Task PorcelainsAccentIsChosenInSettingsAndNightWearsItToo()
+    {
+        await using var host = new ComponentHost();
+        var looks = host.Context.Services.GetRequiredService<LookSetting>();
+        host.Context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings?tab=look");
+        static string Pressed(IRenderedComponent<Settings> view, string name) =>
+            view.FindAll(".accent-choice").Single(b => b.TextContent.Trim() == name).GetAttribute("aria-pressed") ?? "";
+
+        var studio = host.Context.Render<Settings>(p => p.AddCascadingValue(Look.Studio));
+        Assert.Empty(studio.FindAll(".accent-choice"));
+
+        var porcelain = host.Context.Render<Settings>(p => p.AddCascadingValue(Look.Porcelain));
+        Assert.Equal(Accent.All.Select(a => a.Name), porcelain.FindAll(".accent-choice").Select(b => b.TextContent.Trim()));
+        Assert.Equal("true", Pressed(porcelain, "Red"));
+
+        await porcelain.InvokeAsync(() => porcelain.FindAll(".accent-choice").Single(b => b.TextContent.Trim() == "Blue").ClickAsync(new MouseEventArgs()));
+
+        Assert.Equal(Accent.Blue, looks.CurrentAccent);
+        porcelain.WaitForAssertion(() => Assert.Equal("true", Pressed(porcelain, "Blue")));
+        var saved = "";
+        for (var i = 0; i < 50 && saved != "blue"; i++)
+        {
+            saved = (await host.Store.GetSettingsAsync()).GetValueOrDefault("LookAccent") ?? "";
+            if (saved != "blue") await Task.Delay(100, Xunit.TestContext.Current.CancellationToken);
+        }
+        Assert.Equal("blue", saved);
+
+        var night = host.Context.Render<Settings>(p => p.AddCascadingValue(Look.Night));
+        Assert.Equal("true", Pressed(night, "Blue"));
+        Assert.Equal("false", Pressed(night, "Red"));
+    }
+
     // The stopped screen's card opens App & data, Problems brought into view.
     [Fact]
     public async Task TheProblemsLinkOpensAppAndDataWithProblemsInView()

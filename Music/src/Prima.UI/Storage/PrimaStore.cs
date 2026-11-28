@@ -117,7 +117,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         {
             NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey,
             SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, PianoClickKey, ClickVolumeKey,
-            LookSetting.Key, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
+            LookSetting.Key, LookSetting.AccentKey, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
         },
     }));
 

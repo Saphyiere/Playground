@@ -4,18 +4,25 @@ using Playground.Kit;
 namespace Prima.UI.Looks;
 
 /// <summary>
-/// The look in use, kept with the app's other settings. The page follows it through MainLayout; a host overrides
-/// <see cref="ApplyToShell"/> to dress its own parts to match, like the tablet's status bar icons.
+/// The look in use, and Porcelain's accent, kept with the app's other settings. The page follows them through MainLayout; a host
+/// overrides <see cref="ApplyToShell"/> to dress its own parts to match, like the tablet's status bar icons.
 /// </summary>
 public class LookSetting(ISettingStore store)
 {
     /// <summary>The look's setting in the data file, which Reset settings takes back to none (Studio).</summary>
     internal const string Key = "Look";
+
+    /// <summary>The accent's, which Reset settings takes back to none (red).</summary>
+    internal const string AccentKey = "LookAccent";
+
     private Task? loading;
 
     public Look Current { get; private set; } = Look.Studio;
 
-    /// <summary>Raised when another look is chosen.</summary>
+    /// <summary>The accent Porcelain and Night wear.</summary>
+    public Accent CurrentAccent { get; private set; } = Accent.Red;
+
+    /// <summary>Raised when another look or accent is chosen.</summary>
     public event Action? Changed;
 
     /// <summary>Reads the saved look; later calls wait on the same read.</summary>
@@ -38,6 +45,15 @@ public class LookSetting(ISettingStore store)
         Changed?.Invoke();
     }
 
+    public void ChooseAccent(Accent accent)
+    {
+        if (accent == CurrentAccent) return;
+
+        CurrentAccent = accent;
+        store.SetSettingAsync(AccentKey, accent.Id).ContinueWith(t => Debug.WriteLine($"Prima: saving the accent failed: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+        Changed?.Invoke();
+    }
+
     /// <summary>Dresses the host's own parts (around the page, which follows data-theme) for the look. Called on any thread.</summary>
     protected virtual void ApplyToShell(Look look)
     {
@@ -45,7 +61,9 @@ public class LookSetting(ISettingStore store)
 
     private async Task LoadSavedAsync()
     {
-        Current = Look.FromId((await store.GetSettingsAsync()).GetValueOrDefault(Key));
+        var saved = await store.GetSettingsAsync();
+        Current = Look.FromId(saved.GetValueOrDefault(Key));
+        CurrentAccent = Accent.FromId(saved.GetValueOrDefault(AccentKey));
         ApplyToShell(Current);
     }
 }

@@ -27,6 +27,7 @@
 @code {
     private bool loaded;
     private string? shownLook;
+    private string? shownAccent;
     private IJSObjectReference? page;
     private IJSObjectReference? sheet;
 
@@ -42,14 +43,16 @@
     {
         if (firstRender) await TakeInPageProblems();
 
-        // The page's colors, fonts and shapes follow data-theme on <html>, which index.html restores before the first paint.
-        if (!loaded || shownLook == LookSetting.Current.Id) return;
+        // The page's colors, fonts and shapes follow data-theme on <html>, and Porcelain's accent data-accent, which index.html
+        // restores before the first paint.
+        if (!loaded || (shownLook == LookSetting.Current.Id && shownAccent == LookSetting.CurrentAccent.Id)) return;
 
         shownLook = LookSetting.Current.Id;
+        shownAccent = LookSetting.CurrentAccent.Id;
         try
         {
             page ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Prima.UI/Layout/MainLayout.razor.js");
-            await page.InvokeVoidAsync("showLook", shownLook);
+            await page.InvokeVoidAsync("showLook", shownLook, shownAccent);
             // The first screen is drawn: Prima's opening mark goes as it arrives.
             await page.InvokeVoidAsync("opened");
             // Verovio is a 7 MB script: it loads in the background now, so the first sheet doesn't wait for it.

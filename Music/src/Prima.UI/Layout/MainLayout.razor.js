@@ -8,11 +8,16 @@ export function opened() {
     setTimeout(() => document.documentElement.removeAttribute("data-opening"), 1400);
 }
 
-// The look in use: the page follows data-theme on <html>, and index.html restores it from local storage before the first paint.
-export function showLook(id) {
-    document.documentElement.dataset.theme = id;
+// The look in use, and Porcelain's accent: the page follows data-theme and data-accent on <html> (red, the default, needs
+// none), and index.html restores both from local storage before the first paint.
+export function showLook(id, accent) {
+    const html = document.documentElement;
+    html.dataset.theme = id;
+    if (accent && accent !== "red") html.dataset.accent = accent;
+    else delete html.dataset.accent;
     try {
         localStorage.setItem("look", id);
+        localStorage.setItem("accent", accent ?? "red");
     } catch {
         // No storage: the next start shows Studio until the saved look loads.
     }

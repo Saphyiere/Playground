@@ -44,12 +44,20 @@ with how to do each, a daily plan of about twenty minutes, and progress shown as
 
 ## Sections
 
-The rail down the left edge, in both looks: at its head You, a round key in the look's colour with the first letter of your name
+Prima has four looks, chosen in Settings: **Studio** (a music workstation: warm grey keys, an amber screen, one orange key),
+**Vinyl** (a record sleeve: teal, cream, mustard), and **Porcelain** with its dark version **Night**: white cards floating on
+soft shadows over a light grey (in Night, near-black layers told apart by hairlines, the paper a shade softer), names and
+figures in a serif and what they measure in its italic, black for what's chosen and for a list's keys (in Night, the chosen
+tinted), and one accent for the key to press, where you are and what's lit: red, or persimmon, amber, green, blue or violet, the
+same in both. A wrong note is red in every accent. The music is black on paper in every look.
+
+The rail down the left edge, in every look: at its head You, a round key in the look's colour with the first letter of your name
 (a figure without one), with the keyboard's lamp on its edge, lit when it's plugged in and hollow when it isn't; under Practice,
 Today, Sight-read, Exercises (the drills among them) and Routines; under Collection, the Library and the Repertoire; and Settings alone at
 the foot. In Vinyl
-Practice and Collection are Side A and Side B. In portrait the rail runs along the bottom, You's round key at its start. The
-tools are a tab of Settings (Tools, below), whose key is lit on them.
+Practice and Collection are Side A and Side B. In Porcelain and Night the rail is a card floating at the screen's edge, each
+section with its icon, the current one black (in Night a lighter layer). In portrait the rail runs along the bottom, You's
+round key at its start. The tools are a tab of Settings (Tools, below), whose key is lit on them.
 
 Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
 **This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
@@ -59,14 +67,16 @@ yellow bar, until Reload.
 How Prima opens, how screens arrive and how a wait looks (all in prima.css's Motion; the mock-ups they were chosen from are the
 page "Prima in Motion", https://claude.ai/artifact/HDkvVecovjYqnYaj3tLjJi):
 
-- **Opening.** Android's splash is in the look last used: Studio's display on warm grey, or, from the start after Vinyl is
-  chosen (Android 13 and later), Today's record on teal. Prima's page then shows the same mark in the same place while .NET starts
+- **Opening.** Android's splash is in the look last used: Studio's display on warm grey, or, from the start after another look
+  is chosen (Android 13 and later), Today's record on teal for Vinyl, and for Porcelain and Night a card with a staff and three
+  notes on the look's ground. Prima's page then shows the same mark in the same place while .NET starts
   and the settings are read, alive (Studio's play cursor going over the display's staff, each note lighting as it passes;
-  Vinyl's record turning), and it fades as the first screen is drawn: the rail slides in from its edge and the screen rises in.
+  Vinyl's record turning; Porcelain's notes lighting in the accent one after another), and it fades as the first screen is
+  drawn: the rail slides in from its edge and the screen rises in.
   On Today, once: Studio's tempo knob sweeps round and settles at the tempo; Vinyl's record comes out of its sleeve. The settings
   are read once while Prima is open, so no later screen waits on them.
-- **A screen arrives** rising a few pixels as it fades in, in each look's pace (Studio 0.18 s and 6 px, Vinyl 0.24 s and
-  10 px); its rows and cards follow one after another, the first eight only. A list drawn again for another choice (a composer,
+- **A screen arrives** rising a few pixels as it fades in, in each look's pace (Studio, Porcelain and Night 0.18 s and 6 px,
+  Vinyl 0.24 s and 10 px); its rows and cards follow one after another, the first eight only. A list drawn again for another choice (a composer,
   a work, a tab, another list of exercises) arrives again whole; a screen that redraws in place (a filter, a search) doesn't.
   The rail stays still.
 - **A wait takes the shape of what's coming**: where a screen is still reading (the Library and a composer's works, Routines, a
@@ -729,7 +739,7 @@ Settings.
 ### Settings
 
 Six tabs, in Studio a strip of the amber screen with the open one lit, in Vinyl a row of names with the open one on a mustard
-line:
+line, in Porcelain and Night a grey track with the open one on its thumb:
 
 - **Practice**: the profile (name, minutes a day, the cue, which clefs the note review drills) and practice (one or two bars of
   count-in, how much Practice tells you on a piece (Simple, Standard or Hands-on, or their four settings one by one: what shows
@@ -744,7 +754,9 @@ line:
   on Prima's channel, as the click on the piano first was. The P-225 plays all 16 channels it's sent and takes no MIDI clock, so
   its own metronome can't be kept in time with Prima's; whether its drums answer on channel 10 only the piano can say. Notes the
   piano sends back on channel 10 or 16 aren't taken for keys played.
-- **Look & music**: the look (Studio or Vinyl) and the notation (the music font and the sheet's size, with two bars to show them,
+- **Look & music**: the look (Studio, Vinyl, Porcelain or Night, each choice drawn in its own look), in Porcelain and Night
+  their accent (red, persimmon, amber, green, blue or violet; the same in both), and the notation (the music font and the
+  sheet's size, with two bars to show them,
   and whether a song's lyrics are printed under its notes, on unless turned off; a song's Options have the same switch).
 - **Claude**.
 - **App & data**: updates, your data, and the problems Prima kept.
@@ -1377,9 +1389,13 @@ details.
   song whose words fit is drawn as it was.
   **Lyrics** off (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note
   names and counts) are printed as written.
-- **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its own two looks, not
-  the Kit's Logbook and Telemetry, switched in Settings. The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans) ship with
-  the app as woff2 files, so it works offline; Verovio brings its own music fonts.
+- **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii), and Porcelain and
+  Night, chosen on 28 November 2026 from the mock-ups on [Prima Looks](https://claude.ai/artifact/2z4qusxAzqdt3VmxzL2ygx)
+  (round two's A4 and A6): Prima's own looks, not the Kit's Logbook and Telemetry, switched in Settings. Each look is
+  data-theme on the page (Porcelain's accent data-accent); Porcelain's and Night's rules are at prima.css's end, under
+  `html[data-theme^="porcelain"]`, their colours tokens on each one's own data-theme. The fonts (Space Grotesk, Space Mono,
+  Bebas Neue, Work Sans, Instrument Serif, Instrument Sans) ship with the app as woff2 files, so it works offline; Verovio
+  brings its own music fonts.
 
 ## Open questions
 

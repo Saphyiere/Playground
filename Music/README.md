@@ -369,16 +369,22 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
 - In Practice, the play key before the tempo starts the metronome: does it keep time as you play along, and do its settings
   (the metronome key beside Options) change where it's heard and how it sounds straight away?
 - Whether 7 mm staves read comfortably from the music stand (Settings → Look & music → Notation changes the size).
+- Porcelain and Night (Settings › Display & notation): from the start after choosing one (Android 13 and later) the splash is its
+  card with a staff, and the page's card takes its place without a jump; the bar icons are dark on Porcelain and light on Night;
+  the soft shadows and the floating rail draw smoothly as a list scrolls; an accent chosen shows on both.
 - With Claude's key on, a PDF's **Convert to notation** toolbar button: are the systems boxed right on the page, does the reading finish
   in about the time it says, and does each system's reading match its print? Keep it, play it, and press **Print** for the PDF.
 
 ## The looks
 
-Prima has its own two looks, **Studio** (a music workstation: warm grey keys, an amber screen, one orange key) and **Vinyl** (a
-record sleeve: deep teal, cream type, mustard), switched in Settings. They come from the
-[Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii): its tokens and components are in
-`src/Prima.UI/wwwroot/prima.css`, with Prima's own screens after them. Sheet music is black on paper in both. Prima uses the
-Kit only for the way back and its settings store, not its Logbook and Telemetry looks.
+Prima has its own looks, switched in Settings › Display & notation: **Porcelain** (white cards on soft shadows, serif titles
+and figures, black for what's chosen, an accent colour you choose) and its dark version **Night**, chosen from the
+[Prima Looks](https://claude.ai/artifact/2z4qusxAzqdt3VmxzL2ygx) mock-ups; and **Studio** (a music workstation: warm grey
+keys, an amber screen, one orange key) and **Vinyl** (a record sleeve: deep teal, cream type, mustard) from the
+[Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii). All are in
+`src/Prima.UI/wwwroot/prima.css`: the design system's tokens and components, Prima's own screens after them, then Porcelain's
+and Night's rules at the end. Sheet music is black on paper in every look. Prima uses the Kit only for the way back and its
+settings store, not its Logbook and Telemetry looks.
 
 ## Checking screens from the cloud
 
@@ -415,7 +421,7 @@ PDF. `/claude/script?delay=…` sets how long each answer takes, in ms, and `?fa
 
 ## Licences
 
-The fonts (Space Grotesk, Space Mono, Bebas Neue and Work Sans) are under the SIL Open Font License; their licences are next to
+The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans, Instrument Serif and Instrument Sans) are under the SIL Open Font License; their licences are next to
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the
