@@ -5,7 +5,7 @@
 
 <PageTitle>Metronome · Prima</PageTitle>
 
-<PageHead Title="Metronome" Kicker="Tools" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))"><KeyboardLamp /></PageHead>
+<PageHead Title="Metronome" Kicker="Tools" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))" Lamp="true" />
 
 <section class="mu-screen metro-screen" aria-label="Metronome">
     <div class="mu-screen-head"><span>Tempo</span><span>@meter.Name · @StageName(stage)</span></div>

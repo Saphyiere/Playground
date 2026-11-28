@@ -24,9 +24,12 @@
         {
             <div class="more-group" role="group" aria-label="The click">
                 <h3 class="more-head">The click</h3>
-                <div class="control-row">
-                    <button type="button" class="mu-toggle play-click-alone" data-piano="off" aria-pressed="@On(Ticking)" @onclick="() => OnClickAlone.InvokeAsync()"><span class="mu-led"></span>The click alone</button>
-                </div>
+                @if (OnClickAlone.HasDelegate)
+                {
+                    <div class="control-row">
+                        <button type="button" class="mu-toggle play-click-alone" data-piano="off" aria-pressed="@On(Ticking)" @onclick="() => OnClickAlone.InvokeAsync()"><span class="mu-led"></span>The click alone</button>
+                    </div>
+                }
                 <div class="control-row">
                     <span class="control-label">Heard on</span>
                     <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(!Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
@@ -80,7 +83,7 @@
     /// <summary>The click going by itself, at the tempo, with nothing judged.</summary>
     [Parameter] public bool Ticking { get; set; }
 
-    /// <summary>The click alone started or stopped.</summary>
+    /// <summary>The click alone started or stopped: the engine's metronome; a drill's bar, whose click is its runs', has none.</summary>
     [Parameter] public EventCallback OnClickAlone { get; set; }
 
     /// <summary>When the click's settings change, for a click going to start again with them.</summary>

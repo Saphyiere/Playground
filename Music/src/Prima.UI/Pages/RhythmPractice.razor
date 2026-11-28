@@ -14,10 +14,48 @@
 
 <PageTitle>Rhythm · Prima</PageTitle>
 
-<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
-<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+<PageHead Title="Rhythm" Kicker="@($"Level {state.Level} · try {Math.Min(tryIndex + 1, Tries)} of {Tries}")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))" FullScreen="true" Lamp="true" />
 
+@* The practice screen every screen with music has, top to bottom: what to do in a line, the rhythm to tap, how the try went
+   under it, the bar (the click's stage and the tempo, More, Loop and Start), and in a routine its keys at the foot. *@
+<div class="practice-page drill-page">
 <p class="page-note full-hide">Tap the beat for one bar, then tap the rhythm on any key. @StageWords(state.StageForTry(tryIndex))</p>
+
+<div class="sheet-frame">
+    <Sheet @ref="sheet" Mei="@mei" />
+</div>
+
+@if (result is not null)
+{
+    <section class="summary" aria-label="How the try went">
+        <section class="mu-screen summary-figures" aria-label="The try">
+            <div class="mu-readouts">
+                <div class="mu-readout"><span class="mu-readout-label">Beats on time</span><span class="mu-readout-value">@($"{(result.Accuracy) * 100:0}%")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
+                <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
+            </div>
+        </section>
+        <ul class="summary-words">
+            @if (result.DriftPercent is { } drift && state.StageForTry(tryIndex - 1) != ClickStage.Throughout)
+            {
+                <li>Without the click you drifted @($"{Math.Abs(drift):0}%") @(drift > 0 ? "faster" : "slower").</li>
+            }
+            <li>The bar of beat: lean @($"{result.PulseLeanPercent:+0;−0;0}%") of the beat, steady to ±@($"{result.PulseSteadinessPercent:0}")%.</li>
+            @if (result.Missed > 0)
+            {
+                <li>@result.Missed missed, @result.Extra extra.</li>
+            }
+            @foreach (var line in BarWords())
+            {
+                <li>@line</li>
+            }
+            @if (tryIndex >= Tries)
+            {
+                <li>@SetWords()</li>
+            }
+        </ul>
+    </section>
+}
 
 <section class="reading-bar play-bar piece-bar" aria-label="Where you are">
     @if (session is { Phase: Phase.CountIn })
@@ -26,12 +64,6 @@
     }
     <div class="mu-readout"><span class="mu-readout-label">Click</span><span class="mu-readout-value">@StageName(state.StageForTry(tryIndex))</span></div>
     <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
-    @if (result is not null)
-    {
-        <div class="mu-readout"><span class="mu-readout-label">Beats on time</span><span class="mu-readout-value">@($"{(result.Accuracy) * 100:0}%")</span></div>
-        <div class="mu-readout"><span class="mu-readout-label">Lean</span><span class="mu-readout-value">@($"{result.LeanPercent:+0;−0;0}%")</span></div>
-        <div class="mu-readout"><span class="mu-readout-label">Steadiness</span><span class="mu-readout-value">@($"±{result.SteadinessPercent:0}%")</span></div>
-    }
     <PlayTools Metronome="true" Running="@(session?.Phase is Phase.CountIn or Phase.Playing)" />
     <span class="play-bar-break" aria-hidden="true"></span>
     @* Loop: lit, the next try starts by itself a few seconds after each one's result, set after set, until it's turned off or you leave. *@
@@ -42,32 +74,15 @@
     }
 </section>
 
-<div class="sheet-frame">
-    <Sheet @ref="sheet" Mei="@mei" />
-</div>
-
-@if (result is not null)
+@if (routineSession?.IsRoutine == true)
 {
-    <ul class="summary-words">
-        @if (result.DriftPercent is { } drift && state.StageForTry(tryIndex - 1) != ClickStage.Throughout)
-        {
-            <li>Without the click you drifted @($"{Math.Abs(drift):0}%") @(drift > 0 ? "faster" : "slower").</li>
-        }
-        <li>The bar of beat: lean @($"{result.PulseLeanPercent:+0;−0;0}%") of the beat, steady to ±@($"{result.PulseSteadinessPercent:0}")%.</li>
-        @if (result.Missed > 0)
-        {
-            <li>@result.Missed missed, @result.Extra extra.</li>
-        }
-        @foreach (var line in BarWords())
-        {
-            <li>@line</li>
-        }
-        @if (tryIndex >= Tries)
-        {
-            <li>@SetWords()</li>
-        }
-    </ul>
+    <PlayFoot>
+        <WayOn>
+            <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+        </WayOn>
+    </PlayFoot>
 }
+</div>
 
 @code {
     private const int Tries = 3;

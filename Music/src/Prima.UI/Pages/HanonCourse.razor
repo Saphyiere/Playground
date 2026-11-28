@@ -9,7 +9,7 @@
 {
     @if (place.Complete)
     {
-        <PageHead Title="Complete Hanon" Kicker="End of the book" />
+        <PageHead Title="Complete Hanon" Kicker="End of the book" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?show=hanon"))" />
         <div class="control-row">
             <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="() => Save(new())">Start again at No. 1</button>
             <a class="mu-btn" href="exercises?show=hanon">Hanon exercises</a>

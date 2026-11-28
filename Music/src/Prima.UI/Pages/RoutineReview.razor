@@ -3,14 +3,13 @@
 @inject RoutineService Routines
 @inject IRoutineHost Host
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @using Prima.Core.Routines
 @using Prima.Core.Generation
 @using Prima.UI.Routines
 
 <PageTitle>Routine proposal · Prima</PageTitle>
-<PageHead Title="Routine proposal" Kicker="Review before using">
-    <a class="mu-btn" data-piano="off" href="routines">All routines</a>
-</PageHead>
+<PageHead Title="Routine proposal" Kicker="Review before using" Back="@(Navigation.PreviousName ?? "Routines")" OnBack="@(() => Navigation.BackAsync("routines"))" />
 
 @if (job is null)
 {

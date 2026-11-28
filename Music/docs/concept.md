@@ -59,6 +59,12 @@ Practice and Collection are Side A and Side B. In Porcelain and Night the rail i
 section with its icon, the current one black (in Night a lighter layer). In portrait the rail runs along the bottom, You's
 round key at its start. The tools are a tab of Settings (Tools, below), whose key is lit on them.
 
+Every screen has the same **head**: on its left the way back, a key named for where it goes (the screen it was opened from;
+none on the rail's own screens), on the line of the screen's name, with a printed line over the name (the day, what it's for);
+on its right the screen's own keys (a search, Import, New routine), then **About**, **full screen**'s key and the piano's lamp
+where it has them, always in that order. The owner, 28 November 2026: "the head should be normal in every single location in
+the app". A screen that plays music goes on from it the same way too ([Playing to a tempo](#playing-to-a-tempo)).
+
 Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
 **This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
 still goes anywhere, and another screen starts afresh. Before, a failure left the whole page not answering taps under Blazor's
@@ -157,7 +163,8 @@ can be turned off in Settings.
 ### Playing to a tempo
 
 Every screen that plays music to a tempo is the one **practice screen**, top to bottom: the **head** every screen has (the
-way back by the name of where it goes, the screen's name, and on its right **About**, the screen's words in the music's place,
+way back by the name of where it goes, on the name's line at its left, the screen's name, and on its right **About**, the
+screen's words in the music's place,
 **full screen**'s key and the piano's lamp); the **music**, taking the rest of the screen; a run's **review** under it; the
 **play bar**, near the hands; and the **foot**. The owner, 28 November 2026: "we have practices and exercises, and the issue is
 that they do the exact same thing", and of the wireframes' C, the bar under the music, "the one practice screen for all of
@@ -174,8 +181,10 @@ clocks and Finish practice, a routine's time, Skip and Next, Another set, the ne
 its PDF, an exercise, Hanon, a routine's exercise, Scales, Arpeggios and Finger independence all play this way: it's the one
 engine and the one screen for music played to a tempo, so what it can do (the modes, the click, full screen, Listen, Loop)
 is the same wherever it is, and a screen only says which of its keys it has. The reading drills, Rhythm, Listen and play back
-and Endless notes run their own sets, their bars over the music: their figures, the tools (the metronome's settings and full
-screen), then what to play now, Loop and Start at the end; their music is printed at the size every sheet has. **Full screen**
+and Endless notes run their own sets on the same screen: their music, how the last answer or try went under it, their bar at
+the foot (their figures, More where they have the click's settings, then what to play now, Loop and Start at the end), and
+the foot under it (a reading drill's step on its card with Change, a routine's keys, Endless notes' Start); their music is
+printed at the size every sheet has. **Full screen**
 leaves the music, the review and the bar alone: the rail, the head and the foot go, and the tablet's own bars; its key, on the
 bar while the head is gone, or leaving the screen, brings them back. A piece's Practice goes full screen by itself.
 

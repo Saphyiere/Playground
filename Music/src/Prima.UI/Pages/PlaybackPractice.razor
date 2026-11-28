@@ -14,7 +14,7 @@
 
 <PageTitle>Listen and play back · Prima</PageTitle>
 
-<PageHead Title="Listen and play back" Kicker="@($"Step {track.Step} of 3")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
+<PageHead Title="Listen and play back" Kicker="@($"Step {track.Step} of 3")" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))" FullScreen="true" Lamp="true" />
 
 @if (!(Keyboard.CanSend && Settings.SendToPiano))
 {
@@ -22,6 +22,26 @@
 }
 else
 {
+    @* The practice screen every screen with music has: what to do now, the phrase once it's shown, how it went under it, and the
+       bar (where you are, the tempo, More, Loop and the key that moves on) at the foot. *@
+    <div class="practice-page drill-page">
+    <p class="page-note">@Words()</p>
+    @if (stage is Stage.Shown or Stage.Answer)
+    {
+        <div class="sheet-frame">
+            <Sheet @ref="sheet" Mei="@mei" />
+        </div>
+    }
+    @if (result is not null)
+    {
+        <section class="summary" aria-label="How it went">
+            <section class="mu-screen summary-figures" aria-label="The phrase">
+                <div class="mu-readouts">
+                    <div class="mu-readout"><span class="mu-readout-label">Correct and on time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
+                </div>
+            </section>
+        </section>
+    }
     <section class="reading-bar play-bar piece-bar" aria-label="Where you are">
         @if (session is { Phase: Phase.CountIn })
         {
@@ -29,10 +49,6 @@ else
         }
         <div class="mu-readout"><span class="mu-readout-label">Now</span><span class="mu-readout-value">@StageName()</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo</span></div>
-        @if (result is not null)
-        {
-            <div class="mu-readout"><span class="mu-readout-label">Correct and on time</span><span class="mu-readout-value">@($"{(result.InTimeAccuracy) * 100:0}%")</span></div>
-        }
         <PlayTools Metronome="true" Running="@(session?.Phase is Phase.CountIn or Phase.Playing)" />
         <span class="play-bar-break" aria-hidden="true"></span>
         @* Loop: lit, a phrase is heard, played back and shown, and the next follows by itself, until it's turned off or you leave. *@
@@ -42,13 +58,7 @@ else
             <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="Advance">@ButtonName()</button>
         }
     </section>
-    <p class="page-note">@Words()</p>
-    @if (stage is Stage.Shown or Stage.Answer)
-    {
-        <div class="sheet-frame">
-            <Sheet @ref="sheet" Mei="@mei" />
-        </div>
-    }
+    </div>
 }
 
 @code {

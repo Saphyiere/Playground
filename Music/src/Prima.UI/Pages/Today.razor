@@ -13,14 +13,10 @@
 
 <PageTitle>Prima</PageTitle>
 
-<header class="page-head today-head">
-    <div class="mu-studio-only">
-        <p class="page-kicker">@Look.Day(Day0) · @(Settings.Name is { Length: > 0 } name ? name : "practice")</p>
-        <h1 class="page-title">Today</h1>
-    </div>
+<PageHead Title="Today" Kicker="@($"{Look.Day(Day0)} · {(Settings.Name is { Length: > 0 } name ? name : "practice")}")" Class="today-head" NameClass="mu-studio-only">
     <a class="mu-btn" href="history">Practice history</a>
     <KeyboardLamp Class="today-lamp" />
-</header>
+</PageHead>
 
 <div class="today-hero">
     <div class="today-art">

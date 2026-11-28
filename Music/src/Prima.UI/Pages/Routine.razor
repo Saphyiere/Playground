@@ -3,6 +3,7 @@
 @inject RoutineService Routines
 @inject PrimaStore Store
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @using Prima.Core.Generation
 @using Prima.Core.Practice
 @using Prima.Core.Routines
@@ -18,7 +19,7 @@
 
 @if (loading)
 {
-    <PageHead Title="Routine" Kicker="Opening…" />
+    <PageHead Title="Routine" Kicker="Opening…" Back="@(Navigation.PreviousName ?? "Routines")" OnBack="@(() => Navigation.BackAsync("routines"))" />
     <div class="rt-page">
         <div class="rt-main">
             <ol class="rt-tracks"><Waiting Shape="WaitShape.Track" Count="4" Label="Opening the routine" /></ol>
@@ -27,7 +28,7 @@
 }
 else if (routine is null || standing is null)
 {
-    <PageHead Title="My routine" Kicker="Today's practice" />
+    <PageHead Title="My routine" Kicker="Today's practice" Back="@(Navigation.PreviousName ?? "Routines")" OnBack="@(() => Navigation.BackAsync("routines"))" />
     <p class="page-note">@(Revision is null ? "Today has the standard daily plan: no routine is on it. Open one of your routines to put it on Today." : "That routine isn't saved any more.")</p>
     <div class="control-row">
         <a class="mu-btn" data-piano="off" href="">Open Today</a>
@@ -38,7 +39,7 @@ else
 {
     var go = standing.Next;
     var starredHere = stars.Contains(routine.Revision);
-    <PageHead Title="@Called" Kicker="@Kicker">
+    <PageHead Title="@Called" Kicker="@Kicker" Back="@(Navigation.PreviousName ?? "Routines")" OnBack="@(() => Navigation.BackAsync("routines"))">
         <button type="button" class="lb-star" aria-pressed="@(starredHere ? "true" : "false")" aria-label="@(starredHere ? "Starred: it's on top of your routines. Take its star off" : "Star it, to keep it on top of your routines")" @onclick="() => Star(!starredHere)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
         </button>

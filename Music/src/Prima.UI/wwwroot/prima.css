@@ -11345,7 +11345,20 @@ html[data-theme^="porcelain"] .opening-mark {
 }
 
 .page-head-name {
+    flex: 1 1 auto;
     min-width: 0;
+}
+
+/* The way back on the name's line, at its left, as the wireframes drew it (the owner, 28 November 2026: "Why is the back button
+   still above the title?"): level with the name's foot, in every look. */
+.page-head > .way-back {
+    flex: none;
+    align-self: flex-end;
+}
+
+html body .page-head > .way-back {
+    margin-top: 0;
+    margin-bottom: 4px;
 }
 
 /* A search among the head's keys keeps its width, giving way only where the screen is narrow (Settings'). */
@@ -11356,6 +11369,16 @@ html[data-theme^="porcelain"] .opening-mark {
 
 .page-head-keys > .settings-search {
     width: 400px;
+}
+
+/* The head's keys keep their words on one line; a search among them is the one that gives way (the Library's, Exercises'). */
+.page-head-keys > .mu-btn {
+    flex: none;
+    white-space: nowrap;
+}
+
+.page-head-keys > .head-search {
+    flex: 0 1 auto;
 }
 
 .head-about {
@@ -11376,9 +11399,27 @@ html[data-theme^="porcelain"] .opening-mark {
     flex: none;
 }
 
-.reading-on > .sheet-frame {
+.reading-on > .sheet-frame,
+.drill-page > .sheet-frame {
     flex: 1 1 auto;
     min-height: 0;
+}
+
+.drill-stage > .sheet-frame {
+    height: 100%;
+}
+
+.drill-page > .sheet-frame > .sheet,
+.drill-stage > .sheet-frame > .sheet {
+    min-height: 100%;
+    box-sizing: border-box;
+}
+
+/* A drill whose music isn't shown yet (Listen and play back's phrase while it's heard), or a screen of choices before a run
+   (Endless notes'), has its bar or its foot at the bottom all the same. */
+.practice-page > .play-bar,
+.practice-page > .play-foot:not(.play-bar ~ .play-foot) {
+    margin-top: auto;
 }
 
 .reading-on {
@@ -11397,9 +11438,9 @@ html[data-theme^="porcelain"] .opening-mark {
     margin-left: 0;
 }
 
-.play-bar.piece-bar > .play-mode,
-.play-bar.piece-bar > .mu-btn {
-    margin-left: 0;
+/* A drill's bar keeps what it plays now, its Loop and Start at its end, as every bar's run keys are. */
+.play-bar.piece-bar > .drill-prompt {
+    margin-left: auto;
 }
 
 .play-bar-gap {

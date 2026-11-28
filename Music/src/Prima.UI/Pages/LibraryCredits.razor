@@ -1,10 +1,11 @@
 @page "/library/credits"
 @inject PrimaStore Store
 @inject ILibraryBundle Bundle
+@inject AppNavigation Navigation
 
 <PageTitle>Where the music comes from · Prima</PageTitle>
 
-<PageHead Title="Credits" Kicker="Where the music comes from"><a class="mu-btn" href="library">Library</a></PageHead>
+<PageHead Title="Credits" Kicker="Where the music comes from" Back="@(Navigation.PreviousName ?? "Library")" OnBack="@(() => Navigation.BackAsync("library"))" />
 
 <p class="page-note">The bundled pieces are public domain or openly licensed, and each is credited as its licence asks. Engravings from MuseScore users come through PDMX (Long et al., 2024, CC BY 4.0); the PDFs and their MIDI come from the Mutopia Project, whose pieces under CC BY-SA are share-alike: anything made from one, an arrangement or a new edition, is shared under the same licence. Prima engraves the MusicXML itself with Verovio (LGPL), and draws the PDFs with pdf.js (Apache 2.0).</p>
 @if (syllabus is not null)

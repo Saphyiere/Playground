@@ -5,10 +5,11 @@
 @inject PrimaSettings Settings
 @inject PrimaStore Store
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 
 <PageTitle>Timing · Prima</PageTitle>
 
-<PageHead Title="Timing" Kicker="Tools"><KeyboardLamp /></PageHead>
+<PageHead Title="Timing" Kicker="Tools" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))" Lamp="true" />
 
 <p class="page-note">After the count-in, tap any key on each of the next 16 beats. Prima uses the result to adjust for timing delay.</p>
 

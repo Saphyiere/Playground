@@ -11,50 +11,58 @@
 
 <PageTitle>Endless notes · Prima</PageTitle>
 
-<PageHead Title="Endless notes" Kicker="Reading · faster and faster" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))"><KeyboardLamp /></PageHead>
+<PageHead Title="Endless notes" Kicker="Reading · faster and faster" Class="full-hide" Back="@(Navigation.PreviousName ?? "Exercises")" OnBack="@(() => Navigation.BackAsync("exercises?type=drills"))" FullScreen="@(running && stream is not null)" Lamp="true" />
 
 @if (running && stream is not null)
 {
+    @* The practice screen every screen with music has: the note to play, the word on the last answer under it, and the bar (how
+       it's going, Stop) at the foot. *@
+    <div class="practice-page drill-page">
+    <div class="sheet-frame">
+        <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
+    </div>
+    <p class="drill-feedback wrong" aria-live="polite">@feedback</p>
     <section class="reading-bar play-bar piece-bar" aria-label="How it's going">
         <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Last</span><span class="mu-readout-value">@Seconds(stream.LastMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Last ten</span><span class="mu-readout-value">@Seconds(stream.RecentMs)</span></div>
         <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
-        <PlayTools Metronome="false" />
-        <span class="play-bar-break" aria-hidden="true"></span>
+        <PlayTools />
+        <span class="play-bar-gap" aria-hidden="true"></span>
         @* Not the piano's go key: every key is an answer here. *@
         <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
     </section>
-    <div class="sheet-frame">
-        <Sheet @ref="sheet" Mei="@mei" OnPainted="Shown" />
     </div>
-    <p class="drill-feedback wrong" aria-live="polite">@feedback</p>
 }
 else
 {
+    @* Before it starts, and after: how the last go went, what to read on a panel of its own (the same keys Change has elsewhere,
+       the clefs drawn), and the way on at the foot. *@
+    <div class="practice-page drill-page">
     @if (stream is { Answers.Count: > 0 })
     {
-        <section class="mu-screen summary-figures" aria-label="The run">
-            <div class="mu-readouts">
-                <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">Typical</span><span class="mu-readout-value">@Seconds(TypicalMs(stream))</span></div>
-                <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
-            </div>
+        <section class="summary" aria-label="The run">
+            <section class="mu-screen summary-figures" aria-label="The figures">
+                <div class="mu-readouts">
+                    <div class="mu-readout"><span class="mu-readout-label">Notes</span><span class="mu-readout-value">@stream.Answers.Count</span></div>
+                    <div class="mu-readout"><span class="mu-readout-label">Right</span><span class="mu-readout-value">@Share(stream)</span></div>
+                    <div class="mu-readout"><span class="mu-readout-label">Typical</span><span class="mu-readout-value">@Seconds(TypicalMs(stream))</span></div>
+                    <div class="mu-readout"><span class="mu-readout-label">Best ten</span><span class="mu-readout-value">@Seconds(stream.BestMs)</span></div>
+                </div>
+            </section>
+            <ul class="summary-words">
+                @foreach (var line in Words(stream))
+                {
+                    <li>@line</li>
+                }
+            </ul>
         </section>
-        <ul class="summary-words">
-            @foreach (var line in Words(stream))
-            {
-                <li>@line</li>
-            }
-        </ul>
     }
     else
     {
         <p class="page-note">Play each note you see. Missed notes come back for another try.</p>
     }
-    @* What to read, before it starts: the same keys Change has elsewhere, the clefs drawn, on a panel of their own. *@
     <section class="choice-panel" aria-label="What to read">
         <div class="control-row">
             <span class="control-label">Clefs</span>
@@ -80,9 +88,12 @@ else
             </div>
         </div>
     </section>
-    <div class="control-row control-row-play">
-        <button type="button" class="mu-play" aria-label="Start" data-piano="go" @onclick="Start"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
-        <a class="mu-btn" href="exercises?type=drills">Done</a>
+    <PlayFoot>
+        <WayOn>
+            <a class="mu-btn" data-piano="off" href="exercises?type=drills">Done</a>
+            <button type="button" class="mu-play" aria-label="Start" data-piano="go" @onclick="Start"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+        </WayOn>
+    </PlayFoot>
     </div>
 }
 

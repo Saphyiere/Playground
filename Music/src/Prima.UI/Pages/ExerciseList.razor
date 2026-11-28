@@ -14,16 +14,10 @@
    it was last done; it opens the exercise, or the drill, and its + puts it in one of your routines. The drills are a type of
    their own: new every time, each moving you on a step as you get it right. The search looks in every name and word. *@
 <div class="lib ex-lib">
-    <header class="page-head">
-        <div>
-            <p class="page-kicker">@($"{Exercises.All.Count} exercises · {Exercises.All.Count(e => e.Kind == ExerciseKind.Drill)} drills")</p>
-            <h1 class="page-title">Exercises</h1>
-        </div>
-        <div class="head-tools">
-            <input class="text-field head-search" type="search" placeholder="Find one: trill, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
-            <a class="mu-btn" data-piano="off" data-action="new-routine" href="routines?new=1">New routine</a>
-        </div>
-    </header>
+    <PageHead Title="Exercises" Kicker="@($"{Exercises.All.Count} exercises · {Exercises.All.Count(e => e.Kind == ExerciseKind.Drill)} drills")">
+        <input class="text-field head-search" type="search" placeholder="Find one: trill, pedal…" aria-label="Find an exercise" value="@search" @oninput="e => search = e.Value?.ToString()" />
+        <a class="mu-btn" data-piano="off" data-action="new-routine" href="routines?new=1">New routine</a>
+    </PageHead>
     @if (note is not null)
     {
         <p class="control-note" role="status">@note</p>

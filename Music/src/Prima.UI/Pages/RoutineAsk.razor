@@ -5,14 +5,13 @@
 @inject IInferenceProvider Provider
 @inject IRoutineHost Host
 @inject NavigationManager Nav
+@inject AppNavigation Navigation
 @using Prima.Core.Routines
 @using Prima.UI.Routines
 @using Playground.AI.Assist
 
 <PageTitle>Ask Claude for a routine · Prima</PageTitle>
-<PageHead Title="Ask Claude for a routine" Kicker="Routines">
-    <a class="mu-btn" data-piano="off" href="exercises">Back to exercises</a>
-</PageHead>
+<PageHead Title="Ask Claude for a routine" Kicker="Routines" Back="@(Navigation.PreviousName ?? "Routines")" OnBack="@(() => Navigation.BackAsync("routines"))" />
 
 @if (loading)
 {

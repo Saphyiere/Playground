@@ -1,9 +1,10 @@
 @page "/check/sheet"
+@inject AppNavigation Navigation
 
 @* For checking the sheet on screen (not on the rail): a passage, the marks after it, the cursor, and the page layout. *@
 <PageTitle>Sheet check · Prima</PageTitle>
 
-<PageHead Title="Sheet check" Kicker="@(passage?.Description ?? "Notation")" />
+<PageHead Title="Sheet check" Kicker="@(passage?.Description ?? "Notation")" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))" Lamp="true" />
 
 <div class="control-row">
     <button type="button" class="mu-btn" @onclick="ToggleMarks">@(marked ? "Clear marks" : "Marks")</button>

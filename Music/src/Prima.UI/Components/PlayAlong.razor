@@ -6,7 +6,6 @@
 @inject Click Click
 @inject SessionRegistry Registry
 @inject PracticeLifecycle Lifecycle
-@inject Prima.UI.Practice.FullScreen Full
 @using Prima.Core.Practice
 @using Prima.Core.Scoring
 
@@ -32,17 +31,9 @@
         <CountIn Session="session" />
     }
     @Readouts
-    @Tools
-    @if (ShowMore)
-    {
-        <PlayMore Running="Running" Metronome="HasMetronome" Ticking="@(ticking is not null)" OnClickAlone="ToggleMetronome" OnClickChanged="ClickChanged"
-                  Marks="@(ShowMarks && !Bare)" OnExplain="OnExplain" Explaining="Explaining" Music="MoreMusic">@More</PlayMore>
-    }
-    @* Full screen's key is in the screen's head; full screen takes the head away, so then it's here. *@
-    @if (ShowFullScreen && Full.On)
-    {
-        <FullScreenKey OnFullScreen="OnFullScreen" />
-    }
+    @* The screen's own keys, More, and full screen's key while the head is gone: every bar's start, PlayTools. *@
+    <PlayTools Extra="Tools" ShowMore="ShowMore" Running="Running" Metronome="HasMetronome" Ticking="@(ticking is not null)" OnClickAlone="ToggleMetronome" OnClickChanged="ClickChanged"
+               Marks="@(ShowMarks && !Bare)" OnExplain="OnExplain" Explaining="Explaining" Music="MoreMusic" ShowFullScreen="ShowFullScreen" OnFullScreen="OnFullScreen">@More</PlayTools>
     <span class="play-bar-gap" aria-hidden="true"></span>
     @if (Running || moving)
     {
@@ -407,7 +398,6 @@
         Keyboard.Received += Heard;
         Keyboard.Changed += Plugged;
         Lifecycle.Pausing += Hush;
-        Full.Changed += Plugged;
         var stored = await Store.GetSettingsAsync();
         kept = stored.GetValueOrDefault(ModeKey) == "wait" ? PlayMode.WaitForMe : PlayMode.InTime;
         (asked, Mode) = (Ask, Ask ?? kept.Value);
@@ -480,7 +470,7 @@
         return music.Score.WithSignatures().ElementAt(bars.First(b => b.Start >= music.FromTick).Index).Meter;
     }
 
-    // The piano plugged in or out: Start and Listen look as they can be used. Full screen on or off: its key is on the bar or not.
+    // The piano plugged in or out: Start and Listen look as they can be used.
     private void Plugged() => _ = InvokeAsync(StateHasChanged);
 
     // A run is played on the piano. With none plugged in nothing starts, and the bar says so for a few seconds.
@@ -1015,7 +1005,6 @@
         Lifecycle.Pausing -= Hush;
         Keyboard.Received -= Heard;
         Keyboard.Changed -= Plugged;
-        Full.Changed -= Plugged;
         if (wait is not null) Registry.DrillAnswer = null;
         ticker?.Dispose();
         session?.Dispose();

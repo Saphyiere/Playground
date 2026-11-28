@@ -1,100 +1,67 @@
-@inject PrimaSettings Settings
-@inject PrimaStore Store
+@implements IDisposable
+@inject Prima.UI.Practice.FullScreen Full
 
 @*
-    The tools of the play bar, at its start, the same keys in the same places on every screen that plays music: first a screen's
-    own (a piece's page turns and its print), then What's this, Options, the metronome's settings and full screen, each where the
-    screen has it. A screen says which it has; the keys, their order and what they look like are here. While a run plays the
-    ones that open something are off; full screen isn't.
+    The start of every play bar, the same keys in the same places on every screen that plays music, the engine's bar and a drill's
+    alike: a screen's own keys first (a piece's page turns), then More (PlayMore), where the bar has anything in it, and full
+    screen's key while full screen is on: it's in the screen's head otherwise, and full screen takes the head away. A screen says
+    which it has; the keys, their order and what they look like are here.
 *@
-<div class="piece-actions play-tools">
-    @Extra
-    @if (OnExplain.HasDelegate)
-    {
-        <button type="button" class="mu-btn piece-tool" data-action="explain" aria-label="What's this?" aria-pressed="@On(Explaining)" disabled="@Running" @onclick="() => OnExplain.InvokeAsync()"><span class="piece-tool-mark" aria-hidden="true">?</span></button>
-    }
-    @if (OnOptions.HasDelegate)
-    {
-        <button type="button" class="mu-btn piece-tool" data-action="options" aria-label="Options" aria-pressed="@On(OptionsOpen)" disabled="@Running" @onclick="() => OnOptions.InvokeAsync()">
-            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
-        </button>
-    }
-    @if (Metronome)
-    {
-        @* The metronome's settings, under its key: the click's (Settings › Click's), where it's heard, its sound and how loud. *@
-        <span class="piece-tool-pick">
-            <button type="button" class="mu-btn piece-tool" data-action="metronome-options" aria-label="Metronome" aria-expanded="@On(metronomeOpen)" disabled="@Running" @onclick="() => metronomeOpen = !metronomeOpen">
-                <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M5.5 17.5L8 3H12L14.5 17.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><path d="M10 14L14.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="13.1" cy="8.4" r="1.6" fill="currentColor" /></svg>
-            </button>
-            @if (metronomeOpen && !Running)
-            {
-                <div class="tempo-pop metronome-pop" role="dialog" aria-label="The metronome">
-                    <span class="metronome-label">Heard on</span>
-                    <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
-                    <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = true)"><span class="mu-led"></span>Piano</button>
-                    <span class="metronome-label">Sound</span>
-                    <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Wood)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Wood)"><span class="mu-led"></span>Wood</button>
-                    <button type="button" class="mu-toggle" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Beep)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Beep)"><span class="mu-led"></span>Beep</button>
-                    <span class="metronome-label">Volume</span>
-                    <input type="range" class="control-range" min="10" max="100" step="5" value="@Settings.ClickVolume" aria-label="Click volume" @onchange="e => SaveClick(() => Settings.ClickVolume = int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
-                    <span class="metronome-value">@Settings.ClickVolume%</span>
-                    <button type="button" class="mu-btn" @onclick="() => metronomeOpen = false">Done</button>
-                </div>
-            }
-        </span>
-    }
-    @if (ShowFullScreen)
-    {
-        <FullScreenKey OnFullScreen="OnFullScreen" />
-    }
-</div>
+@Extra
+@if (ShowMore && (Metronome || Marks || Music is not null || ChildContent is not null || OnExplain.HasDelegate))
+{
+    <PlayMore Running="Running" Metronome="Metronome" Ticking="Ticking" OnClickAlone="OnClickAlone" OnClickChanged="OnClickChanged" Marks="Marks"
+              OnExplain="OnExplain" Explaining="Explaining" Music="Music">@ChildContent</PlayMore>
+}
+@if (ShowFullScreen && Full.On)
+{
+    <FullScreenKey OnFullScreen="OnFullScreen" />
+}
 
 @code {
-    /// <summary>The screen's own keys, first among the tools: a piece's page turns, its print.</summary>
+    /// <summary>The screen's own keys, first on the bar: a piece's page turns.</summary>
     [Parameter] public RenderFragment? Extra { get; set; }
+
+    /// <summary>More, unless the bar is a slim strip (a piece's Play).</summary>
+    [Parameter] public bool ShowMore { get; set; } = true;
+
+    /// <summary>A run playing: More is off meanwhile.</summary>
+    [Parameter] public bool Running { get; set; }
+
+    /// <summary>The click's settings in More, where the bar has a click.</summary>
+    [Parameter] public bool Metronome { get; set; }
+
+    /// <summary>The click going by itself (the engine's metronome), and the key that starts and stops it; none on a drill's bar.</summary>
+    [Parameter] public bool Ticking { get; set; }
+
+    [Parameter] public EventCallback OnClickAlone { get; set; }
+
+    /// <summary>When the click's settings change, for a click going to start again with them.</summary>
+    [Parameter] public EventCallback OnClickChanged { get; set; }
+
+    /// <summary>The cursor and the marks while you play, on a bar whose runs are followed on the music.</summary>
+    [Parameter] public bool Marks { get; set; }
 
     /// <summary>What's this, for a screen whose music explains its symbols when tapped, and whether it's on.</summary>
     [Parameter] public EventCallback OnExplain { get; set; }
 
     [Parameter] public bool Explaining { get; set; }
 
-    /// <summary>Options, for a screen with options of its own to show in place of the music, and whether they show.</summary>
-    [Parameter] public EventCallback OnOptions { get; set; }
+    /// <summary>The screen's own rows in More's group for the music.</summary>
+    [Parameter] public RenderFragment? Music { get; set; }
 
-    [Parameter] public bool OptionsOpen { get; set; }
+    /// <summary>The screen's own groups in More.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>The metronome's settings, where the bar has a metronome.</summary>
-    [Parameter] public bool Metronome { get; set; }
-
-    /// <summary>When the click's settings change, for a metronome going to start again with them.</summary>
-    [Parameter] public EventCallback OnClickChanged { get; set; }
-
-    /// <summary>Full screen's key.</summary>
+    /// <summary>Full screen's key on the bar while full screen is on, the head and its key gone.</summary>
     [Parameter] public bool ShowFullScreen { get; set; } = true;
 
-    /// <summary>
-    /// For a screen that does more as it goes in and out of full screen (a piece's Practice): the key asks it, and it asks
-    /// <see cref="Prima.UI.Practice.FullScreen"/>. Otherwise the key turns full screen on and off itself.
-    /// </summary>
+    /// <summary>For a screen that does more as it goes in and out of full screen (a piece's Practice), asked by the key.</summary>
     [Parameter] public EventCallback OnFullScreen { get; set; }
 
-    /// <summary>A run playing: the keys that open something are off meanwhile.</summary>
-    [Parameter] public bool Running { get; set; }
+    protected override void OnInitialized() => Full.Changed += Redraw;
 
-    private bool metronomeOpen;
+    private void Redraw() => _ = InvokeAsync(StateHasChanged);
 
-    private static string On(bool on) => on ? "true" : "false";
-
-    protected override void OnParametersSet()
-    {
-        if (Running) metronomeOpen = false;
-    }
-
-    // The click's settings changed on the metronome's popover: kept, and a metronome going starts again with them.
-    private async Task SaveClick(Action change)
-    {
-        change();
-        await Store.SaveAsync(Settings);
-        await OnClickChanged.InvokeAsync();
-    }
+    public void Dispose() => Full.Changed -= Redraw;
 }

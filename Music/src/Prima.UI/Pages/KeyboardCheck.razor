@@ -4,10 +4,11 @@
 @inject IClock Clock
 @inject PrimaSettings Settings
 @inject PrimaStore Store
+@inject AppNavigation Navigation
 
 <PageTitle>Keyboard check · Prima</PageTitle>
 
-<PageHead Title="Keyboard check" Kicker="Tools"><KeyboardLamp /></PageHead>
+<PageHead Title="Keyboard check" Kicker="Tools" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))" Lamp="true" />
 
 @if (Keyboard.Name is null)
 {

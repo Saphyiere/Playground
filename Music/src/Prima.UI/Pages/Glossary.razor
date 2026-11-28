@@ -1,10 +1,11 @@
 @page "/glossary"
 @inject IJSRuntime JS
+@inject AppNavigation Navigation
 @using Prima.UI.Glossary
 
 <PageTitle>Glossary · Prima</PageTitle>
 
-<PageHead Title="Glossary" Kicker="Everything on a sheet of music"><KeyboardLamp /></PageHead>
+<PageHead Title="Glossary" Kicker="Everything on a sheet of music" Back="@(Navigation.PreviousName ?? "Tools")" OnBack="@(() => Navigation.BackAsync("tools"))" Lamp="true" />
 
 <input class="text-field glossary-search" type="search" placeholder="Search a name, or what it looks like: a curved line, dots, a hairpin…" aria-label="Search the glossary" @bind="query" @bind:event="oninput" />
 

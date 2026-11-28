@@ -18,16 +18,10 @@
    kind or level), and what's chosen there is beside them: a composer's works by kind, a work's movements in order with the
    other versions of it, or a list of pieces. Each column scrolls by itself. *@
 <div class="lib">
-    <header class="page-head">
-        <div>
-            <p class="page-kicker">@if (loaded) { @Counted() } else { <text>&nbsp;</text> }</p>
-            <h1 class="page-title">Library</h1>
-        </div>
-        <div class="head-tools">
-            <input class="text-field head-search" type="search" placeholder="Find a piece or a composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
-            <button type="button" class="mu-btn" @onclick="Import">Import files</button>
-        </div>
-    </header>
+    <PageHead Title="Library" Kicker="@(loaded ? Counted() : "\u00a0")">
+        <input class="text-field head-search" type="search" placeholder="Find a piece or a composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
+        <button type="button" class="mu-btn" @onclick="Import">Import files</button>
+    </PageHead>
 
     @if (Prep.Running)
     {
