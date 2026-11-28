@@ -4886,45 +4886,6 @@ html[data-full] .bar-strip {
     cursor: default;
 }
 
-/* Practice's bar on a piece: its tools at its start, beside the level; the metronome's key, the tempo (and the piece's own, once
-   it's been changed), the mode and the run's keys at its end. In portrait the metronome's key starts the run's row. */
-.play-bar.piece-bar:not(.play-strip) .piece-actions {
-    margin-left: 0;
-}
-
-.play-bar.piece-bar .play-metronome {
-    margin-left: auto;
-}
-
-.play-bar.piece-bar .play-metronome ~ .play-mode {
-    margin-left: 0;
-}
-
-@media (orientation: portrait) {
-    .play-bar.piece-bar .play-metronome {
-        margin-left: 0;
-    }
-}
-
-/* The metronome's key: a play mark to start it, a pause mark lit while it goes; as quiet as the tempo's figure beside it. */
-.play-metronome {
-    width: 40px;
-    height: 44px;
-    display: inline-grid;
-    place-items: center;
-    padding: 0;
-    border: 0;
-    border-radius: var(--mu-r-control);
-    background: none;
-    color: inherit;
-    cursor: pointer;
-}
-
-.play-metronome[aria-pressed="true"] {
-    color: var(--accent);
-    background: var(--meter-off);
-}
-
 /* The piece's own tempo beside the one set, once that's been changed: a quieter figure, a tap going back to it. */
 .play-tempo-original {
     display: flex;
@@ -5302,35 +5263,8 @@ html[data-full] .piece .summary {
     white-space: nowrap;
 }
 
-.piece-bar-title {
-    display: none;
-}
-
-/* Portrait: the page as large as it goes, under a slim bar with the title in it, whole. Of the head only the way back is
-   kept, over the bar (the look back keeps all of its head). */
+/* Portrait: the page as large as it goes. */
 @media (orientation: portrait) {
-    .piece:not(.piece-lookback) .reading-head .page-kicker,
-    .piece:not(.piece-lookback) .reading-head .page-title,
-    .piece:not(.piece-lookback) .reading-head .practice-strip,
-    .piece:not(.piece-lookback) .reading-head .mu-status {
-        display: none;
-    }
-
-    .piece .reading-head .way-back {
-        margin-bottom: 0;
-    }
-
-    .piece-bar-title {
-        display: block;
-        flex: 1 1 100%;
-        margin: 0;
-        overflow-wrap: anywhere;
-        font-family: var(--mu-name);
-        font-size: 17px;
-        line-height: 22px;
-        font-weight: 700;
-    }
-
     .piece-bar {
         flex-wrap: wrap;
         row-gap: 6px;
@@ -5691,50 +5625,11 @@ html[data-full] .piece .summary {
         flex-basis: 100%;
         height: 0;
     }
-
-    .piece-bar .piece-actions {
-        margin-left: auto;
-    }
-
-    .piece-bar .play-mode {
-        margin-left: 0;
-    }
-
-    .piece-bar .play-mode ~ .mu-btn.mu-primary {
-        margin-left: auto;
-    }
 }
 
-/* After a run, its figure leads the piece's bar: in landscape in the level's place (the level is About's too, and back as the
-   next run starts), so the run's keys keep their one row; in portrait beside the level, over the run's controls. Where a row
-   is still short of room, a key's words take two lines. */
+/* Where a row is short of room, a key's words take two lines, centred. */
 .piece-bar .mu-btn {
     text-align: center;
-}
-
-@media (orientation: landscape) {
-    .piece-bar .play-result {
-        order: -1;
-    }
-
-    .piece-bar:has(.play-result) .piece-level {
-        display: none;
-    }
-}
-
-@media (orientation: portrait) {
-    .piece-bar .play-result {
-        order: 1;
-    }
-
-    .piece-bar .piece-actions {
-        order: 2;
-    }
-
-    .piece-bar .play-bar-break,
-    .piece-bar .play-bar-break ~ :not(.play-result) {
-        order: 3;
-    }
 }
 
 /* A row of choices, tidy: its toggles share the row alike (a number as wide as a word beside it), up to a size, never narrower
@@ -7148,7 +7043,10 @@ html[data-full] .piece .summary {
     margin-right: 20px;
 }
 
-.practice-clock {
+/* The session's clocks, and any figure in a play screen's foot (a drill's target and set, a routine's time, the level): a small
+   screen each. */
+.practice-clock,
+.play-foot .mu-readout {
     flex-direction: column;
     padding: 5px 14px 6px;
     border-radius: 6px;
@@ -7157,7 +7055,8 @@ html[data-full] .piece .summary {
     box-shadow: var(--shadow-bezel);
 }
 
-.practice-clock .mu-readout-value {
+.practice-clock .mu-readout-value,
+.play-foot .mu-readout-value {
     font-size: 22px;
     line-height: 26px;
 }
@@ -7166,13 +7065,15 @@ html[data-full] .piece .summary {
     color: var(--on-screen-muted);
 }
 
-[data-theme="vinyl"] .practice-clock {
+[data-theme="vinyl"] .practice-clock,
+[data-theme="vinyl"] .play-foot .mu-readout {
     background: var(--surface);
     border-radius: 0;
     box-shadow: none;
 }
 
-[data-theme="vinyl"] .practice-clock .mu-readout-value {
+[data-theme="vinyl"] .practice-clock .mu-readout-value,
+[data-theme="vinyl"] .play-foot .mu-readout-value {
     font-size: 28px;
     line-height: 30px;
 }
@@ -7185,8 +7086,7 @@ html[data-full] .piece .summary {
     margin-left: 0;
 }
 
-html:not([data-full]) .piece-finish,
-html[data-full] .piece-title-row .practice-strip {
+html:not([data-full]) .piece-finish {
     display: none;
 }
 
@@ -7199,19 +7099,6 @@ html[data-full] .piece-title-row .practice-strip {
 /* A run's review in a practice session: Finish practice first in its keys, set a little apart from Again. */
 .review-keys .review-finish {
     margin-right: 16px;
-}
-
-/* Landscape narrower than the tablet's 1557 px (the preview's 1280): it takes the level's place, as a run's figure does, and
-   Studio's keys sit a little closer, so a piece in pages, with a loop for one hand and its tempo changed, keeps its keys on
-   one row. */
-@media (orientation: landscape) and (max-width: 1540px) {
-    html[data-full] .play-bar.piece-bar:has(.piece-finish) .piece-level {
-        display: none;
-    }
-
-    html[data-full]:not([data-theme="vinyl"]) .play-bar.piece-bar:has(.piece-finish) {
-        gap: 22px;
-    }
 }
 
 /* The session paused: the page covered, a card in its middle asking whether you're still practicing. */
@@ -7269,36 +7156,6 @@ html[data-full] .piece-title-row .practice-strip {
 }
 
 /* The session's clocks in the bar's title row are portrait's; landscape has them in the head. */
-.piece-title-row {
-    display: contents;
-}
-
-.piece-title-row .practice-strip {
-    display: none;
-}
-
-/* Play's strip: the piece's name first, its tempo and Start, then Done. */
-.play-strip .piece-bar-title {
-    display: block;
-    flex: 1 1 auto;
-    margin: 0;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--mu-name);
-    font-size: 18px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .play-strip .piece-bar-title {
-    font-size: 26px;
-    font-weight: 400;
-}
-
 .play-strip .piece-actions {
     order: 5;
 }
@@ -7864,104 +7721,6 @@ html[data-full] .piece-title-row .practice-strip {
 
 .play-quick-keys .mu-btn:last-child {
     margin-left: 0;
-}
-
-@media (orientation: portrait) {
-    .piece-title-row {
-        display: flex;
-        flex: 1 1 100%;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-    }
-
-    .piece-title-row .piece-bar-title {
-        flex: 1 1 auto;
-    }
-
-    .piece-title-row .practice-strip {
-        display: flex;
-        margin: 0;
-    }
-
-    .piece-title-row .practice-clock {
-        flex-direction: row;
-        align-items: baseline;
-        gap: 8px;
-        padding: 2px 10px;
-        box-shadow: none;
-    }
-
-    .piece-title-row .practice-clock .mu-readout-value {
-        font-size: 18px;
-        line-height: 22px;
-    }
-
-    .piece-title-row .mu-btn {
-        min-height: 38px;
-        height: 38px;
-        padding: 0 14px;
-    }
-
-    /* The look back has the page's head in portrait too: what was practiced, and when. */
-    .piece-lookback .reading-head {
-        display: flex;
-    }
-
-    .practice-strip {
-        margin-right: 12px;
-        gap: 8px;
-    }
-
-    .practice-strip .mu-btn {
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
-    /* Where the piece stands over what to do next, each the page's width. */
-    .look-now {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .look-head {
-        flex-wrap: wrap;
-        row-gap: 4px;
-    }
-
-    .look-row {
-        grid-template-columns: minmax(0, 1fr) 200px;
-        grid-template-areas: "name figs" "spark spark" "tempo tempo";
-        row-gap: 8px;
-    }
-
-    .look-name {
-        grid-area: name;
-    }
-
-    .look-spark {
-        grid-area: spark;
-    }
-
-    .look-row > .look-figs:not(.look-tempo) {
-        grid-area: figs;
-    }
-
-    .look-tempo {
-        grid-area: tempo;
-        flex-direction: row;
-        gap: 10px;
-        align-items: baseline;
-    }
-
-    .deep-review {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "head" "lines" "bars";
-    }
-
-    .review-head.mu-screen {
-        flex-wrap: wrap;
-        row-gap: 12px;
-    }
 }
 
 /* =====================================================================================================================
@@ -11571,4 +11330,267 @@ html[data-theme^="porcelain"] .opening-mark {
     .opening .opening-porcelain * {
         animation: none;
     }
+
+/* ——— The practice screen ———
+   Every screen that plays music is one screen, top to bottom: the head (every screen's, PageHead), the music taking the rest of
+   the screen, a run's review under it, the play bar near the hands, and the foot (what this one is, and the way on). The owner,
+   28 November 2026, on the wireframes' C: "the change, the next, the practice ... the one practice screen for all of it". Only
+   placing here: the looks colour and set what's placed. */
+
+/* The head's keys, on its right: the screen's own, About, full screen's, the piano's lamp, in that order, centred on each other. */
+.page-head > .page-head-keys {
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.page-head-name {
+    min-width: 0;
+}
+
+/* A search among the head's keys keeps its width, giving way only where the screen is narrow (Settings'). */
+.page-head > .page-head-keys:has(> input) {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.page-head-keys > .settings-search {
+    width: 400px;
+}
+
+.head-about {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* The music takes what the head, the review, the bar and the foot leave; they keep their own heights. Its paper fills its room
+   down to the review or the bar, however few lines it has. */
+:is(.practice-page, .piece-fit) .piece-frame.sheet-frame > .sheet,
+.reading-on > .sheet-frame > .sheet {
+    min-height: 100%;
+    box-sizing: border-box;
+}
+
+:is(.practice-page, .piece-fit) > :is(.play-bar, .play-foot, .summary, .play-quick) {
+    flex: none;
+}
+
+.reading-on > .sheet-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.reading-on {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* The bar: one row in landscape, the screen's own keys and More at its start, the run's at its end, near each other. In
+   portrait, More and the hands, then the run's other controls with Listen and Play at the row's end. */
+.play-bar.piece-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.play-bar.piece-bar > * {
+    margin-left: 0;
+}
+
+.play-bar.piece-bar > .play-mode,
+.play-bar.piece-bar > .mu-btn {
+    margin-left: 0;
+}
+
+.play-bar-gap {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* The choices' segments a little narrower on the bar than elsewhere, so the hands, the mode, the tempo, Loop, Listen and a
+   long Play ("Loop bars 13–16 from bar 15") keep one row beside the rail at 1280 px. */
+.play-bar .play-mode-option {
+    padding-left: 11px;
+    padding-right: 11px;
+}
+
+.play-bar-gap-portrait {
+    display: none;
+}
+
+@media (orientation: portrait) {
+    .play-bar-gap-portrait {
+        display: block;
+    }
+}
+
+/* Play is the last key of the run's and keeps the row's end: where a row is short of room its words take two lines first ("Loop
+   bars 13–16 from bar 15"), and where it's shorter still (Vinyl's wider rail at 1280 px) Play takes the next row, at its end. */
+.play-bar.piece-bar > .play-start {
+    flex: 1 1 140px;
+    min-width: 140px;
+    max-width: 240px;
+    margin-left: auto;
+    white-space: normal;
+}
+
+/* What opens from the bar opens upward, over the music: the tempo's − and +, and what a key needs said. */
+.play-bar .tempo-pop {
+    top: auto;
+    bottom: calc(100% + 10px);
+}
+
+.play-bar .tempo-pop.play-why {
+    right: 0;
+    left: auto;
+}
+
+/* More: the key, its lamp lit while the click goes by itself; its panel over the music, upward from the bar, its groups side by
+   side where they fit, Done under them. */
+.play-more-key {
+    position: relative;
+}
+
+.play-more-lamp {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+
+.change-panel.play-more {
+    inset: auto 0 calc(100% + 10px) 0;
+    max-height: min(68vh, 620px);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    align-content: start;
+    align-items: start;
+    gap: 18px 36px;
+}
+
+.play-more .more-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.play-more .more-head {
+    margin: 0;
+}
+
+.play-more .change-panel-end {
+    grid-column: 1 / -1;
+}
+
+.play-more .control-row {
+    flex-wrap: wrap;
+}
+
+/* The hands on the bar: each option its hands drawn and its word, as the mode's are. */
+.hands-choice .play-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hands-choice-icons {
+    display: inline-flex;
+}
+
+.hands-choice-icons .hand-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.hands-choice-icons .hand-icon + .hand-icon {
+    margin-left: -5px;
+}
+
+/* The page turns, first on the bar where the music is in pages. */
+.page-turns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The foot: on its left what this one is, on its right the way on; in portrait each takes a row where it needs one. */
+.play-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 24px;
+}
+
+.play-foot-what,
+.play-foot-on {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    min-width: 0;
+}
+
+.play-foot-on {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.play-foot-what:empty,
+.play-foot-on:empty {
+    display: none;
+}
+
+.play-foot-what:has(.bar-strip) {
+    flex: 1 1 420px;
+}
+
+.play-foot .bar-strip {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.play-foot .practice-strip {
+    margin: 0;
+}
+
+/* The next one: where it's next in, then its name; off while a run plays, as the keys that open something are. */
+.play-next[aria-disabled="true"] {
+    pointer-events: none;
+    opacity: 0.45;
+    box-shadow: none;
+}
+
+.play-next {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    text-align: left;
+}
+
+/* A routine's keys in the foot: the activity and its time, how it felt, Skip and Next. */
+.routine-foot,
+.routine-feel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px 12px;
+}
+
+/* What's this, on: the line over the music says so, with Done to end it. */
+.explain-hint .mu-btn {
+    margin-left: 10px;
+    pointer-events: auto;
+}
+
+.explain-hint:has(.mu-btn) {
+    pointer-events: auto;
+}
+
+/* About this piece where it plays, in the music's place, as an exercise's words are; under the music only on its front. */
+:is(.piece-practice, .piece-print, .piece-play) > .piece-about {
+    display: none;
 }

@@ -1,30 +1,26 @@
 @page "/routine/play/{ExecutionId}"
 @implements IAsyncDisposable
 @inject RoutineService Routines
+@inject AppNavigation Navigation
 @using System.Text.Json
 @using Prima.Core.Routines
 @using Prima.UI.Routines
 
 <PageTitle>Routine practice · Prima</PageTitle>
-<PageHead Title="@(session?.Item?.Title is { } title ? RoutineWords.American(title) : "Routine practice")" Kicker="From your piece" Class="full-hide"><KeyboardLamp /></PageHead>
+<PageHead Title="@(session?.Item?.Title is { } title ? RoutineWords.American(title) : "Routine practice")" Kicker="From your piece" Class="full-hide" Back="@(Navigation.PreviousName ?? "Routine")" OnBack="Leave" FullScreen="@(music is not null)" Lamp="true" />
 
-@if (session is not null)
-{
-    <RoutineBar Session="session" BeforeLeaving="StopAndSave" />
-}
+@* The practice screen every screen with music has: the music, a run's review under it, the play bar, and the foot, with the way to
+   the piece it's from on its left and the routine's time, Skip and Next on its right. *@
+<div class="practice-page">
 @if (problem is not null)
 {
     <p class="page-note" role="alert">@problem</p>
 }
 else if (music is not null && session?.Item is { } item)
 {
-    <div class="practice-page">
     <p class="exercise-does full-hide">@RoutineWords.American(item.Purpose)</p>
     @if (sourceWarning is not null) { <p class="section-note full-hide" role="status">@sourceWarning</p> }
     @if (item.TargetId == "rhythm") { <p class="section-note full-hide">Tap this rhythm on any key. The pitch is not judged.</p> }
-    <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
-               Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
-               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" ShowLoop="@(item.TargetId != "rhythm")" LoopChanged="Looped" />
     <div class="piece-stage">
         <div class="piece-frame sheet-frame piece-frame-scroll" data-follow=""><Sheet @ref="sheet" Mei="@(loop ? looped ??= MeiReader.WithRepeat(mei) : mei)" Layout="scroll" Class="piece-sheet" /></div>
     </div>
@@ -32,16 +28,29 @@ else if (music is not null && session?.Item is { } item)
     {
         <section class="summary" aria-label="How it went"><PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" /></section>
     }
-    @if (sourcePiece is not null)
-    {
-        <div class="control-row full-hide"><a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(sourcePiece)}{(sourceBar is { } bar ? $"?bar={bar}" : "")}")">Return to the piece</a></div>
-    }
-    </div>
+    <PlayAlong @ref="player" Name="routine-generated" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo"
+               Ask="@(item.Mode == "time" ? PlayMode.InTime : PlayMode.WaitForMe)" ShowMode="false" RhythmOnly="@(item.TargetId == "rhythm")"
+               StartLabel="Play" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" Again="true" ShowLoop="@(item.TargetId != "rhythm")" LoopChanged="Looped" />
 }
 else
 {
     <p class="page-note busy-line" role="status"><Busy />Opening the saved exercise</p>
 }
+@if (session is not null)
+{
+    <PlayFoot>
+        <What>
+            @if (problem is null && sourcePiece is not null)
+            {
+                <a class="mu-btn" data-piano="off" href="@($"library/{Uri.EscapeDataString(sourcePiece)}{(sourceBar is { } bar ? $"?bar={bar}" : "")}")">Return to the piece</a>
+            }
+        </What>
+        <WayOn>
+            <RoutineBar Session="session" BeforeLeaving="StopAndSave" />
+        </WayOn>
+    </PlayFoot>
+}
+</div>
 
 @code {
     [Parameter] public string ExecutionId { get; set; } = "";
@@ -130,6 +139,13 @@ else
     }
 
     private Task StopAndSave() => player?.StopAndSaveAsync() ?? Task.CompletedTask;
+
+    // The way back: to the routine it was opened from, by its name.
+    private async Task Leave()
+    {
+        await StopAndSave();
+        await Navigation.BackAsync(session?.Execution is { } execution ? $"routines/{execution.Revision}" : "routines");
+    }
 
     public async ValueTask DisposeAsync()
     {

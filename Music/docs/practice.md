@@ -19,13 +19,17 @@ The current feedback controls and practice history are described in [the app con
 
 ## Practice
 
-- **Practice** starts a practice session on the piece, and the page is the piece with all its tools: loops, bars to start
-  from, hands, In time and Wait for me, the tempo, Listen, Options, full screen. You start each run as before.
-- **Two clocks** beside the piece's name (in portrait, on the bar beside it): **Playing**, the time a run or Listen is going
+- **Practice** starts a practice session on the piece, and the page is the practice screen every screen with music is
+  ([concept.md](concept.md#playing-to-a-tempo)): the head (the way back, the title, About, full screen), the music, a run's
+  review under it, the play bar near the hands (More, the hands Left · Right · Both, In time and Wait for me, the tempo,
+  Loop, Listen, Play), and the foot, with the strip of bars to start from and loop on its left. More has the rest: the click,
+  the view and lyrics, What's this, the cursor and the marks, how much Practice tells you, play along. You start each run as
+  before.
+- **Two clocks** at the foot's right (none in full screen, which is for the music): **Playing**, the time a run or Listen is going
   or you're playing the piano yourself, the music stopped too (going over a bar on your own counts: a key within the last
   ten seconds *(pick)*); and **Idle**, the rest of the session: looking at the music, working out a fingering, a drink of
   water.
-- **Finish practice**, beside them, ends the session and shows the look back. Pressed while a run plays, the run stops and
+- **Finish practice**, beside them (in full screen, first on the bar), ends the session and shows the look back. Pressed while a run plays, the run stops and
   is kept with the session first.
 - **After 15 minutes with nothing played** the session pauses: the page is covered by "Still practicing?" with **Keep
   practicing** and **Finish practice**, both taps; a key played on the piano carries on too *(pick)*. Leaving the piece, or
@@ -37,8 +41,8 @@ The current feedback controls and practice history are described in [the app con
 
 ## How much Practice tells you
 
-In Settings › Practice, and on the piece's Options for a quick change. Three ways, each a set of the four settings under it,
-which Settings lets you change one by one (the piece's Options have the ways and whether a loop waits):
+In Settings › Practice, and in More on the piece's play bar for a quick change. Three ways, each a set of the four settings
+under it, which Settings lets you change one by one (More has the ways and whether a loop waits):
 
 | | Simple | Standard | Hands-on |
 | --- | --- | --- | --- |
@@ -217,3 +221,9 @@ The quick review, decided by the owner on 28 November from round two of "Prima Q
 
 12. Build it as drawn: after a run two named rows, Loop by loop, and after a session Where it went wrong ⇄ Over time.
 13. Loudness against the dynamics comes out, of the review and of Details, for now: "we can add the loudness part later".
+
+The practice screen, decided by the owner on 28 November from "Prima Practice Screen":
+
+14. One practice screen for a piece and an exercise (28 November 2026, the wireframes' C): the head, the music, a run's review,
+    the play bar under the music near the hands, and the foot; More for what a run doesn't need every time; the hands Left,
+    Right or Both, one tap each.

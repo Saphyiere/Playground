@@ -71,7 +71,7 @@ public class SightReadTests
 
         // ▶ reads a passage at level 1.
         await view.InvokeAsync(() => keys[0].ClickAsync(new MouseEventArgs()));
-        view.WaitForAssertion(() => Assert.Equal("1", Readout(view, ".play-bar", "Level")));
+        view.WaitForAssertion(() => Assert.Equal("1", Readout(view, ".play-foot", "Level")));
     }
 
     // The first screen's main key: a passage, and its look with Start in the play bar.

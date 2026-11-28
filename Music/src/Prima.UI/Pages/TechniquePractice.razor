@@ -13,70 +13,21 @@
 
 <PageTitle>@Title · Prima</PageTitle>
 
-<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
+<PageHead Title="@Title" Kicker="@(item?.Name ?? "Technique")" Class="full-hide" Back="@WayBack" OnBack="Leave" FullScreen="true" Lamp="true" />
 
-@* What to play is yours to choose, whatever your reading level: the key (any of them in one tap, on the piano) or all the keys
-   one after another, the form, the octaves, the hands. What's chosen shows on a card above the play bar, Change opening it all
-   over the music; Today's goes back to the day's plan. Then the play bar every screen with music shares, and the music in a
-   piece's paper frame, taking the rest of the screen, as an exercise's page does; in full screen only the two. *@
+@* The practice screen every screen with music has, top to bottom: the head; the music in a piece's paper frame, taking the rest
+   of the screen, with Change's choices over it (the key, any of them in one tap on the piano, or all the keys one after another,
+   the form, the octaves; Today's goes back to the day's plan); a run's review; the play bar every screen with music shares, the
+   hands on it; and the foot, what's chosen on its card with the target and the set, then the way on. In full screen only the
+   music, the review and the bar. What to play is yours to choose, whatever your reading level. *@
 <div class="practice-page">
-<section class="practice-choice technique-choice full-hide" aria-label="What to play">
-    <ChoiceCard Key="choice.Key" KeyNote="@FormName()" Hands="choice.Hands" Open="changing" OnChange="ToggleChange" Disabled="playing">
-        @if (Key == "independence")
-        {
-            <span class="choice-fact">@Patterns.First(p => p.Pattern == choice.Pattern).Name</span>
-        }
-        else
-        {
-            <span class="choice-fact"><MusicIcon Kind="octave" />@OctavesName(choice.Octaves)</span>
-        }
-        @if (through)
-        {
-            <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
-        }
-    </ChoiceCard>
-    <p class="control-note">@(runs <= TechniqueState.RunsPerSet ? $"Runs {runs} of {TechniqueState.RunsPerSet}." : $"{runs} runs: a set is {TechniqueState.RunsPerSet}.") Stop if anything hurts.</p>
-</section>
-
-<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
-<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Run" CanStart="@(routineSession?.IsRoutine == true || loop || through || runs < TechniqueState.RunsPerSet)" ShowLoop="true" LoopChanged="Looped" Ask="@Asked" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)">
-    <Readouts>
-        <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
-        @if (routineSession?.Rcm is { } rcm)
-        {
-            <div class="mu-readout"><span class="mu-readout-label">RCM @rcm.Activity.LevelName</span><span class="mu-readout-value">♩ @rcm.Activity.Rcm.ToString("0", System.Globalization.CultureInfo.InvariantCulture)</span></div>
-        }
-    </Readouts>
-</PlayAlong>
-
 @if (through)
 {
-    <p class="page-note full-hide">Play in each key, starting in @choice.Key.Name. The tempo stays the same.</p>
+    <p class="page-note full-hide">Play in each key, starting in @choice.Key.Name. The tempo stays the same. Stop if anything hurts.</p>
 }
 else if (FirstRun)
 {
-    <p class="page-note full-hide">Play once at your own pace. Timed practice starts just below that tempo.</p>
-}
-@if (!playing && (runs >= 3 || (From == "today" && Key == "scales")))
-{
-    @* The way on. From Today the scale leads to the arpeggio, at any time (so coming back to the step doesn't mean the scale
-       again), and the arpeggio back to the day once it's had its three runs; from anywhere else, three runs lead back to the
-       drills. With all five played the way on is the orange key, and another set is offered beside it. *@
-    var set = runs >= TechniqueState.RunsPerSet;
-    <div class="control-row full-hide">
-        @if (From == "today" && Key == "scales")
-        {
-            <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : null)" href="drills/arpeggios?from=today">Next: the arpeggio</a>
-        }
-        else
-        {
-            <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : null)" href="@(From == "today" ? "" : "exercises?type=drills")">Done</a>
-        }
-        @if (set)
-        {
-            <button type="button" class="mu-btn" @onclick="() => runs = 0">Another set</button>
-        }
-    </div>
+    <p class="page-note full-hide">Play once at your own pace. Timed practice starts just below that tempo. Stop if anything hurts.</p>
 }
 
 <div class="piece-stage">
@@ -135,10 +86,6 @@ else if (FirstRun)
                         </div>
                     </div>
                 }
-                <div class="control-row">
-                    <span class="control-label">Hands</span>
-                    <HandsChoice Offered="AllHands" Value="choice.Hands" ValueChanged="h => Choose(choice with { Hands = h })" Disabled="playing" />
-                </div>
             </ChildContent>
             <Extra>
                 @if (choice != today with { Hands = choice.Hands })
@@ -189,10 +136,62 @@ else if (FirstRun)
 }
 else if (review is not null && outcome is { Wait: not null } or { InTime: not null })
 {
-    <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review">
-        <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"You played at about {bpm:0} BPM. Timed practice starts at {state.Tempo:0} BPM." : "Wait for notes records first-try accuracy.")</li>
-    </PlaySummary>
+    <section class="summary" aria-label="The run">
+        <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review">
+            <li>@(through ? "A run through the keys is practice for the notes: it isn't measured for evenness, and no key's tempo moves." : comfortable is { } bpm ? $"You played at about {bpm:0} BPM. Timed practice starts at {state.Tempo:0} BPM." : "Wait for notes records first-try accuracy.")</li>
+        </PlaySummary>
+    </section>
 }
+
+<PlayAlong @ref="player" @key="Key" Name="@Key" Music="music" SheetOf="() => sheet" Tempo="Tempo" TempoChanged="SetTempo" StartLabel="Play" CanStart="@(routineSession?.IsRoutine == true || loop || through || runs < TechniqueState.RunsPerSet)" ShowLoop="true" LoopChanged="Looped" Ask="@Asked" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" Again="@(routineSession?.IsRoutine == true)"
+           ShowListen="true" OnListened="() => playing = false" Hands="AllHands" Hand="choice.Hands" HandChanged="h => Choose(choice with { Hands = h })" />
+
+<PlayFoot>
+    <What>
+        <ChoiceCard Key="choice.Key" KeyNote="@FormName()" Open="changing" OnChange="ToggleChange" Disabled="playing">
+            @if (Key == "independence")
+            {
+                <span class="choice-fact">@Patterns.First(p => p.Pattern == choice.Pattern).Name</span>
+            }
+            else
+            {
+                <span class="choice-fact"><MusicIcon Kind="octave" />@OctavesName(choice.Octaves)</span>
+            }
+            @if (through)
+            {
+                <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
+            }
+        </ChoiceCard>
+        <div class="mu-readout"><span class="mu-readout-label">Target</span><span class="mu-readout-value">@(state.Target is { } t ? $"±{t:0}%" : "First week")</span></div>
+        @if (routineSession?.Rcm is { } rcm)
+        {
+            <div class="mu-readout"><span class="mu-readout-label">RCM @rcm.Activity.LevelName</span><span class="mu-readout-value">♩ @rcm.Activity.Rcm.ToString("0", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+        }
+        <div class="mu-readout technique-runs"><span class="mu-readout-label">Runs</span><span class="mu-readout-value">@(runs <= TechniqueState.RunsPerSet ? $"{runs} of {TechniqueState.RunsPerSet}" : $"{runs}")</span></div>
+    </What>
+    <WayOn>
+        @if (!playing && (runs >= 3 || (From == "today" && Key == "scales")))
+        {
+            @* The way on. From Today the scale leads to the arpeggio, at any time (so coming back to the step doesn't mean the scale
+               again), and the arpeggio back to the day once it's had its three runs; from anywhere else, three runs lead back to the
+               drills. With all five played the way on is the orange key, and another set is offered beside it. *@
+            var set = runs >= TechniqueState.RunsPerSet;
+            @if (set)
+            {
+                <button type="button" class="mu-btn" data-piano="off" @onclick="() => runs = 0">Another set</button>
+            }
+            @if (From == "today" && Key == "scales")
+            {
+                <a class="mu-btn play-next @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : "off")" href="drills/arpeggios?from=today"><span class="play-next-where">Next</span><span class="play-next-what">The arpeggio ›</span></a>
+            }
+            else
+            {
+                <a class="mu-btn @(set ? "mu-primary" : "")" data-piano="@(set ? "go" : "off")" href="@(From == "today" ? "" : "exercises?type=drills")">Done</a>
+            }
+        }
+        <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+    </WayOn>
+</PlayFoot>
 </div>
 
 @code {

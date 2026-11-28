@@ -14,14 +14,8 @@
 
 <PageTitle>Sight-read · Prima</PageTitle>
 
-<div class="reading @(stage == Stage.Choose ? "" : "reading-on")">
-    <header class="reading-head full-hide">
-        <div>
-            <p class="page-kicker">@Kicker()</p>
-            <h1 class="page-title">@(passage?.Description ?? (Spot == 1 ? "One spot" : "Sight-read"))</h1>
-        </div>
-        <KeyboardLamp />
-    </header>
+<div class="reading @(stage == Stage.Choose ? "" : "reading-on practice-page")">
+    <PageHead Title="@(passage?.Description ?? (Spot == 1 ? "One spot" : "Sight-read"))" Kicker="@Kicker()" Class="full-hide" FullScreen="@(stage != Stage.Choose && passage is not null)" Lamp="true" />
 
     @if (stage == Stage.Choose && Spot == 1)
     {
@@ -89,28 +83,9 @@
     }
     else if (passage is not null)
     {
-        @* The play bar every tempo screen shares. Its Start in the look is the piano's go key too (a deliberate press: trying a bar
-           doesn't count); the look's end starts the run by itself unless Settings says to wait for Start, or there's no piano to
-           play on: then Start stays, and the bar says why. *@
-        <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
-            <Readouts>
-                @if (stage == Stage.Hear && session is { Phase: Phase.CountIn })
-                {
-                    <CountIn Session="session" />
-                }
-                else if (stage != Stage.Run)
-                {
-                    <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
-                }
-                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
-                @if (stage == Stage.Look && LookSeconds is not null)
-                {
-                    <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
-                }
-            </Readouts>
-        </PlayAlong>
-
-        @* One spot's single bar is shown larger, at about its printed width, not stretched across the sheet. *@
+        @* The practice screen every screen with music has: the passage, a run's review under it, the play bar, and the foot with
+           the level and what's next. One spot's single bar is shown larger, at about its printed width, not stretched across the
+           sheet. *@
         <div class="sheet-frame @(spotPart == 1 ? "spot-frame" : "")">
             <Sheet @ref="sheet" Mei="@mei" Measures="@measures" Onsets="@onsets" Scale="@(spotPart == 1 ? 1.25 : 1)" OnNoteTapped="Tapped" />
         </div>
@@ -121,19 +96,6 @@
                 <PlaySummary Outcome="waited" StoppedAt="@($"bar {waited.Bar}")">
                     <li>Wait for notes records first-try accuracy. Timed passages count toward your level.</li>
                 </PlaySummary>
-                <div class="control-row">
-                    @if (spotPart == 1)
-                    {
-                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
-                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">Repeat this bar</button>
-                    }
-                    else
-                    {
-                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
-                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
-                    }
-                    <button type="button" class="mu-btn" @onclick="Done">Done</button>
-                </div>
             </section>
         }
         else if (stage == Stage.Summary && timed is not null && result is not null)
@@ -154,10 +116,56 @@
                     <Timeline Result="result" />
                 }
                 <div class="control-row">
+                    <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide note by note" : "Note by note")</button>
+                </div>
+            </section>
+        }
+
+        @* The play bar every tempo screen shares. Its Start in the look is the piano's go key too (a deliberate press: trying a bar
+           doesn't count); the look's end starts the run by itself unless Settings says to wait for Start, or there's no piano to
+           play on: then Start stays, and the bar says why. *@
+        <PlayAlong @ref="play" Name="sight-read" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Start" ShowStart="@(stage == Stage.Look)" OnStart="Run" OnStarting="Starting" OnFinished="Finished">
+            <Readouts>
+                @if (stage == Stage.Hear && session is { Phase: Phase.CountIn })
+                {
+                    <CountIn Session="session" />
+                }
+                else if (stage != Stage.Run)
+                {
+                    <div class="mu-readout"><span class="mu-readout-label">@PhaseName()</span><span class="mu-readout-value">@PhaseValue()</span></div>
+                }
+                @if (stage == Stage.Look && LookSeconds is not null)
+                {
+                    <div class="reading-look"><span style="width: @(LookShare().ToString("0.###", CultureInfo.InvariantCulture))%"></span></div>
+                }
+            </Readouts>
+        </PlayAlong>
+
+        <PlayFoot>
+            <What>
+                <div class="mu-readout"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@passage.Spec.Level</span></div>
+            </What>
+            <WayOn>
+                @if (stage == Stage.Summary && waited is not null)
+                {
                     @if (spotPart == 1)
                     {
-                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
                         <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">Repeat this bar</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
+                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
+                    }
+                    <button type="button" class="mu-btn" @onclick="Done">Done</button>
+                }
+                else if (stage == Stage.Summary && timed is not null && result is not null)
+                {
+                    @if (spotPart == 1)
+                    {
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="() => StartSpot(1)">Repeat this bar</button>
+                        <button type="button" class="mu-btn mu-primary" data-piano="go" @onclick="() => StartSpot(2)">Play the surrounding bars</button>
                     }
                     else if (spotPart == 2)
                     {
@@ -169,16 +177,15 @@
                     }
                     else
                     {
-                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
-                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
-                        <button type="button" class="mu-btn" @onclick="Slower">Slower</button>
                         <button type="button" class="mu-btn" @onclick="FindLevel">Find my level</button>
+                        <button type="button" class="mu-btn" @onclick="Slower">Slower</button>
+                        <button type="button" class="mu-btn" data-piano="again" @onclick="Again">Again</button>
+                        <button type="button" class="mu-play" aria-label="Next passage" data-piano="go" @onclick="NewPassage"><svg viewBox="0 0 20 20" width="28" height="28" aria-hidden="true"><path d="M6 3L17 10L6 17Z" fill="currentColor"></path></svg></button>
                     }
-                    <button type="button" class="mu-btn" @onclick="() => showTimeline = !showTimeline">@(showTimeline ? "Hide note by note" : "Note by note")</button>
                     <button type="button" class="mu-btn" data-piano="@(spotPart == 2 ? "go" : null)" @onclick="Done">Done</button>
-                </div>
-            </section>
-        }
+                }
+            </WayOn>
+        </PlayFoot>
     }
 </div>
 

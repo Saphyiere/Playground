@@ -90,8 +90,8 @@ page "Prima in Motion", https://claude.ai/artifact/HDkvVecovjYqnYaj3tLjJi):
 - **Claude at work.** A routine being made shows notes written onto a staff one after another, and how long it's been asked; a
   PDF being read marks the batch Claude is reading now, lights each batch saved and fills a meter by the count.
 - **The play bar and the music.** Pop-ups come out of their key, lamps warm up, the keys a run turns off dim, what comes into the
-  bar as a run starts or ends fades in where it goes (the count-in comes at once), Options and How fade in over the music, and
-  full screen slides the bar and the music to their places as the rail and head fade. On a piece's or an exercise's stage the
+  bar as a run starts or ends fades in where it goes (the count-in comes at once), More, Change and About fade in over the
+  music, and full screen slides the bar and the music to their places as the rail, the head and the foot fade. On a piece's or an exercise's stage the
   music fades onto its paper as it's drawn; never while a run plays, and never on the drills that time how soon you answer.
 - **Remove animations** (Android's setting) keeps the fades, quicker, and stills the rest: nothing travels, turns or sweeps.
 
@@ -156,18 +156,28 @@ can be turned off in Settings.
 
 ### Playing to a tempo
 
-Every screen that plays music to a tempo has the same play bar, the engine's toolbar over the music, with its keys in the same
-places everywhere: the screen's own figures first (a piece's level, a drill's target), then its **tools** (a screen's own,
-like a piece's page turns and its print; then What's this, Options, the metronome's settings and **full screen**, each where
-the screen has it), and at the bar's end the run's: the **metronome** (its play key, then the tempo, and the music's own
-tempo to go back to once it's been changed), the mode, Loop, Start (the piano's C♯4) and Listen. Sight-read, a Library piece,
-an exercise, a routine's exercise, Scales, Arpeggios and Finger independence all play this way: it's the one engine for music
-played to a tempo, so what it can do (the modes, the metronome, full screen, Listen, Loop) is the same wherever it is, and a
-screen only says which of its keys it has. The reading drills, Rhythm, Listen and play back and Endless notes run their own
-sets, and their bars are laid out the same: their figures, the same tools, then what to play now, Loop and Start at the end;
-their music is printed at the size every sheet has. **Full screen** leaves the bar and the music alone on any of these
-screens: the rail and the screen's head go (its choices and words too), and the tablet's own bars; the key again, or leaving
-the screen, brings them back. A piece's Practice goes full screen by itself.
+Every screen that plays music to a tempo is the one **practice screen**, top to bottom: the **head** every screen has (the
+way back by the name of where it goes, the screen's name, and on its right **About**, the screen's words in the music's place,
+**full screen**'s key and the piano's lamp); the **music**, taking the rest of the screen; a run's **review** under it; the
+**play bar**, near the hands; and the **foot**. The owner, 28 November 2026: "we have practices and exercises, and the issue is
+that they do the exact same thing", and of the wireframes' C, the bar under the music, "the one practice screen for all of
+it". The bar's keys are in the same places everywhere: first a screen's own (a piece's page turns), then **More**, then what
+every run needs, the **hands** (**Left**, **Right** or **Both**, one tap for the one wanted, where there's a choice), the
+mode, the **tempo**, **Loop**, **Listen** and **Play** (the piano's C♯4) at the row's end. **More** opens one panel upward
+from the bar, over the music, with what a run doesn't need every time, in groups: **The click** (**The click alone**, a click
+at the tempo with nothing judged, below; where it's heard, its sound, how loud), **The music** (a piece's view, lyrics and print,
+**What's this**, and the cursor and the marks while you play), then the screen's own (a piece's feedback after a run and its
+play along). Its key's lamp is lit while the click goes by itself; **Done** closes it, and so does a run starting. The
+**foot** has on its left what this one is (an exercise's key and variation on its card, with **Change**; a piece's bars; a
+drill's target and its runs; Sight-read's level) and on its right the way on (the next exercise in its section, a session's
+clocks and Finish practice, a routine's time, Skip and Next, Another set, the next passage). Sight-read, a Library piece and
+its PDF, an exercise, Hanon, a routine's exercise, Scales, Arpeggios and Finger independence all play this way: it's the one
+engine and the one screen for music played to a tempo, so what it can do (the modes, the click, full screen, Listen, Loop)
+is the same wherever it is, and a screen only says which of its keys it has. The reading drills, Rhythm, Listen and play back
+and Endless notes run their own sets, their bars over the music: their figures, the tools (the metronome's settings and full
+screen), then what to play now, Loop and Start at the end; their music is printed at the size every sheet has. **Full screen**
+leaves the music, the review and the bar alone: the rail, the head and the foot go, and the tablet's own bars; its key, on the
+bar while the head is gone, or leaving the screen, brings them back. A piece's Practice goes full screen by itself.
 
 - **In time**: a bar of count-in (two, in Settings), the click that never waits, the cursor moving with the beat, each note
   marked as it's played, and a summary after (see [The summary](#the-summary) and
@@ -195,24 +205,25 @@ the screen, brings them back. A piece's Practice goes full screen by itself.
   notes right first time
   (not a note with a slip, nor a chord played a key at a time first), the wrong keys, the chords not together, and notes a
   minute at your own pace.
-- The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and +, which move by a metronome's
-  marks (… 60, 63, 66, 69, 72, 76 …, carried on to 20 and 240) so a step is about the same share of the tempo, slow or fast,
-  and a field to type any tempo from 20 to 240. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
+- The mode is kept for each screen. The tempo shows as its figure; tapped, it opens its − and + over it, which move by a
+  metronome's marks (… 60, 63, 66, 69, 72, 76 …, carried on to 20 and 240) so a step is about the same share of the tempo, slow
+  or fast, a field to type any tempo from 20 to 240, and once it's been changed **Original**, the music's own tempo to go back
+  to. Stop ends a run where it is, and its summary covers the music up to the last key you played: what was
   due between that key and Stop, while the hands were on their way to the screen, isn't counted as missed. A run stopped
-  before any key leaves no summary and isn't kept. A run is played on the piano: with none plugged in, Start and Listen look
-  off, and a tap says so under the bar.
-- **While playing** (Settings › Practice, and a piece's Options) says what shows on the music In time: the **Cursor**, and the
+  before any key leaves no summary and isn't kept. A run is played on the piano: with none plugged in, Play and Listen look
+  off, and a tap says so over the bar.
+- **While playing** (Settings › Practice, and More on the play bar) says what shows on the music In time: the **Cursor**, and the
   **Marks as you play**, each on or off, for playing with only the click and the page. With the cursor off the music still
   scrolls with the run. With the marks off every note is still judged, and the marks show when the run ends, to go back
   over. Wait for me always shows where it's waiting, and "together" over a chord that needs it.
-- **Loop**, on the bar of an exercise, a technique drill and a routine's exercise, beside the mode: lit, a run doesn't end.
+- **Loop**, on every play bar after the tempo: lit, a run doesn't end.
   The music goes round and round until Stop, In time without a break and with no count-in after the first, and it's printed
   with repeat signs round the bars that go round. An exercise goes round without its close (the long note or chord it ends
   on), so the pattern runs straight on into itself; a scale, an arpeggio or a routine's exercise goes round whole. Each time
   round is a **pass**, counted in the bar and scored by itself as a piece's loop is, and a stopped run is its last pass
   played to its end, with every pass in its summary. A loop is as many times round as fill half an hour at the tempo, which
   is as good as until stopped. Listen still plays the music once, as written. Loop is kept for each screen, like the mode. A
-  piece has its own loop, on the bars you choose (see [Library](#library)).
+  piece's Loop goes round the bars you choose (see [Library](#library)).
 
 ### Exercises
 
@@ -363,7 +374,7 @@ a PDF plays out; this is what came of it.
   3, List A (page 33)."); the line under a piece in the Library's lists ends "RCM 3"; and the list's switch has **RCM**: RCM
   Level 1 to 10, each with how many it holds, and each a list of its pieces under their composers (`library?by=rcm&of=3`).
   Where the music comes from says where the levels come from. The local collection's pieces and imports have none yet.
-- **A piece** opens on its front: its music, About this piece under it, and on its bar its level, **Practice**, **Play through** and **Practice history** ([practice.md](practice.md) has the design). At its head is **the way back**, a key named for
+- **A piece** opens on its front: its music, About this piece under it, and on its bar its level, **Practice**, **Play through** and **Practice history** ([practice.md](practice.md) has the design). At its head, the head every screen has, is **the way back**, a key named for
   where it goes: the list the piece was opened from ("Ludwig van Beethoven", "Uploaded pieces"), or the Library when it was
   opened from anywhere else. Only a tap presses Practice and Play, never the piano's buttons,
   so starting is always deliberate; the music scrolls, and a tap on it does nothing there. (A PDF whose notes haven't been
@@ -391,13 +402,16 @@ a PDF plays out; this is what came of it.
   the page's thread, which then can't answer while a long piece is laid out, and Settings › Problems says so. A passage (a
   drill's, a sight-reading's) is still engraved on the page's thread as it's asked for: it's a few bars, and answers are
   timed from when it's painted.
-- **In Practice** a piece's tools come first on its bar, after the level: **?** (What's this,
-  below), **Options**, which shows the piece's options in place of the music (the view, a song's lyrics, the hands, play along, how much Practice tells you, whether a loop waits after each pass,
-  where to start; a PDF's tempo and bars), on the same keys as an exercise's Change, the hands as two hands, until it's pressed again, the **metronome**'s settings (below), and **Full
-  screen**, which leaves only the bar and the
-  music, the tablet's own bars hidden too, in either orientation; the same key, or leaving the piece, brings everything back.
-  A piece fits the screen, only its music scrolling: between runs with About this piece under it, and after a run (practicing
-  the Standard way) with the run's summary there instead; while a run plays the music has that space too. About this piece
+- **In Practice** a piece is the practice screen every screen with music is ([Playing to a tempo](#playing-to-a-tempo)): its
+  head (the way back, the composer and the title, **About**, full screen's key, the piano's lamp), the music, a run's review
+  under it, the play bar, and the foot, with **the strip** of its bars on its left and the session's clocks and **Finish
+  practice** on its right. **About** shows About this piece in place of the music, until it's pressed again (without Remove
+  from the Library, which is the front's). **More**, first on the bar, has the rest: the click (below); the view, a song's
+  lyrics, the print of a PDF whose notes are read, **What's this** (below), the cursor and the marks; how much Practice tells
+  you after a run and whether a loop waits after each pass; and play along. **Full screen** leaves only the music, the review
+  and the bar, the tablet's own bars hidden too, in either orientation; the key, on the bar then, or leaving the piece, brings
+  everything back. A piece fits the screen, only its music scrolling, and after a run (practicing the Standard way) the run's
+  summary is under it, over the bar; while a run plays the music has that space too. About this piece
   shows the last recorded run, its passage, hand and tempo. The piece details include its level and the
   collection's credit and licence, or for an uploaded piece when it was imported and the file it was, as that file was named
   ("Imported 17 November from Numb.pdf"; a PDF is kept under a name of Prima's own, and one imported before its name was kept
@@ -415,21 +429,23 @@ a PDF plays out; this is what came of it.
   tap), taking in an octave line over or under it so its dashes show, with a tab over it saying where the run starts,
   **Loop**, and **Clear**. Every part of the sheet measures a bar that one way (`bar-box.js`). Clear
   removes the selected start or loop and its highlight, returning the next run to the beginning without changing the visible
-  page or scroll position. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
-  keys over the run's controls, Play at the end. After the tools, a small play key starts **the metronome**: a click at the
-  tempo, each bar's first beat accented by the metre where the music starts, with nothing judged, to play to however you
-  like; while it goes it's a pause key, and a new tempo carries it on at that. So the tempo shows after it in either mode.
-  A run, or Listen, has the click to itself, so starting one stops the metronome; leaving the piece or putting Prima away
-  stops it too. Its key among the tools opens its settings under it: where it's heard (Tablet or Piano), its sound (Wood or
-  Beep) and how loud, which are Settings' click's. A piece opens at its own tempo where it marks one (the one it goes at
+  page or scroll position. On the bar its keys, switches and figures are one height: one row in landscape where they fit (a long Play's words take two
+  lines first; where the row is shorter still, as beside Vinyl's wider rail at 1280 px, Play takes the next row, at its end),
+  and in portrait More and the hands, then the run's controls with Listen and Play at the row's end. More's **The click
+  alone** starts **the metronome**: a click at the tempo, each bar's first beat accented by the metre where the music starts,
+  with nothing judged, to play to however you like; while it goes More's key has its lamp lit, and a new tempo carries it on at
+  that. So the tempo shows in either mode. A run, or Listen, has the click to itself, so starting one stops the metronome;
+  leaving the piece or putting Prima away stops it too. Its settings are beside it in More: where it's heard (Tablet or
+  Piano), its sound (Wood or Beep) and how loud, which are Settings' click's. A piece opens at its own tempo where it marks one (the one it goes at
   most, or a MIDI file's) and at 72 where it marks none, until a tempo is set for it, which is then kept for that piece. Once
-  it's been set to another, **Original** shows the piece's own beside it, quieter: a tap goes back to it. A
-  piece on two staves can be played a hand at a time: **Hands** (Both, Right, Left, kept for each piece) has the run listen for
-  the upper staff's notes or the lower's alone, dims the other's, and says the hand on Play. A run follows the music's repeats:
+  it's been set to another, **Original**, with the tempo's − and +, goes back to the piece's own. A
+  piece on two staves can be played a hand at a time: the bar's hands, **Left**, **Right** or **Both**, one tap each and kept
+  for each piece, have the run listen for the lower staff's notes or the upper's alone, and dim the other's. A run follows the music's repeats:
   each repeated part twice, the second time by its second ending (D.C. and D.S. aren't followed yet), and the cursor goes back
-  with it; a note played twice keeps the mark of the latest time. Loop plays bars again and again until you stop: on the tab
-  it loops that bar, then a tap past either end stretches the loop to that bar and a tap inside trims its nearer end, or
-  either end's round handle drags it, onto other lines too, the bar under the finger named; × on the tab ends it. A repeat
+  with it; a note played twice keeps the mark of the latest time. **Loop**, on the bar as on every bar and on the chosen bar's tab,
+  plays bars again and again until you stop: it loops the bar chosen (the first, when none is), then a tap past either end
+  stretches the loop to that bar and a tap inside trims its nearer end, or either end's round handle drags it, onto other
+  lines too, the bar under the finger named; × on the tab, or Loop on the bar, ends it. A repeat
   printed inside the loop, both its signs in it, is played every time round as the piece plays it, its endings in turn; one
   the loop cuts through isn't, and goes as it does the last time through. Each time
   round is a **pass**, scored by itself: the bar counts them, and as each begins shows how the one before went (In time the
@@ -440,37 +456,34 @@ a PDF plays out; this is what came of it.
   aren't extra in it. Wait for me counts a pass once a step of the next is played. Stopped, or left to run its course, the
   run is its last pass played to its end, with that pass's marks (a pass whose last note was due after the last key played
   isn't one; stopped in the first, the run is what was played of it), and it's kept with the loop's bars and every pass. **The
-  strip** under the piece's bar holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
+  strip**, in the foot under the bar, holds every bar as a cell, each line's first marked and the bars on screen boxed: tap a cell
   for that bar, as on the music (which comes into view, or turns to its page), or drag along it to loop the bars between,
   then drag its slim handles. The music scrolls under a finger, with nothing beside it. Full screen hides the strip. While a
   run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to
   its start): it's the same go, moved, so what was played before it isn't judged or kept as a run of its own, and its time
   carries on. The bar stays as it plays all the while, never showing Start for a moment between: Wait for me waits at the bar
-  tapped at once, and In time counts in to it. The piece's Options, What's this, the metronome's settings and Print can't be opened while a run plays,
-  and look off then. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  tapped at once, and In time counts in to it. More can't be opened while a run plays, and looks off then. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
   they move a run, still listening. It needs the piano taking notes from the tablet, as play along does: without
   one its key looks off, and a tap on it says what it needs. While it plays, the music
-  scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards the
-  bar shows the headline (**right in time**: the share of the notes played right and not off the beat; or right first time;
-  in landscape in the level's place, so the keys keep their one row, a long key's words on two lines where they must, and in
-  portrait beside the level),
-  every note stays marked, and (practicing the Standard way) the summary takes About this piece's place under the music, so
-  how it went is on the screen with it, as in full screen: its few lines fit, and its details scroll in the summary's own
-  share of the screen. It doesn't move your level.
+  scrolls in its frame, the line being played kept in the upper third so the next one shows; afterwards
+  every note stays marked, and (practicing the Standard way) the run's review is under the music, over the bar, with its
+  headline (**right in time**: the share of the notes played right and not off the beat; or right first time), so how it went
+  is on the screen with it, as in full screen: its few lines fit, and its details scroll in the review's own share of the
+  screen. It doesn't move your level.
 - **Practice** starts a practice session on the piece in full screen, hiding the navigation and Android system bars. Returning
   to Practice from a review or reopening an unfinished session also enters full screen. The full-screen button can still
   bring the surrounding controls back; finishing the session restores them for the look back. Outside full screen, two clocks sit
-  beside the piece's name: **Playing**, the time a run or Listen is going or you're playing the piano yourself with the music
+  at the foot's right: **Playing**, the time a run or Listen is going or you're playing the piano yourself with the music
   stopped (going over a bar on your own: a key in the last ten seconds counts), and **Idle**, the rest of the session: looking
   at the music, working out a fingering, a drink of water. **Finish practice**, beside them, ends the session (a run going
   stops first, and is kept with it; Listen going stops, and the session ends then) and shows its look back. Full screen has
-  no clocks, upright too: it's for the music. It has its own **Finish practice** instead, first in the piece's bar, before
-  the level and the piece's tools and away from Play and the run's keys, there only in full screen: it does what the one
-  beside the clocks does, as if you'd left full screen to press it. Only a tap presses it; no piano key does. A PDF read into
-  notes, with **Print** showing its print, keeps the session's clocks and both Finish practice keys, and finishing brings
+  no foot, so no clocks, upright too: it's for the music. It has its own **Finish practice** instead, first on the bar, before
+  More and away from Play and the run's keys, there only in full screen: it does what the foot's does, as if you'd left full
+  screen to press it. Only a tap presses it; no piano key does. A PDF read into
+  notes, with **The print** (in More) showing its print, keeps the session's clocks and both Finish practice keys, and finishing brings
   the notation back for the look back. After 15 minutes with nothing played the session pauses: the
   page is covered by **Still practicing?**, with **Keep practicing** and **Finish practice**, and the clocks stop until you
   carry on. Leaving the piece, or the tablet sleeping or Prima put away, pauses it the same way, and coming back shows the
@@ -498,10 +511,12 @@ a PDF plays out; this is what came of it.
   also play (**Hear it on the piano**). A staff line is one unbroken stroke across more than half the page, so a row of beams
   lying along a staff, the ties under a system or a dashed octave line isn't taken for one, however much ink it adds up to.
   Where a scan's lines are too broken to follow, the rows that are more than half ink count instead.
-- **A PDF's bar** is the notation's play bar, its keys in the same places: its level and page, then its tools (the page turns,
-  Print once its notes are read, Options, the metronome's settings, full screen), then the metronome and the tempo, which the
-  scroll goes at. Nothing played on it is followed, so it has no mode and no Play: its own keys end it where Play would be,
-  **Scroll** (in Scroll at the tempo) and **Convert to notation**, the one to press orange.
+- **A PDF's bar** is the notation's play bar, its keys in the same places: its page turns and its page, More (the click; the
+  view, half-page turns, beats a bar and bars a line; the print or the notation, once its notes are read; **Hear it on the
+  piano**), then the tempo, which the scroll goes at. Nothing played on it is followed, so it has no hands, mode or Play: its
+  own keys end it where Play would be, **Scroll** (in Scroll at the tempo) and **Convert to notation**, the one to press
+  orange. **About**, in its head, shows About this piece in the print's place, with Remove from the Library, since a PDF has
+  no front.
 - **Converting a PDF's notes** starts from the orange **Convert to notation** button on the PDF's bar. The PDF opens
   normally even when it has a saved conversion; the button reopens its progress or review. The toolbar then shows **Back to
   sheet music**, while **Convert to notation** moves into the form below, requiring a separate tap before a paid request.
@@ -671,8 +686,9 @@ In a routine of yours an exercise or a drill is just itself, played as you last 
 key, the hands, a variation, the tempo, Loop, a drill's step) is kept as it would be anywhere: the routine is the practice, and
 each exercise remembers its own. Its track says how it's played now ("C major · right hand · ♩ 76", "Step 2 of 4"). In one of
 Claude's, an activity is played as its recipe says (a key, hands, a mode, a tempo, a step), and what's yours is left as it was.
-Either way the routine's bar over it counts its minutes down and goes on to the next activity not done, then back to the
-routine's page; a routine not on Today keeps its own day's progress, so it can be practiced any day without Today changing.
+Either way the routine's keys at its foot's right (the activity's place in the routine and its minutes counting down, how it
+felt in one of Claude's, **Skip** and **Next**) go on to the next activity not done, then back to the routine's page, and its
+head's way back goes to the routine; a routine not on Today keeps its own day's progress, so it can be practiced any day without Today changing.
 The exercises once kept as My routine, a list with nothing else to it, are now a routine of yours by that name.
 
 Prima comes with twelve routines of yours, put in the first time it starts ([routines.md](routines.md) has the research behind
@@ -717,7 +733,7 @@ the address it always had, and the old Tools screen's address opens the tab.
   rhythm and time; sharps, flats and keys; loud and soft; touch; speed and mood; repeats and the roadmap; ornaments; hands,
   fingers and pedals), the most common first in each. Each says what it is, how it's played and how it sounds, and opens to a
   bar or two engraved as the sheet engraves it. A search finds things by name or by what they look like ("curved line",
-  "dots", "hairpin"). On a piece, **What's this** (the ? key on its bar) makes a tap on the music name the symbol under it from
+  "dots", "hairpin"). On a piece, **What's this** (in More, on its bar; **Done** on the line over the music ends it) makes a tap on the music name the symbol under it from
   the glossary, a note with its name and where it sits, with the way to its full entry.
 - **Metronome**, with a count-in and a click that can fade to silence.
 - **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
@@ -757,7 +773,7 @@ line, in Porcelain and Night a grey track with the open one on its thumb:
 - **Look & music**: the look (Studio, Vinyl, Porcelain or Night, each choice drawn in its own look), in Porcelain and Night
   their accent (red, persimmon, amber, green, blue or violet; the same in both), and the notation (the music font and the
   sheet's size, with two bars to show them,
-  and whether a song's lyrics are printed under its notes, on unless turned off; a song's Options have the same switch).
+  and whether a song's lyrics are printed under its notes, on unless turned off; a song's More has the same switch).
 - **Claude**.
 - **App & data**: updates, your data, and the problems Prima kept.
 - **Tools**: the glossary, the metronome, the keyboard check and the timing ([Tools](#tools), above), a card each.
@@ -1072,18 +1088,19 @@ Technique results are compared with your own earlier runs, since there are no am
 shown as below what anyone can hear. Repetitions are capped per set and per day, with
 a reminder to stop if anything hurts: a sensible precaution, not a proven one.
 
-What a technique drill plays is yours to choose, whatever your reading level. A card above the play bar says what's chosen:
-the key lit on a small keyboard and named (a minor scale's form under it), the hands drawn, the octaves (or the pattern), and
-Through the keys when it's on. **Change**, on the card, opens the choices over the music, which stays drawn underneath: the
+What a technique drill plays is yours to choose, whatever your reading level. It's the practice screen every screen with music
+is ([Playing to a tempo](#playing-to-a-tempo)): the hands are on its bar, Left, Right or Both, with Play and Listen, and a card
+in its foot says what else is chosen: the key lit on a small keyboard and named (a minor scale's form under it), the octaves
+(or the pattern), and Through the keys when it's on, with its target and its runs beside it. **Change**, on the card, opens the choices over the music, which stays drawn underneath: the
 key on an octave of the piano, each key named as the key it picks is written (D♭ major, C♯ minor), so any key is one tap,
 with Major or Minor beside it; a minor scale natural, harmonic or melodic; one to four octaves on numbered pads (an arpeggio's
-broken triad too); the hands as two hands, both lit for together; finger independence's pattern. **Done** closes it, and so
+broken triad too); finger independence's pattern. **Done** closes it, and so
 does a run starting; **Today's**, beside Done, goes back to the day's plan. Each scale or arpeggio keeps its own
 tempo and target, by key, octaves past one, and hands. The first time, a run in Wait for me at your own speed sets the
 comfortable speed the In time runs start a little under (the pace from one moment of the music to the next, so the two keys
 of a moment played hands together count once), and the bar is set to Wait for me for that run; the tempo can also be set
 with − and +. Wait for me runs are practice for the notes: they count towards the set's five runs and the day, not towards
-evenness or the tempo. A set is five runs. After three, the way on shows under the bar: **Done**, back to the drills (or to
+evenness or the tempo. A set is five runs. After three, the way on shows at the foot's right: **Done**, back to the drills (or to
 Today, from there); with all five played Run goes off, the way on is the orange key, and **Another set** is beside it. From
 Today the day's Technique step is the scale and then the arpeggio: the scale's screen has **Next: the arpeggio** from the
 start, and the step is done with the arpeggio's third run, not the scale's.
@@ -1133,12 +1150,13 @@ press Done, once a day. A **way to practice** is a few lines to read. And a **dr
 Drills type, and the three technique drills are in the sections they belong to as well.
 
 An exercise's page has the way back at its head, by the name of where it was opened from (Exercises, Today), as a piece's
-has; a technique drill's and a drill's have it too, and the metronome's goes back to Tools. Then what you do in a line, how in a few steps, and what to notice. Every
-one that's played has a card above its play bar saying what's chosen: the key lit on a small keyboard and named, the hands
-drawn, a family's choices a word each. **Change** opens the choices over the music: its keys on an octave of the piano, each
+has; a technique drill's and a drill's have it too, and the metronome's goes back to Tools. One that's played is the practice
+screen every screen with music is ([Playing to a tempo](#playing-to-a-tempo)): the head, its music, a run's review, the play bar
+with the hands it's written for (Left, Right, Both, one tap each), and the foot, with a card on its left saying what's chosen
+(the key lit on a small keyboard and named, a family's choices a word each) and the next in its section on its right.
+**Change**, on the card, opens the choices over the music: its keys on an octave of the piano, each
 named as the key it picks is written and any key it isn't in off, so any of them is one tap, with Major or Minor beside it
-where it has both; and the hands it's written for, two hands drawn, a tap lighting or putting out one, both lit for together
-(one stays lit; where together isn't offered, a tap is that hand alone). Most have
+where it has both. Most have
 every major and minor key. One that's major by its nature (major then minor, the four kinds of chord, the four-chord loop,
 Hanon's pattern, the bounced double notes, the scale in octaves) has the twelve major keys; the chromatic scale starts from
 each of the twelve notes ("From E♭") and is written without a signature; and the thumb passes under only in the keys where
@@ -1149,13 +1167,13 @@ another as one piece of music: from the key showing on through the list and roun
 without its close so one runs into the next, its signature where it starts and its name over its first note, and the last
 key's close to end on. The play bar's **Loop** (see [Playing to a tempo](#playing-to-a-tempo)) takes an exercise round and
 round without its close, or the whole run through the keys round again. It opens as you last played it, at the tempo you
-left it, and its page is laid out as a piece's is: what you do in a line, its choices, the play bar, and the music in a piece's
-paper frame, drawn the way a piece's is, taking the rest of the screen and all that scrolls. Its words are the bar's
-**Options**, shown in the music's place as a piece's options are: how, what to notice, what it trains and, for one whose idea
+left it, its music in a piece's paper frame, drawn the way a piece's is, taking the rest of the screen and all that scrolls.
+Its words are **About**, in its head, shown in the music's place as a piece's About is: what you do in a line, how, what to
+notice, what it trains and, for one whose idea
 is from a lesson, a link to the lesson at that exercise's place in it; then what's been done of it (how many times and on how
 many days, when last, and the fastest clean run In time), **Add to a routine**, which puts it in one of your routines or a new
-one (as a card's + does), and a row that leads to the next in its section (in a routine, the routine's bar has its next). One to
-read or to do away from the keys is its words.
+one (as a card's + does). The next in its section is at the foot's right (in a routine, the routine's time, Skip and Next are
+there instead). One to read or to do away from the keys is its words, the next in its section at their end.
 
 A **family** is a main exercise and the side ones a few choices make of it. Its Change has a row for each **variation**,
 every option a key: an interval drawn as its two notes on a staff, a touch as its slur or its dots, a count (quick notes,
@@ -1416,7 +1434,7 @@ details.
   line on its own (a very busy song, the tablet upright) makes the words smaller, to 3.3, 2.9 and at the least 2.5, with twice
   the room: small words read better than words run together. This order was tuned with the owner's Numb and stays as it is. A
   song whose words fit is drawn as it was.
-  **Lyrics** off (Settings, or a song's Options) prints the music alone. Prima's own words under notes (the glossary's note
+  **Lyrics** off (Settings, or a song's More) prints the music alone. Prima's own words under notes (the glossary's note
   names and counts) are printed as written.
 - **The look** is the [Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii), and Porcelain and
   Night, chosen on 28 November 2026 from the mock-ups on [Prima Looks](https://claude.ai/artifact/2z4qusxAzqdt3VmxzL2ygx)

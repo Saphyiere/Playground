@@ -41,7 +41,7 @@ public class ExerciseFamilyUiTests
         // It opens as the main exercise: sixths, two quick notes, as its card says. Change has every option of each as a key:
         // the intervals drawn, the quick notes on numbered pads.
         page.WaitForAssertion(() => Assert.Equal([64, 72], Opening(page)));
-        Assert.Equal(["Sixths", "2 quick notes"], Choosing.Facts(page));
+        page.WaitForAssertion(() => Assert.Equal(["Sixths", "2 quick notes"], Choosing.Facts(page)));
         Assert.Empty(page.FindAll("[data-variation]"));
         await Choosing.OpenChange(page);
         Assert.Equal(["interval", "quick"], page.FindAll("[data-variation]").Select(r => r.GetAttribute("data-variation")));
@@ -71,9 +71,9 @@ public class ExerciseFamilyUiTests
         again.WaitForAssertion(() => Assert.Equal(["Octaves", "1 quick note"], Choosing.Facts(again)));
         Assert.Equal("G major", again.Find(".exercise-key").TextContent);
         Assert.Equal([67, 79], Opening(again));
-        // The lesson its idea is from, and what it trains, are among its words: the play bar's Options shows them in the music's place.
+        // The lesson its idea is from, and what it trains, are among its words: About in its head shows them in the music's place.
         Assert.Empty(again.FindAll(".exercise-words"));
-        await Tap(again, ".play-bar [aria-label='Options']");
+        await Tap(again, ".page-head [data-action=about]");
         again.WaitForElement(".piece-options.exercise-words");
         Assert.Contains("piece-frame-hidden", again.Find(".piece-frame").ClassList);
         Assert.StartsWith("https://www.youtube.com/watch?v=8QI_InPpq0s", again.Find(".exercise-lesson a").GetAttribute("href"));
@@ -91,12 +91,11 @@ public class ExerciseFamilyUiTests
         Assert.Equal(["where"], page.FindAll("[data-variation]").Select(r => r.GetAttribute("data-variation")));
         Assert.Equal(["In one place", "Up the scale"], page.FindAll("[data-variation=where] .mu-toggle").Select(b => b.GetAttribute("aria-label")));
 
-        // Together: the left hand lit beside the right, both lamps on.
-        Assert.Equal(["false", "true"], page.FindAll(".hands-choice .mu-toggle").Select(b => b.GetAttribute("aria-pressed")));
-        await Choosing.Tap(page, ".hands-choice button[aria-label='Left hand']");
+        // Both, one tap on the bar's hands: the right hand's alone until then.
+        Assert.Equal(["false", "true", "false"], page.FindAll(".play-bar .hands-choice [role=radio]").Select(b => b.GetAttribute("aria-checked")));
+        await Tap(page, ".play-bar .hands-choice [data-hand=both]");
         page.WaitForAssertion(() => Assert.Equal(["where", "motion"], page.FindAll("[data-variation]").Select(r => r.GetAttribute("data-variation"))));
-        Assert.Equal(["true", "true"], page.FindAll(".hands-choice .mu-toggle").Select(b => b.GetAttribute("aria-pressed")));
-        Assert.Equal("Both", page.Find(".choice-card-hand").TextContent.Trim());
+        Assert.Equal(["false", "false", "true"], page.FindAll(".play-bar .hands-choice [role=radio]").Select(b => b.GetAttribute("aria-checked")));
         Assert.Equal([48, 52, 60, 64], Opening(page));
         await Choosing.Tap(page, "[data-variation=motion] button[aria-label='In mirror']");
         // In mirror the left hand starts from its upper third.
@@ -122,7 +121,7 @@ public class ExerciseFamilyUiTests
         await Choosing.OpenChange(plain);
         Assert.Empty(plain.FindAll("[data-variation]"));
         Assert.NotEmpty(plain.FindAll(".change-panel .key-piano"));
-        await Tap(plain, ".play-bar [aria-label='Options']");
+        await Tap(plain, ".page-head [data-action=about]");
         plain.WaitForElement(".exercise-words");
         Assert.Empty(plain.FindAll(".exercise-lesson"));
         Assert.Equal("Trains finger strength, evenness.", plain.Find(".exercise-trains").TextContent);

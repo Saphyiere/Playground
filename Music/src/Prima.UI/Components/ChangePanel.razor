@@ -1,8 +1,8 @@
 @*
-    Change: what to play, over the music, which stays drawn underneath. A row each: the key on the piano, the screen's own
-    choices, the hands as hands. Done closes it, and so does a run starting.
+    A panel of choices over the music, which stays drawn underneath: Change (what to play: a row each, the key on the piano and
+    the screen's own choices) and the play bar's More (the rest). Done closes it, and so does a run starting.
 *@
-<section class="change-panel" aria-label="What to play">
+<section class="change-panel @Class" aria-label="@Label">
     @ChildContent
     <div class="change-panel-end">
         @Extra
@@ -18,4 +18,10 @@
     [Parameter] public RenderFragment? Extra { get; set; }
 
     [Parameter] public EventCallback OnDone { get; set; }
+
+    /// <summary>What it's called to a screen reader: what to play, or More.</summary>
+    [Parameter] public string Label { get; set; } = "What to play";
+
+    /// <summary>A class of its own: play-more, for the bar's.</summary>
+    [Parameter] public string? Class { get; set; }
 }

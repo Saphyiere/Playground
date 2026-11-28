@@ -24,7 +24,9 @@ public class PieceTempoTests
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
 
         view.WaitForAssertion(() => Assert.Equal(opensAt, view.FindComponent<PlayAlong>().Instance.Tempo));
-        Assert.Equal(offersItsOwn ? ["96"] : [], view.FindAll(".play-tempo-original .mu-readout-value").Select(v => v.TextContent));
+        // The piece's own, among the tempo's − and + once another's been set for it.
+        await view.InvokeAsync(() => view.Find(".play-tempo-figure").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Equal(offersItsOwn ? ["Original 96"] : [], view.FindAll(".tempo-pop .play-tempo-original").Select(v => v.TextContent.Trim()));
         Assert.Equal(set, (await host.Store.GetPieceAsync(piece.Id))!.Tempo);
     }
 

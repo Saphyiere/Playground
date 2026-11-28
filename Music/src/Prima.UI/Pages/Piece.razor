@@ -24,37 +24,116 @@
 
 @if (piece is null)
 {
-    <PageHead Title="Library" Kicker="@(missing ? "Not in the Library" : "Opening…")" />
+    <PageHead Title="Library" Kicker="@(missing ? "Not in the Library" : "Opening…")" Back="@WayBack" OnBack="Leave" />
 }
 else
 {
-    @* It fits the screen, only the music scrolling: between runs with About this piece under the music, and in Practice after a
-       run (the Standard way) with the run's summary there in About's place, so how it went is on the screen with the music (its
-       details scroll in the summary's own space). The look back is as long as it needs, and scrolls; so is the page while a
-       PDF's notes are being read. *@
-    <div class="piece @(readingNotes || stage == Stage.LookBack ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary" ? "piece-summed" : "") @(Pdf ? "" : $"piece-{stage.ToString().ToLowerInvariant()}")">
-        <header class="reading-head">
-            <div>
-                @* The way back, by the name of where it goes: the list the piece was opened from, or the Library. *@
-                <button type="button" class="way-back" data-piano="off" @onclick="Leave">@WayBack</button>
-                <p class="page-kicker">@Kicker()</p>
-                <h1 class="page-title @(piece.Title.Length > 40 ? "page-title-long" : null)">@piece.Title</h1>
-            </div>
-            @* A session's clocks, counted here, with Finish practice: while Print shows a PDF's print too. *@
-            @if (stage == Stage.Practice && clock is not null)
-            {
-                <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
-            }
-            <KeyboardLamp />
-        </header>
+    @* It fits the screen, only the music scrolling, top to bottom as every screen that plays music is: the head, the music, a
+       run's review under it, the play bar, and the foot, with the piece's bars and a session's clocks. The front has About this
+       piece under the music; the look back is as long as it needs, and scrolls; so is the page while a PDF's notes are being
+       read. *@
+    <div class="piece @(readingNotes || stage == Stage.LookBack ? "" : "piece-fit") @(playing ? "piece-playing" : "") @(outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary" ? "piece-summed" : "") @(Pdf ? "piece-print" : $"piece-{stage.ToString().ToLowerInvariant()}")">
+        @{
+            var plays = !readingNotes && (Pdf || stage is Stage.Practice or Stage.Play);
+        }
+        @* The head every screen has: the way back by the name of where it goes (the list the piece was opened from, or the
+           Library), the composer and the title; About (its words, in the music's place) where it plays, full screen's key in
+           Practice and on a PDF, and the piano's lamp. *@
+        <PageHead Title="@piece.Title" Kicker="@Kicker()" Class="full-hide piece-head" Back="@WayBack" OnBack="Leave"
+                  OnAbout="@(plays ? EventCallback.Factory.Create(this, ToggleAbout) : default)" AboutOpen="about"
+                  FullScreen="@(!readingNotes && (Pdf || stage == Stage.Practice))" OnFullScreen="ToggleFullScreen" Lamp="true" />
 
         @{
-            // The piece's own key among the bar's tools (PlayTools has the rest: What's this, Options, the metronome's settings, full
-            // screen): its print, for a PDF whose notes are read.
+            // The piece's own key in More's group for its music: its print, for a PDF whose notes are read.
             RenderFragment printKey = @<text>
                 @if (piece.IsPdf && mei is not null)
                 {
-                    <button type="button" class="mu-btn piece-tool piece-tool-word" aria-pressed="@On(print)" aria-label="@(print ? "Show the notation" : "Show the print")" disabled="@playing" @onclick="TogglePrint">Print</button>
+                    <div class="control-row">
+                        <span class="control-label">Show</span>
+                        <button type="button" class="mu-toggle" data-piano="off" data-show="notation" aria-pressed="@On(!print)" disabled="@playing" @onclick="() => print ? TogglePrint() : Task.CompletedTask"><span class="mu-led"></span>The notation</button>
+                        <button type="button" class="mu-toggle" data-piano="off" data-show="print" aria-pressed="@On(print)" disabled="@playing" @onclick="() => print ? Task.CompletedTask : TogglePrint()"><span class="mu-led"></span>The print</button>
+                    </div>
+                }
+            </text>;
+            // The page turns, first in the bar where the music is in pages: ‹, the page, ›.
+            RenderFragment pageTurns = @<div class="page-turns" role="group" aria-label="Pages">
+                <button type="button" class="mu-btn" data-piano="off" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
+                <div class="mu-readout"><span class="mu-readout-label">@(Pdf && view == View.Scroll ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
+                <button type="button" class="mu-btn" data-piano="off" aria-label="On a page" @onclick="() => Turn(1)">›</button>
+            </div>;
+            // Full screen's way to finish the session: Finish practice first in the bar, away from Play and the run's keys, doing
+            // what the foot's does (the look back, out of full screen). Only a tap presses it, and no clocks go with it: full screen
+            // is for the music.
+            RenderFragment finishInFull = @<text>
+                @if (fullScreen && stage == Stage.Practice && clock is not null)
+                {
+                    <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
+                }
+            </text>;
+            // About this piece: what's been done of it, its level, where it's from; on its front under the music, with the keys that
+            // read a PDF again or take it out of the Library, and where it plays in the music's place, by About in its head.
+            RenderFragment<bool> aboutPiece = keys => @<text>
+                <ul class="summary-words">
+                    @* The latest recorded run, including short practice attempts. *@
+                    @if (latestRun is { } last)
+                    {
+                        var today = DateOnly.FromDateTime(DateTime.Now);
+                        <li>Last practiced @PieceWords.When(last.Day, today) · @PieceWords.How(last)</li>
+                    }
+                    @if (piece.Reasons is { Length: > 0 } reasons)
+                    {
+                        <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
+                    }
+                    else if (piece.IsPdf && mei is null && piece.Level is { } anchor)
+                    {
+                        <li>About level @anchor, where its collection sits. Its notes aren't read yet: Convert to notation, on its bar.</li>
+                    }
+                    @if (listing is { } listed)
+                    {
+                        <li>@listed.Sentence</li>
+                    }
+                    @if (mei is not null && reading is { Kept: { } kept } && JsonSerializer.Deserialize<ReadingDraft>(reading.Result, Playground.AI.Assist.AssistSchema.Json) is { } read)
+                    {
+                        <li>Its notes were read from the PDF by Claude on @kept.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture), for @("$" + read.Cost.ToString("0.00", CultureInfo.InvariantCulture))@(read.Doubts.Count == 0 ? "" : $"; bar{(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "" : "s")} {string.Join(", ", read.Doubts.Select(d => d.Bar).Distinct().Order())} {(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "was" : "were")} still in doubt when kept").</li>
+                    }
+                    @if (piece.Credit is { Length: > 0 } credit)
+                    {
+                        <li>@credit @if (piece.LicenceUrl is { Length: > 0 }) { <a href="@piece.LicenceUrl" target="_blank" rel="noopener">@piece.Licence</a> } @if (piece.SourceUrl is { Length: > 0 }) { <span> · </span><a href="@piece.SourceUrl" target="_blank" rel="noopener">Source</a> }</li>
+                    }
+                    else if (piece.Imported)
+                    {
+                        // The file as it was named: a PDF is kept under a name of Prima's own, and one imported before its name was
+                        // kept says only when.
+                        var file = piece.Source ?? (piece.IsPdf ? null : piece.File);
+                        <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture)@(file is null ? "" : $" from {file}").</li>
+                    }
+                </ul>
+                @if (keys)
+                {
+                    <div class="control-row">
+                        @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
+                        {
+                            <button type="button" class="mu-btn" data-piano="off" @onclick="ReadTheNotes">Convert PDF again</button>
+                        }
+                        @if (removing)
+                        {
+                            <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
+                            <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
+                        }
+                    </div>
+                    @* One of Prima's own goes as an import does, and stays out: Prima doesn't put it back by itself. A collection's too. *@
+                    @if (removing && piece.Origin == "bundle")
+                    {
+                        <p class="section-note" role="status">One of Prima's own pieces: it stays out of the Library, and Prima won't put it back by itself (the Library has a key that puts Prima's own back). Your runs on it still count.</p>
+                    }
+                    else if (removing && piece.Origin == "collection")
+                    {
+                        <p class="section-note" role="status">From your collection: it stays out of the Library, even when the collection is imported again (the Library has a key that lets it back in). Your runs on it still count.</p>
+                    }
                 }
             </text>;
         }
@@ -63,61 +142,11 @@ else
         }
         else if (Pdf)
         {
-            @* A PDF's print has the bar the notation has, its keys in the same places: its figures, its tools (the page turns,
-               Print, Options, the metronome's settings, full screen), then the metronome and the tempo, which the scroll goes at.
-               Nothing it plays is followed, so it has no mode and no Play: its own keys end the bar where Play would be, Scroll and
-               Convert to notation, the one to press orange. *@
-            <PlayAlong Name="library-pdf" Beats="pdfLayout.BeatsPerBar" Tempo="tempo" TempoChanged="SetTempo" ShowMode="false" ShowStart="false"
-                       OnOptions="ToggleOptions" OptionsOpen="options" OnFullScreen="ToggleFullScreen">
-                <Tools>
-                    <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
-                    <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
-                    @printKey
-                </Tools>
-                <Readouts>
-                    @if (stage == Stage.Practice && clock is not null)
-                    {
-                        @* A practice session while Print shows a PDF's print: its clocks beside the title (portrait's), and in full
-                           screen Finish practice first, as on the notation's bar. *@
-                        <div class="piece-title-row">
-                            <p class="piece-bar-title">@piece.Title</p>
-                            <PracticeStrip Clock="clock" OnFinish="FinishPractice" Counts="false" />
-                        </div>
-                        @if (fullScreen)
-                        {
-                            <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
-                        }
-                    }
-                    else
-                    {
-                        <p class="piece-bar-title">@piece.Title</p>
-                    }
-                    <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
-                    <div class="mu-readout"><span class="mu-readout-label">@(view != View.Pages ? "System" : "Page")</span><span class="mu-readout-value">@PlaceText()</span></div>
-                    @* The first time it's opened: the pages whose systems are still being found, behind the page showing. *@
-                    @if (PagesNote() is { } coming)
-                    {
-                        <p class="bar-note" role="status">@coming</p>
-                    }
-                </Readouts>
-                <RunKeys>
-                    @if (view == View.Scroll)
-                    {
-                        @* Scrolling goes a system at a time: it waits for every page's to be found. *@
-                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" disabled="@(found is not null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
-                    }
-                    @if (pdfBytes is not null)
-                    {
-                        <button type="button" class="mu-btn @(view == View.Scroll ? "" : "mu-primary") piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
-                    }
-                </RunKeys>
-            </PlayAlong>
         }
         else if (stage == Stage.Front)
         {
             @* The piece's front: its level, and Practice or Play, which only a tap starts. *@
             <section class="reading-bar piece-bar piece-front-bar" aria-label="The piece">
-                <p class="piece-bar-title">@piece.Title</p>
                 <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
                 @if (piece.Bars is { } count)
                 {
@@ -149,74 +178,11 @@ else
         {
             <DeepReview Kicker="@ReviewKicker()" Title="@piece.Title" Session="@(reviewFrom == Stage.LookBack ? session : null)" Runs="reviewed" PassNumber="@(reviewFrom == Stage.Practice ? waited.Count : 0)" Review="review" Bars="BarNumbers()" Picked="picked" OnPick="PickBar" />
         }
-        else if (stage == Stage.Play)
-        {
-            @* Play: the piece through, In time, both hands, with nothing on the music while it plays; a slim strip to set the tempo
-               and start, then where it is and the time. Once it's played, its quick review at the bottom has the keys, Again among
-               them, and the strip keeps only the tempo. *@
-            var reviewing = !playing && played is { InTime: not null };
-            <PlayAlong @ref="play" Name="library-play" Music="playMusic" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="play-strip" StartLabel="Start" CanStart="playMusic is { Notes.Count: > 0 }"
-                       ShowStart="!reviewing" Ask="PlayMode.InTime" ShowMode="false" ShowTime="true" Bare="true" Metronome="false" ShowTools="false" OnStarting="Starting" OnFinished="Finished">
-                <Readouts>
-                    <p class="piece-bar-title">@piece.Title · Play</p>
-                    @if (!playing && !reviewing)
-                    {
-                        <div class="piece-actions">
-                            <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
-                        </div>
-                    }
-                </Readouts>
-            </PlayAlong>
-        }
-        else
-        {
-            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" ShowResult="@(Settings.AfterRun != "nothing")" ShowPassFigure="Settings.PassFigure"
-                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="Playable" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
-                       OriginalTempo="originalTempo" OnExplain="@(Pdf ? default(EventCallback) : EventCallback.Factory.Create(this, ToggleExplain))" Explaining="explain" OnOptions="ToggleOptions" OptionsOpen="options" OnFullScreen="ToggleFullScreen">
-                <Tools>
-                    @if (view == View.Pages && !playing)
-                    {
-                        <button type="button" class="mu-btn" aria-label="Back a page" @onclick="() => Turn(-1)">‹</button>
-                        <button type="button" class="mu-btn" aria-label="On a page" @onclick="() => Turn(1)">›</button>
-                    }
-                    @printKey
-                </Tools>
-                <Readouts>
-                    @if (clock is not null)
-                    {
-                        @* In portrait the head is hidden: the session's clocks go in the title's row. The head's strip counts them;
-                           this one only shows them. *@
-                        <div class="piece-title-row">
-                            <p class="piece-bar-title">@piece.Title</p>
-                            <PracticeStrip Clock="clock" OnFinish="FinishPractice" Counts="false" />
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="piece-bar-title">@piece.Title</p>
-                    }
-                    @* Full screen's way to finish the session: Finish practice first in the bar, away from Play and the run's keys,
-                       doing what the strip's does (the look back, out of full screen). Only a tap presses it, and no clocks go with
-                       it: full screen is for the music. *@
-                    @if (fullScreen && stage == Stage.Practice && clock is not null)
-                    {
-                        <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
-                    }
-                    <div class="mu-readout piece-level"><span class="mu-readout-label">Level</span><span class="mu-readout-value">@LevelText()</span></div>
-                    @if (view == View.Pages && !playing)
-                    {
-                        <div class="mu-readout"><span class="mu-readout-label">Page</span><span class="mu-readout-value">@PlaceText()</span></div>
-                    }
-                </Readouts>
-            </PlayAlong>
-            @* Every bar, a cell each, drawn and dragged by bars.js: tap one to start there, drag along them to loop them. *@
-            <div class="bar-strip" @ref="strip" role="group" aria-label="The bars: tap one to start there, or drag along them to loop them"></div>
-        }
 
-        @* The options cover the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While a
-           piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
+        @* About this piece covers the music, which stays drawn beneath (hidden, not removed, so it needn't be engraved again). While
+           a piece plays it scrolls in its frame, the line being played kept in the frame's upper third (data-follow). *@
         <div class="piece-stage @(readingNotes || stage == Stage.LookBack ? "piece-stage-gone" : "")">
-            <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(options ? "piece-frame-hidden" : "")" @ref="frame"
+            <div class="piece-frame @(Pdf ? "pdf-frame" : "sheet-frame") @(view == View.Scroll && !Pdf ? "piece-frame-scroll" : "") @(about ? "piece-frame-hidden" : "")" @ref="frame"
                  data-follow="@(view == View.Scroll && !Pdf ? "" : null)" @onpointerdown="Down" @onpointerup="Up">
                 @if (Pdf)
                 {
@@ -271,86 +237,13 @@ else
                     </div>
                 </div>
             }
-            @if (options)
+            @if (about)
             {
-                <section class="piece-options" aria-label="Options">
+                <section class="piece-options piece-about-panel" aria-label="About this piece">
+                    <h2 class="section-title">About this piece</h2>
+                    @aboutPiece(Pdf)
                     <div class="control-row">
-                        <span class="control-label">View</span>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
-                        <button type="button" class="mu-toggle" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>@(Pdf ? "Scroll at the tempo" : "Scroll")</button>
-                        @if (Pdf && view == View.Pages)
-                        {
-                            <button type="button" class="mu-toggle" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
-                        }
-                    </div>
-                    @if (!Pdf && lyrics)
-                    {
-                        <div class="control-row">
-                            <span class="control-label">Lyrics</span>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Lyrics)" @onclick="() => ShowLyrics(true)"><span class="mu-led"></span>On</button>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(!Settings.Lyrics)" @onclick="() => ShowLyrics(false)"><span class="mu-led"></span>Off</button>
-                            <span class="control-note">@(Settings.Lyrics ? "The song's words under its notes, on every song." : "The music alone, on every song.")</span>
-                        </div>
-                    }
-                    @if (Pdf)
-                    {
-                        <div class="control-row">
-                            <span class="control-label">Tempo</span>
-                            <TempoControl Value="tempo" ValueChanged="SetTempo" />
-                            @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
-                            {
-                                <button type="button" class="mu-btn" @onclick="ToggleHear">@(hearing ? "Stop" : "Hear it on the piano")</button>
-                            }
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">Bars</span>
-                            <button type="button" class="mu-btn" aria-label="Fewer beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar - 1)">−</button>
-                            <span class="control-value">@pdfLayout.BeatsPerBar beats a bar</span>
-                            <button type="button" class="mu-btn" aria-label="More beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar + 1)">+</button>
-                            <button type="button" class="mu-btn" aria-label="Fewer bars a line" @onclick="() => SetBarsPerSystem(-1)">−</button>
-                            <span class="control-value">@BarsPerSystemText() a line</span>
-                            <button type="button" class="mu-btn" aria-label="More bars a line" @onclick="() => SetBarsPerSystem(1)">+</button>
-                        </div>
-                        <p class="section-note">Scrolling moves a line at a time, after a bar of count-in, at the tempo: bars a line × beats a bar × 60 ÷ tempo seconds a line. @(midi is not null ? "The tempo and metre start from the piece's MIDI." : "")</p>
-                    }
-                    else
-                    {
-                        @if (twoHands)
-                        {
-                            <div class="control-row">
-                                <span class="control-label">Hands</span>
-                                @* The hands as hands, as an exercise's Change has them: both lit for both. *@
-                                <HandsChoice Offered="AllHands" Value="@(handStaff switch { 1 => Prima.Core.Generation.HandUse.Right, 2 => Prima.Core.Generation.HandUse.Left, _ => Prima.Core.Generation.HandUse.Together })"
-                                             ValueChanged="h => SetHands(h switch { Prima.Core.Generation.HandUse.Right => 1, Prima.Core.Generation.HandUse.Left => 2, _ => (int?)null })" />
-                            </div>
-                            <div class="control-row">
-                                <span class="control-label">Play along</span>
-                                <button type="button" class="mu-toggle" aria-pressed="@On(!playAlong)" @onclick="() => SetPlayAlong(false)"><span class="mu-led"></span>Off</button>
-                                <button type="button" class="mu-toggle" aria-pressed="@On(playAlong)" disabled="@(handStaff is null || !Keyboard.CanSend || !Settings.SendToPiano)" @onclick="() => SetPlayAlong(true)"><span class="mu-led"></span>The other hand</button>
-                                <span class="control-note">@(!Keyboard.CanSend || !Settings.SendToPiano ? "Needs the piano to play notes from the tablet (Settings)." : handStaff is null ? "Choose one hand to hear the other part during timed practice." : "The piano plays the other part during timed practice.")</span>
-                            </div>
-                        }
-                        <FeedbackPreset Way="@Settings.Way" Chosen="UseWay" />
-                        <p class="section-note">@Settings.FeedbackDescription</p>
-                        <SettingSwitch Label="Pause between repeats" Value="Settings.PassWaits" Changed="SetPassWaits" />
-                        <p class="section-note">These feedback settings apply to all library pieces.</p>
-                        <div class="control-row">
-                            <span class="control-label">On the score</span>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.Cursor)" @onclick="() => ShowWhilePlaying(!Settings.Cursor, Settings.LiveMarks)"><span class="mu-led"></span>Show cursor</button>
-                            <button type="button" class="mu-toggle" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => ShowWhilePlaying(Settings.Cursor, !Settings.LiveMarks)"><span class="mu-led"></span>Mark notes as I play</button>
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">Start at</span>
-                            <span class="control-value">Bar @from</span>
-                            @if (from > FirstBar)
-                            {
-                                <button type="button" class="mu-btn" @onclick="() => StartAt(FirstBar)">From the start</button>
-                            }
-                        </div>
-                        <details class="routine-history"><summary>Playing and looping</summary><p class="section-note">Tap a bar to start there. Select Loop and drag the handles to set the passage. Timed follows the set tempo. Wait for notes pauses until you play the correct notes or chord.</p></details>
-                    }
-                    <div class="control-row">
-                        <button type="button" class="mu-btn" @onclick="ToggleOptions">Back to the music</button>
+                        <button type="button" class="mu-btn" @onclick="ToggleAbout">Back to the music</button>
                     </div>
                 </section>
             }
@@ -360,9 +253,9 @@ else
             }
             else if (explain)
             {
-                <p class="explain-hint">What's this? Tap any symbol on the music.</p>
+                <p class="explain-hint">What's this? Tap any symbol on the music. <button type="button" class="mu-btn" data-piano="off" data-action="explain-done" @onclick="ToggleExplain">Done</button></p>
             }
-            else if (loopTo == from && !playing && !options && stage == Stage.Practice)
+            else if (loopTo == from && !playing && !about && stage == Stage.Practice)
             {
                 <p class="explain-hint">Looping bar @from: tap another bar to loop to it, or drag a handle.</p>
             }
@@ -389,6 +282,7 @@ else
             </ErrorBoundary>
         }
 
+        @* A run's review, under the music and over the bar: read it, then play again just below. *@
         @if (outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary")
         {
             <section class="summary" aria-label="How it went">
@@ -398,7 +292,7 @@ else
         }
         @if (stage == Stage.Play && played is { InTime: { } result } && !playing)
         {
-            @* Play's very quick review, at the bottom: the headline and a few words. *@
+            @* Play's very quick review, under the music: the headline and a few words. *@
             <section class="mu-screen play-quick" aria-label="How it went">
                 <p class="play-quick-line">@(latestRun?.Id == lastRun ? PieceWords.Went(latestRun) : $"{result.Right} of {result.Expected} notes were correct.")</p>
                 <div class="play-quick-keys">
@@ -444,67 +338,175 @@ else
             </div>
         }
 
+        @if (readingNotes)
+        {
+        }
+        else if (Pdf)
+        {
+            @* A PDF's print has the bar the notation has, its keys in the same places: its page turns, More (the click; its view,
+               bars a line and beats a bar; hearing it on the piano), then the tempo, which the scroll goes at. Nothing it plays is
+               followed, so it has no hands, mode or Play: its own keys end the bar where Play would be, Scroll and Convert to
+               notation, the one to press orange. *@
+            <PlayAlong Name="library-pdf" Beats="pdfLayout.BeatsPerBar" Tempo="tempo" TempoChanged="SetTempo" ShowMode="false" ShowStart="false" ShowMarks="false" OnFullScreen="ToggleFullScreen">
+                <Tools>
+                    @pageTurns
+                </Tools>
+                <Readouts>
+                    @finishInFull
+                    @* The first time it's opened: the pages whose systems are still being found, behind the page showing. *@
+                    @if (PagesNote() is { } coming)
+                    {
+                        <p class="bar-note" role="status">@coming</p>
+                    }
+                </Readouts>
+                <MoreMusic>
+                    <div class="control-row">
+                        <span class="control-label">View</span>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>Scroll at the tempo</button>
+                        @if (view == View.Pages)
+                        {
+                            <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(halfTurns)" @onclick="ToggleHalf"><span class="mu-led"></span>Half-page turns</button>
+                        }
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Bars</span>
+                        <button type="button" class="mu-btn" data-piano="off" aria-label="Fewer beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar - 1)">−</button>
+                        <span class="control-value">@pdfLayout.BeatsPerBar beats a bar</span>
+                        <button type="button" class="mu-btn" data-piano="off" aria-label="More beats a bar" @onclick="() => SetBeats(pdfLayout.BeatsPerBar + 1)">+</button>
+                        <button type="button" class="mu-btn" data-piano="off" aria-label="Fewer bars a line" @onclick="() => SetBarsPerSystem(-1)">−</button>
+                        <span class="control-value">@BarsPerSystemText() a line</span>
+                        <button type="button" class="mu-btn" data-piano="off" aria-label="More bars a line" @onclick="() => SetBarsPerSystem(1)">+</button>
+                    </div>
+                    <p class="section-note">Scrolling moves a line at a time, after a bar of count-in, at the tempo: bars a line × beats a bar × 60 ÷ tempo seconds a line. @(midi is not null ? "The tempo and metre start from the piece's MIDI." : "")</p>
+                    @printKey
+                </MoreMusic>
+                <More>
+                    @if (midi is not null && Keyboard.CanSend && Settings.SendToPiano)
+                    {
+                        <div class="more-group" role="group" aria-label="Hear it">
+                            <h3 class="more-head">Hear it</h3>
+                            <div class="control-row">
+                                <button type="button" class="mu-btn" data-piano="off" @onclick="ToggleHear">@(hearing ? "Stop" : "Hear it on the piano")</button>
+                            </div>
+                        </div>
+                    }
+                </More>
+                <RunKeys>
+                    @if (view == View.Scroll)
+                    {
+                        @* Scrolling goes a system at a time: it waits for every page's to be found. *@
+                        <button type="button" class="mu-btn mu-primary" data-piano="@(scrolling ? "off" : null)" disabled="@(found is not null)" @onclick="ToggleScroll">@(scrolling ? "Stop" : "Scroll")</button>
+                    }
+                    @if (pdfBytes is not null)
+                    {
+                        <button type="button" class="mu-btn @(view == View.Scroll ? "" : "mu-primary") piece-key" data-action="convert-pdf" data-piano="off" @onclick="ReadTheNotes">Convert to notation</button>
+                    }
+                </RunKeys>
+            </PlayAlong>
+            @if (stage == Stage.Practice && clock is not null)
+            {
+                @* A practice session while Print shows a PDF's print: its clocks and Finish practice in the foot. *@
+                <PlayFoot>
+                    <WayOn>
+                        <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
+                    </WayOn>
+                </PlayFoot>
+            }
+        }
+        else if (stage == Stage.Play)
+        {
+            @* Play: the piece through, In time, both hands, with nothing on the music while it plays; a slim bar to set the tempo
+               and start, then where it is and the time. Once it's played, its quick review over the bar has the keys, Again among
+               them, and the bar keeps only the tempo. *@
+            var reviewing = !playing && played is { InTime: not null };
+            <PlayAlong @ref="play" Name="library-play" Music="playMusic" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" BarClass="play-strip" StartLabel="Start" CanStart="playMusic is { Notes.Count: > 0 }"
+                       ShowStart="!reviewing" Ask="PlayMode.InTime" ShowMode="false" ShowTime="true" Bare="true" Metronome="false" ShowMore="false" ShowFullScreen="false" OnStarting="Starting" OnFinished="Finished">
+                <Readouts>
+                    @if (!playing && !reviewing)
+                    {
+                        <button type="button" class="mu-btn" data-piano="off" @onclick="LeavePlay">Done</button>
+                    }
+                </Readouts>
+            </PlayAlong>
+        }
+        else if (stage == Stage.Practice)
+        {
+            @* Practice: the bar every screen with music has, the hands and Loop on it like an exercise's (Loop goes round the bars
+               chosen on the music or the strip), More for the rest (the click; the view and lyrics; What's this, the cursor and the
+               marks; how a run is summed up and play along). Its foot: the strip of bars, and the session's clocks with Finish
+               practice. *@
+            <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" ShowPassFigure="Settings.PassFigure"
+                       EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="Playable" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
+                       OriginalTempo="originalTempo" OnExplain="EventCallback.Factory.Create(this, ToggleExplain)" Explaining="explain" OnFullScreen="ToggleFullScreen"
+                       Hands="@(twoHands ? AllHands : null)" Hand="@HandOf(handStaff)" HandChanged="h => SetHands(StaffOf(h))"
+                       Loop="@(loopTo is not null)" OnLoop="LoopOnBar" LoopOnLabel="Loop: on. The bars chosen go round until you stop" LoopOffLabel="Loop: off. On, it goes round the bar chosen">
+                <Tools>
+                    @if (view == View.Pages && !playing)
+                    {
+                        @pageTurns
+                    }
+                </Tools>
+                <Readouts>
+                    @finishInFull
+                </Readouts>
+                <MoreMusic>
+                    <div class="control-row">
+                        <span class="control-label">View</span>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(view == View.Pages)" @onclick="() => SetView(View.Pages)"><span class="mu-led"></span>Pages</button>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(view == View.Scroll)" @onclick="() => SetView(View.Scroll)"><span class="mu-led"></span>Scroll</button>
+                    </div>
+                    @if (lyrics)
+                    {
+                        <div class="control-row">
+                            <span class="control-label">Lyrics</span>
+                            <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.Lyrics)" @onclick="() => ShowLyrics(true)"><span class="mu-led"></span>On</button>
+                            <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(!Settings.Lyrics)" @onclick="() => ShowLyrics(false)"><span class="mu-led"></span>Off</button>
+                            <span class="control-note">@(Settings.Lyrics ? "The song's words under its notes, on every song." : "The music alone, on every song.")</span>
+                        </div>
+                    }
+                    @printKey
+                </MoreMusic>
+                <More>
+                    <div class="more-group" role="group" aria-label="After a run">
+                        <h3 class="more-head">After a run</h3>
+                        <FeedbackPreset Way="@Settings.Way" Chosen="UseWay" />
+                        <p class="section-note">@Settings.FeedbackDescription</p>
+                        <SettingSwitch Label="Pause between repeats" Value="Settings.PassWaits" Changed="SetPassWaits" />
+                        <p class="section-note">These apply to all library pieces.</p>
+                    </div>
+                    @if (twoHands)
+                    {
+                        <div class="more-group" role="group" aria-label="The other hand">
+                            <h3 class="more-head">The other hand</h3>
+                            <div class="control-row">
+                                <span class="control-label">Play along</span>
+                                <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(!playAlong)" @onclick="() => SetPlayAlong(false)"><span class="mu-led"></span>Off</button>
+                                <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(playAlong)" disabled="@(handStaff is null || !Keyboard.CanSend || !Settings.SendToPiano)" @onclick="() => SetPlayAlong(true)"><span class="mu-led"></span>The other hand</button>
+                            </div>
+                            <p class="section-note">@(!Keyboard.CanSend || !Settings.SendToPiano ? "Needs the piano to play notes from the tablet (Settings)." : handStaff is null ? "Choose one hand to hear the other part during timed practice." : "The piano plays the other part during timed practice.")</p>
+                        </div>
+                    }
+                    <details class="routine-history more-help"><summary>Playing and looping</summary><p class="section-note">Tap a bar to start there, and Loop to go round it; tap another bar or drag a handle to loop more of them. Timed follows the set tempo. Wait for notes pauses until you play the correct notes or chord.</p></details>
+                </More>
+            </PlayAlong>
+            <PlayFoot>
+                <What>
+                    @* Every bar, a cell each, drawn and dragged by bars.js: tap one to start there, drag along them to loop them. *@
+                    <div class="bar-strip" @ref="strip" role="group" aria-label="The bars: tap one to start there, or drag along them to loop them"></div>
+                </What>
+                <WayOn>
+                    @if (clock is not null)
+                    {
+                        <PracticeStrip Clock="clock" OnFinish="FinishPractice" OnTick="Ticked" />
+                    }
+                </WayOn>
+            </PlayFoot>
+        }
+
         <section class="settings-section piece-about" aria-labelledby="about-heading">
             <h2 id="about-heading" class="section-title">About this piece</h2>
-            <ul class="summary-words">
-                @* The latest recorded run, including short practice attempts. *@
-                @if (latestRun is { } last)
-                {
-                    var today = DateOnly.FromDateTime(DateTime.Now);
-                    <li>Last practiced @PieceWords.When(last.Day, today) · @PieceWords.How(last)</li>
-                }
-                @if (piece.Reasons is { Length: > 0 } reasons)
-                {
-                    <li>Level @piece.Level for @reasons@(piece.TypicalLevel < piece.Level ? $"; most of it reads at {piece.TypicalLevel}" : "").</li>
-                }
-                else if (piece.IsPdf && mei is null && piece.Level is { } anchor)
-                {
-                    <li>About level @anchor, where its collection sits. Its notes aren't read yet: Options › Notes.</li>
-                }
-                @if (listing is { } listed)
-                {
-                    <li>@listed.Sentence</li>
-                }
-                @if (mei is not null && reading is { Kept: { } kept } && JsonSerializer.Deserialize<ReadingDraft>(reading.Result, Playground.AI.Assist.AssistSchema.Json) is { } read)
-                {
-                    <li>Its notes were read from the PDF by Claude on @kept.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture), for @("$" + read.Cost.ToString("0.00", CultureInfo.InvariantCulture))@(read.Doubts.Count == 0 ? "" : $"; bar{(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "" : "s")} {string.Join(", ", read.Doubts.Select(d => d.Bar).Distinct().Order())} {(read.Doubts.Select(d => d.Bar).Distinct().Count() == 1 ? "was" : "were")} still in doubt when kept").</li>
-                }
-                @if (piece.Credit is { Length: > 0 } credit)
-                {
-                    <li>@credit @if (piece.LicenceUrl is { Length: > 0 }) { <a href="@piece.LicenceUrl" target="_blank" rel="noopener">@piece.Licence</a> } @if (piece.SourceUrl is { Length: > 0 }) { <span> · </span><a href="@piece.SourceUrl" target="_blank" rel="noopener">Source</a> }</li>
-                }
-                else if (piece.Imported)
-                {
-                    // The file as it was named: a PDF is kept under a name of Prima's own, and one imported before its name was
-                    // kept says only when.
-                    var file = piece.Source ?? (piece.IsPdf ? null : piece.File);
-                    <li>Imported @piece.Added.ToLocalTime().ToString("d MMMM", CultureInfo.InvariantCulture)@(file is null ? "" : $" from {file}").</li>
-                }
-            </ul>
-            <div class="control-row">
-                @if (piece.IsPdf && mei is not null && pdfBytes is not null && !readingNotes)
-                {
-                    <button type="button" class="mu-btn" data-piano="off" @onclick="ReadTheNotes">Convert PDF again</button>
-                }
-                @if (removing)
-                {
-                    <button type="button" class="mu-btn mu-primary" data-piano="off" @onclick="Remove">Remove it</button>
-                    <button type="button" class="mu-btn" @onclick="() => removing = false">Keep it</button>
-                }
-                else
-                {
-                    <button type="button" class="mu-btn" @onclick="() => removing = true">Remove from the Library…</button>
-                }
-            </div>
-            @* One of Prima's own goes as an import does, and stays out: Prima doesn't put it back by itself. A collection's too. *@
-            @if (removing && piece.Origin == "bundle")
-            {
-                <p class="section-note" role="status">One of Prima's own pieces: it stays out of the Library, and Prima won't put it back by itself (the Library has a key that puts Prima's own back). Your runs on it still count.</p>
-            }
-            else if (removing && piece.Origin == "collection")
-            {
-                <p class="section-note" role="status">From your collection: it stays out of the Library, even when the collection is imported again (the Library has a key that lets it back in). Your runs on it still count.</p>
-            }
+            @aboutPiece(true)
         </section>
         @if (stage == Stage.Practice && clock is { Paused: true })
         {
@@ -610,10 +612,10 @@ else
     // The prepared whole loop stays intact when a tap moves its starting point.
     private PlayMusic? wholeLoop;
     private int? cueBar;
-    // The play bar; the options in place of the music; full screen; a loop from the start bar to its last; the piano playing the
-    // other hand.
+    // The play bar; About this piece in place of the music; full screen; a loop from the start bar to its last; the piano playing
+    // the other hand.
     private PlayAlong? play;
-    private bool options;
+    private bool about;
     // The piece's own tempo, to go back to (none when its score marks none).
     private double? originalTempo;
     // Full screen as it should be, and as the page shows it: the page can only show it once turns.js is loaded.
@@ -803,7 +805,7 @@ else
 
     private WaitCard? Card()
     {
-        if (readingNotes || options) return null;
+        if (readingNotes || about) return null;
         if (Waiting)
         {
             var what = Pdf ? "Opening its pages" : piece!.Bars is { } bars ? $"Engraving {bars} bars" : "Engraving its music";
@@ -941,11 +943,11 @@ else
 
     private string PlaceText() => Pdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
 
-    private void ReadTheNotes() => (readingNotes, options, explain) = (true, false, false);
+    private void ReadTheNotes() => (readingNotes, about, explain) = (true, false, false);
 
     private void CloseReading()
     {
-        (readingNotes, options) = (false, false);
+        (readingNotes, about) = (false, false);
         redrawPdf = Pdf;
         if (Conversion == 1) Nav.NavigateTo(Nav.GetUriWithQueryParameter("conversion", (int?)null), replace: true);
     }
@@ -1037,7 +1039,8 @@ else
 
     private string ViewKey => $"Library.View.{Id}";
 
-    private void ToggleOptions() => options = !options;
+    // About this piece, by About in the head: in the music's place, as an exercise's words are.
+    private void ToggleAbout() => (about, explain, explained) = (!about, false, null);
 
     // What shows on the music while a run plays In time: kept in Settings, for every screen that plays to a tempo.
     private Task ShowWhilePlaying(bool cursor, bool marks)
@@ -1053,7 +1056,7 @@ else
         return Store.SaveAsync(Settings);
     }
 
-    private void ToggleExplain() => (explain, explained, options) = (!explain, null, false);
+    private void ToggleExplain() => (explain, explained, about) = (!explain, null, false);
 
     // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
     private void SymbolTapped(SheetSymbol symbol)
@@ -1142,23 +1145,19 @@ else
         else if (music is null || from != bar) StartAt(bar);
     }
 
-    // The start key's words: what it plays, from where, and the hand. With a hand they're shorter ("Loop 13–16, right hand",
-    // "Right hand from bar 9"), so they keep to two lines on a full bar.
+    // The start key's words: what it plays, and from where ("Loop bars 13–16", "Play from bar 9"). The hand is the bar's.
     private string StartLabel
     {
         get
         {
-            var hand = HandName;
             if (loopTo is { } to)
             {
                 // Word joiners keep the bars' numbers together where the key's words take two lines.
                 var range = $"{from}\u2060–\u2060{to}";
-                if (cueBar is { } entry && entry != from) return $"Loop {range} from bar {entry}{(hand is null ? "" : $", {hand} hand")}";
-                if (hand is null) return to == from ? $"Loop bar {from}" : $"Loop bars {range}";
-                return to == from ? $"Loop bar {from}, {hand} hand" : $"Loop {range}, {hand} hand";
+                if (cueBar is { } entry && entry != from) return $"Loop {range} from bar {entry}";
+                return to == from ? $"Loop bar {from}" : $"Loop bars {range}";
             }
-            if (hand is null) return from > FirstBar ? $"Play from bar {from}" : "Play";
-            return from > FirstBar ? $"{char.ToUpperInvariant(hand[0])}{hand[1..]} hand from bar {from}" : $"Play the {hand} hand";
+            return from > FirstBar ? $"Play from bar {from}" : "Play";
         }
     }
 
@@ -1192,6 +1191,15 @@ else
     private string HandsKey => $"Library.Hands.{Id}";
 
     private string? HandName => handStaff switch { 1 => "right", 2 => "left", _ => null };
+
+    // The hands on the bar, and the staff they play: the upper's the right hand, the lower's the left, both none.
+    private static Prima.Core.Generation.HandUse HandOf(int? staff) => staff switch { 1 => Prima.Core.Generation.HandUse.Right, 2 => Prima.Core.Generation.HandUse.Left, _ => Prima.Core.Generation.HandUse.Together };
+
+    private static int? StaffOf(Prima.Core.Generation.HandUse hand) => hand switch { Prima.Core.Generation.HandUse.Right => 1, Prima.Core.Generation.HandUse.Left => 2, _ => null };
+
+    // Loop on the bar, as the chosen bar's tab has it: on, it loops the bar chosen (the first, when none is), which a tap on another
+    // bar or a handle then stretches; off, the loop goes and its first bar stays chosen to start from.
+    private void LoopOnBar(bool on) => SetLoop(on ? from : null);
 
     private static readonly Prima.Core.Generation.HandUse[] AllHands = [Prima.Core.Generation.HandUse.Right, Prima.Core.Generation.HandUse.Left, Prima.Core.Generation.HandUse.Together];
 
@@ -1290,7 +1298,7 @@ else
     // The run plays in the scrolling view, a line at a time: for the run, so a piece kept in Pages opens in Pages the next time.
     private async Task Starting()
     {
-        (playing, outcome, started, options, explain, explained) = (true, null, restarting ? started : DateTime.Now, false, false, null);
+        (playing, outcome, started, about, explain, explained) = (true, null, restarting ? started : DateTime.Now, false, false, null);
         if (stage == Stage.Practice) clock?.RunStarted(DateTimeOffset.Now);
         if (stage == Stage.Play) played = null;
         if (view == View.Scroll) return;

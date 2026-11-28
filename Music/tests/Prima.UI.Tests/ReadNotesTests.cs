@@ -295,8 +295,9 @@ public class ReadNotesTests
         view.WaitForElement(".pdfread-error[role=alert]");
         Assert.NotNull(view.Find("[data-action=resume-conversion][disabled]"));
         Assert.NotNull(view.Find("[data-cost-kind=job][data-cost-unknown=true]"));
-        view.Find("[data-action=acknowledge-resend]").Click();
-        Assert.NotNull(view.Find("[data-action=resume-conversion]:not([disabled])"));
+        // Awaited, and waited for: a plain Click() can be queued behind a render under load, and a read straight after it flakes.
+        await view.InvokeAsync(() => view.Find("[data-action=acknowledge-resend]").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        view.WaitForElement("[data-action=resume-conversion]:not([disabled])");
         Assert.Equal(1, host.Claude.Calls);
         Assert.Null(await host.Store.GetReadingAsync(piece.Id));
     }

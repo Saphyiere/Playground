@@ -1,0 +1,20 @@
+@*
+    The foot of every screen that plays music, under the play bar: on its left what this one is (an exercise's key and variation
+    on its card with Change, a piece's bars, a drill's target and set), on its right the way on (the next exercise, Finish
+    practice with the session's clocks, a routine's time, Skip and Next). Full screen takes it away. The owner, 28 November 2026:
+    "going to the next exercises, which I don't want at the top, I want at the bottom".
+*@
+<footer class="play-foot full-hide" aria-label="@Label">
+    <div class="play-foot-what">@What</div>
+    <div class="play-foot-on">@WayOn</div>
+</footer>
+
+@code {
+    /// <summary>What this one is.</summary>
+    [Parameter] public RenderFragment? What { get; set; }
+
+    /// <summary>The way on.</summary>
+    [Parameter] public RenderFragment? WayOn { get; set; }
+
+    [Parameter] public string Label { get; set; } = "What and what next";
+}

@@ -101,9 +101,9 @@ public class OpeningAPieceTests
         var page = OpenFromItsList(host);
 
         // The head, with the way back named for where it goes; the bar, its keys off; and the paper, waiting.
-        Assert.Equal("Ludwig van Beethoven", page.WaitForElement(".reading-head .way-back").TextContent);
-        Assert.Equal("Sonata No. 21 'Waldstein', Op. 53: III. Rondo", page.Find(".reading-head h1").TextContent);
-        Assert.Equal("Ludwig van Beethoven · Piano sonatas", page.Find(".reading-head .page-kicker").TextContent);
+        Assert.Equal("Ludwig van Beethoven", page.WaitForElement(".piece-head .way-back").TextContent);
+        Assert.Equal("Sonata No. 21 'Waldstein', Op. 53: III. Rondo", page.Find(".piece-head h1").TextContent);
+        Assert.Equal("Ludwig van Beethoven · Piano sonatas", page.Find(".piece-head .page-kicker").TextContent);
         Assert.Equal("400", page.FindAll(".piece-front-bar .mu-readout-value")[1].TextContent);
         Assert.Equal("Getting its music ready", page.Find(".piece-front-bar .bar-note").TextContent);
         Assert.All(page.FindAll(".piece-front-bar button.piece-key"), key => Assert.True(key.HasAttribute("disabled")));
@@ -172,8 +172,8 @@ public class OpeningAPieceTests
         nav.NavigateTo("library/long");
         var page = host.Context.Render<Pages.Piece>(p => p.Add(c => c.Id, "long"));
 
-        Assert.Equal("Library", page.WaitForElement(".reading-head .way-back").TextContent);
-        await page.InvokeAsync(() => page.Find(".reading-head .way-back").ClickAsync(new MouseEventArgs()));
+        Assert.Equal("Library", page.WaitForElement(".piece-head .way-back").TextContent);
+        await page.InvokeAsync(() => page.Find(".piece-head .way-back").ClickAsync(new MouseEventArgs()));
 
         Assert.Equal([-1], host.Browser.WentBack);
     }

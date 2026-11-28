@@ -108,17 +108,17 @@ public class SheetLyricsTests
 
         var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
         view.WaitForElement(".piece-front-bar .mu-primary:not([disabled])").Click();
-        view.WaitForElement(".piece-tool[aria-label='Options']").Click();
-        view.WaitForElement(".piece-options");
+        view.WaitForElement("[data-action=more]").Click();
+        view.WaitForElement(".play-more");
 
-        var row = view.FindAll(".piece-options .control-row").FirstOrDefault(r => r.QuerySelector(".control-label")?.TextContent == "Lyrics");
+        var row = view.FindAll(".play-more .control-row").FirstOrDefault(r => r.QuerySelector(".control-label")?.TextContent == "Lyrics");
         Assert.Equal(song, row is not null);
         if (row is null) return;
 
         // The song's sheet is drawn with its words first, and again without them once they're turned off, beside it.
         view.WaitForAssertion(() => Assert.Contains(host.Browser.Renders, r => r.Mei.Contains("<verse")));
         row.QuerySelectorAll("button")[1].Click();
-        view.WaitForAssertion(() => Assert.Contains("The music alone", view.Find(".piece-options").TextContent));
+        view.WaitForAssertion(() => Assert.Contains("The music alone", view.Find(".play-more").TextContent));
         view.WaitForAssertion(() => Assert.DoesNotContain("<verse", host.Browser.Renders[^1].Mei));
         Assert.False(host.Browser.Renders[^1].Options.GetProperty("words").GetBoolean());
         Assert.False(settings.Lyrics);

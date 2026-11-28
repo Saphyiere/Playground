@@ -4,34 +4,43 @@
 @inject RoutineService Routines
 @using Prima.UI.Routines
 
+@*
+    A routine's activity, on the right of its screen's foot: the routine and the activity's place in it, the time on it counting
+    down from its minutes (once it's up, Next stands out), how it felt in one of Claude's, and Skip and Next, which go straight
+    on to the next activity not done yet, and back to the routine after the last. The way back to the routine is the screen's
+    head's, as on any screen.
+*@
 @if (Session?.IsRoutine == true)
 {
     <NavigationLock OnBeforeInternalNavigation="Leaving" />
-    <div class="control-row" data-routine-context="@Session.Execution?.Id">
+    <div class="routine-foot" role="group" aria-label="The routine" data-routine-context="@Session.Execution?.Id">
         @if (Session.Problem is { } sessionProblem)
         {
             <p class="page-note" role="alert">@sessionProblem</p>
         }
         else if (Session.Activity is { } item)
         {
-            @* The time on the activity, played or not, counting down from its minutes; once it's up, Next stands out. Next and Skip go
-               straight on to the next activity not done yet, and back to the routine after the last. *@
             var left = item.Minutes * 60 - (int)Session.Seconds;
-            <span class="control-note">@RoutineWords.American(item.Title) · <span class="routine-time" data-over="@(left <= 0 ? "true" : null)">@(left > 0 ? $"{left / 60}:{left % 60:00} left" : "time's up")</span></span>
-            <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {RoutineWords.American(next.Title)}")</button>
-            <button type="button" class="mu-btn" data-piano="off" data-action="routine-skip" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
-        }
-        <a class="mu-btn" data-piano="off" href="@Back">Back to routine</a>
-        @if (paused && OnResume.HasDelegate)
-        {
-            <button class="mu-btn mu-primary" type="button" data-piano="off" @onclick="Resume">Resume activity</button>
-        }
-        @if (Session is { Fixed: true, Execution: { ActiveSeconds: > 0 } execution })
-        {
-            @foreach (var (value, label) in new[] { ("easy", "Too easy"), ("right", "About right"), ("hard", "Too hard") })
+            <div class="mu-readout routine-place">
+                <span class="mu-readout-label">@(place is { } at ? $"{RoutineWords.American(at.Routine)} · {at.At} of {at.Of}" : RoutineWords.American(item.Title))</span>
+                <span class="mu-readout-value routine-time" data-over="@(left <= 0 ? "true" : null)">@(left > 0 ? $"{left / 60}:{left % 60:00} left" : "time's up")</span>
+            </div>
+            @if (Session is { Fixed: true, Execution: { ActiveSeconds: > 0 } execution })
             {
-                <button class="mu-toggle" type="button" data-piano="off" data-feedback="@value" aria-pressed="@(execution.Feedback == value ? "true" : "false")" @onclick="() => Session.FeedbackAsync(value)"><span class="mu-led"></span>@label</button>
+                <div class="routine-feel" role="group" aria-label="How did it feel?">
+                    <span class="control-label">How did it feel?</span>
+                    @foreach (var (value, label) in new[] { ("easy", "Too easy"), ("right", "About right"), ("hard", "Too hard") })
+                    {
+                        <button class="mu-toggle" type="button" data-piano="off" data-feedback="@value" aria-pressed="@(execution.Feedback == value ? "true" : "false")" @onclick="() => Session.FeedbackAsync(value)"><span class="mu-led"></span>@label</button>
+                    }
+                </div>
             }
+            @if (paused && OnResume.HasDelegate)
+            {
+                <button class="mu-btn mu-primary" type="button" data-piano="off" @onclick="Resume">Resume activity</button>
+            }
+            <button type="button" class="mu-btn" data-piano="off" data-action="routine-skip" disabled="@saving" @onclick="() => Complete(true)">Skip</button>
+            <button type="button" class="mu-btn @(left <= 0 ? "mu-primary" : "")" data-piano="off" data-action="routine-next" disabled="@saving" @onclick="() => Complete(false)">@(next is null ? "Done" : $"Next: {RoutineWords.American(next.Title)}")</button>
         }
     </div>
     @if (problem is not null) { <p class="page-note" role="alert">@problem</p> }
@@ -53,6 +62,9 @@
     // The routine's own page.
     private string Back => Session?.Execution is { } execution ? $"routines/{execution.Revision}" : "routine";
 
+    // Where the activity is in the routine: the routine's name, the activity's place in it and how many there are.
+    private (string Routine, int At, int Of)? place;
+
     protected override void OnInitialized()
     {
         Lifecycle.Pausing += Sleep;
@@ -72,6 +84,7 @@
         if (definition is null || day is null) return;
         var order = definition.Items.Select(i => i.Recipe).ToList();
         var at = order.FindIndex(i => i.Id == execution.ItemId);
+        place = at < 0 ? null : (definition.Title, at + 1, order.Count);
         var open = day.Items.Where(p => p.State is not (RoutineItemState.Done or RoutineItemState.Skipped)).Select(p => p.ItemId).ToHashSet();
         next = order.Skip(at + 1).Concat(order.Take(at)).FirstOrDefault(i => open.Contains(i.Id));
     }

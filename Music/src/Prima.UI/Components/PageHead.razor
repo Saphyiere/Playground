@@ -1,19 +1,44 @@
-@* A screen's heading: a printed line above (the day, or what the screen is for) and its name. Whatever's passed inside sits at
-   the other end, like a status lamp or a button. *@
+@*
+    Every screen's head, the same everywhere: on its left the way back by the name of where it goes (where there's somewhere to go
+    back to), a printed line (the day, what the screen is for) and the screen's name; on its right the screen's own keys (a
+    search, Import), then About (its words, in the music's place), full screen's key and the piano's lamp, each where the screen
+    has it and always in that order. The owner, 28 November 2026: "the head should be normal in every single location in the
+    app".
+*@
 <header class="page-head @Class">
-    <div>
+    <div class="page-head-name">
         @if (Back is not null)
         {
-            @* The way back, by the name of where it goes, as a piece's head has it. *@
+            @* The way back, by the name of where it goes. *@
             <button type="button" class="way-back" data-piano="off" @onclick="() => OnBack.InvokeAsync()">@Back</button>
         }
         @if (Kicker is not null)
         {
             <p class="page-kicker">@Kicker</p>
         }
-        <h1 class="page-title">@Title</h1>
+        <h1 class="page-title @(Title.Length > 40 ? "page-title-long" : null)">@Title</h1>
     </div>
-    @ChildContent
+    @if (ChildContent is not null || OnAbout.HasDelegate || FullScreen || Lamp)
+    {
+        <div class="page-head-keys">
+            @ChildContent
+            @if (OnAbout.HasDelegate)
+            {
+                <button type="button" class="mu-btn head-about" data-action="about" data-piano="off" aria-pressed="@(AboutOpen ? "true" : "false")" @onclick="() => OnAbout.InvokeAsync()">
+                    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M10 9v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" /><circle cx="10" cy="6.3" r="1.2" fill="currentColor" /></svg>
+                    <span>About</span>
+                </button>
+            }
+            @if (FullScreen)
+            {
+                <FullScreenKey OnFullScreen="OnFullScreen" />
+            }
+            @if (Lamp)
+            {
+                <KeyboardLamp />
+            }
+        </div>
+    }
 </header>
 
 @code {
@@ -29,5 +54,20 @@
     /// <summary>A class of its own: full-hide, for a head that full screen takes away.</summary>
     [Parameter] public string? Class { get; set; }
 
+    /// <summary>The screen's own keys, first on the right: a search, Import, New routine.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>About, for a screen whose words show in the music's place (a piece's, an exercise's), and whether they show.</summary>
+    [Parameter] public EventCallback OnAbout { get; set; }
+
+    [Parameter] public bool AboutOpen { get; set; }
+
+    /// <summary>Full screen's key, on a screen that plays music.</summary>
+    [Parameter] public bool FullScreen { get; set; }
+
+    /// <summary>For a screen that does more as it goes in and out of full screen (a piece's Practice), asked by the key.</summary>
+    [Parameter] public EventCallback OnFullScreen { get; set; }
+
+    /// <summary>The piano's lamp, lit when it's plugged in: on a screen that plays.</summary>
+    [Parameter] public bool Lamp { get; set; }
 }

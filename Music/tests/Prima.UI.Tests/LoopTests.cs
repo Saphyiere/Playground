@@ -247,11 +247,17 @@ public class LoopTests
         {
             var view = host.Context.Render<ExercisePractice>(p => p.Add(c => c.Id, exercise.Id));
             view.WaitForAssertion(() => Assert.NotNull(view.FindComponent<PlayAlong>().Instance.Music));
-            await Choosing.OpenChange(view);
-            Assert.Equal(Exercises.KeysOf(exercise).Count > 1, view.FindAll(".key-piano").Any());
-            Assert.Equal(exercise.HanonNumber is null, view.FindAll(".exercise-through").Any());
-            if (exercise.HanonNumber is not null && Exercises.KeysOf(exercise).Count > 1)
-                Assert.Single(view.FindAll("a[href*='routines/hanon/keys?study=']"));
+            // Its card in the foot, with Change, where there's a key or a variation to choose: the hands are the bar's.
+            var card = Exercises.KeysOf(exercise).Count > 1 || ExerciseFamilies.Of(exercise.Id) is not null;
+            view.WaitForAssertion(() => Assert.Equal(card, view.FindAll(".play-foot .choice-change").Any()));
+            if (card)
+            {
+                await Choosing.OpenChange(view);
+                Assert.Equal(Exercises.KeysOf(exercise).Count > 1, view.FindAll(".key-piano").Any());
+                Assert.Equal(exercise.HanonNumber is null, view.FindAll(".exercise-through").Any());
+                if (exercise.HanonNumber is not null && Exercises.KeysOf(exercise).Count > 1)
+                    Assert.Single(view.FindAll("a[href*='routines/hanon/keys?study=']"));
+            }
             Assert.Single(view.FindAll(".play-loop"));
             view.Dispose();
         }

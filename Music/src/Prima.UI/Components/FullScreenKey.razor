@@ -1,0 +1,44 @@
+@implements IDisposable
+@inject Prima.UI.Practice.FullScreen Full
+
+@*
+    Full screen's key, the same wherever it is: in a screen's head, and in full screen at the play bar's start, since the head
+    is gone then. On, only the bar and the music are left (and a run's review); the key again, or leaving the screen, brings the
+    rest back.
+*@
+<button type="button" class="mu-btn piece-tool full-key" data-action="fullscreen" data-piano="off" aria-label="@(Full.On ? "Leave full screen" : "Full screen")" aria-pressed="@(Full.On ? "true" : "false")" @onclick="Toggle">
+    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="@(Full.On ? "M8 3v5H3M17 8h-5V3M12 17v-5h5M3 12h5v5" : "M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5")" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+</button>
+
+@code {
+    /// <summary>
+    /// For a screen that does more as it goes in and out of full screen (a piece's Practice): the key asks it, and it asks
+    /// <see cref="Prima.UI.Practice.FullScreen"/>. Otherwise the key turns full screen on and off itself.
+    /// </summary>
+    [Parameter] public EventCallback OnFullScreen { get; set; }
+
+    // Whether this key turned full screen on, so it turns it off as its screen goes.
+    private bool took;
+
+    protected override void OnInitialized() => Full.Changed += Redraw;
+
+    private void Redraw() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task Toggle()
+    {
+        if (OnFullScreen.HasDelegate)
+        {
+            await OnFullScreen.InvokeAsync();
+            return;
+        }
+        took = !Full.On;
+        await Full.SetAsync(!Full.On);
+    }
+
+    public void Dispose()
+    {
+        Full.Changed -= Redraw;
+        // Its screen going while full screen is on by its key: the next screen has its rail and head back.
+        if (took && Full.On) _ = Full.SetAsync(false);
+    }
+}

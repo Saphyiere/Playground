@@ -1,0 +1,138 @@
+@inject PrimaSettings Settings
+@inject PrimaStore Store
+
+@*
+    More: the one key at the play bar's start for what a run doesn't need every time, the same on every bar that has it. It opens
+    a panel upward from the bar, over the music, with the rest in groups: the click (the click alone, where it's heard, its sound,
+    how loud), the music (the screen's own, a piece's view and lyrics; What's this; the cursor and the marks while you play), then
+    the screen's own groups (a piece's feedback and its play along). Done closes it, and so does a run starting; while one plays
+    the key is off. With the click going by itself, the key's lamp is lit. The owner, 28 November 2026: "go for simple first, and
+    then have the ability to do the advanced stuff in like a very clean, sleek way, rather than just throwing all these options
+    all at once".
+*@
+<button type="button" class="mu-btn piece-tool play-more-key" data-action="more" data-piano="off" aria-label="More" aria-expanded="@On(open)" disabled="@Running" @onclick="() => open = !open">
+    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="7" cy="5" r="2.3" fill="currentColor" /><circle cx="13" cy="10" r="2.3" fill="currentColor" /><circle cx="9" cy="15" r="2.3" fill="currentColor" /></svg>
+    @if (Ticking)
+    {
+        <span class="mu-led on play-more-lamp" aria-hidden="true"></span>
+    }
+</button>
+@if (open && !Running)
+{
+    <ChangePanel Label="More" Class="play-more" OnDone="() => open = false">
+        @if (Metronome)
+        {
+            <div class="more-group" role="group" aria-label="The click">
+                <h3 class="more-head">The click</h3>
+                <div class="control-row">
+                    <button type="button" class="mu-toggle play-click-alone" data-piano="off" aria-pressed="@On(Ticking)" @onclick="() => OnClickAlone.InvokeAsync()"><span class="mu-led"></span>The click alone</button>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Heard on</span>
+                    <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(!Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = false)"><span class="mu-led"></span>Tablet</button>
+                    <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.ClickOnPiano)" @onclick="() => SaveClick(() => Settings.ClickOnPiano = true)"><span class="mu-led"></span>Piano</button>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Sound</span>
+                    <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Wood)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Wood)"><span class="mu-led"></span>Wood</button>
+                    <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.ClickSound == ClickSoundKind.Beep)" @onclick="() => SaveClick(() => Settings.ClickSound = ClickSoundKind.Beep)"><span class="mu-led"></span>Beep</button>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Volume</span>
+                    <input type="range" class="control-range" min="10" max="100" step="5" value="@Settings.ClickVolume" aria-label="Click volume" @onchange="e => SaveClick(() => Settings.ClickVolume = int.Parse((string)e.Value!, CultureInfo.InvariantCulture))" />
+                    <span class="metronome-value">@Settings.ClickVolume%</span>
+                </div>
+            </div>
+        }
+        @if (Music is not null || OnExplain.HasDelegate || Marks)
+        {
+            <div class="more-group" role="group" aria-label="The music">
+                <h3 class="more-head">The music</h3>
+                @Music
+                @if (OnExplain.HasDelegate)
+                {
+                    <div class="control-row">
+                        <button type="button" class="mu-toggle" data-action="explain" data-piano="off" aria-pressed="@On(Explaining)" @onclick="Explain"><span class="mu-led"></span>What's this?</button>
+                        <span class="control-note">Then tap any symbol on the music.</span>
+                    </div>
+                }
+                @if (Marks)
+                {
+                    <div class="control-row">
+                        <span class="control-label">While you play</span>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.Cursor)" @onclick="() => Save(() => Settings.Cursor = !Settings.Cursor)"><span class="mu-led"></span>Show cursor</button>
+                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(Settings.LiveMarks)" @onclick="() => Save(() => Settings.LiveMarks = !Settings.LiveMarks)"><span class="mu-led"></span>Mark notes as I play</button>
+                    </div>
+                }
+            </div>
+        }
+        @ChildContent
+    </ChangePanel>
+}
+
+@code {
+    /// <summary>A run playing: the key is off, and the panel shut.</summary>
+    [Parameter] public bool Running { get; set; }
+
+    /// <summary>The click's group, where the bar has a metronome.</summary>
+    [Parameter] public bool Metronome { get; set; }
+
+    /// <summary>The click going by itself, at the tempo, with nothing judged.</summary>
+    [Parameter] public bool Ticking { get; set; }
+
+    /// <summary>The click alone started or stopped.</summary>
+    [Parameter] public EventCallback OnClickAlone { get; set; }
+
+    /// <summary>When the click's settings change, for a click going to start again with them.</summary>
+    [Parameter] public EventCallback OnClickChanged { get; set; }
+
+    /// <summary>The cursor and the marks while you play: kept in Settings, for every screen that plays to a tempo.</summary>
+    [Parameter] public bool Marks { get; set; } = true;
+
+    /// <summary>What's this, for a screen whose music explains its symbols when tapped, and whether it's on.</summary>
+    [Parameter] public EventCallback OnExplain { get; set; }
+
+    [Parameter] public bool Explaining { get; set; }
+
+    /// <summary>The screen's own rows for its music: a piece's view and lyrics, a PDF's bars a line.</summary>
+    [Parameter] public RenderFragment? Music { get; set; }
+
+    /// <summary>The screen's own groups after those: a <c>more-group</c> each, with its <c>more-head</c>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool open;
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    protected override void OnParametersSet()
+    {
+        if (Running) open = false;
+    }
+
+    /// <summary>Shuts the panel, for a screen whose own key in it opens something else.</summary>
+    public void Close()
+    {
+        open = false;
+        StateHasChanged();
+    }
+
+    // What's this: the panel goes, so the music can be tapped.
+    private Task Explain()
+    {
+        open = false;
+        return OnExplain.InvokeAsync();
+    }
+
+    private Task Save(Action change)
+    {
+        change();
+        return Store.SaveAsync(Settings);
+    }
+
+    // The click's settings changed: kept, and a click going starts again with them.
+    private async Task SaveClick(Action change)
+    {
+        await Save(change);
+        await OnClickChanged.InvokeAsync();
+    }
+}

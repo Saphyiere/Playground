@@ -8,19 +8,20 @@
 @using Prima.Core.Routines
 
 <PageTitle>@(exercise?.Name ?? "Exercise") · Prima</PageTitle>
-<RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
 
 @if (exercise is null)
 {
-    <PageHead Title="Exercises" Kicker="Not one of the exercises" />
-    <div class="control-row"><a class="mu-btn" href="exercises">All the exercises</a></div>
+    <PageHead Title="Exercises" Kicker="Not one of the exercises" Back="Exercises" OnBack="Leave" />
 }
 else
 {
-    var choosing = keys.Count > 1 || exercise.Hands.Count > 1 || family is not null;
-    // What comes after this one in its section. In a routine, the routine's bar has its next.
+    var played = exercise.Kind == ExerciseKind.Played;
+    // What's chosen on its card in the foot: the key, a family's own choices. The hands are on the play bar.
+    var choosing = keys.Count > 1 || family is not null;
+    // What comes after this one in its section. In a routine, the routine's keys in the foot have its next.
     var next = routineSession?.IsRoutine == true || Place is not null ? null : exercise.HanonNumber is int n ? Hanon.All.ElementAtOrDefault(n)
         : Exercises.All.SkipWhile(e => e.Id != Id).Skip(1).FirstOrDefault(e => e.Section == exercise.Section && e.HanonNumber is null);
+    var section = Place is not null ? Book ? "Complete Hanon" : "Hanon Through the Keys" : Exercises.Sections.First(s => s.Key == exercise.Section).Name;
     var history = "Not tried yet.";
     if (was is not null)
     {
@@ -31,11 +32,19 @@ else
         history = exercise.Kind == ExerciseKind.Away ? $"Done on {days}, last {last}." : $"Played {times} on {days}, last {last}.{fastest}";
     }
 
-    <PageHead Title="@exercise.Name" Kicker="@(Place is not null ? Book ? "Complete Hanon" : "Hanon Through the Keys" : Exercises.Sections.First(s => s.Key == exercise.Section).Name)" Class="full-hide" Back="@WayBack" OnBack="Leave"><KeyboardLamp /></PageHead>
+    @* The head every screen has: the way back, the exercise's section and name, and on one that's played About (its words, in
+       the music's place), full screen and the piano's lamp. *@
+    <PageHead Title="@exercise.Name" Kicker="@section" Class="full-hide" Back="@WayBack" OnBack="Leave"
+              OnAbout="@(played ? EventCallback.Factory.Create(this, ToggleWords) : default)" AboutOpen="wordsOpen" FullScreen="played" Lamp="true" />
 
-    // Its words: how, what to notice (why, for a way to practice), what it trains and the lesson its idea is from, what's been
-    // done of it, the key that puts it in one of your routines, and what comes next.
+    // Its words: what you do in a line, how, what to notice (why, for a way to practice), what it trains and the lesson its idea is
+    // from, what's been done of it, and the key that puts it in one of your routines. One that isn't played ends with what comes
+    // next; one that's played has that in its foot.
     RenderFragment about = @<text>
+        @if (played)
+        {
+            <p class="exercise-does">@exercise.Does</p>
+        }
         <h2 class="section-title">How to play</h2>
         <ol class="exercise-steps">
             @foreach (var step in exercise.How)
@@ -86,7 +95,7 @@ else
             </div>
             <p class="control-note">@history</p>
         }
-        @if (next is not null && !playing)
+        @if (next is not null && !played)
         {
             <a class="piece-row exercise-next" href="@(next.Route ?? $"exercises/{next.Id}")">
                 <span class="piece-title">@next.Name</span>
@@ -96,12 +105,6 @@ else
         }
     </text>;
 
-    @* One that's played is on the engine, as a piece is: what you do in a line, what to play (its key, or all its keys one after
-       another, the hands, and for a family a row for each of its variations), the play bar every screen with music shares (its
-       metronome, Options and full screen among its tools, its Loop among the run's keys), and the music in the paper frame a
-       piece's is in, taking the rest of the screen and all that scrolls. Its words are its options: the bar's Options shows them
-       in place of the music, as a piece's options are. In full screen only the bar and the music are left. One to read, or to do
-       away from the keys, is its words. *@
     @if (adding)
     {
         <RoutineMenu Exercise="exercise" OnClose="() => adding = false" OnSaid="said => routineNote = said" />
@@ -114,69 +117,18 @@ else
     {
         <Waiting Shape="WaitShape.Row" Count="1" Label="Opening the exercise" />
     }
-    else if (exercise.Kind == ExerciseKind.Played)
+    else if (played)
     {
+        @* One that's played is the practice screen a piece has, top to bottom: the head, the music in a piece's paper frame
+           taking the rest of the screen (its words in its place by About, Change's choices over it), a run's review under it,
+           the play bar every screen with music shares (the hands, the mode, the tempo, Loop, Listen and Play, More for the
+           rest), and the foot: what's chosen on a card with Change, and the next exercise or the routine's keys. In full screen
+           only the music, the review and the bar are left. *@
         <div @key="Id" class="exercise exercise-played practice-page">
-            @if (Place is { } bookmark && keys.Count > 0 && music is not null)
-            {
-                <div class="control-row full-hide" aria-label="Hanon routine">
-                    <label class="control-label" for="hanon-study">Study</label>
-                    <select class="text-field" id="hanon-study" value="@bookmark.Number" disabled="@playing" @onchange="SelectStudy">
-                        @foreach (var study in Hanon.All.Where(e => Book || !Hanon.AsPrintedOnly(e.HanonNumber!.Value)))
-                        {
-                            <option value="@study.HanonNumber">@study.Name</option>
-                        }
-                    </select>
-                    @if (!Book)
-                    {
-                        <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(bookmark.Cycle)" disabled="@playing" @onclick="() => CycleKeys(bookmark)"><span class="mu-led"></span>Cycle keys</button>
-                    }
-                    <button type="button" class="mu-btn" data-piano="off" data-action="hanon-next" disabled="@playing" @onclick="Advance">@(Book && (!Hanon.PrintedKeys(bookmark.Number) || key == keys[^1]) ? bookmark.Number == 60 ? "Finish book" : "Next study" : "Next key")</button>
-                </div>
-            }
-            else if (exercise.HanonNumber is null)
-            {
-                <p class="exercise-does full-hide">@exercise.Does</p>
-            }
             @if (routineSession?.Rcm is { } rcm)
             {
                 <p class="section-note full-hide rcm-asks">@rcm.Played. @rcm.Activity.Asks@(rcm.Activity.Differs is { } differs ? $" {differs}" : "")</p>
             }
-            @if (choosing)
-            {
-                @* What's chosen, on a card above the play bar: the key on a small keyboard, the hands drawn, a family's own choices
-                   a word each; Change opens them all over the music. *@
-                <section class="practice-choice exercise-choice full-hide" aria-label="What to play">
-                    <ChoiceCard Key="key" KeyName="@exercise.KeyName(key)" Hands="hands" Open="changing" OnChange="ToggleChange" Disabled="playing">
-                        @if (family is not null && variant is not null)
-                        {
-                            @foreach (var variation in family.For(hands))
-                            {
-                                var option = variation.Options.FirstOrDefault(o => o.Key == variant[variation.Key]) ?? variation.Options[0];
-                                <span class="choice-fact">
-                                    @if (variation.Key == "interval")
-                                    {
-                                        <MusicIcon Kind="interval" Steps="@IntervalSteps(option.Key)" />
-                                    }
-                                    else if (variation.Key == "touch")
-                                    {
-                                        <MusicIcon Kind="@(option.Key == "detached" ? "staccato" : "legato")" />
-                                    }
-                                    @FactWords(variation.Key, option)
-                                </span>
-                            }
-                        }
-                        @if (through)
-                        {
-                            <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
-                        }
-                    </ChoiceCard>
-                </section>
-            }
-
-            <PlayAlong @ref="player" Name="@(Place is null ? "exercises" : Book ? "hanon-book" : "hanon-keys")" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped"
-                       OriginalTempo="exercise.Tempo" OnOptions="ToggleWords" OptionsOpen="wordsOpen" NextMusic="@(Place is { Cycle: true } && !Book ? () => music : null)" />
-
             <div class="piece-stage">
                 <div class="piece-frame sheet-frame piece-frame-scroll @(wordsOpen ? "piece-frame-hidden" : "")" data-follow="">
                     <Sheet @ref="sheet" Mei="@mei" Layout="scroll" Class="piece-sheet" />
@@ -245,27 +197,79 @@ else
                                 </div>
                             }
                         }
-                        @if (exercise.Hands.Count > 1)
-                        {
-                            <div class="control-row">
-                                <span class="control-label">Hands</span>
-                                <HandsChoice Offered="exercise.Hands" Value="hands" ValueChanged="h => Choose(key, h)" Disabled="playing" />
-                            </div>
-                        }
                     </ChangePanel>
                 }
             </div>
 
-            @if (exercise.HanonNumber is not null && !wordsOpen)
-            {
-                <p class="control-note full-hide"><strong>Technique</strong> · @exercise.Notice</p>
-            }
             @if (outcome is not null)
             {
                 <section class="summary" aria-label="How it went">
                     <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" Review="review" />
                 </section>
             }
+
+            <PlayAlong @ref="player" Name="@(Place is null ? "exercises" : Book ? "hanon-book" : "hanon-keys")" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" StartLabel="Play" Ask="@(routineSession?.Item?.Mode == "wait" ? PlayMode.WaitForMe : routineSession?.Item is not null ? PlayMode.InTime : null)" OnStarting="Starting" OnPracticeStarting="PracticeStarting" OnFinished="Finished" ShowListen="true" OnListened="() => playing = false" Again="@(routineSession?.IsRoutine == true)" ShowLoop="true" LoopChanged="Looped"
+                       OriginalTempo="exercise.Tempo" NextMusic="@(Place is { Cycle: true } && !Book ? () => music : null)" Hands="@(exercise.Hands.Count > 1 ? exercise.Hands : null)" Hand="hands" HandChanged="h => Choose(key, h)" />
+
+            <PlayFoot>
+                <What>
+                    @if (Place is { } bookmark && keys.Count > 0 && music is not null)
+                    {
+                        <select class="text-field hanon-study" id="hanon-study" aria-label="Study" value="@bookmark.Number" disabled="@playing" @onchange="SelectStudy">
+                            @foreach (var study in Hanon.All.Where(e => Book || !Hanon.AsPrintedOnly(e.HanonNumber!.Value)))
+                            {
+                                <option value="@study.HanonNumber">@study.Name</option>
+                            }
+                        </select>
+                    }
+                    @if (choosing)
+                    {
+                        @* What's chosen, on a card: the key on a small keyboard, a family's own choices a word each; Change opens
+                           them over the music. *@
+                        <ChoiceCard Key="key" KeyName="@exercise.KeyName(key)" Open="changing" OnChange="ToggleChange" Disabled="playing">
+                            @if (family is not null && variant is not null)
+                            {
+                                @foreach (var variation in family.For(hands))
+                                {
+                                    var option = variation.Options.FirstOrDefault(o => o.Key == variant[variation.Key]) ?? variation.Options[0];
+                                    <span class="choice-fact">
+                                        @if (variation.Key == "interval")
+                                        {
+                                            <MusicIcon Kind="interval" Steps="@IntervalSteps(option.Key)" />
+                                        }
+                                        else if (variation.Key == "touch")
+                                        {
+                                            <MusicIcon Kind="@(option.Key == "detached" ? "staccato" : "legato")" />
+                                        }
+                                        @FactWords(variation.Key, option)
+                                    </span>
+                                }
+                            }
+                            @if (through)
+                            {
+                                <span class="choice-fact"><svg class="cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /><path d="M17.5 2.8v4.1h-4.1M6.5 21.2v-4.1h4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>Through the keys</span>
+                            }
+                        </ChoiceCard>
+                    }
+                </What>
+                <WayOn>
+                    @if (Place is { } bookmark && keys.Count > 0 && music is not null)
+                    {
+                        @if (!Book)
+                        {
+                            <button type="button" class="mu-toggle" data-piano="off" aria-pressed="@On(bookmark.Cycle)" disabled="@playing" @onclick="() => CycleKeys(bookmark)"><span class="mu-led"></span>Cycle keys</button>
+                        }
+                        <button type="button" class="mu-btn" data-piano="off" data-action="hanon-next" disabled="@playing" @onclick="Advance">@(Book && (!Hanon.PrintedKeys(bookmark.Number) || key == keys[^1]) ? bookmark.Number == 60 ? "Finish book" : "Next study" : "Next key")</button>
+                    }
+                    else if (next is not null)
+                    {
+                        <a class="mu-btn play-next" data-piano="off" data-action="exercise-next" href="@(next.Route ?? $"exercises/{next.Id}")" aria-disabled="@(playing ? "true" : null)">
+                            <span class="play-next-where">Next in @section</span><span class="play-next-what">@next.Name ›</span>
+                        </a>
+                    }
+                    <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+                </WayOn>
+            </PlayFoot>
         </div>
     }
     else
@@ -275,6 +279,14 @@ else
             <section class="exercise-words" aria-label="How to do it">
                 @about
             </section>
+            @if (routineSession?.IsRoutine == true)
+            {
+                <PlayFoot>
+                    <WayOn>
+                        <RoutineBar Session="routineSession" BeforeLeaving="StopRoutine" />
+                    </WayOn>
+                </PlayFoot>
+            }
         </div>
     }
 }
@@ -304,7 +316,7 @@ else
     private PlayMusic? music;
     private Sheet? sheet;
     private bool playing;
-    // Its words, shown in place of the music by the bar's Options, as a piece's options are.
+    // Its words, shown in place of the music by About in its head, as a piece's are.
     private bool wordsOpen;
     private PlayOutcome? outcome;
     // The run in two lines: what you did, and next time.

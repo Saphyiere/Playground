@@ -39,27 +39,25 @@ else
     var go = standing.Next;
     var starredHere = stars.Contains(routine.Revision);
     <PageHead Title="@Called" Kicker="@Kicker">
-        <div class="page-head-keys">
-            <button type="button" class="lb-star" aria-pressed="@(starredHere ? "true" : "false")" aria-label="@(starredHere ? "Starred: it's on top of your routines. Take its star off" : "Star it, to keep it on top of your routines")" @onclick="() => Star(!starredHere)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
-            </button>
-            @if (routine.Own)
-            {
-                <button type="button" class="mu-btn" data-piano="off" data-action="routine-edit" aria-pressed="@(editing ? "true" : "false")" @onclick="Edit">@(editing ? "Done" : "Edit")</button>
-            }
-            else
-            {
-                <button type="button" class="mu-btn" data-piano="off" data-action="routine-copy" disabled="@busy" @onclick="Copy">Make an editable copy</button>
-            }
-            @if (go is not null)
-            {
-                <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(go.Id)">@(standing.DoneToday.Count > 0 ? "Go on" : "Start")</button>
-            }
-            else if (routine.Items.Count > 0)
-            {
-                <button type="button" class="mu-btn" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(routine.Items[0].Recipe.Id)">Again</button>
-            }
-        </div>
+        <button type="button" class="lb-star" aria-pressed="@(starredHere ? "true" : "false")" aria-label="@(starredHere ? "Starred: it's on top of your routines. Take its star off" : "Star it, to keep it on top of your routines")" @onclick="() => Star(!starredHere)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.9 1.1-6L3.4 9.7l6-.8z" /></svg>
+        </button>
+        @if (routine.Own)
+        {
+            <button type="button" class="mu-btn" data-piano="off" data-action="routine-edit" aria-pressed="@(editing ? "true" : "false")" @onclick="Edit">@(editing ? "Done" : "Edit")</button>
+        }
+        else
+        {
+            <button type="button" class="mu-btn" data-piano="off" data-action="routine-copy" disabled="@busy" @onclick="Copy">Make an editable copy</button>
+        }
+        @if (go is not null)
+        {
+            <button type="button" class="mu-btn mu-primary" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(go.Id)">@(standing.DoneToday.Count > 0 ? "Go on" : "Start")</button>
+        }
+        else if (routine.Items.Count > 0)
+        {
+            <button type="button" class="mu-btn" data-piano="off" data-action="routine-start" disabled="@busy" @onclick="() => Start(routine.Items[0].Recipe.Id)">Again</button>
+        }
     </PageHead>
 
     @if (editing)

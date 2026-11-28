@@ -78,7 +78,9 @@ public class RoutinePlayerTests
         Assert.Equal(2, player.Music!.Score.Key.Fifths);
         Assert.All(player.Music.Notes, note => Assert.Equal(2, note.Staff));
         Assert.Null(player.Ask);
-        Assert.Contains("Octave jump", view.Find("[data-routine-context]").TextContent);
+        // The routine's keys in the foot name the routine and the activity's place in it (the head names the activity).
+        view.WaitForAssertion(() => Assert.Contains("Leaps · 1 of 1", view.Find("[data-routine-context]").TextContent));
+        Assert.StartsWith("Octave jump", view.Find(".page-head h1").TextContent);
         Assert.Empty(view.FindAll("[data-feedback]"));
 
         await view.InvokeAsync(() => player.TempoChanged.InvokeAsync(104));
@@ -253,13 +255,16 @@ public class RoutinePlayerTests
             .Add(c => c.SheetOf, () => sheet.Instance).Add(c => c.Tempo, 90).Add(c => c.Ask, PlayMode.WaitForMe).Add(c => c.Metronome, true)
             .Add(c => c.OriginalTempo, 100).Add(c => c.TempoChanged, bpm => asked = bpm));
         view.WaitForAssertion(() => Assert.Equal(PlayMode.WaitForMe, view.Instance.Mode));
-        // The tempo shows in Wait for me too, with the music's own beside it once it's been changed: a tap asks to go back to it.
-        Assert.NotNull(view.Find(".play-tempo-figure"));
-        await view.Find(".play-tempo-original").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        // The tempo shows in Wait for me too, with the music's own among its − and + once it's been changed: a tap asks to go back
+        // to it.
+        await view.Find(".play-tempo-figure").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await view.Find(".tempo-pop .play-tempo-original").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         Assert.Equal(100, asked);
-        // Its key: a click at the tempo, three a bar as the music's metre, nothing counted in.
-        await view.Find(".play-metronome").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        // The click alone, in More: a click at the tempo, three a bar as the music's metre, nothing counted in; More's lamp lit.
+        await view.Find("[data-action=more]").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await view.Find(".play-click-alone").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         Assert.True(click.Running);
+        Assert.NotNull(view.Find(".play-more-key .play-more-lamp"));
         Assert.Equal((90.0, 3, 0), (click.Plan!.Bpm, click.Plan.BeatsPerBar, click.Plan.CountInBars));
         // A new tempo starts it again at that.
         view.Render(p => p.Add(c => c.Tempo, 100));
@@ -268,7 +273,7 @@ public class RoutinePlayerTests
         await view.InvokeAsync(() => view.Instance.Start());
         Assert.False(click.Running);
         await view.InvokeAsync(view.Instance.Stop);
-        Assert.Equal("false", view.Find(".play-metronome").GetAttribute("aria-pressed"));
+        Assert.Empty(view.FindAll(".play-more-lamp"));
     }
 
     [Fact]

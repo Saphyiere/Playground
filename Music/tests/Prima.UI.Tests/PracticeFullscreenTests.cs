@@ -20,7 +20,7 @@ public class PracticeFullscreenTests
 
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
         Assert.Equal([false], host.Bars.Shown);
-        view.Find(".piece-actions .piece-tool[aria-pressed]:last-child").Click();
+        view.Find(".play-bar [data-action=fullscreen]").Click();
         view.WaitForAssertion(() => Assert.Equal([true, false], host.Browser.Fullscreen));
         Assert.Equal([false, true], host.Bars.Shown);
     }
@@ -132,8 +132,9 @@ public class PracticeFullscreenTests
         await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
-        // After the title's row (portrait's row of its own; landscape has no title) and before the level and the piece's tools.
-        var finish = view.WaitForElement(".play-bar > .piece-title-row + .piece-finish + .piece-level").PreviousElementSibling!;
+        // First in the bar, before More and the run's keys.
+        var finish = view.WaitForElement(".play-bar > .piece-finish");
+        Assert.Contains("piece-finish", view.Find(".play-bar").QuerySelector("button")!.ClassList);
         Assert.Equal("Finish practice", finish.TextContent);
         Assert.Equal("off", finish.GetAttribute("data-piano"));
         Assert.DoesNotContain("mu-primary", finish.ClassList);
@@ -141,7 +142,7 @@ public class PracticeFullscreenTests
         await view.InvokeAsync(() => view.Find("[aria-label='Leave full screen']").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true, false], host.Browser.Fullscreen));
         Assert.Empty(view.FindAll(".piece-finish"));
-        Assert.Equal("Finish practice", view.Find(".reading-head .practice-strip button").TextContent);
+        Assert.Equal("Finish practice", view.Find(".play-foot .practice-strip button").TextContent);
 
         await view.InvokeAsync(() => view.Find("[aria-label='Full screen']").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true, false, true], host.Browser.Fullscreen));
@@ -244,15 +245,17 @@ public class PracticeFullscreenTests
         await view.InvokeAsync(() => view.Find(".piece-front-bar .mu-primary:not([disabled])").ClickAsync(new MouseEventArgs()));
         view.WaitForAssertion(() => Assert.Equal([true], host.Browser.Fullscreen));
 
-        view.WaitForElement("[aria-label='Show the print']");
-        await view.InvokeAsync(() => view.Find("[aria-label='Show the print']").ClickAsync(new MouseEventArgs()));
-        view.WaitForElement("[aria-label='Show the notation']");
+        // The print, from More's group for the music.
+        view.WaitForElement("[data-action=more]");
+        await view.InvokeAsync(() => view.Find("[data-action=more]").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.WaitForElement(".play-more [data-show=print]").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement(".piece-print");
         // The print's bar is the notation's, without what follows the playing: no mode, and no Play.
         Assert.Single(view.FindAll(".play-bar"));
         Assert.Empty(view.FindAll(".play-bar .play-mode"));
         Assert.Empty(view.FindAll(".play-bar [data-piano='go']"));
-        Assert.Single(view.FindAll(".reading-head .practice-strip"));
-        var finish = view.Find(".piece-bar > .piece-title-row + .piece-finish");
+        Assert.Single(view.FindAll(".play-foot .practice-strip"));
+        var finish = view.Find(".play-bar > .piece-finish");
         Assert.Equal("off", finish.GetAttribute("data-piano"));
 
         await view.InvokeAsync(() => view.Find(".piece-bar .piece-finish").ClickAsync(new MouseEventArgs()));

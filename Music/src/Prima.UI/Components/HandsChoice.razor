@@ -1,14 +1,26 @@
 @using Prima.Core.Generation
 
 @*
-    The hands as hands: the left and the right, each a key with its lamp, both lit for together. A tap lights or puts out that
-    hand; one is always lit. Where together isn't offered, a tap is that hand alone.
+    The hands: Left, Right or Both, one tap for the one wanted, each key with its hand drawn and the chosen one lit, as the mode's
+    two are. Both only where together is offered. The owner, 28 November 2026: "we need a left, right, and both, so that you can
+    just click the one you want instead of like having to do this ballet of like which one is on".
 *@
-<div class="choice-set hands-choice" role="group" aria-label="Hands">
+<div class="play-mode hands-choice" role="radiogroup" aria-label="Hands">
     @foreach (var (side, name) in Sides)
     {
-        <button type="button" class="mu-toggle choice-icon" aria-pressed="@On(Lit(side))" aria-label="@($"{name} hand")" disabled="@Disabled" @onclick="() => Tap(side)">
-            <span class="mu-led"></span><HandIcon Right="@(side == HandUse.Right)" /><span class="choice-word">@name</span>
+        if (!Offered.Contains(side)) continue;
+        <button type="button" role="radio" class="play-mode-option" data-hand="@name.ToLowerInvariant()" aria-checked="@On(Value == side)" disabled="@Disabled" @onclick="() => Pick(side)">
+            <span class="hands-choice-icons" aria-hidden="true">
+                @if (side != HandUse.Right)
+                {
+                    <HandIcon />
+                }
+                @if (side != HandUse.Left)
+                {
+                    <HandIcon Right="true" />
+                }
+            </span>
+            <span class="choice-word">@name</span>
         </button>
     }
 </div>
@@ -22,22 +34,9 @@
 
     [Parameter] public bool Disabled { get; set; }
 
-    private static readonly (HandUse Side, string Name)[] Sides = [(HandUse.Left, "Left"), (HandUse.Right, "Right")];
+    private static readonly (HandUse Side, string Name)[] Sides = [(HandUse.Left, "Left"), (HandUse.Right, "Right"), (HandUse.Together, "Both")];
 
     private static string On(bool on) => on ? "true" : "false";
 
-    private bool Lit(HandUse side) => Value == side || Value == HandUse.Together;
-
-    private Task Tap(HandUse side)
-    {
-        var to = side;
-        if (Offered.Contains(HandUse.Together))
-        {
-            var left = Lit(HandUse.Left) != (side == HandUse.Left);
-            var right = Lit(HandUse.Right) != (side == HandUse.Right);
-            if (!left && !right) return Task.CompletedTask;
-            to = left && right ? HandUse.Together : left ? HandUse.Left : HandUse.Right;
-        }
-        return to != Value && Offered.Contains(to) ? ValueChanged.InvokeAsync(to) : Task.CompletedTask;
-    }
+    private Task Pick(HandUse side) => side != Value ? ValueChanged.InvokeAsync(side) : Task.CompletedTask;
 }

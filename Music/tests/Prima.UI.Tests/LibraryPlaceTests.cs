@@ -93,7 +93,10 @@ public class LibraryPlaceTests
         await view.InvokeAsync(() => view.Find("input[type=search]").InputAsync(new ChangeEventArgs { Value = "bach" }));
 
         view.WaitForAssertion(() => Assert.Equal(3, view.FindAll(".piece-item").Count), TimeSpan.FromSeconds(3));
-        view.WaitForAssertion(() => Assert.Equal(2, host.Browser.ListsPlaced));
+        // The list is placed after it's drawn, with nothing drawn after that to wake a wait for it: so it's looked for until it's
+        // there.
+        for (var waited = 0; host.Browser.ListsPlaced < 2 && waited < 10_000; waited += 50) await Task.Delay(50, Xunit.TestContext.Current.CancellationToken);
+        Assert.Equal(2, host.Browser.ListsPlaced);
 
         await view.InvokeAsync(() => view.Instance.DisposeAsync().AsTask());
         Assert.Equal(1, host.Browser.ListsLeft);
