@@ -117,7 +117,7 @@ public class EngineBarTests
         view.WaitForAssertion(() => Assert.Equal("both", Lit()));
         await Tap(view, ".hands-choice [data-hand=right]");
         view.WaitForAssertion(() => Assert.Equal("right", Lit()));
-        Assert.Equal(["Left", "Right", "Both"], view.FindAll(".hands-choice .choice-word").Select(w => w.TextContent));
+        Assert.Equal(["Left", "Right", "Both"], view.FindAll(".hands-choice .hands-choice-word").Select(w => w.TextContent));
 
         // Kept with the exercise, and the music is the hand's: both hands' notes on two staves.
         var kept = await host.Store.GetTrackAsync<ExerciseChoice>("exercise:five");
