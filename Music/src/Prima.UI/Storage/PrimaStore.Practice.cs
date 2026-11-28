@@ -184,10 +184,14 @@ public sealed partial class PrimaStore
             List<MarkPlayed> marked = measures.TryGetProperty("marked", out var asked) && asked.ValueKind == JsonValueKind.Array
                 ? [.. asked.EnumerateArray().Select(m => new MarkPlayed((Marking)m[0].GetInt32(), m[1].GetInt32(), m[2].GetInt32(), m[3].GetInt32(), m[4].GetInt32(), m[5].ValueKind == JsonValueKind.String ? m[5].GetString() : null))]
                 : [];
+            // Kept since 28 November: the key it was played in, when not the one it's written in.
+            var transposed = measures.TryGetProperty("transposed", out var moved) && moved.ValueKind == JsonValueKind.Array && moved.GetArrayLength() == 2
+                ? new Prima.Core.Music.Transposition(moved[0].GetInt32(), moved[1].GetInt32()) : default;
             var run = new PieceRun(DateTimeOffset.Parse(r.At, CultureInfo.InvariantCulture), day, inTime, r.Tempo, hands, from, stopped, bar, right, notes, share)
             {
                 Id = r.Id, Session = session, Play = play, Trouble = TroubleOf(measures), To = to, Passes = passes,
                 Seconds = Number(measures, "took") ?? (inTime ? null : Number(measures, "seconds")), Timing = timing, Marked = marked,
+                Transposed = transposed, KeyName = measures.TryGetProperty("key", out var key) && key.ValueKind == JsonValueKind.String ? key.GetString() : null,
             };
             return (r.SetId, run);
         }).ToList();

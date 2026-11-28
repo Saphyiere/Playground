@@ -18,10 +18,11 @@ else if (selected is not null && review is not null)
         <DeepReview @key="selected" Kicker="Saved practice" Title="@selected.Title" Session="selected.Session" Runs="selected.Runs" Review="review" Bars="barNumbers" Picked="picked" OnPick="SelectBar" />
         @if (picked is { } bar && mei is not null && barNumbers.Contains(bar))
         {
+            @* The bar as the run that left its marks played it: in another key, the music in that key, as it was on the stand. *@
             <section class="settings-section">
-                <h2 class="section-title">@BarWords.Capital(PieceWords.Bar(bar))</h2>
+                <h2 class="section-title">@BarWords.Capital(PieceWords.Bar(bar))@(barRun?.KeyName is { } key ? $" · in {key}" : "")</h2>
                 <div class="sheet-frame">
-                    <Sheet @key="(selected, bar)" @ref="sheet" Mei="@mei" Measures="@((barNumbers.IndexOf(bar) + 1).ToString(CultureInfo.InvariantCulture))" OnPainted="_ => sheet?.ShowMarks(barMarks) ?? Task.CompletedTask" />
+                    <Sheet @key="(selected, bar)" @ref="sheet" Mei="@MeiIn(barRun?.Transposed ?? default)" Measures="@((barNumbers.IndexOf(bar) + 1).ToString(CultureInfo.InvariantCulture))" OnPainted="_ => sheet?.ShowMarks(barMarks) ?? Task.CompletedTask" />
                 </div>
                 @if (barMarks.Count == 0) { <p class="section-note">No saved note marks for this bar.</p> }
             </section>
@@ -105,6 +106,9 @@ else
     private IReadOnlyList<ExpectedNote> expected = [];
     private Dictionary<long, string> savedMarks = [];
     private List<SheetMark> barMarks = [];
+    // The run whose marks the bar shows, and the piece's music in each key a run shown was played in.
+    private PieceRun? barRun;
+    private readonly Dictionary<Prima.Core.Music.Transposition, string> keyed = [];
     private Sheet? sheet;
     private int? picked;
     private int limit = 30;
@@ -134,7 +138,8 @@ else
     protected override async Task OnParametersSetAsync()
     {
         var version = ++selectionVersion;
-        (ready, details, review, picked, sheet, mei) = (false, false, null, null, null, null);
+        (ready, details, review, picked, sheet, mei, barRun) = (false, false, null, null, null, null, null);
+        keyed.Clear();
         barNumbers = [];
         expected = [];
         parentSession = null;
@@ -194,7 +199,16 @@ else
     private void SelectBar(int bar)
     {
         picked = bar;
-        barMarks = KeptRun.MarksForBar(bar, expected, selected!.Runs, savedMarks);
+        (barMarks, barRun) = KeptRun.LatestForBar(bar, expected, selected!.Runs, savedMarks);
+    }
+
+    // The music in a key it was played in: moved there as the piece's screen moves it, its fingering left out.
+    private string MeiIn(Prima.Core.Music.Transposition key)
+    {
+        if (mei is null) return "";
+        if (!key.Moves) return mei;
+        if (!keyed.TryGetValue(key, out var moved)) keyed[key] = moved = Prima.Core.Music.MeiTranspose.WithoutFingering(Prima.Core.Music.MeiTranspose.Apply(mei, key));
+        return moved;
     }
 
 }

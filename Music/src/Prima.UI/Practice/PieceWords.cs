@@ -22,13 +22,15 @@ public static class PieceWords
 
     public static string Hands(string hands) => hands switch { "right" => "Right hand", "left" => "Left hand", _ => "Both hands" };
 
+    /// <summary>What a run played, in what key when it wasn't the one written, and how fast: "Played through the piece in D major at 72 BPM".</summary>
     public static string Short(PieceRun run)
     {
         var passage = run.To is { } to ? $"{(run.Passes.Count > 0 ? "Looped" : "Practiced")} {Bars(run.From, to)}"
             : run.Stopped && run.Bar is { } stopped ? $"Stopped at {Bar(stopped)}"
             : run.Stopped ? $"Started at {Bar(run.From)}" : run.From > 1 ? $"Played from {Bar(run.From)}" : "Played through the piece";
+        var key = run.KeyName is { } name ? $" in {name}" : "";
         var pace = run.InTime ? run.Tempo is { } tempo ? $" at {tempo:0} BPM" : " at a set tempo" : " at your own pace";
-        return passage + pace;
+        return passage + key + pace;
     }
 
     public static BarTrouble? Highlight(PieceRun run)

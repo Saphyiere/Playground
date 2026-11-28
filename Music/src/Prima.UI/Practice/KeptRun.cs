@@ -9,8 +9,9 @@ namespace Prima.UI.Practice;
 /// <summary>
 /// What a run on a piece keeps of how it went, as its attempt's measures: its figures, where it started and whether it was stopped,
 /// the hand, round a loop its last bar and each pass, the practice session it was played in (or that it was Play's), what went
-/// wrong in each bar, how long it took, In time how it lay against the click and how what the music marks was played, and the
-/// marks it left on the music. <see cref="Storage.PrimaStore.GetPieceRunsAsync"/> reads them back.
+/// wrong in each bar, how long it took, In time how it lay against the click and how what the music marks was played, the marks
+/// it left on the music, and the key it was played in when that's not the one it's written in.
+/// <see cref="Storage.PrimaStore.GetPieceRunsAsync"/> reads them back.
 /// </summary>
 public static class KeptRun
 {
@@ -21,7 +22,9 @@ public static class KeptRun
     /// <param name="play">Whether it was Play's: the piece through, with nothing on the music.</param>
     /// <param name="barOf">Each written note's bar, by its id on the sheet, for Wait for me's marks.</param>
     /// <param name="took">The seconds it took, its count-in too.</param>
-    public static string Measures(PlayOutcome how, int from, string hands, long? session, bool play, IReadOnlyDictionary<string, int> barOf, double? took = null)
+    /// <param name="key">The key it was played in, from the one it's written in, and that key's name: none as written.</param>
+    public static string Measures(PlayOutcome how, int from, string hands, long? session, bool play, IReadOnlyDictionary<string, int> barOf, double? took = null,
+        (Transposition By, string Name)? key = null)
     {
         // Round a loop, its last bar and each pass, and the run's figures are its last pass's.
         var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime, seconds = p.Seconds is { } s ? Math.Round(s, 1) : (double?)null, trouble = Rows(p.Trouble) }));
@@ -29,17 +32,31 @@ public static class KeptRun
         var trouble = Rows(how.InTime is { } judged ? Trouble.Of(judged.Notes) : Trouble.Of(how.Marks, barOf));
         var fromPlay = play ? true : (bool?)null;
         var marks = new { right = how.Marks.Where(m => m.Kind == "right").Select(m => m.Id), other = how.Marks.Where(m => m.Kind != "right").Select(m => new object?[] { m.Id, m.Kind, m.Played, m.Steps, m.Written }) };
+        // In another key: the letters and semitones from the one it's written in, to draw the music in it again, and its name.
+        int[]? transposed = null;
+        string? keyName = null;
+        if (key is { } moved && moved.By.Moves) (transposed, keyName) = ([moved.By.Steps, moved.By.Semitones], moved.Name);
         object measures = how.InTime is { } r
             ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took,
-                timing = new[] { Math.Round(r.LeanMs, 1), Math.Round(r.SteadinessPercent, 1) }, marked = Marked(r), trouble, marks }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took, trouble, marks };
+                timing = new[] { Math.Round(r.LeanMs, 1), Math.Round(r.SteadinessPercent, 1) }, marked = Marked(r), trouble, marks, transposed, key = keyName }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took, trouble, marks, transposed, key = keyName };
         return JsonSerializer.Serialize(measures);
     }
 
-    public static List<SheetMark> MarksForBar(int bar, IReadOnlyList<ExpectedNote> expected, IReadOnlyList<PieceRun> runs, IReadOnlyDictionary<long, string> marksKept)
+    /// <summary>
+    /// The marks the latest of the runs to leave any on a bar left there, of the runs played in a key (<paramref name="key"/>, as
+    /// written unless it's given): a wrong key's name is spelled in the key it was played in, and drawn where that key puts it.
+    /// </summary>
+    public static List<SheetMark> MarksForBar(int bar, IReadOnlyList<ExpectedNote> expected, IReadOnlyList<PieceRun> runs, IReadOnlyDictionary<long, string> marksKept, Transposition key = default) =>
+        LatestForBar(bar, expected, [.. runs.Where(r => r.Transposed == key)], marksKept).Marks;
+
+    /// <summary>
+    /// The marks the latest of the runs to leave any on a bar left there, in whatever key it was played, and that run: a run kept
+    /// is shown in its own key (<see cref="PieceRun.Transposed"/>), its marks with it. None of them left any: none, and no run.
+    /// </summary>
+    public static (List<SheetMark> Marks, PieceRun? Run) LatestForBar(int bar, IReadOnlyList<ExpectedNote> expected, IReadOnlyList<PieceRun> runs, IReadOnlyDictionary<long, string> marksKept)
     {
         var inBar = expected.Where(n => n.Bar == bar).Select(n => n.Id).ToHashSet();
-        List<SheetMark> marks = [];
         foreach (var run in runs.OrderByDescending(r => r.At).ThenByDescending(r => r.Id))
         {
             if (!marksKept.TryGetValue(run.Id, out var json)) continue;
@@ -48,10 +65,10 @@ public static class KeptRun
             var right = left.RootElement.GetProperty("right").EnumerateArray().Select(e => e.GetString() ?? "").Where(inBar.Contains).Select(id => new SheetMark(id, "right"));
             var other = left.RootElement.GetProperty("other").EnumerateArray().Where(e => inBar.Contains(e[0].GetString() ?? ""))
                 .Select(e => new SheetMark(e[0].GetString()!, e[1].GetString()!, e[2].ValueKind == JsonValueKind.String ? e[2].GetString() : null, e[3].GetInt32(), Written: e.GetArrayLength() > 4 && e[4].ValueKind == JsonValueKind.String ? e[4].GetString() : null));
-            marks = [.. right, .. other];
-            if (marks.Count > 0) break;
+            List<SheetMark> marks = [.. right, .. other];
+            if (marks.Count > 0) return (marks, run);
         }
-        return marks;
+        return ([], null);
     }
 
     /// <summary>The keys played, each with its ms from the first, as an attempt keeps them.</summary>

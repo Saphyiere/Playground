@@ -45,6 +45,15 @@ public sealed record PieceRun(DateTimeOffset At, DateOnly Day, bool InTime, doub
     /// loop, in its last pass); none where the music marks nothing, or for a run kept before 15 November.
     /// </summary>
     public IReadOnlyList<MarkPlayed> Marked { get; init; } = [];
+
+    /// <summary>
+    /// The key it was played in, from the key it's written in: none as written. The marks it left on the music are spelled in that
+    /// key, so they're shown on the music in it.
+    /// </summary>
+    public Music.Transposition Transposed { get; init; }
+
+    /// <summary>That key's name, as it was named when played ("D major"); none as written.</summary>
+    public string? KeyName { get; init; }
 }
 
 /// <summary>One time round a loop: the notes right (right first time, in Wait for me) of its notes, and In time the share right and in time.</summary>
