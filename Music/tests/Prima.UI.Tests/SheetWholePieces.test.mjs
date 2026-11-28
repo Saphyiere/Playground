@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import { script } from "./script.mjs";
 
 // A whole piece's sheet (Sheet.razor.js, "Whole pieces"): its engraver asked a step at a time, a scroll's parts put on the paper
 // as they come, Stop and the rest, a song kept out of sight until its words fit, and the engraver let go of when the sheet goes.
 // The engraver here is a stand-in that answers when the test says; SheetEngraving.test.mjs has the real one.
-const source = readFileSync(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url), "utf8");
+const source = script(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url));
 
 const settle = async (turns = 20) => {
     for (let i = 0; i < turns; i++) await new Promise(resolve => setImmediate(resolve));

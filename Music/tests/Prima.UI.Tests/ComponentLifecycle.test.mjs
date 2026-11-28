@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import { script } from "./script.mjs";
 
-const sheet = readFileSync(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url), "utf8");
+const sheet = script(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url));
 const pdf = readFileSync(new URL("../../src/Prima.UI/Components/PdfPages.razor.js", import.meta.url), "utf8")
     .replace(/^import .*\r?\n/gm, "").replace(/^pdfjs\.GlobalWorkerOptions.*\r?\n/gm, "");
 

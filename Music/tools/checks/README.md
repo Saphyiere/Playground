@@ -17,6 +17,7 @@ curl -s http://127.0.0.1:5299/seed/fresh
 
 node Music/tools/checks/exercises.mjs <folder for pictures of anything wrong> [one exercise's id] [what's chosen of its variations] [hands]
 node Music/tools/checks/drills.mjs <folder for pictures>
+node Music/tools/checks/bars.mjs <folder for pictures> [studio|vinyl] [width] [height]
 ```
 
 `BASE` (default `http://127.0.0.1:5299/`) and `SHOTS_PORT` (default `9341`) say where the preview and the browser are.
@@ -34,6 +35,13 @@ node Music/tools/checks/drills.mjs <folder for pictures>
   `/exercises/forms/{id}` lists them.
 - **drills.mjs**: Scales, Arpeggios and Finger independence, a run In time, a looped run and a run through the keys; then the
   reading drills with their Loop on, a set played right and the next beginning by itself.
+- **bars.mjs** plays nothing: it chooses bars on a piece's music where marks run on over bar lines, which Verovio draws with
+  the bar they start in (an 8va over bars 21–24, as the owner met it, one carried on to the next line, an 8vb, slurs,
+  hairpins, a pedal line, a trill's line). It writes that piece as MusicXML and imports it, then for each mark taps the bar
+  after its first and the mark itself, loops its first bar and drags the loop's end a bar on, two on and onto the next line,
+  with real mouse events: each must light just the bars meant, the tab and the strip under the piece's bar saying the same.
+  Run it in both looks, landscape and portrait (`studio 1280 800`, `vinyl 800 1280`): the lines break differently. A finger's
+  drag on the tablet is still worth a try after a change here.
 
 `drive.mjs` is the driver they share: `open()` gives a page to `go` to, `tap`, read with `evaluate`, wait on with `until`, and
 photograph with `shot`; `get` asks the preview itself (`keys/perform`, `seed/…`).

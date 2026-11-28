@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import vm from "node:vm";
+import { script } from "./script.mjs";
 
 // The engraver's worker (engraver.js) with the real Verovio, and the rule the sheet stacks a scroll's parts by: a piece drawn a
 // part at a time has to come out as the one tall page it used to be drawn as, the same bars on every line and every line where
 // it was, or opening a piece without the wait would have changed its engraving.
 const verovio = createRequire(import.meta.url)("../../src/Prima.UI/wwwroot/verovio/verovio-toolkit-wasm.js");
 const worker = readFileSync(new URL("../../src/Prima.UI/wwwroot/engraver.js", import.meta.url), "utf8");
-const sheet = readFileSync(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url), "utf8");
+const sheet = script(new URL("../../src/Prima.UI/Components/Sheet.razor.js", import.meta.url));
 
 await new Promise(resolve => {
     if (verovio.module.calledRun) resolve();

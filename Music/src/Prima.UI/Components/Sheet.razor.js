@@ -9,6 +9,8 @@
 // (engraver.js), and a scroll a part at a time: a long piece takes seconds to lay out on the tablet, and the page must go on
 // answering meanwhile. "Whole pieces", below, has how.
 
+import { barBox } from "../bar-box.js";
+
 const svgNs = "http://www.w3.org/2000/svg";
 const sheets = new WeakMap();
 const renderRequests = new WeakMap();
@@ -119,7 +121,7 @@ export async function engrave(mei, width) {
     drawn.style.height = "auto";
     const box = drawn.getBoundingClientRect();
     const bars = [...host.querySelectorAll(".measure")].map(m => {
-        const r = m.getBoundingClientRect();
+        const r = barBox(m) ?? m.getBoundingClientRect();
         return [(r.left - box.left) / box.width, (r.right - box.left) / box.width];
     });
     const height = Math.max(1, Math.round(box.height));
@@ -183,8 +185,8 @@ export async function render(element, mei, options, dotnet, ownerId) {
             }
             const note = event.target.closest?.(".sheet-music .note[data-id]");
             if (note) state.dotnet?.invokeMethodAsync("NoteTapped", note.dataset.id);
-            // The bar tapped: on a note or anywhere in its space. A scroll is never a click, so it's never a tap.
-            const measure = event.target.closest?.(".sheet-music .measure[data-id]") ?? measureAt(element, event.clientX, event.clientY);
+            // The bar tapped. A scroll is never a click, so it's never a tap.
+            const measure = barTapped(element, event.target, event.clientX, event.clientY);
             if (measure) state.dotnet?.invokeMethodAsync("BarTapped", measure.dataset.id);
         });
     }
@@ -931,14 +933,28 @@ export function onPage(element, ids) {
     return ids.filter(id => byId.has(id));
 }
 
-// The bar whose space a point is in: between its bar lines, and from a little over its top staff to a little under its lowest.
-function measureAt(element, x, y) {
-    return [...element.querySelectorAll(".sheet-music .measure[data-id]")].find(m => {
-        const staves = [...m.querySelectorAll(":scope > .staff")].map(s => s.getBoundingClientRect());
-        if (staves.length === 0) return false;
-        const r = m.getBoundingClientRect();
-        return x >= r.left && x <= r.right && y >= Math.min(...staves.map(s => s.top)) - 20 && y <= Math.max(...staves.map(s => s.bottom)) + 20;
-    });
+// The bar whose space a point is in: between its bar lines, and from a little over its top staff to a little under its lowest
+// (bar-box.js), the nearest of two lines' if both reach it. Given a line's `system`, only across: its bar under the point.
+function measureAt(element, x, y, system = null) {
+    let at, nearest = Infinity;
+    for (const m of system ? system.querySelectorAll(".measure[data-id]") : element.querySelectorAll(".sheet-music .measure[data-id]")) {
+        const r = barBox(m);
+        if (!r || x < r.left || x > r.right) continue;
+        const away = system ? 0 : Math.max(r.top - y, y - r.bottom, 0);
+        if (away <= 20 && away < nearest) [at, nearest] = [m, away];
+    }
+    return at;
+}
+
+// The bar a tap at x, y on `target` chooses. On a note, or anything else printed in a staff, that staff's bar. On a mark printed
+// with a line of music (an octave line, a slur, a hairpin, a pedal line, words), the bar on that line under it: a mark that runs
+// on over bar lines is drawn with the bar it starts in, and would choose that bar wherever along it it was tapped. On the paper,
+// the bar whose space it's in.
+function barTapped(element, target, x, y) {
+    const staff = target.closest?.(".sheet-music .measure[data-id] > .staff");
+    if (staff) return staff.parentElement;
+    const system = target.closest?.(".sheet-music .system");
+    return (system ? measureAt(element, x, y, system) : null) ?? measureAt(element, x, y) ?? target.closest?.(".sheet-music .measure[data-id]") ?? null;
 }
 
 // Where each moment of the music is on the sheet: for every onset in Verovio's time map that's on this page, its time in quarter
@@ -1036,10 +1052,10 @@ function pathPoints(element, state, path) {
         }
         [place.top, place.bottom] = lines.get(place.system);
         place.moments = [...place.moments].sort((a, b) => a[0] - b[0]);
-        // The bar is as wide as its staff's lines (a slur or a pedal mark drawn with it can run on past them). A bar line in
-        // its right half closes it; one before its music (a repeat's start) is passed before the music starts, as the clef and
-        // signatures a line opens with are.
-        const m = (place.measure.querySelector(":scope > .staff > path") ?? place.measure).getBoundingClientRect();
+        // The bar is as wide as its staff's lines (bar-box.js: a slur or a pedal mark drawn with it can run on past them). A bar
+        // line in its right half closes it; one before its music (a repeat's start) is passed before the music starts, as the
+        // clef and signatures a line opens with are.
+        const m = barBox(place.measure) ?? place.measure.getBoundingClientRect();
         const middle = (m.left + m.right) / 2;
         const barLines = [...place.measure.querySelectorAll(":scope > .barLine")].map(b => b.getBoundingClientRect());
         const opening = [...place.measure.querySelectorAll(":scope > .staff > .clef, :scope > .staff > .keySig, :scope > .staff > .meterSig")].map(e => e.getBoundingClientRect().right);
@@ -1495,8 +1511,7 @@ export function outline(element, id) {
     const measure = id ? element.querySelector(`.sheet-music .measure[data-id="${id}"]`) : null;
     if (!measure) return;
     const box = element.getBoundingClientRect();
-    const staves = [...measure.querySelectorAll(":scope > .staff")].map(s => s.getBoundingClientRect());
-    const r = staves.length > 0 ? staves.reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) })) : measure.getBoundingClientRect();
+    const r = barBox(measure) ?? measure.getBoundingClientRect();
     const rect = document.createElementNS(svgNs, "rect");
     rect.setAttribute("class", "sheet-outline");
     rect.setAttribute("x", r.left - box.left - 4);

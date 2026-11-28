@@ -399,8 +399,11 @@ a PDF plays out; this is what came of it.
   (forward and back), or the keyboard's top and bottom keys (C8 and A0); never the sustain pedal, which the music needs. A tap
   on the music never turns: it's for the bars.
 - **Playing a notation piece** is on the play bar every screen with a tempo shares ([Playing to a tempo](#playing-to-a-tempo)):
-  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it: it's lit and outlined
-  (the first bar too; a scroll is never a tap), with a tab over it saying where the run starts, **Loop**, and **Clear**. Clear
+  In time or Wait for me, the tempo, and Play, from the start or from a bar you tap, anywhere in it, or on a mark over it (an
+  8va's line, a slur, a hairpin or a pedal line that runs on over several bars chooses the bar under the finger, not the one it
+  starts in): it's lit and outlined from its bar line to the next (the first bar too, with its number; a scroll is never a
+  tap), taking in an octave line over or under it so its dashes show, with a tab over it saying where the run starts,
+  **Loop**, and **Clear**. Every part of the sheet measures a bar that one way (`bar-box.js`). Clear
   removes the selected start or loop and its highlight, returning the next run to the beginning without changing the visible
   page or scroll position. On a piece's bar its keys, switches and figures are one height: one row in landscape, and in portrait the figures and
   keys over the run's controls, Play at the end. After the tools, a small play key starts **the metronome**: a click at the

@@ -4,6 +4,8 @@
 //   each end to drag, onto other lines too, the bar under the finger named;
 // - under the piece's bar: the strip, a cell a bar, the bars on screen boxed: tap a cell to start there, drag along it to loop.
 
+import { barBox } from "./bar-box.js";
+
 const pieces = new Map();
 
 const playIcon = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor"/></svg>';
@@ -111,8 +113,9 @@ const place = (e, x, y) => {
     return e;
 };
 
-// The bars drawn on the music, in order: each one's number and line, and where it is in the sheet's px, from its top staff's
-// top to its lowest staff's bottom. Kept until the music is drawn again or the frame changes size; the sheet's box is fresh.
+// The bars drawn on the music, in order: each one's number and line, and where it is in the sheet's px, as bar-box.js measures
+// a bar: between its bar lines, from its top staff's top to its lowest staff's bottom (and an octave line over or under them).
+// Kept until the music is drawn again or the frame changes size; the sheet's box is fresh.
 function drawn(state) {
     const sheet = state.frame.querySelector(".sheet");
     const music = sheet?.querySelector(".sheet-music");
@@ -122,10 +125,9 @@ function drawn(state) {
         const list = [];
         for (const m of music.querySelectorAll(".measure[data-id]")) {
             const n = state.number.get(m.dataset.id);
-            const staves = [...m.querySelectorAll(":scope > .staff")].map(s => s.getBoundingClientRect());
-            if (n == null || staves.length === 0) continue;
-            const r = m.getBoundingClientRect();
-            list.push({ n, line: m.closest(".system"), left: r.left - box.left, right: r.right - box.left, top: Math.min(...staves.map(s => s.top)) - box.top, bottom: Math.max(...staves.map(s => s.bottom)) - box.top });
+            const r = n == null ? null : barBox(m);
+            if (!r) continue;
+            list.push({ n, line: m.closest(".system"), left: r.left - box.left, right: r.right - box.left, top: r.top - box.top, bottom: r.bottom - box.top });
         }
         state.geo = { music, list };
     }
