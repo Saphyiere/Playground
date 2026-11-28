@@ -255,6 +255,25 @@ app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? s
 // Answers the drill item on screen: right, or wrong. A step's keys go down together, or with "apart" one at a time, that many
 // ms after the one before, as a chord played a note at a time.
 app.MapGet("/keys/answer", async (bool? right, int? apart, StandInPlayer player) => Results.Text(await player.Answer(right ?? true, apart)));
+// A piece's notes' names as What's this's choices compare them: which notes ("hard" the app's hard ones, "ledgers1", "ledgers2",
+// "ledgers3" that many ledger lines or more, "signature" a key signature's sharp or flat, "all") and how each is said ("letters",
+// "octaves", or the app's own, octaves only far off the staff), as [id, name] for the sheet's names().
+app.MapGet("/names/{id}", async (string id, string? which, string? say, PrimaStore store) =>
+{
+    if (await store.GetMeiAsync(id) is not { } mei) return Results.NotFound();
+    var score = MeiReader.Read(mei);
+    var fifths = score.WithSignatures().Select(s => s.Key.Fifths).ToList();
+    var notes = NoteNames.Of(score).Where(n => which switch
+    {
+        "all" => true,
+        "ledgers1" => n.Ledgers >= 1,
+        "ledgers2" => n.Ledgers >= 2,
+        "ledgers3" => n.Ledgers >= 3,
+        "signature" => n.Hard.HasFlag(Hard.Signature),
+        _ => NoteNames.IsHard(n, fifths[n.Bar]),
+    });
+    return Results.Json(notes.Select(n => new[] { n.Id, say switch { "letters" => n.Letter, "octaves" => $"{n.Letter}{n.Plays.Octave}", _ => NoteNames.Label(n) } }));
+});
 // The glossary's examples, each entry's id and the MEI of its example, for checking they engrave.
 app.MapGet("/glossary/examples", () => Results.Json(Prima.UI.Glossary.GlossaryEntries.All.Select(e => new { e.Id, e.Marks, e.Example })));
 // Every form of an exercise, for checking each one engraves: each key and choice of hands it offers and, for a family, each

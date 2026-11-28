@@ -4,17 +4,19 @@
 @*
     The start of every play bar, the same keys in the same places on every screen that plays music, the engine's bar and a drill's
     alike: a screen's own keys first (a piece's page turns), then More (PlayMore), where the bar has anything in it, and full
-    screen's key while full screen is on: it's in the screen's head otherwise, and full screen takes the head away. A screen says
+    screen's key and What's this while full screen is on: they're in the screen's head otherwise, and full screen takes the head away. A screen says
     which it has; the keys, their order and what they look like are here.
 *@
 @Extra
-@if (ShowMore && (Metronome || Marks || Music is not null || ChildContent is not null || OnExplain.HasDelegate))
+@if (ShowMore && (Metronome || Marks || Music is not null || ChildContent is not null))
 {
     <PlayMore Running="Running" Metronome="Metronome" Ticking="Ticking" OnClickAlone="OnClickAlone" OnClickChanged="OnClickChanged" Marks="Marks"
-              OnExplain="OnExplain" Explaining="Explaining" Music="Music">@ChildContent</PlayMore>
+              Music="Music">@ChildContent</PlayMore>
 }
 @if (ShowFullScreen && Full.On)
 {
+    @* The head's keys that full screen takes away: What's this, and full screen's own. *@
+    <WhatsThisKey />
     <FullScreenKey OnFullScreen="OnFullScreen" />
 }
 
@@ -41,11 +43,6 @@
 
     /// <summary>The cursor and the marks while you play, on a bar whose runs are followed on the music.</summary>
     [Parameter] public bool Marks { get; set; }
-
-    /// <summary>What's this, for a screen whose music explains its symbols when tapped, and whether it's on.</summary>
-    [Parameter] public EventCallback OnExplain { get; set; }
-
-    [Parameter] public bool Explaining { get; set; }
 
     /// <summary>The screen's own rows in More's group for the music.</summary>
     [Parameter] public RenderFragment? Music { get; set; }

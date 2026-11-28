@@ -44,6 +44,9 @@ public sealed class PrimaSettings
     /// <summary>Whether a song's words (its lyrics, or its lines typed as text) are printed under its notes.</summary>
     public bool Lyrics { get; set; } = true;
 
+    /// <summary>The notes' names over a piece's music (What's this): "off", "hard" (the hard ones to read) or "all".</summary>
+    public string NoteNames { get; set; } = "off";
+
     public string? Name { get; set; }
 
     /// <summary>The daily goal. The app never raises it by itself.</summary>

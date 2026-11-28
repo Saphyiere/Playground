@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Library.LibraryPlace>();
         services.AddScoped<Library.RepertoireBook>();
         services.AddScoped<Practice.FullScreen>();
+        services.AddScoped<Glossary.WhatsThis>();
         return services;
     }
 }

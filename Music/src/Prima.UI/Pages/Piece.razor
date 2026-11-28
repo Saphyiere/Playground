@@ -43,6 +43,34 @@ else
                   OnAbout="@(plays ? EventCallback.Factory.Create(this, ToggleAbout) : default)" AboutOpen="about"
                   FullScreen="@(!readingNotes && (Pdf || stage == Stage.Practice))" OnFullScreen="ToggleFullScreen" Lamp="true" />
 
+        @* What's this's own lines on a piece (Piece.Explain.cs): the key where the music is, and its notes' names over it, none, the
+           hard ones to read, or all. *@
+        @if (score is not null && !Pdf && KeyHere() is { } here)
+        {
+            <Microsoft.AspNetCore.Components.Sections.SectionContent SectionName="whats-this">
+                <div class="whats-this-row">
+                    <span class="control-label">Key</span>
+                    <div class="whats-this-key">
+                        <b class="whats-this-key-name">@KeyName(here)</b>
+                        <span class="whats-this-words">@KeyWords(here)</span>
+                        @if (KeyStretches.Count > 1)
+                        {
+                            <span class="whats-this-words">Its key changes @(KeyStretches.Count == 2 ? "once" : $"{KeyStretches.Count - 1} times"): tap a key signature on the music for its key.</span>
+                        }
+                    </div>
+                </div>
+                <div class="whats-this-row">
+                    <span class="control-label">Note names</span>
+                    <div class="play-mode" role="radiogroup" aria-label="Note names">
+                        @foreach (var (value, words) in new[] { ("off", "Off"), ("hard", "Hard ones"), ("all", "All") })
+                        {
+                            <button type="button" role="radio" class="play-mode-option" data-piano="off" data-names="@value" aria-checked="@On(Settings.NoteNames == value)" @onclick="() => SetNoteNames(value)">@words</button>
+                        }
+                    </div>
+                </div>
+            </Microsoft.AspNetCore.Components.Sections.SectionContent>
+        }
+
         @{
             // The piece's own key in More's group for its music: its print, for a PDF whose notes are read.
             RenderFragment printKey = @<text>
@@ -67,7 +95,7 @@ else
             RenderFragment finishInFull = @<text>
                 @if (fullScreen && stage == Stage.Practice && clock is not null)
                 {
-                    <button type="button" class="mu-btn piece-finish" data-piano="off" @onclick="FinishPractice">Finish practice</button>
+                    <button type="button" class="mu-btn piece-finish" data-piano="off" data-explain="finish" @onclick="FinishPractice">Finish practice</button>
                 }
             </text>;
             // About this piece: what's been done of it, its level, where it's from; on its front under the music, with the keys that
@@ -220,7 +248,7 @@ else
                 {
                     @* The sheet is there from the first, its paper waiting while the music is still being read (no music yet), then
                        while it's laid out; its lines show as they're drawn. *@
-                    <Sheet @ref="sheet" Mei="@SheetMusic" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnProgress="Progressed" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolTapped="SymbolTapped" />
+                    <Sheet @ref="sheet" Mei="@SheetMusic" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnProgress="Progressed" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolsTapped="SymbolsTapped" NoteLabels="Labels()" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@
@@ -257,15 +285,7 @@ else
                     </div>
                 </section>
             }
-            @if (explain && explained is { } symbol)
-            {
-                <SymbolCard Entry="symbol.Entry" Note="@symbol.Note" OnClose="() => explained = null" />
-            }
-            else if (explain)
-            {
-                <p class="explain-hint">What's this? Tap any symbol on the music. <button type="button" class="mu-btn" data-piano="off" data-action="explain-done" @onclick="ToggleExplain">Done</button></p>
-            }
-            else if (loopTo == from && !playing && !about && stage == Stage.Practice)
+            @if (loopTo == from && !playing && !about && !explain && stage == Stage.Practice)
             {
                 <p class="explain-hint">Looping bar @from: tap another bar to loop to it, or drag a handle.</p>
             }
@@ -460,7 +480,7 @@ else
                practice. *@
             <PlayAlong @ref="play" Name="library" Music="music" SheetOf="() => sheet" Tempo="tempo" TempoChanged="SetTempo" ShowPassFigure="Settings.PassFigure"
                        EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="Playable" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
-                       OriginalTempo="originalTempo" OnExplain="EventCallback.Factory.Create(this, ToggleExplain)" Explaining="explain" OnFullScreen="ToggleFullScreen"
+                       OriginalTempo="originalTempo" OnFullScreen="ToggleFullScreen"
                        Hands="@(twoHands ? AllHands : null)" Hand="@HandOf(handStaff)" HandChanged="h => SetHands(StaffOf(h))"
                        Loop="@(loopTo is not null)" OnLoop="LoopOnBar" LoopOnLabel="Loop: on. The bars chosen go round until you stop" LoopOffLabel="Loop: off. On, it goes round the bar chosen"
                        OnSlip="SlipStops" OnPass="Passed" Streak="StreakShown" Saying="@lockSaying">
@@ -659,9 +679,7 @@ else
     private ErrorBoundary? readingBoundary;
     private int? loopTo;
     private bool playAlong;
-    // What's this: on, the symbol tapped last (its entry, and for a note which note it is), and the MEI read for it.
-    private bool explain;
-    private (GlossaryEntry? Entry, string? Note)? explained;
+    // The MEI read for What's this (Piece.Explain.cs) and the bars' ids.
     private XDocument? meiDocument;
     // A bar tapped to start at (lit even when it's the first); the piece's MEI measure ids, in order.
     private bool chosen;
@@ -981,7 +999,11 @@ else
 
     private string PlaceText() => Pdf && view == View.Scroll ? $"{CurrentSystem() + 1}" : $"{page} of {pages}";
 
-    private void ReadTheNotes() => (readingNotes, about, explain) = (true, false, false);
+    private void ReadTheNotes()
+    {
+        (readingNotes, about) = (true, false);
+        Unexplain();
+    }
 
     private void CloseReading()
     {
@@ -1078,7 +1100,11 @@ else
     private string ViewKey => $"Library.View.{Id}";
 
     // About this piece, by About in the head: in the music's place, as an exercise's words are.
-    private void ToggleAbout() => (about, explain, explained) = (!about, false, null);
+    private void ToggleAbout()
+    {
+        about = !about;
+        Unexplain();
+    }
 
     // What shows on the music while a run plays In time: kept in Settings, for every screen that plays to a tempo.
     private Task ShowWhilePlaying(bool cursor, bool marks)
@@ -1092,16 +1118,6 @@ else
     {
         Settings.Lyrics = shown;
         return Store.SaveAsync(Settings);
-    }
-
-    private void ToggleExplain() => (explain, explained, about) = (!explain, null, false);
-
-    // What's this: the symbol from the glossary; a note, or what's drawn on one, says which note it is and where it sits.
-    private void SymbolTapped(SheetSymbol symbol)
-    {
-        meiDocument ??= mei is null ? null : XDocument.Parse(mei);
-        var noteId = symbol.Kind == "note" ? symbol.Id : symbol.Kind is "accid" or "artic" or "dots" or "fing" ? symbol.Within : null;
-        explained = (GlossaryLookup.Find(meiDocument, symbol), score is not null && noteId is not null ? GlossaryLookup.NoteLine(score, noteId) : null);
     }
 
     // Full screen: the piece alone, the tablet's own bars hidden too; the same button, or leaving the piece, brings them back.
@@ -1350,7 +1366,8 @@ else
         // The same go when it's moved to another bar or counted in again after a slip: its time carries on.
         var same = restarting || play?.Continuing == true;
         NewGo(same);
-        (playing, outcome, started, about, explain, explained) = (true, null, same ? started : DateTime.Now, false, false, null);
+        (playing, outcome, started, about) = (true, null, same ? started : DateTime.Now, false);
+        Unexplain();
         if (stage == Stage.Practice) clock?.RunStarted(DateTimeOffset.Now);
         if (stage == Stage.Play) played = null;
         if (view == View.Scroll) return;
@@ -1974,6 +1991,7 @@ else
     {
         gone = true;
         Keyboard.Received -= Heard;
+        ForgetWhatsThis();
         // Leaving the piece pauses its session, to carry on or finish when it's opened again.
         if (clock is not null && session is { Finished: null } && stage == Stage.Practice)
         {

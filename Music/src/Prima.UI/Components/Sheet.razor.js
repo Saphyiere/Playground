@@ -164,8 +164,8 @@ export async function render(element, mei, options, dotnet, ownerId) {
     if (!element.isConnected || renderRequests.get(element) !== request) return;
     const state = sheets.get(element) ?? { number: ++sheetCount, moves: [], kept: new Map() };
     // Marks belong to the music they were made on: new music starts clean (a passage's note ids can be the last one's), and so
-    // do the drawings kept of it and the size its words were fitted at.
-    if (state.mei !== mei) Object.assign(state, { marks: null, music: mei, kept: new Map(), fitted: null, timemap: null, timed: null });
+    // do the drawings kept of it, the size its words were fitted at, and the notes' names.
+    if (state.mei !== mei) Object.assign(state, { marks: null, music: mei, kept: new Map(), fitted: null, timemap: null, timed: null, names: null });
     Object.assign(state, { mei, options, dotnet, tk, overlay: element.querySelector(".sheet-overlay"), line: [...element.children].find(c => c.classList.contains("sheet-cursor")) });
     sheets.set(element, state);
     element.classList.toggle("sheet-explain", !!options.explain);
@@ -180,7 +180,7 @@ export async function render(element, mei, options, dotnet, ownerId) {
         state.observer.observe(element);
         element.addEventListener("click", event => {
             if (state.options.explain) {
-                explainTap(state, event.target);
+                explainAt(element, state, event.clientX, event.clientY);
                 return;
             }
             const note = event.target.closest?.(".sheet-music .note[data-id]");
@@ -344,10 +344,12 @@ function crowded(music) {
 }
 
 // New paper, drawn or put back: what was drawn over the old one goes, and so does what was found on it (each id's place, the
-// music's words); the marks go on again, and .NET hears once it's painted.
+// music's words); the marks go on again, the notes' names and What's this's marks as each line comes into view, and .NET
+// hears once it's painted.
 function finish(element, state) {
     fresh(state);
     if (state.marks) showMarks(element, state.marks);
+    watchLines(element, state);
     painted(element, state);
 }
 
@@ -355,7 +357,8 @@ function finish(element, state) {
 function fresh(state) {
     state.overlay.replaceChildren();
     state.line.hidden = true;
-    Object.assign(state, { points: null, byId: null, words: null, drawn: new Map() });
+    state.lineWatch?.disconnect();
+    Object.assign(state, { points: null, byId: null, words: null, drawn: new Map(), lineWatch: null, named: new WeakSet(), outlined: new WeakSet() });
 }
 
 // .NET hears that the music is drawn once the browser has painted it.
@@ -758,6 +761,8 @@ function addPart(state, music, svg, n) {
     }
     state.words = null;
     state.points = null;
+    // Its lines named and marked as they come into view, where the sheet has names or What's this on.
+    if (state.names || state.options.explain) watchLines(state.overlay.closest(".sheet"), state, part);
     return part;
 }
 
@@ -1282,12 +1287,31 @@ export function showOpening(element, windowQuarters) {
     for (const bar of measures(element, state)) bar.cover.style.display = bar.start > windowQuarters ? "" : "none";
 }
 
-// What's this: a tap names the nearest symbol under it, the innermost (an accidental before its note, a note before its beam).
+// ——— What's this, and the notes' names ———
+//
+// What's this makes a tap on the music say what's printed there, and marks what there is to tap. A tap counts for anything within
+// a finger's reach of it (its box at least 44 px each way, round its middle: a dot is 3 px on the tablet, a slur 2 px thick), and
+// the nearest wins; .NET hears the few nearest, to ask which one was meant where they're as near. The marks and the notes' names
+// are drawn a line of music at a time as it comes into view, on a layer of their own under the run's marks: a long piece has
+// thousands of notes, and only a few lines show at once.
+
+// The kinds of symbol a tap can name, the innermost first (an accidental before its note, a note before its beam).
 const symbols = ["accid", "artic", "dots", "stem", "flag", "fing", "dynam", "hairpin", "dir", "tempo", "fermata", "trill", "mordent", "turn",
     "arpeg", "gliss", "bTrem", "fTrem", "breath", "caesura", "slur", "phrase", "tie", "pedal", "octave", "ending", "repeatMark", "tuplet",
     "note", "rest", "mRest", "multiRest", "chord", "beam", "ledgerLines", "clef", "keySig", "meterSig", "barLine", "mNum", "grpSym", "reh",
     "harm"];
-const symbolSelector = symbols.map(s => `.sheet-music .${s}`).join(", ");
+// What a finger can tap: a chord is its notes, and a stem its note's.
+const tappable = symbols.filter(s => s !== "chord" && s !== "stem").map(s => `.${s}`).join(", ");
+// What's marked to tap while What's this is on: the signs, not what there are hundreds of (notes, rests, beams, fingers, a note's
+// accidental, dots and articulations), nor the curves, whose boxes cover the notes under them.
+const outlinedKinds = ["clef", "keySig", "meterSig", "dynam", "hairpin", "dir", "tempo", "fermata", "trill", "mordent", "turn", "arpeg", "gliss",
+    "breath", "caesura", "pedal", "octave", "ending", "repeatMark", "tuplet", "harm", "reh"];
+const outlined = outlinedKinds.map(s => `.${s}`).join(", ");
+// Half a finger's width: a tap counts for what's printed this far from it.
+const reach = 22;
+// A long or wide sign's box takes in more than the sign (a beam's or a slur's covers the notes under it, a hairpin's the space
+// inside it): it counts as this much farther than its box says, so the note or the dot the finger is on comes first.
+const wide = { beam: 8, slur: 10, phrase: 10, tie: 8, hairpin: 6, ledgerLines: 6, barLine: 4, ending: 8, octave: 6, pedal: 4, tuplet: 4, mNum: 4 };
 // The glyphs that tell a clef's shape: SMuFL's G, F and C clefs.
 const clefGlyphs = { E050: "G", E052: "G", E062: "F", E064: "F", E05C: "C" };
 
@@ -1296,11 +1320,145 @@ export function explain(element, on) {
     if (!state) return;
     state.options.explain = on;
     element.classList.toggle("sheet-explain", on);
+    // On, the lines in view are marked as they come; off, the marks go.
+    state.overlay.querySelector(".sheet-explainable")?.remove();
+    state.outlined = new WeakSet();
+    if (on) watchLines(element, state);
 }
 
-function explainTap(state, target) {
-    const symbol = target.closest?.(symbolSelector);
-    if (!symbol) return;
+// The notes' names, from .NET: [id, name] for each note to name, or none.
+export function names(element, labels) {
+    const state = sheets.get(element);
+    if (!state) return;
+    state.names = labels?.length ? new Map(labels) : null;
+    state.named = new WeakSet();
+    state.overlay.querySelector(".sheet-names")?.remove();
+    watchLines(element, state);
+}
+
+// Watches the lines of music (all of them, or those in a part just added) for coming into view, to name their notes and, with
+// What's this on, mark what there is to tap: a little before they're in view, so they're there as they scroll in.
+function watchLines(element, state, within = element) {
+    if (!state.names && !state.options?.explain) return;
+    state.lineWatch ??= new IntersectionObserver(entries => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting || sheets.get(element) !== state) continue;
+            if (state.names) nameLine(element, state, entry.target);
+            if (state.options.explain) outlineLine(element, state, entry.target);
+        }
+    }, { rootMargin: "600px 0px" });
+    for (const system of within.querySelectorAll(".sheet-music .system")) {
+        // Observed again, it's told again whether it's in view, which draws what it lacks.
+        state.lineWatch.unobserve(system);
+        state.lineWatch.observe(system);
+    }
+}
+
+// The overlay's own group for something drawn a line at a time: under the run's marks, which go on after it.
+function layerOf(state, name) {
+    let layer = state.overlay.querySelector(`:scope > .${name}`);
+    if (!layer) {
+        layer = document.createElementNS(svgNs, "g");
+        layer.setAttribute("class", name);
+        state.overlay.prepend(layer);
+    }
+    return layer;
+}
+
+// A staff's top and bottom lines, in px on the screen, from its five line paths.
+function staffEdges(staff) {
+    const lines = [...(staff?.querySelectorAll(":scope > path") ?? [])].map(p => p.getBoundingClientRect());
+    if (lines.length < 2) return null;
+    const tops = lines.map(l => (l.top + l.bottom) / 2);
+    return { top: Math.min(...tops), bottom: Math.max(...tops), space: (Math.max(...tops) - Math.min(...tops)) / (lines.length - 1) };
+}
+
+// A line's notes named: over a staff that's the top of its line (the right hand's), under any other (the left hand's), as
+// fingering is printed, so the busy space between the staves is left alone. Each name goes over its note, or over its staff when
+// the note is in it, a chord's names stacked as its notes are (its lowest nearest the staff), moved out past the music's own
+// words (fingering, dynamics, directions) and the names beside it.
+function nameLine(element, state, system) {
+    if (state.named.has(system) || !system.isConnected) return;
+    state.named.add(system);
+    const sheet = element.getBoundingClientRect();
+    const layer = layerOf(state, "sheet-names");
+    const own = [...system.querySelectorAll(".dir, .tempo, .dynam, .fing, .syl text")].map(e => e.getBoundingClientRect()).filter(r => r.width > 0)
+        .map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
+    const placed = [];
+    // Each note to name, by what it's struck with: a chord's notes together.
+    const groups = new Map();
+    for (const note of system.querySelectorAll(".note[data-id]")) {
+        const name = state.names.get(note.dataset.id);
+        const head = name && note.querySelector(".notehead");
+        if (!head) continue;
+        const holder = note.closest(".chord") ?? note;
+        if (!groups.has(holder)) groups.set(holder, []);
+        groups.get(holder).push({ name, r: head.getBoundingClientRect() });
+    }
+    const edges = new Map();
+    for (const [holder, notes] of groups) {
+        const staff = holder.closest(".staff");
+        if (!edges.has(staff)) edges.set(staff, staffEdges(staff));
+        const edge = edges.get(staff);
+        if (!edge) continue;
+        const under = [...staff.parentElement.querySelectorAll(":scope > .staff")].indexOf(staff) > 0;
+        const size = Math.max(10, Math.round(edge.space * 1.5));
+        const gap = size * 0.25;
+        // Nearest the staff first: a chord's lowest note over it, its highest under it.
+        notes.sort((a, b) => under ? a.r.top - b.r.top : b.r.top - a.r.top);
+        const x = notes.reduce((sum, n) => sum + n.r.left + n.r.width / 2, 0) / notes.length - sheet.left;
+        // Over the staff (or the note, where it's higher), its baseline a gap above; under it, its top a gap below.
+        let y = under ? Math.max(edge.bottom, ...notes.map(n => n.r.bottom)) + gap + size * 0.8 : Math.min(edge.top, ...notes.map(n => n.r.top)) - gap;
+        y -= sheet.top;
+        for (const { name } of notes) {
+            const t = document.createElementNS(svgNs, "text");
+            t.setAttribute("class", "sheet-name");
+            t.setAttribute("x", x);
+            t.setAttribute("y", y);
+            t.style.fontSize = `${size}px`;
+            t.textContent = name;
+            layer.appendChild(t);
+            const m = t.getBBox();
+            const b = { x: m.x, y: m.y, width: m.width, height: m.height };
+            // Out past anything in the way, a pixel or two clear of it.
+            const clash = () => [...own, ...placed].find(r => r.x < b.x + b.width + 2 && b.x < r.x + r.width + 2 && r.y < b.y + b.height && b.y < r.y + r.height);
+            for (let tries = 0, hit = clash(); hit && tries < 12; tries++, hit = clash()) {
+                const by = under ? hit.y + hit.height + 1 - b.y : -(b.y + b.height + 1 - hit.y);
+                b.y += by;
+                t.setAttribute("y", Number(t.getAttribute("y")) + by);
+            }
+            t.box = b;
+            placed.push(b);
+            y = under ? b.y + b.height + size * 0.8 + 1 : b.y - 1;
+        }
+    }
+}
+
+// A line's signs marked, for What's this: a faint outline round each, its box at least a finger wide, as it can be tapped.
+function outlineLine(element, state, system) {
+    if (state.outlined.has(system) || !system.isConnected) return;
+    state.outlined.add(system);
+    const sheet = element.getBoundingClientRect();
+    const layer = layerOf(state, "sheet-explainable");
+    for (const symbol of system.querySelectorAll(outlined)) {
+        // A sign inside another marked one (an accidental in a key signature) is part of it.
+        if (symbol.parentElement?.closest(outlined)) continue;
+        const r = symbol.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        const [w, h] = [Math.max(r.width + 8, 28), Math.max(r.height + 8, 28)];
+        const box = document.createElementNS(svgNs, "rect");
+        box.setAttribute("x", r.left + r.width / 2 - w / 2 - sheet.left);
+        box.setAttribute("y", r.top + r.height / 2 - h / 2 - sheet.top);
+        box.setAttribute("width", w);
+        box.setAttribute("height", h);
+        box.setAttribute("rx", 7);
+        layer.appendChild(box);
+    }
+}
+
+// The kind a symbol is, as the glossary knows it: Verovio's class, and what its drawing shows of a clef's shape, a time
+// signature's figures or a repeat's dots.
+function kindOf(symbol) {
     let kind = symbols.find(s => symbol.classList.contains(s));
     if (kind === "clef") {
         const glyph = symbol.querySelector("use")?.getAttribute("xlink:href") ?? symbol.querySelector("use")?.getAttribute("href") ?? "";
@@ -1320,8 +1478,35 @@ function explainTap(state, target) {
     }
     // A repeat sign's bar line has its two dots.
     if (kind === "barLine" && symbol.querySelector("ellipse, circle")) kind += ":rpt";
-    const within = symbol.parentElement?.closest(".sheet-music .note[data-id], .sheet-music .chord[data-id], .sheet-music .measure[data-id]")?.dataset.id ?? null;
-    state.dotnet?.invokeMethodAsync("SymbolTapped", symbol.dataset.id ?? "", kind, within);
+    return kind;
+}
+
+// A tap on the music with What's this on: what's printed within a finger's reach of it, the nearest first, of the line tapped
+// (only its symbols are measured: a long piece has tens of thousands). .NET hears the nearest few, each with how far it is from
+// the finger (0 on it) and where it is on the screen, for its card to stand beside it.
+function explainAt(element, state, x, y) {
+    const lines = [...element.querySelectorAll(".sheet-music .system")].map(system => ({ system, r: system.getBoundingClientRect() }));
+    const line = lines.filter(l => y >= l.r.top - reach && y <= l.r.bottom + reach).sort((a, b) => Math.abs(y - (a.r.top + a.r.bottom) / 2) - Math.abs(y - (b.r.top + b.r.bottom) / 2))[0];
+    if (!line) return;
+    const near = [];
+    for (const symbol of line.system.querySelectorAll(tappable)) {
+        const kind = symbols.find(s => symbol.classList.contains(s));
+        // A note by its head, so a tap on the stem or the beam beside it isn't taken for it.
+        const r = (kind === "note" ? symbol.querySelector(".notehead") ?? symbol : symbol).getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        const [cx, cy] = [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+        if (Math.abs(x - cx) > Math.max(r.width / 2, reach) || Math.abs(y - cy) > Math.max(r.height / 2, reach)) continue;
+        near.push({ symbol, r, away: Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom)) + (wide[kind] ?? 0) });
+    }
+    near.sort((a, b) => a.away - b.away);
+    const found = near.slice(0, 5).map(({ symbol, r, away }) => ({
+        id: symbol.dataset.id ?? "",
+        kind: kindOf(symbol),
+        within: symbol.parentElement?.closest(".sheet-music .note[data-id], .sheet-music .chord[data-id], .sheet-music .measure[data-id]")?.dataset.id ?? null,
+        away,
+        left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+    }));
+    state.dotnet?.invokeMethodAsync("SymbolsTapped", found);
 }
 
 // Marks notes after the passage, all at once. Each mark: id, kind ("right", "wrong", "missed", "early", "late", "extra", or a
@@ -1561,7 +1746,8 @@ function label(element, state, text, x, y, kind = "sheet-label", forId = null) {
         const sheet = element.getBoundingClientRect();
         state.words = [...element.querySelectorAll(".sheet-music .dir, .sheet-music .tempo, .sheet-music .dynam, .sheet-music .fing, .sheet-music .syl text")].map(e => e.getBoundingClientRect()).map(r => ({ x: r.left - sheet.left, y: r.top - sheet.top, width: r.width, height: r.height }));
     }
-    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint")].filter(o => o !== t).map(o => o.box), ...state.words];
+    // The notes' names too: a wrong key's name goes over them.
+    const others = [...[...overlay.querySelectorAll(".sheet-label, .sheet-arrow, .sheet-hint, .sheet-name")].filter(o => o !== t && o.box).map(o => o.box), ...state.words];
     // The words are measured once and their box moved with them: measuring again after each move, and against every other
     // word on the piece, is what a long, rough run would pay most for.
     const measured = t.getBBox();

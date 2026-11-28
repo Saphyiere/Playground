@@ -4648,13 +4648,7 @@ html[data-full] .piece .summary {
     }
 }
 
-/* What's this on a piece: the ? key, the hint, and the card over the music. */
-.piece-tool-mark {
-    font-size: 20px;
-    font-weight: 800;
-    line-height: 1;
-}
-
+/* What's this on the music: a finger's tap says what's printed there; and a bar's loop hint over the music. */
 .sheet-explain .sheet-music {
     cursor: help;
 }
@@ -4672,50 +4666,6 @@ html[data-full] .piece .summary {
     font-size: 15px;
     font-weight: 600;
     pointer-events: none;
-}
-
-.symbol-card {
-    position: absolute;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(560px, calc(100% - 32px));
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 18px 20px;
-    border-radius: var(--mu-r-panel);
-    background: var(--surface);
-    color: var(--on-surface);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-}
-
-.symbol-card p {
-    margin: 0;
-    font-size: 16px;
-    line-height: 23px;
-}
-
-.symbol-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.symbol-card-name {
-    margin: 0;
-    font-family: var(--mu-name);
-    font-size: 24px;
-    line-height: 30px;
-}
-
-.symbol-card .symbol-card-note {
-    font-weight: 700;
-}
-
-.symbol-card .mu-btn {
-    align-self: flex-start;
 }
 
 /* The play bar's tempo: its figure, a key to tap, and under it when open its − and +, and a field to type it. */
@@ -10245,14 +10195,163 @@ html[data-theme^="porcelain"] .pause-title {
     gap: 10px 12px;
 }
 
-/* What's this, on: the line over the music says so, with Done to end it. */
-.explain-hint .mu-btn {
-    margin-left: 10px;
-    pointer-events: auto;
+/* What's this, on every screen: its key in every head (on the bar in full screen), lit while it's on; what a tap can explain
+   ringed in the accent; a small panel by the key with the screen's own lines; a card beside what's tapped, pointing at it; a
+   glossary entry opened in place. Nothing under them moves: they float over the screen. */
+.whats-this-key[aria-pressed="true"] {
+    background: var(--pc-sel-bg);
+    color: var(--pc-sel-fg);
 }
 
-.explain-hint:has(.mu-btn) {
-    pointer-events: auto;
+html[data-explaining] [data-explain] {
+    outline: 2px solid color-mix(in srgb, var(--explain-ink) 50%, transparent);
+    outline-offset: 2px;
+    cursor: help;
+}
+
+:is(.whats-this, .explain-card, .explain-entry) {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    border-radius: 20px;
+    background: var(--pc-card-bg);
+    color: var(--on-surface);
+    box-shadow: 0 0 0 1px var(--pc-card-edge), var(--pc-card-lift), 0 6px 18px rgba(25, 25, 30, 0.12);
+}
+
+.whats-this {
+    z-index: 60;
+    top: 86px;
+    right: 24px;
+    width: min(400px, calc(100vw - 32px));
+    animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
+}
+
+/* In full screen the head is gone: the panel stands over the bar, where its key is. */
+html[data-full] .whats-this {
+    top: auto;
+    bottom: calc(var(--whats-this-over-bar, 92px));
+}
+
+.whats-this-head,
+.explain-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+:is(.whats-this-name, .explain-card-name) {
+    margin: 0;
+    font: 400 24px/28px var(--mu-name);
+}
+
+.whats-this-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.whats-this-key {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.whats-this-key-name {
+    font: 400 24px/28px var(--mu-figure);
+}
+
+:is(.whats-this-words, .whats-this-note) {
+    margin: 0;
+    font-size: 14px;
+    line-height: 19px;
+    color: var(--ink-muted);
+}
+
+.explain-card {
+    z-index: 61;
+    width: min(360px, calc(100vw - 24px));
+}
+
+/* Its pointer, at what it's about. */
+.explain-card::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--point, 50%) - 8px);
+    width: 16px;
+    height: 16px;
+    background: inherit;
+    transform: rotate(45deg);
+    box-shadow: inherit;
+    clip-path: polygon(-50% -50%, 150% -50%, -50% 150%);
+}
+
+.explain-card[data-side="below"]::before {
+    top: -8px;
+}
+
+.explain-card[data-side="above"]::before {
+    bottom: -8px;
+    clip-path: polygon(150% -50%, 150% 150%, -50% 150%);
+}
+
+:is(.explain-card, .explain-entry) p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 21px;
+}
+
+.explain-card-close {
+    min-width: 44px;
+}
+
+.explain-card-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.explain-card-more {
+    align-self: flex-start;
+}
+
+.explain-entry {
+    z-index: 62;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+}
+
+/* On the music: each sign there is to tap, ringed faintly, a finger wide; and the notes' names. Both in What's this's own blue
+   ink (red is a wrong key, and the accent can be any colour), the names on a halo of the paper, so a staff line under one
+   doesn't cross it. */
+:root {
+    --explain-ink: #1f4fc6;
+}
+
+.sheet-explainable rect {
+    fill: color-mix(in srgb, var(--explain-ink) 5%, transparent);
+    stroke: color-mix(in srgb, var(--explain-ink) 45%, transparent);
+    stroke-width: 1.25px;
+}
+
+.sheet-name {
+    fill: var(--explain-ink);
+    stroke: var(--sheet);
+    stroke-width: 3.5px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-family: var(--font-pc-sans, system-ui, sans-serif);
+    font-weight: 700;
+    text-anchor: middle;
 }
 
 /* About this piece where it plays, in the music's place, as an exercise's words are; under the music only on its front. */

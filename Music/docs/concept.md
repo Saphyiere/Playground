@@ -60,9 +60,37 @@ round key at its start. The tools are a tab of Settings (Tools, below), whose ke
 
 Every screen has the same **head**, one row as the wireframes drew it: on its left the way back, a key like the head's others
 named for where it goes (the screen it was opened from; none on the rail's own screens), then the screen's name with a printed
-line after it (the day, what it's for); on its right the screen's own keys (a search, Import, New routine), then **About**,
-**full screen**'s key and the piano's lamp where it has them, always in that order. The owner, 28 November 2026: "the head should be normal in every single location in
+line after it (the day, what it's for); on its right the screen's own keys (a search, Import, New routine), then **What's
+this** (?), **About**, **full screen**'s key and the piano's lamp where it has them, always in that order. The owner, 28 November 2026: "the head should be normal in every single location in
 the app". A screen that plays music goes on from it the same way too ([Playing to a tempo](#playing-to-a-tempo)).
+
+**What's this** works anywhere: its key is in every head, and in full screen on the play bar beside full screen's key. On,
+everything it can explain is ringed in its own blue, and a tap says what it is instead of pressing it, in a small card beside
+it that points at it; nothing under it moves. On the music a tap reaches what's printed within a finger of it (its box at
+least 44 px each way, the nearest winning; a beam's, a slur's or a hairpin's box counts a little farther, so the note under
+it comes first), and where several things are as near the card asks which; a chord's notes as near as each other are named
+together. A note says the key it plays ("F♯5"), where it's printed, and why it's sharp or flat (the key signature, its own
+sign, or one earlier in the bar, which lasts to the bar line); a key signature says its sharps or flats and the key the music
+is in. **More about it** opens the glossary's entry in place, its picture engraved. A small panel by the key says what to do,
+with the screen's own lines: on a piece its **key** where the music is ("E major · 4 sharps, F♯ C♯ G♯ D♯. It ends on E."; "D
+major or B minor" where nothing says which; a key its signature doesn't write says so, as Bach's French Suite in C minor,
+written with two flats), and **Note names**: **Off**, the **hard ones**, or **All**, kept for every piece. Each name is over
+its note (under it on a lower staff, as fingering is printed), in the same blue on a halo of the paper, a chord's stacked; it
+has its octave where the note is two or more ledger lines off its staff or under an 8va ("C7"). The hard ones are the notes two
+or more ledger lines off the staff (middle C's one isn't), under an 8va, sharp or flat by one earlier in the bar or a tie, a
+key signature's sharps and flats where it has three or more, and double sharps and flats: about one note in seven of a piece.
+The names stay while you play, a wrong key's red name going over them. **Done**, the ? again, a run starting or leaving the
+screen ends What's this. The owner, 28 November 2026: "it needs to like be able to work anywhere", and of the key: "Can
+someone just tell me what this key is?"
+
+Which key a piece is in: a key signature is two keys (two sharps is D major or B minor), so for each stretch in one signature,
+the file's own mode where it says minor (a program's "major" is often only its default), then the key its title names ("in B
+minor", "g-Moll", "in D"; a later movement's names its work's key and doesn't count), and otherwise what's heard in all the
+music in that signature: how long each pitch sounds against each key's profile (Krumhansl and Kessler's), with a vote for the
+key whose keynote the bass ends on (at Fine, for a D.C.) and a smaller one for the key it starts on. On the 447 titles in the
+bundle and the owner's collection that name one of their signature's keys, with the title left out: 440 right, 4 wrong, 3
+not told. A piece ending on the second note of its signature's major scale, whose notes fit the minor key there best, is in
+that minor key, written with one flat fewer (Bach's way, and the Dorian mode).
 
 Every screen is drawn inside a guard: a screen that fails, in drawing itself or in what a tap does, gives way to a card saying
 **This screen stopped**, with what went wrong, **Try again**, and the way to Settings › Problems, where it's kept. The rail
@@ -159,8 +187,8 @@ can be turned off in Settings.
 ### Playing to a tempo
 
 Every screen that plays music to a tempo is the one **practice screen**, top to bottom: the **head** every screen has (the
-way back, a key named for where it goes, the screen's name, and on its right **About**, the screen's words in the music's
-place,
+way back, a key named for where it goes, the screen's name, and on its right **What's this**, **About**, the screen's words in
+the music's place,
 **full screen**'s key and the piano's lamp); the **music**, taking the rest of the screen; a run's **review** under it; the
 **play bar**, near the hands; and the **foot**. The owner, 28 November 2026: "we have practices and exercises, and the issue is
 that they do the exact same thing", and of the wireframes' C, the bar under the music, "the one practice screen for all of
@@ -169,7 +197,7 @@ every run needs, the **hands** (**Left**, **Right** or **Both**, one tap for the
 mode, the **tempo**, **Loop**, **Listen** and **Play** (the piano's C♯4) at the row's end. **More** opens one panel upward
 from the bar, over the music, with what a run doesn't need every time, in groups: **The click** (**The click alone**, a click
 at the tempo with nothing judged, below; where it's heard, its sound, how loud), **The music** (a piece's view, lyrics and print,
-**What's this**, and the cursor and the marks while you play), then the screen's own (a piece's feedback after a run and its
+and the cursor and the marks while you play), then the screen's own (a piece's feedback after a run and its
 play along). Its key's lamp is lit while the click goes by itself; **Done** closes it, and so does a run starting. The
 **foot** has on its left what this one is (an exercise's key and variation on its card, with **Change**; a piece's bars; a
 drill's target and its runs; Sight-read's level) and on its right the way on (the next exercise in its section, a session's
@@ -408,11 +436,11 @@ a PDF plays out; this is what came of it.
   drill's, a sight-reading's) is still engraved on the page's thread as it's asked for: it's a few bars, and answers are
   timed from when it's painted.
 - **In Practice** a piece is the practice screen every screen with music is ([Playing to a tempo](#playing-to-a-tempo)): its
-  head (the way back, the composer and the title, **About**, full screen's key, the piano's lamp), the music, a run's review
+  head (the way back, the composer and the title, **What's this**, **About**, full screen's key, the piano's lamp), the music, a run's review
   under it, the play bar, and the foot, with **the strip** of its bars on its left and the session's clocks and **Finish
   practice** on its right. **About** shows About this piece in place of the music, until it's pressed again (without Remove
   from the Library, which is the front's). **More**, first on the bar, has the rest: the click (below); the view, a song's
-  lyrics, the print of a PDF whose notes are read, **What's this** (below), the cursor and the marks; **Key**, the key it's
+  lyrics, the print of a PDF whose notes are read, the cursor and the marks; **Key**, the key it's
   played in (below); When I slip; how much Practice tells you after a run and whether a loop waits after each pass; and play
   along. **Full screen** leaves only the music, the review
   and the bar, the tablet's own bars hidden too, in either orientation; the key, on the bar then, or leaving the piece, brings
@@ -773,8 +801,8 @@ the address it always had, and the old Tools screen's address opens the tab.
   rhythm and time; sharps, flats and keys; loud and soft; touch; speed and mood; repeats and the roadmap; ornaments; hands,
   fingers and pedals), the most common first in each. Each says what it is, how it's played and how it sounds, and opens to a
   bar or two engraved as the sheet engraves it. A search finds things by name or by what they look like ("curved line",
-  "dots", "hairpin"). On a piece, **What's this** (in More, on its bar; **Done** on the line over the music ends it) makes a tap on the music name the symbol under it from
-  the glossary, a note with its name and where it sits, with the way to its full entry.
+  "dots", "hairpin"). **What's this** (? in every head) says what a symbol on the music is from the glossary, and opens its entry
+  in place ([Sections](#sections)).
 - **Metronome**, with a count-in and a click that can fade to silence.
 - **Keyboard check**: names each key you press with its velocity and the pedals, and checks the whole keyboard arrives (A0 to
   C8). **Your soft and loud**: four notes as softly as you can and still hear them, then four as loudly as you'd play *ff*; the

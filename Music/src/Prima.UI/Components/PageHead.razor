@@ -2,15 +2,15 @@
     Every screen's head, the same everywhere, one row as the wireframes drew it: on its left the way back, a key named for where
     it goes (where there's somewhere to go back to), then the screen's name with a printed line after it (the day, what the
     screen is for); on its right the screen's own keys (a
-    search, Import), then About (its words, in the music's place), full screen's key and the piano's lamp, each where the screen
-    has it and always in that order. The owner, 28 November 2026: "the head should be normal in every single location in the
-    app".
+    search, Import), then What's this (?), About (its words, in the music's place), full screen's key and the piano's lamp, each
+    where the screen has it and always in that order. What's this is on every screen. The owner, 28 November 2026: "the head
+    should be normal in every single location in the app".
 *@
 <header class="page-head @Class">
     @if (Back is not null)
     {
         @* The way back, by the name of where it goes, on the title's line at its left. *@
-        <button type="button" class="mu-btn way-back" data-piano="off" @onclick="() => OnBack.InvokeAsync()">@Back</button>
+        <button type="button" class="mu-btn way-back" data-piano="off" data-explain="back" @onclick="() => OnBack.InvokeAsync()">@Back</button>
     }
     <div class="page-head-name">
         <h1 class="page-title @(Title.Length > 40 ? "page-title-long" : null)">@Title</h1>
@@ -19,27 +19,25 @@
             <p class="page-kicker">@Kicker</p>
         }
     </div>
-    @if (ChildContent is not null || OnAbout.HasDelegate || FullScreen || Lamp)
-    {
-        <div class="page-head-keys">
-            @ChildContent
-            @if (OnAbout.HasDelegate)
-            {
-                <button type="button" class="mu-btn head-about" data-action="about" data-piano="off" aria-pressed="@(AboutOpen ? "true" : "false")" @onclick="() => OnAbout.InvokeAsync()">
-                    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M10 9v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" /><circle cx="10" cy="6.3" r="1.2" fill="currentColor" /></svg>
-                    <span>About</span>
-                </button>
-            }
-            @if (FullScreen)
-            {
-                <FullScreenKey OnFullScreen="OnFullScreen" />
-            }
-            @if (Lamp)
-            {
-                <KeyboardLamp />
-            }
-        </div>
-    }
+    <div class="page-head-keys">
+        @ChildContent
+        <WhatsThisKey />
+        @if (OnAbout.HasDelegate)
+        {
+            <button type="button" class="mu-btn head-about" data-action="about" data-piano="off" data-explain="about" aria-pressed="@(AboutOpen ? "true" : "false")" @onclick="() => OnAbout.InvokeAsync()">
+                <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M10 9v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" /><circle cx="10" cy="6.3" r="1.2" fill="currentColor" /></svg>
+                <span>About</span>
+            </button>
+        }
+        @if (FullScreen)
+        {
+            <FullScreenKey OnFullScreen="OnFullScreen" />
+        }
+        @if (Lamp)
+        {
+            <KeyboardLamp />
+        }
+    </div>
 </header>
 
 @code {

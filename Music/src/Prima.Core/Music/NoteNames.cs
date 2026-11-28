@@ -65,6 +65,25 @@ public static class NoteNames
     }
 
     /// <summary>
+    /// Whether a note is one of "the hard ones" to read: two or more ledger lines from its staff (middle C's one is learnt early),
+    /// under an octave line, a sharp or flat carried through the bar or over a tie, a key signature's sharp or flat where the
+    /// signature has three or more (<paramref name="fifths"/>, the signature in force), or a double sharp or flat. Its own
+    /// single sharp, flat or natural is printed right in front of it, and isn't. Over the bundle and the owner's collection, that
+    /// names about one note in seven of a piece (half of a piece in five sharps).
+    /// </summary>
+    public static bool IsHard(NamedNote note, int fifths) =>
+        note.Ledgers >= 2
+        || (note.Hard & (Hard.OctaveLine | Hard.Carried)) != 0
+        || note.Hard.HasFlag(Hard.Signature) && Math.Abs(fifths) >= 3
+        || Math.Abs(note.Plays.Alter) == 2;
+
+    /// <summary>
+    /// The name printed over a note: its letter with its sharp or flat ("F♯"), and its octave too ("C7") where it's two or more
+    /// ledger lines from its staff or under an octave line, where the letter alone doesn't say which key to play.
+    /// </summary>
+    public static string Label(NamedNote note) => note.Ledgers >= 2 || note.Hard.HasFlag(Hard.OctaveLine) ? $"{note.Letter}{note.Plays.Octave}" : note.Letter;
+
+    /// <summary>
     /// The ledger lines a note printed here needs: none on the staff or just past it, one on the first ledger line or the space
     /// beyond it, and so on. Middle C is on the first, below the treble staff and above the bass.
     /// </summary>

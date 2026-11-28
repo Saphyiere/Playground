@@ -60,17 +60,10 @@ public static class GlossaryLookup
     /// </summary>
     public static string? NoteLine(Score score, string id)
     {
-        var clefs = new Dictionary<int, Clef> { [1] = Clef.Treble, [2] = Clef.Bass };
-        foreach (var bar in score.Bars)
+        // In the clef it's printed in: its staff's own from the start (a left hand in the treble clef), and any change before it.
+        foreach (var (_, _, _, tone, clef) in score.TonesWithClefs())
         {
-            foreach (var voice in bar.Voices)
-            {
-                foreach (var e in voice.Events)
-                {
-                    if (e is ClefChange change) clefs[voice.Staff] = change.Clef;
-                    else if (e is Notes notes && notes.Tones.FirstOrDefault(t => t.Id == id) is { } tone) return Said(tone, clefs.GetValueOrDefault(voice.Staff, Clef.Treble));
-                }
-            }
+            if (tone.Id == id) return Said(tone, clef);
         }
         return null;
     }

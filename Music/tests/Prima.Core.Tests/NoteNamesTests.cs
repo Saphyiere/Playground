@@ -86,6 +86,26 @@ public class NoteNamesTests
     }
 
     [Fact]
+    public void TheHardOnesAndTheirNames()
+    {
+        static NamedNote Note(Spelled plays, int ledgers, Hard hard) => new("n", 0, 1, plays, Clef.Treble, ledgers, hard);
+        var middleC = Note(new Spelled(Step.C, 0, 4), 1, Hard.LedgerLines);
+        var high = Note(new Spelled(Step.C, 0, 7), 2, Hard.OctaveLine | Hard.LedgerLines);
+        var fSharp = Note(new Spelled(Step.F, 1, 5), 0, Hard.Signature);
+        var written = Note(new Spelled(Step.B, -1, 4), 0, Hard.Accidental);
+        var carried = Note(new Spelled(Step.B, -1, 4), 0, Hard.Carried);
+        var doubled = Note(new Spelled(Step.F, 2, 5), 0, Hard.Accidental);
+
+        // Middle C's one ledger line isn't hard; two, or an 8va, is, and says its octave.
+        Assert.Equal((false, "C"), (NoteNames.IsHard(middleC, 0), NoteNames.Label(middleC)));
+        Assert.Equal((true, "C7"), (NoteNames.IsHard(high, 0), NoteNames.Label(high)));
+        // The signature's sharp is hard with three or more; a sharp printed beside the note isn't, one carried through the bar is.
+        Assert.Equal((false, true, "F♯"), (NoteNames.IsHard(fSharp, 2), NoteNames.IsHard(fSharp, 4), NoteNames.Label(fSharp)));
+        Assert.Equal((false, true, true), (NoteNames.IsHard(written, 0), NoteNames.IsHard(carried, 0), NoteNames.IsHard(doubled, 0)));
+        Assert.Equal("F𝄪", NoteNames.Label(doubled));
+    }
+
+    [Fact]
     public void AStaffsOwnClefCountsFromTheStartAndAfterAChange()
     {
         // The left hand starts in the treble clef: its C5 is in the staff. A bass clef in its first layer mid-bar, and the notes

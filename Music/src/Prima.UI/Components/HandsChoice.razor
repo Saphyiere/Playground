@@ -5,7 +5,7 @@
     two are. Both only where together is offered. The owner, 28 November 2026: "we need a left, right, and both, so that you can
     just click the one you want instead of like having to do this ballet of like which one is on".
 *@
-<div class="play-mode hands-choice" role="radiogroup" aria-label="Hands">
+<div class="play-mode hands-choice" role="radiogroup" aria-label="Hands" data-explain="hands">
     @foreach (var (side, name) in Sides)
     {
         if (!Offered.Contains(side)) continue;

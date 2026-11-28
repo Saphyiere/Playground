@@ -2,7 +2,7 @@
 @inject IKeyboard Keyboard
 
 @* The piano's lamp and name: lit when it's plugged in. *@
-<p class="mu-status @Class" data-state="@(Keyboard.Name is null ? "off" : "live")">
+<p class="mu-status @Class" data-explain="lamp" data-state="@(Keyboard.Name is null ? "off" : "live")">
     <span class="mu-led"></span>@(Keyboard.Name ?? "Plug in your keyboard")
 </p>
 

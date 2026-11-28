@@ -34,7 +34,7 @@
     @Readouts
     @* The screen's own keys, More, and full screen's key while the head is gone: every bar's start, PlayTools. *@
     <PlayTools Extra="Tools" ShowMore="ShowMore" Running="Running" Metronome="HasMetronome" Ticking="@(ticking is not null)" OnClickAlone="ToggleMetronome" OnClickChanged="ClickChanged"
-               Marks="@(ShowMarks && !Bare)" OnExplain="OnExplain" Explaining="Explaining" Music="MoreMusic" ShowFullScreen="ShowFullScreen" OnFullScreen="OnFullScreen">@More</PlayTools>
+               Marks="@(ShowMarks && !Bare)" Music="MoreMusic" ShowFullScreen="ShowFullScreen" OnFullScreen="OnFullScreen">@More</PlayTools>
     <span class="play-bar-gap" aria-hidden="true"></span>
     @if (Running || moving)
     {
@@ -42,7 +42,7 @@
         {
             <div class="mu-readout"><span class="mu-readout-label">@(listening ? "Listening" : "Tempo")</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span></div>
         }
-        <div class="mu-readout"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
+        <div class="mu-readout" data-explain="bar-now"><span class="mu-readout-label">Bar</span><span class="mu-readout-value">@bar</span></div>
         @if (ShowTime)
         {
             <div class="mu-readout"><span class="mu-readout-label">Time</span><span class="mu-readout-value">@($"{seconds / 60}:{seconds % 60:00}")</span></div>
@@ -55,20 +55,20 @@
         List<PiecePass>? all = listening ? null : loop is not null ? [.. earlier, .. passes] : runs.Count > 0 ? runs : null;
         @if (all is not null)
         {
-            <div class="mu-readout"><span class="mu-readout-label">@(loop is not null ? "Pass" : "Run")</span><span class="mu-readout-value">@(all.Count + 1)</span></div>
+            <div class="mu-readout" data-explain="pass"><span class="mu-readout-label">@(loop is not null ? "Pass" : "Run")</span><span class="mu-readout-value">@(all.Count + 1)</span></div>
             @if (all.Count > 0 && ShowPassFigure)
             {
                 var (done, before) = (all[^1], all.Count > 1 ? all[^2] : null);
                 var (now, then) = done.RightInTime is { } share ? (share, before?.RightInTime) : (done.Right, before?.Right);
                 var way = then is null || then == now ? "" : now > then ? " ↑" : " ↓";
                 var low = done.RightInTime is { } inTime ? inTime < 0.8 : done.Right < done.Notes * 0.9;
-                <div class="mu-readout @(low ? "miss" : "")"><span class="mu-readout-label">@(loop is not null ? "Last pass" : "Last run")</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
+                <div class="mu-readout @(low ? "miss" : "")" data-explain="last-pass"><span class="mu-readout-label">@(loop is not null ? "Last pass" : "Last run")</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
             }
         }
         @if (Streak is { Of: > 0 } streak)
         {
             @* Clean times round in a row (Lock in's, Practice it's): a dot each, lit as they come, all put out by a slip. *@
-            <div class="mu-readout play-streak" role="img" aria-label="@($"{streak.Clean} of {streak.Of} clean in a row")">
+            <div class="mu-readout play-streak" role="img" data-explain="streak" aria-label="@($"{streak.Clean} of {streak.Of} clean in a row")">
                 <span class="mu-readout-label">In a row</span>
                 <span class="mu-readout-value play-streak-dots">
                     @for (var i = 0; i < streak.Of; i++)
@@ -81,10 +81,10 @@
         <span class="play-bar-gap play-bar-gap-portrait" aria-hidden="true"></span>
         @if (OnBack.HasDelegate)
         {
-            <button type="button" class="mu-btn" aria-label="Back a bar" @onclick="() => OnBack.InvokeAsync(bar)">‹ Bar</button>
+            <button type="button" class="mu-btn" aria-label="Back a bar" data-explain="bar-back" @onclick="() => OnBack.InvokeAsync(bar)">‹ Bar</button>
         }
         @* Not the piano's go key: while a run plays, every key is music. *@
-        <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
+        <button type="button" class="mu-btn" data-explain="stop" @onclick="Stop">Stop</button>
         @if (Saying is { } said)
         {
             <p class="tempo-pop play-why play-saying" role="status">@said</p>
@@ -95,7 +95,7 @@
         @* The tempo as its figure; tapped, its − and +, a field to type it, and the music's own tempo once it's been changed, to
            go back to. With a metronome it's shown whatever the mode, since the metronome goes at it. *@
         RenderFragment tempoPick = @<div class="play-tempo-pick">
-            <button type="button" class="mu-readout play-tempo-figure" data-piano="off" aria-expanded="@On(tempoOpen)" aria-label="@($"Tempo {Tempo:0}: change it")" @onclick="() => tempoOpen = !tempoOpen">
+            <button type="button" class="mu-readout play-tempo-figure" data-piano="off" data-explain="tempo" aria-expanded="@On(tempoOpen)" aria-label="@($"Tempo {Tempo:0}: change it")" @onclick="() => tempoOpen = !tempoOpen">
                 <span class="mu-readout-label">Tempo</span><span class="mu-readout-value">@Tempo.ToString("0", CultureInfo.InvariantCulture)</span>
             </button>
             @if (tempoOpen)
@@ -119,7 +119,7 @@
         }
         @if (ShowMode)
         {
-            <div class="play-mode" role="radiogroup" aria-label="Practice mode">
+            <div class="play-mode" role="radiogroup" aria-label="Practice mode" data-explain="mode">
                 <button type="button" role="radio" class="play-mode-option" data-mode="time" aria-checked="@On(Mode == PlayMode.InTime)" @onclick="() => SetMode(PlayMode.InTime)">Timed</button>
                 <button type="button" role="radio" class="play-mode-option" data-mode="wait" aria-checked="@On(Mode == PlayMode.WaitForMe)" @onclick="() => SetMode(PlayMode.WaitForMe)">Wait for notes</button>
             </div>
@@ -146,7 +146,7 @@
                why for a few seconds. *@
             var piano = Keyboard.CanSend && Settings.SendToPiano;
             <div class="play-listen">
-                <button type="button" class="mu-btn @(piano ? "" : "mu-btn-off")" data-piano="off" disabled="@(!CanStart)" aria-label="@(piano ? "Listen: the piano plays it" : "Listen: it needs the piano")"
+                <button type="button" class="mu-btn @(piano ? "" : "mu-btn-off")" data-piano="off" data-explain="listen" disabled="@(!CanStart)" aria-label="@(piano ? "Listen: the piano plays it" : "Listen: it needs the piano")"
                         @onclick="() => piano ? Listen() : ListenNeeds()">Listen</button>
                 @if (listenNeeds is not null)
                 {
@@ -158,7 +158,7 @@
         {
             @* The key looks off when there's nothing it can start (no music yet, a set all played), and with no piano plugged in,
                when a tap says so over the bar: a run is played on the piano. *@
-            <button type="button" class="mu-btn mu-primary play-start @(CanStart && Keyboard.Name is not null ? "" : "mu-btn-off")" data-piano="go" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
+            <button type="button" class="mu-btn mu-primary play-start @(CanStart && Keyboard.Name is not null ? "" : "mu-btn-off")" data-piano="go" data-explain="play" disabled="@(!CanStart)" @onclick="StartPressed">@StartLabel</button>
         }
         @RunKeys
         @if (startNeeds is not null)
@@ -326,11 +326,6 @@
 
     /// <summary>A screen's own keys, before More (a piece's page turns).</summary>
     [Parameter] public RenderFragment? Tools { get; set; }
-
-    /// <summary>What's this, for a screen whose music explains its symbols when tapped, and whether it's on.</summary>
-    [Parameter] public EventCallback OnExplain { get; set; }
-
-    [Parameter] public bool Explaining { get; set; }
 
     /// <summary>Full screen's key on the bar while full screen is on, the head and its key gone; on every bar unless a screen has none.</summary>
     [Parameter] public bool ShowFullScreen { get; set; } = true;

@@ -66,10 +66,16 @@
     /// <summary>A bar tapped, on a note or anywhere in its space: its MEI id.</summary>
     [Parameter] public EventCallback<string> OnBarTapped { get; set; }
 
-    /// <summary>What's this: a tap names the symbol under it (<see cref="OnSymbolTapped"/>) instead of a note.</summary>
+    /// <summary>
+    /// What's this: the signs in view are marked, and a tap says what's printed within a finger's reach of it instead of choosing
+    /// a bar (<see cref="OnSymbolsTapped"/>: the nearest few, the nearest first).
+    /// </summary>
     [Parameter] public bool Explain { get; set; }
 
-    [Parameter] public EventCallback<SheetSymbol> OnSymbolTapped { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<SheetSymbol>> OnSymbolsTapped { get; set; }
+
+    /// <summary>The notes' names to print over them (under them on a lower staff), drawn a line at a time as it comes into view; none, none.</summary>
+    [Parameter] public IReadOnlyList<NoteLabel>? NoteLabels { get; set; }
 
     /// <summary>
     /// The words under the notes are Prima's own (a note's name, a count, as the glossary prints them), not a song's lyrics: they're
@@ -84,6 +90,7 @@
     [Parameter] public bool? Lyrics { get; set; }
 
     private bool explained;
+    private IReadOnlyList<NoteLabel>? labelled;
 
     // The music as Verovio is given it (SongWords), kept for the MEI and the lyrics setting it was made for: a page turned, or the
     // sheet drawn again at another size, needn't make it again.
@@ -98,12 +105,20 @@
         var key = $"{Mei.Length}|{Mei.GetHashCode()}|{Layout}|{Scale}|{Page}|{Header}|{Measures}|{Settings.MusicFont}|{size}|{lyrics}";
         if (key == drawn)
         {
-            if (module is null || explained == Explain) return;
+            if (module is null) return;
 
-            explained = Explain;
             try
             {
-                await module.InvokeVoidAsync("explain", element, Explain);
+                if (explained != Explain)
+                {
+                    explained = Explain;
+                    await module.InvokeVoidAsync("explain", element, Explain);
+                }
+                if (!ReferenceEquals(labelled, NoteLabels))
+                {
+                    labelled = NoteLabels;
+                    await module.InvokeVoidAsync("names", element, Labels());
+                }
             }
             catch (JSDisconnectedException)
             {
@@ -129,6 +144,9 @@
             // hold them apart.
             var words = !Names && lyrics && music.Contains("<verse", StringComparison.Ordinal);
             await module.InvokeVoidAsync("render", element, music, new { layout = Layout, staffMm = StaffMm * size * Scale, font = Settings.MusicFont, page = Page, header = Header, measures = Measures, onsets, explain = Explain, words }, self, ownerId);
+            // New music has no names until it's given them.
+            labelled = NoteLabels;
+            if (NoteLabels is { Count: > 0 } && !disposed && drawn == key) await module.InvokeVoidAsync("names", element, Labels());
         }
         catch (JSDisconnectedException)
         {
@@ -177,7 +195,9 @@
     public Task BarTapped(string id) => disposed ? Task.CompletedTask : OnBarTapped.InvokeAsync(id);
 
     [JSInvokable]
-    public Task SymbolTapped(string id, string kind, string? within) => disposed ? Task.CompletedTask : OnSymbolTapped.InvokeAsync(new SheetSymbol(id, kind, within));
+    public Task SymbolsTapped(SheetSymbol[] near) => disposed ? Task.CompletedTask : OnSymbolsTapped.InvokeAsync(near);
+
+    private string[][]? Labels() => NoteLabels?.Select(l => new[] { l.Id, l.Text }).ToArray();
 
     /// <summary>
     /// Starts the cursor: bar 1 is <paramref name="msUntilStart"/> from now, at <paramref name="msPerQuarter"/>, from quarter

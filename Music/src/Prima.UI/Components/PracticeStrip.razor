@@ -4,9 +4,9 @@
 @* A practice session's clocks, beside the piece's name: the time playing and the time idle, counted each second, and Finish
    practice, which only a tap presses. It draws itself each second, not the piece under it. *@
 <div class="practice-strip" role="group" aria-label="This practice session">
-    <div class="mu-readout practice-clock"><span class="mu-readout-label">Playing</span><span class="mu-readout-value">@Said(Clock.Playing)</span></div>
-    <div class="mu-readout practice-clock practice-idle"><span class="mu-readout-label">Idle</span><span class="mu-readout-value">@Said(Clock.Idle)</span></div>
-    <button type="button" class="mu-btn" data-piano="off" @onclick="OnFinish">Finish practice</button>
+    <div class="mu-readout practice-clock" data-explain="clocks"><span class="mu-readout-label">Playing</span><span class="mu-readout-value">@Said(Clock.Playing)</span></div>
+    <div class="mu-readout practice-clock practice-idle" data-explain="clocks"><span class="mu-readout-label">Idle</span><span class="mu-readout-value">@Said(Clock.Idle)</span></div>
+    <button type="button" class="mu-btn" data-piano="off" data-explain="finish" @onclick="OnFinish">Finish practice</button>
 </div>
 
 @code {

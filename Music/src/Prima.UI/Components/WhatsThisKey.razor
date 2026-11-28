@@ -1,0 +1,16 @@
+@implements IDisposable
+@inject Prima.UI.Glossary.WhatsThis WhatsThis
+
+@* What's this's key, the same on every screen: in the head, and on the play bar in full screen, where the head is gone. Lit
+   while it's on; a tap turns it on or off. What's this leaves it alone (data-explain-keep), so it always answers. *@
+<button type="button" class="mu-btn whats-this-key" data-explain-keep data-action="whats-this" data-piano="off" aria-label="What's this?" aria-pressed="@(WhatsThis.On ? "true" : "false")" @onclick="WhatsThis.ToggleAsync">
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M7.7 7.6a2.4 2.4 0 1 1 3.3 2.2c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="10" cy="14.4" r="1.15" fill="currentColor" /></svg>
+</button>
+
+@code {
+    protected override void OnInitialized() => WhatsThis.Changed += Redraw;
+
+    private void Redraw() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => WhatsThis.Changed -= Redraw;
+}

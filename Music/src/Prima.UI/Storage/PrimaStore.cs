@@ -34,6 +34,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string MusicFontKey = "Notation.Font";
     private const string SheetSizeKey = "Notation.SheetSize";
     private const string LyricsKey = "Notation.Lyrics";
+    private const string NoteNamesKey = "Notation.NoteNames";
     private const string NameKey = "Profile.Name";
     private const string MinutesKey = "Profile.DailyMinutes";
     private const string CueKey = "Profile.Cue";
@@ -86,6 +87,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.MusicFont = saved.GetValueOrDefault(MusicFontKey) ?? defaults.MusicFont;
         settings.SheetSize = (int?)Number(SheetSizeKey) ?? defaults.SheetSize;
         settings.Lyrics = saved.GetValueOrDefault(LyricsKey) != "false";
+        settings.NoteNames = saved.GetValueOrDefault(NoteNamesKey) switch { "hard" => "hard", "all" => "all", _ => defaults.NoteNames };
         settings.Name = saved.GetValueOrDefault(NameKey) ?? defaults.Name;
         settings.DailyMinutes = (int?)Number(MinutesKey) ?? defaults.DailyMinutes;
         settings.Cue = saved.GetValueOrDefault(CueKey) ?? defaults.Cue;
@@ -121,7 +123,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         {
             NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey, LockCleanKey, SlipTimingKey,
             SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, PianoClickKey, ClickVolumeKey,
-            LookSetting.Key, LookSetting.AccentKey, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
+            LookSetting.Key, LookSetting.AccentKey, MusicFontKey, SheetSizeKey, LyricsKey, NoteNamesKey, WelcomedKey,
         },
     }));
 
@@ -142,6 +144,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (MusicFontKey, settings.MusicFont),
             (SheetSizeKey, settings.SheetSize.ToString(CultureInfo.InvariantCulture)),
             (LyricsKey, settings.Lyrics ? "true" : "false"),
+            (NoteNamesKey, settings.NoteNames),
             (NameKey, settings.Name),
             (MinutesKey, settings.DailyMinutes.ToString(CultureInfo.InvariantCulture)),
             (CueKey, settings.Cue),

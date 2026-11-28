@@ -1,0 +1,96 @@
+@implements IDisposable
+@inject Prima.UI.Glossary.WhatsThis WhatsThis
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Sections
+@using Prima.UI.Glossary
+
+@*
+    What's this, over every screen: while it's on, a small panel by the ? key with the screen's own lines (a piece's key and its
+    notes' names) and what to do; a card beside whatever's tapped, saying what it is, More opening its glossary entry in place
+    (its picture engraved as the glossary has it), and where a tap could mean several things, which. Nothing under it moves.
+    Leaving the screen turns it off.
+*@
+@if (WhatsThis.On)
+{
+    <section class="whats-this" data-explain-keep role="dialog" aria-label="What's this">
+        <div class="whats-this-head">
+            <h2 class="whats-this-name">What's this?</h2>
+            <button type="button" class="mu-btn" data-piano="off" data-action="whats-this-done" @onclick="WhatsThis.ToggleAsync">Done</button>
+        </div>
+        <SectionOutlet SectionName="whats-this" />
+        <p class="whats-this-note">Tap anything marked, on the music or the screen, to see what it is.</p>
+    </section>
+    @if (WhatsThis.Entry is { } entry)
+    {
+        <section class="explain-entry" data-explain-keep role="dialog" aria-label="@entry.Name">
+            <div class="explain-card-head">
+                <h3 class="explain-card-name">@entry.Name</h3>
+                <button type="button" class="mu-btn" data-piano="off" @onclick="() => WhatsThis.Open(null)">Back</button>
+            </div>
+            <p>@entry.Summary</p>
+            @if (entry.Example is { } example)
+            {
+                <div class="glossary-example"><Sheet Mei="@example" Scale="0.9" Class="glossary-sheet" Names="true" /></div>
+            }
+            <p>@entry.Play</p>
+        </section>
+    }
+    else if (WhatsThis.Card is { } card)
+    {
+        <section class="explain-card" data-explain-keep role="dialog" aria-label="@card.Name" @ref="shown" style="visibility: hidden">
+            <div class="explain-card-head">
+                <h3 class="explain-card-name">@card.Name</h3>
+                <button type="button" class="mu-btn explain-card-close" data-piano="off" aria-label="Close" @onclick="() => WhatsThis.Show(null)">✕</button>
+            </div>
+            @foreach (var line in card.Lines)
+            {
+                <p>@line</p>
+            }
+            @if (card.Choices is { Count: > 0 } choices)
+            {
+                <div class="explain-card-choices">
+                    @foreach (var (name, pick) in choices)
+                    {
+                        <button type="button" class="mu-btn" data-piano="off" @onclick="pick">@name</button>
+                    }
+                </div>
+            }
+            @if (card.EntryId is { } id && GlossaryEntries.All.FirstOrDefault(e => e.Id == id) is { } more)
+            {
+                <button type="button" class="mu-btn explain-card-more" data-piano="off" @onclick="() => WhatsThis.Open(more)">More about it</button>
+            }
+        </section>
+    }
+}
+
+@code {
+    private ElementReference shown;
+    private ExplainCard? placed;
+
+    protected override void OnInitialized()
+    {
+        WhatsThis.Changed += Redraw;
+        Nav.LocationChanged += Left;
+    }
+
+    private void Redraw() => InvokeAsync(StateHasChanged);
+
+    // Another screen: What's this goes, with whatever it showed.
+    private void Left(object? sender, LocationChangedEventArgs e) => InvokeAsync(() => WhatsThis.SetAsync(false));
+
+    // A card drawn is placed beside what it's about once it's there to be measured.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (WhatsThis.Card is not { } card || ReferenceEquals(card, placed) || WhatsThis.Entry is not null) return;
+
+        placed = card;
+        await WhatsThis.PlaceAsync(shown, card);
+    }
+
+    public void Dispose()
+    {
+        WhatsThis.Changed -= Redraw;
+        Nav.LocationChanged -= Left;
+    }
+}
