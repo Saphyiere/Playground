@@ -9013,6 +9013,7 @@ html[data-accent="violet"] { --pc-accent: #6b4fe0; --pc-on-accent: #ffffff; }
     --pc-card-bg: #ffffff;
     --pc-card-edge: transparent;
     --pc-card-lift: 0 2px 4px rgba(25, 25, 30, 0.04), 0 12px 32px rgba(25, 25, 30, 0.09);
+    --pc-pop-lift: 0 2px 6px rgba(25, 25, 30, 0.06), 0 16px 40px rgba(25, 25, 30, 0.14);
     --pc-hair: #e6e6e6;
     --pc-rail-fg: #0b0b0b;
     --pc-rail-on-bg: #0b0b0b;
@@ -9074,6 +9075,7 @@ html[data-accent="violet"] { --pc-accent: #6b4fe0; --pc-on-accent: #ffffff; }
     --pc-card-bg: #16181c;
     --pc-card-edge: #25272d;
     --pc-card-lift: 0 0 0 0 transparent;
+    --pc-pop-lift: 0 0 0 1px #2d3037, 0 16px 40px rgba(0, 0, 0, 0.55);
     --pc-hair: #24262c;
     --pc-rail-fg: #9a9daa;
     --pc-rail-on-bg: #1c1e23;
@@ -9390,9 +9392,12 @@ html[data-theme^="porcelain"] .mu-screen-head {
     color: var(--on-screen-muted);
 }
 
-html[data-theme^="porcelain"] .practice-clock {
-    border-radius: 10px;
-    box-shadow: 0 0 0 1px var(--pc-card-edge);
+/* The session's clocks and the foot's figures (a drill's target and set, a routine's time, the level): small white cards on the
+   look's lift, beside its keys. */
+html[data-theme^="porcelain"] .practice-clock,
+html[data-theme^="porcelain"] .play-foot .mu-readout {
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px var(--pc-card-edge), var(--pc-card-lift);
 }
 
 html[data-theme^="porcelain"] .studio-tempo {
@@ -9760,6 +9765,132 @@ html[data-theme^="porcelain"] .opening-porcelain {
     }
 }
 
+/* The practice screen's own parts (one screen since 28 November 2026): More's groups headed as Settings' sections are, Loop a key
+   that stays on as the toggles are, the next one's two lines, the page turns, and what opens over the music on the look's lift. */
+html[data-theme^="porcelain"] .play-more .more-head {
+    font-family: var(--font-pc-serif);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    text-transform: none;
+    color: var(--on-screen);
+}
+
+/* Loop: a white chip, black once it's on (in Night, tinted in the accent), as the toggles are; not a track with nothing chosen. */
+html[data-theme^="porcelain"] .play-loop {
+    padding: 0;
+    border-radius: 16px;
+    background: none;
+}
+
+html[data-theme^="porcelain"] .play-loop > .play-mode-option {
+    min-height: 46px;
+    padding: 0 16px;
+    border: 1px solid var(--pc-ctl-edge);
+    border-radius: 16px;
+    background: var(--pc-ctl-bg);
+    color: var(--ink);
+    box-shadow: var(--pc-ctl-shadow);
+}
+
+html[data-theme^="porcelain"] .play-loop > .play-mode-option[aria-checked="true"] {
+    border-color: var(--pc-sel-edge);
+    background: var(--pc-sel-bg);
+    color: var(--pc-sel-fg);
+    box-shadow: none;
+}
+
+/* The next one: where it's next in, a label in the serif's italic, over its name. */
+html[data-theme^="porcelain"] .play-next {
+    min-height: 54px;
+    padding: 6px 18px;
+    gap: 0;
+}
+
+html[data-theme^="porcelain"] .play-next-where {
+    font-family: var(--font-pc-serif);
+    font-size: 15px;
+    line-height: 18px;
+    font-style: italic;
+    font-weight: 400;
+    color: color-mix(in srgb, currentColor 62%, transparent);
+}
+
+html[data-theme^="porcelain"] .play-next-what {
+    line-height: 20px;
+}
+
+/* The page turns: their arrows the size of the figure between them. */
+html[data-theme^="porcelain"] .page-turns > .mu-btn {
+    min-width: 46px;
+    padding: 0 12px;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+/* What opens over the music from the bar (the tempo's − and +, what a key needs said): a card on the look's lift. */
+html[data-theme^="porcelain"] .tempo-pop {
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--pc-pop-lift);
+}
+
+/* What's this, on (and a bar looped by itself): its line a chip over the music saying so, black (in Night, its dark layer, the
+   words in the accent), on one line with its Done where the screen is narrow too. */
+html[data-theme^="porcelain"] .explain-hint {
+    width: max-content;
+    max-width: calc(100% - 32px);
+    box-shadow: var(--pc-pop-lift);
+    font-family: var(--font-pc-sans);
+}
+
+html[data-theme^="porcelain"] .explain-hint:has(.mu-btn) {
+    display: flex;
+    align-items: center;
+}
+
+html[data-theme="porcelain"] .explain-hint {
+    background: var(--ink);
+    color: #ffffff;
+}
+
+/* The chosen bar's tab over the music (From bar 9, Loop bars 13–16) and the bar named over a dragging finger: on the look's
+   lift, their words in sentence case as every label's are. */
+html[data-theme^="porcelain"] .bar-tab {
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--pc-pop-lift);
+}
+
+html[data-theme^="porcelain"] .bar-tab-label {
+    font-family: var(--font-pc-sans);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--on-surface);
+}
+
+html[data-theme^="porcelain"] .bar-bubble {
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--on-surface);
+    box-shadow: var(--pc-pop-lift);
+}
+
+/* Still practicing?: the card's title in the serif, as a screen's name is, not in capitals. */
+html[data-theme^="porcelain"] .pause-title {
+    font-family: var(--font-pc-serif);
+    font-size: 34px;
+    line-height: 38px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--on-screen);
+}
+
 /* ——— The practice screen ———
    Every screen that plays music is one screen, top to bottom: the head (every screen's, PageHead), the music taking the rest of
    the screen, a run's review under it, the play bar near the hands, and the foot (what this one is, and the way on). The owner,
@@ -9930,6 +10061,14 @@ html[data-theme^="porcelain"] .opening-porcelain {
 .play-bar .tempo-pop.play-why {
     right: 0;
     left: auto;
+}
+
+/* In portrait the tempo is on the bar's second row: its − and + open above the whole bar, over the music, not over the bar's
+   first row and its keys. */
+@media (orientation: portrait) {
+    .play-bar .play-tempo-pick {
+        position: static;
+    }
 }
 
 /* More: the key, its lamp lit while the click goes by itself; its panel over the music, upward from the bar, its groups side by
