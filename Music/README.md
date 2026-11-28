@@ -377,13 +377,11 @@ Then, in the **Library** (the first visit stores the collection, a few seconds):
 
 ## The looks
 
-Prima has its own looks, switched in Settings › Display & notation: **Porcelain** (white cards on soft shadows, serif titles
-and figures, black for what's chosen, an accent colour you choose) and its dark version **Night**, chosen from the
-[Prima Looks](https://claude.ai/artifact/2z4qusxAzqdt3VmxzL2ygx) mock-ups; and **Studio** (a music workstation: warm grey
-keys, an amber screen, one orange key) and **Vinyl** (a record sleeve: deep teal, cream type, mustard) from the
-[Studio & Vinyl design system](https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii). All are in
-`src/Prima.UI/wwwroot/prima.css`: the design system's tokens and components, Prima's own screens after them, then Porcelain's
-and Night's rules at the end. Sheet music is black on paper in every look. Prima uses the Kit only for the way back and its
+Prima has two looks, switched in Settings › Display & notation: **Porcelain** (white cards on soft shadows, serif titles and
+figures, black for what's chosen, an accent colour you choose) and its dark version **Night**, chosen from the
+[Prima Looks](https://claude.ai/artifact/2z4qusxAzqdt3VmxzL2ygx) mock-ups. Both are in `src/Prima.UI/wwwroot/prima.css`: the
+base layer (tokens, components and Prima's own screens, first drawn for the Studio & Vinyl design system, whose looks went on
+28 November 2026), then Porcelain's and Night's rules at the end. Sheet music is black on paper in both. Prima uses the Kit only for the way back and its
 settings store, not its Logbook and Telemetry looks.
 
 ## Checking screens from the cloud
@@ -421,7 +419,7 @@ PDF. `/claude/script?delay=…` sets how long each answer takes, in ms, and `?fa
 
 ## Licences
 
-The fonts (Space Grotesk, Space Mono, Bebas Neue, Work Sans, Instrument Serif and Instrument Sans) are under the SIL Open Font License; their licences are next to
+The fonts (Instrument Serif and Instrument Sans) are under the SIL Open Font License; their licences are next to
 them in `src/Prima.UI/wwwroot/fonts`. Verovio (LGPL 3) and pdf.js (Apache 2.0) are in `src/Prima.UI/wwwroot`, each with its
 licence. The Library's music keeps its own terms, shown piece by piece in the app's credits (**Library → Where the music
 comes from**): public domain or CC0 from PDMX (the dataset itself is CC BY 4.0), and public domain, CC BY or CC BY-SA from the

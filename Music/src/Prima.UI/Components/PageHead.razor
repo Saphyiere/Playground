@@ -1,6 +1,7 @@
 @*
-    Every screen's head, the same everywhere: on its left the way back by the name of where it goes (where there's somewhere to go
-    back to), on the name's line, then a printed line (the day, what the screen is for) over the screen's name; on its right the screen's own keys (a
+    Every screen's head, the same everywhere, one row as the wireframes drew it: on its left the way back, a key named for where
+    it goes (where there's somewhere to go back to), then the screen's name with a printed line after it (the day, what the
+    screen is for); on its right the screen's own keys (a
     search, Import), then About (its words, in the music's place), full screen's key and the piano's lamp, each where the screen
     has it and always in that order. The owner, 28 November 2026: "the head should be normal in every single location in the
     app".
@@ -9,14 +10,14 @@
     @if (Back is not null)
     {
         @* The way back, by the name of where it goes, on the title's line at its left. *@
-        <button type="button" class="way-back" data-piano="off" @onclick="() => OnBack.InvokeAsync()">@Back</button>
+        <button type="button" class="mu-btn way-back" data-piano="off" @onclick="() => OnBack.InvokeAsync()">@Back</button>
     }
-    <div class="page-head-name @NameClass">
+    <div class="page-head-name">
+        <h1 class="page-title @(Title.Length > 40 ? "page-title-long" : null)">@Title</h1>
         @if (Kicker is not null)
         {
             <p class="page-kicker">@Kicker</p>
         }
-        <h1 class="page-title @(Title.Length > 40 ? "page-title-long" : null)">@Title</h1>
     </div>
     @if (ChildContent is not null || OnAbout.HasDelegate || FullScreen || Lamp)
     {
@@ -53,9 +54,6 @@
 
     /// <summary>A class of its own: full-hide, for a head that full screen takes away.</summary>
     [Parameter] public string? Class { get; set; }
-
-    /// <summary>A class for the name's side: mu-studio-only, for Today's, whose name Vinyl's sleeve says instead.</summary>
-    [Parameter] public string? NameClass { get; set; }
 
     /// <summary>The screen's own keys, first on the right: a search, Import, New routine.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }

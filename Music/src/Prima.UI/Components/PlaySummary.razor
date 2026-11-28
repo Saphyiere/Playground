@@ -297,7 +297,7 @@ else if (Outcome?.InTime is { } timed)
                             @if (bars.FirstOrDefault(b => b.Number == picked) is { } chosen)
                             {
                                 <div class="sum-detail">
-                                    <p class="sum-said"><span class="mu-studio-only">Bar @chosen.Number ▸ </span><span class="mu-vinyl-only">Bar @chosen.Number: </span>@chosen.Detail</p>
+                                    <p class="sum-said">Bar @chosen.Number ▸ @chosen.Detail</p>
                                     @if (OnLoop.HasDelegate)
                                     {
                                         <button type="button" class="mu-btn" @onclick="() => OnLoop.InvokeAsync((chosen.Number, chosen.Number))">Loop @PieceWords.Bar(chosen.Number)</button>

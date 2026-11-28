@@ -368,7 +368,7 @@ public class RoutinePlayerTests
         await view.WaitForElement("[data-feedback='hard']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         view.WaitForAssertion(() => Assert.Equal("true", view.Find("[data-feedback='hard']").GetAttribute("aria-pressed")));
         Assert.Equal("hard", (await service.GetExecutionAsync(execution.Id))!.Feedback);
-        // A toggle shows it's on by its lamp, lit in Studio and a dot in Vinyl: without one, Studio shows no change at all.
+        // A toggle shows it's on by its lamp.
         Assert.All(view.FindAll("[data-feedback]"), key => Assert.Contains(key.Children, c => c.ClassList.Contains("mu-led")));
     }
 

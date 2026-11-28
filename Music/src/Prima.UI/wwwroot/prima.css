@@ -1,101 +1,10 @@
-/* Prima's look: Studio and Vinyl, from the Studio & Vinyl design system (https://claude.ai/artifact/XtgAHfVyw3L94e5DKrj2ii),
-   and Porcelain with its dark version, Night (at the end, from the "Prima Looks" mock-ups). The fonts ship with the app
-   (fonts/, each under the SIL Open Font License), then each look's tokens, the shared components, and Prima's own screens. The
-   sheet music is black on paper in every look. */
-
-@font-face {
-    font-family: "Space Grotesk";
-    font-style: normal;
-    font-weight: 300 700;
-    font-display: swap;
-    src: url("fonts/SpaceGrotesk-latin-ext.woff2") format("woff2");
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: "Space Grotesk";
-    font-style: normal;
-    font-weight: 300 700;
-    font-display: swap;
-    src: url("fonts/SpaceGrotesk-latin.woff2") format("woff2");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: "Space Mono";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("fonts/SpaceMono-Regular-latin-ext.woff2") format("woff2");
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: "Space Mono";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("fonts/SpaceMono-Regular-latin.woff2") format("woff2");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: "Space Mono";
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src: url("fonts/SpaceMono-Bold-latin-ext.woff2") format("woff2");
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: "Space Mono";
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src: url("fonts/SpaceMono-Bold-latin.woff2") format("woff2");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: "Bebas Neue";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("fonts/BebasNeue-latin-ext.woff2") format("woff2");
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: "Bebas Neue";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("fonts/BebasNeue-latin.woff2") format("woff2");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: "Work Sans";
-    font-style: normal;
-    font-weight: 300 800;
-    font-display: swap;
-    src: url("fonts/WorkSans-latin-ext.woff2") format("woff2");
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: "Work Sans";
-    font-style: normal;
-    font-weight: 300 800;
-    font-display: swap;
-    src: url("fonts/WorkSans-latin.woff2") format("woff2");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
+/* Prima's look: Porcelain and its dark version, Night (from the "Prima Looks" mock-ups), the only two since 28 November 2026,
+   when Studio and Vinyl went. The fonts ship with the app (fonts/, each under the SIL Open Font License), then the base layer
+   (tokens, the shared components and Prima's own screens, first drawn for Studio), and at the end Porcelain's and Night's
+   rules over it. The sheet music is black on paper in both. */
 
 /* Tokens: each look's colors, then the shared spacing, radii and fonts. */
-:root, [data-theme="studio"] {
+:root {
   --ground: #dcd9d2;
   --seam: #c6c2ba;
   --rail: #cfcbc3;
@@ -136,48 +45,7 @@
   --shadow-bezel: inset 0 0 0 6px #2b2620;
   --shadow-sleeve: none;
 }
-[data-theme="vinyl"] {
-  color-scheme: dark;
-  --ground: #173b3d;
-  --seam: #24504f;
-  --rail: #173b3d;
-  --ink: #f1e4c8;
-  --ink-muted: #c2b69a;
-  --ink-faint: #94bab4;
-  --surface: #1f4a4b;
-  --on-surface: #f1e4c8;
-  --card: #f1e4c8;
-  --on-card: #173b3d;
-  --key-dark: #1f4a4b;
-  --on-key-dark: #f1e4c8;
-  --button: rgba(241, 228, 200, 0);
-  --button-edge: #f1e4c8;
-  --on-button: #f1e4c8;
-  --accent: #e5a823;
-  --on-accent: #173b3d;
-  --accent-2: #d9622b;
-  --live: #e5a823;
-  --led-off: #2f6162;
-  --led-off-dark: #2f6162;
-  --screen: #1f4a4b;
-  --screen-edge: #1f4a4b;
-  --on-screen: #f1e4c8;
-  --on-screen-muted: #c2b69a;
-  --staff-line: #8aa79f;
-  --note-miss: #f08458;
-  --meter-on: #e5a823;
-  --meter-off: #2f6162;
-  --disc: #121212;
-  --disc-detail: #2b2b2b;
-  --label: #a94017;
-  --on-label: #f1e4c8;
-  --focus: #e5a823;
-  --shadow-cap: none;
-  --shadow-cap-dark: none;
-  --shadow-accent: none;
-  --shadow-bezel: none;
-  --shadow-sleeve: 8px 8px 0 #0f2a2b;
-}
+
 :root {
   --space-1: 4px;
   --space-2: 8px;
@@ -193,10 +61,8 @@
   --radius-cap: 10px;
   --radius-screen: 14px;
   --radius-round: 50%;
-  --font-grotesk: "Space Grotesk", system-ui, sans-serif;
-  --font-mono: "Space Mono", ui-monospace, monospace;
-  --font-bebas: "Bebas Neue", "Arial Narrow", sans-serif;
-  --font-sans: "Work Sans", system-ui, sans-serif;
+  --font-grotesk: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "Instrument Sans", system-ui, sans-serif;
 }
 
 /* The sheet: printed music, the same in both looks, and what's marked on it: right, wrong and missed notes, early and late
@@ -217,27 +83,16 @@
   --heat-3: #8f1d0b;
 }
 
+/* The music app's shared components, the base layer Porcelain and Night are laid over. Every color is a token (tokens.css), and
+   the type goes through the role variables here. */
 
-/* Studio & Vinyl: the music app's shared components. Every color is a token (tokens.css); the two looks differ only in
-   what's set under [data-theme="vinyl"] below and in the role variables here. Studio is the default. The same markup
-   renders in either look, so swapping is one attribute on the root. */
-
-:root, [data-theme="studio"] {
+:root {
     --mu-ui: var(--font-grotesk);
     --mu-print: var(--font-mono);
     --mu-name: var(--font-grotesk);
     --mu-figure: var(--font-mono);
     --mu-r-control: var(--radius-cap);
     --mu-r-panel: var(--radius-screen);
-}
-
-[data-theme="vinyl"] {
-    --mu-ui: var(--font-sans);
-    --mu-print: var(--font-sans);
-    --mu-name: var(--font-bebas);
-    --mu-figure: var(--font-bebas);
-    --mu-r-control: var(--radius-none);
-    --mu-r-panel: var(--radius-none);
 }
 
 body {
@@ -249,10 +104,6 @@ body {
 
 /* Words that differ by look ("3′" and "3:00", a rail group's name): both are in the markup, and the nearest
    data-theme above them, on the root or on any container, decides which one shows. */
-.mu-vinyl-only:not([data-theme="vinyl"] *),
-[data-theme="vinyl"] .mu-studio-only {
-    display: none !important;
-}
 
 .mu-sr {
     position: absolute;
@@ -263,13 +114,12 @@ body {
     white-space: nowrap;
 }
 
-
 :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 3px;
 }
 
-/* LED: Studio's lamp on a key or panel; Vinyl's dot. Always beside a word or a check. */
+/* LED: a lamp on a key or panel. Always beside a word or a check. */
 .mu-led {
     width: 9px;
     height: 9px;
@@ -285,13 +135,7 @@ body {
     box-shadow: 0 0 6px var(--live);
 }
 
-[data-theme="vinyl"] .mu-led:not([data-theme="studio"] *) {
-    width: 8px;
-    height: 8px;
-    box-shadow: none;
-}
-
-/* Button: a keycap that drops onto the panel when pressed (Studio); square type in Bebas (Vinyl). */
+/* Button: a key that drops a little when pressed. */
 .mu-btn {
     min-height: 48px;
     padding: 0 18px;
@@ -330,23 +174,7 @@ body {
     flex: none;
 }
 
-[data-theme="vinyl"] .mu-btn {
-    font-family: var(--font-bebas);
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-}
-
-[data-theme="vinyl"] .mu-btn:active {
-    transform: none;
-    background: var(--surface);
-}
-
-[data-theme="vinyl"] .mu-btn.mu-primary:active {
-    background: var(--accent);
-}
-
-/* Play: the one big action. Studio's orange key; Vinyl's mustard disc. */
+/* Play: the one big action. */
 /* The screen's play key: the accent, as tall as any button, a little wider, its ▶ and the piano's key beside it. */
 .mu-play {
     min-width: 96px;
@@ -369,14 +197,6 @@ body {
 .mu-play:active {
     transform: translateY(2px);
     box-shadow: none;
-}
-
-[data-theme="vinyl"] .mu-play {
-    border-radius: var(--radius-round);
-}
-
-[data-theme="vinyl"] .mu-play:active {
-    transform: scale(0.97);
 }
 
 .mu-play svg {
@@ -410,29 +230,13 @@ body {
     content: "D♯4";
 }
 
-/* Inside Vinyl's round disc. */
-[data-theme="vinyl"][data-piano-keys] .mu-play::after {
-    right: 50%;
-    bottom: 7px;
-    transform: translateX(50%);
-}
-
 .mu-btn.piano-pressed,
 .mu-play.piano-pressed {
     transform: translateY(2px);
     box-shadow: none;
 }
 
-[data-theme="vinyl"] .mu-btn.piano-pressed {
-    transform: none;
-    background: var(--surface);
-}
-
-[data-theme="vinyl"] .mu-btn.mu-primary.piano-pressed {
-    background: var(--accent);
-}
-
-/* Toggle: a latching key with its LED (Studio); an outlined square with a dot (Vinyl). */
+/* Toggle: a latching key with its LED. */
 /* A toggle: its lamp and its words side by side on one line, as tall as a button. */
 .mu-toggle {
     min-width: 104px;
@@ -458,21 +262,7 @@ body {
     cursor: pointer;
 }
 
-[data-theme="vinyl"] .mu-toggle {
-    padding: 0 16px;
-    border-color: var(--ink-faint);
-    color: var(--ink-muted);
-    font-size: 13px;
-    line-height: 18px;
-    letter-spacing: 0.16em;
-}
-
-[data-theme="vinyl"] .mu-toggle[aria-pressed="true"] {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-/* Navigation rail: dark function keys with LEDs (Studio); Side A and Side B as a tracklist (Vinyl). */
+/* Navigation rail: a key for each section. */
 .mu-nav {
     width: 152px;
     box-sizing: border-box;
@@ -533,86 +323,12 @@ body {
     box-shadow: 0 0 6px var(--accent);
 }
 
-.mu-nav-code {
-    display: none;
-}
-
 /* Settings sits at the rail's foot, apart from the sections. */
 .mu-nav-end {
     margin-top: auto;
 }
 
-[data-theme="vinyl"] .mu-nav {
-    width: 232px;
-    padding: var(--space-8) var(--space-5) var(--space-7) var(--space-8);
-    gap: 6px;
-}
-
-[data-theme="vinyl"] .mu-nav-group {
-    margin-top: var(--space-6);
-    font-family: var(--font-bebas);
-    font-size: 18px;
-    line-height: 22px;
-    font-weight: 400;
-    letter-spacing: 0.22em;
-    color: var(--accent);
-}
-
-[data-theme="vinyl"] .mu-nav-group:first-child {
-    margin-top: 0;
-}
-
-[data-theme="vinyl"] .mu-nav-item {
-    height: 48px;
-    padding: 0;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 14px;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    color: var(--ink-muted);
-    font-family: var(--font-bebas);
-    font-size: 28px;
-    line-height: 28px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-    text-transform: none;
-}
-
-[data-theme="vinyl"] .mu-nav-item::before {
-    content: none;
-}
-
-[data-theme="vinyl"] .mu-nav-code {
-    display: block;
-    width: 24px;
-    font-family: var(--font-sans);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: var(--ink-faint);
-}
-
-[data-theme="vinyl"] .mu-nav-item[aria-current] {
-    color: var(--ink);
-}
-
-[data-theme="vinyl"] .mu-nav-item[aria-current] .mu-nav-code {
-    color: var(--accent);
-}
-
-[data-theme="vinyl"] .mu-nav-item[aria-current]::after {
-    content: "";
-    width: 12px;
-    height: 12px;
-    margin-left: auto;
-    background: var(--accent);
-    clip-path: polygon(10% 5%, 95% 50%, 10% 95%);
-}
-
-/* Step: one part of today's practice. A pad with its LED (Studio); a track with its number and length (Vinyl). */
+/* Step: one part of today's practice, a pad with its LED. */
 .mu-steps {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -769,74 +485,7 @@ body {
     .routine-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-[data-theme="vinyl"] .mu-step {
-    min-height: 0;
-    padding: 16px 18px;
-    justify-content: flex-start;
-    gap: 6px;
-    border-top: 3px solid var(--seam);
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .mu-step .mu-led {
-    display: none;
-}
-
-[data-theme="vinyl"] .mu-step-meta {
-    justify-content: flex-start;
-    font-family: var(--font-bebas);
-    font-size: 20px;
-    line-height: 24px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-}
-
-[data-theme="vinyl"] .mu-step-mark {
-    display: block;
-    width: 14px;
-    height: 14px;
-    background: currentColor;
-}
-
-[data-theme="vinyl"] .mu-step[data-state="done"] .mu-step-mark {
-    clip-path: polygon(14% 52%, 30% 36%, 43% 50%, 78% 14%, 93% 29%, 43% 80%);
-}
-
-[data-theme="vinyl"] .mu-step[data-state="now"] .mu-step-mark {
-    clip-path: polygon(15% 5%, 95% 50%, 15% 95%);
-}
-
-[data-theme="vinyl"] .mu-step:not([data-state="done"]):not([data-state="now"]) .mu-step-mark {
-    display: none;
-}
-
-[data-theme="vinyl"] .mu-step-name {
-    font-family: var(--font-sans);
-    font-size: 17px;
-    font-weight: 600;
-}
-
-[data-theme="vinyl"] .mu-step[data-state="done"] {
-    border-top-color: var(--ink-faint);
-}
-
-[data-theme="vinyl"] .mu-step[data-state="done"] .mu-step-meta {
-    color: var(--ink-faint);
-}
-
-[data-theme="vinyl"] .mu-step[data-state="now"] {
-    outline: 0;
-    border-top-color: var(--accent);
-    background: var(--surface);
-}
-
-[data-theme="vinyl"] .mu-step[data-state="now"] .mu-step-meta {
-    color: var(--accent);
-}
-
-/* Screen: where the music is read. Studio's amber LCD in its bezel; Vinyl's now-playing panel. */
+/* Screen: a panel for figures and what's read. */
 .mu-screen {
     box-sizing: border-box;
     padding: 22px 26px;
@@ -878,25 +527,6 @@ body {
     border-top: 1px dashed var(--staff-line);
 }
 
-[data-theme="vinyl"] .mu-screen-head {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    color: var(--accent);
-}
-
-[data-theme="vinyl"] .mu-screen-title {
-    font-size: 44px;
-    line-height: 42px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    text-transform: none;
-}
-
-[data-theme="vinyl"] .mu-readouts {
-    border-top: 1px solid var(--seam);
-}
-
 /* Readout: a figure and what it measures, on a screen. */
 .mu-readout {
     display: flex;
@@ -927,21 +557,7 @@ body {
     color: var(--note-miss);
 }
 
-[data-theme="vinyl"] .mu-readout-label {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-}
-
-[data-theme="vinyl"] .mu-readout-value {
-    font-size: 34px;
-    line-height: 36px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
-}
-
-
-/* Meter: the week's minutes as lit segments (Studio) or one bar (Vinyl). */
+/* Meter: the week's minutes as lit segments. */
 .mu-meter {
     display: flex;
     gap: 7px;
@@ -962,20 +578,6 @@ body {
     background: var(--meter-on);
 }
 
-[data-theme="vinyl"] .mu-meter {
-    gap: 0;
-    padding: 0;
-    border-radius: 0;
-    background: none;
-}
-
-[data-theme="vinyl"] .mu-meter > span {
-    width: auto;
-    height: 6px;
-    flex: 1;
-    border-radius: 0;
-}
-
 .mu-meter-head {
     display: flex;
     justify-content: space-between;
@@ -988,12 +590,6 @@ body {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-muted);
-}
-
-[data-theme="vinyl"] .mu-meter-head {
-    font-size: 13px;
-    line-height: 18px;
-    letter-spacing: 0.08em;
 }
 
 /* Status: a lamp and what it says, like the keyboard being connected. */
@@ -1011,15 +607,6 @@ body {
     color: var(--ink-muted);
 }
 
-[data-theme="vinyl"] .mu-status {
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    text-transform: none;
-    color: var(--ink-faint);
-}
-
 @media (prefers-reduced-motion: reduce) {
     .mu-btn, .mu-play {
         transition: none;
@@ -1029,7 +616,6 @@ body {
         transform: none;
     }
 }
-
 
 /* ---------------------------------------------------------------------------------------------------------------------------
    Prima's own screens, in the system's tokens.
@@ -1200,11 +786,6 @@ a {
     gap: 24px;
 }
 
-[data-theme="vinyl"] .shell-main {
-    padding: 36px 40px calc(36px + env(safe-area-inset-bottom, 0px));
-    gap: 28px;
-}
-
 .mu-nav-item {
     cursor: pointer;
 }
@@ -1228,17 +809,6 @@ a {
     line-height: 1;
     font-weight: 700;
     text-decoration: none;
-}
-
-[data-theme="vinyl"] .rail-you {
-    margin: 0 0 var(--space-6);
-    padding-top: 3px;
-    box-sizing: border-box;
-    background: var(--accent-2);
-    color: var(--ink);
-    font-family: var(--font-bebas);
-    font-size: 28px;
-    font-weight: 400;
 }
 
 /* On You itself, a ring round it. */
@@ -1275,8 +845,7 @@ a {
         flex-direction: column-reverse;
     }
 
-    .shell > .mu-nav,
-    [data-theme="vinyl"] .shell > .mu-nav {
+    .shell > .mu-nav {
         width: auto;
         flex-direction: row;
         align-items: stretch;
@@ -1292,14 +861,13 @@ a {
         display: none;
     }
 
-    .shell .rail-you,
-    [data-theme="vinyl"] .shell .rail-you {
+    .shell .rail-you {
         margin: 0 4px 0 0;
         align-self: center;
     }
 
-    /* Nine keys across, at 800 wide: Studio's share the row alike, their print a little smaller and closer so the longest
-       name (Sight-read) stays inside its key; Vinyl's names take the room each needs, a little smaller, with room between. */
+    /* Nine keys across, at 800 wide, sharing the row alike, their print a little smaller and closer so the longest name
+       (Sight-read) stays inside its key. */
     .shell .mu-nav-item {
         flex: 1;
         min-width: 0;
@@ -1312,30 +880,6 @@ a {
         margin-top: 0;
     }
 
-    [data-theme="vinyl"] .shell > .mu-nav {
-        gap: 14px;
-    }
-
-    [data-theme="vinyl"] .shell .mu-nav-item {
-        flex: 1 1 auto;
-        justify-content: center;
-        gap: 5px;
-        padding: 0;
-        font-size: 20px;
-        letter-spacing: 0.02em;
-    }
-
-    [data-theme="vinyl"] .shell .mu-nav-code {
-        width: auto;
-    }
-
-    [data-theme="vinyl"] .shell .mu-nav-item[aria-current]::after {
-        content: none;
-    }
-
-    [data-theme="vinyl"] .shell .mu-nav-item[aria-current] {
-        box-shadow: inset 0 -3px 0 var(--accent);
-    }
 }
 
 /* A screen's heading: the printed line above it and its name. */
@@ -1376,24 +920,6 @@ a {
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-}
-
-[data-theme="vinyl"] .page-kicker {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    line-height: 16px;
-    letter-spacing: 0.2em;
-    color: var(--accent);
-}
-
-[data-theme="vinyl"] .page-title {
-    margin-top: 4px;
-    font-family: var(--font-bebas);
-    font-size: 72px;
-    line-height: 64px;
-    font-weight: 400;
-    letter-spacing: 0.01em;
-    text-transform: none;
 }
 
 /* Plain words under a heading. */
@@ -1437,18 +963,8 @@ a {
     color: var(--ink-muted);
 }
 
-[data-theme="vinyl"] .section-title {
-    font-family: var(--font-bebas);
-    font-size: 26px;
-    line-height: 28px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    color: var(--accent);
-}
-
-/* Settings' search, beside its heading, and its tabs under it: Studio's pages on a strip of the amber screen, the open one lit like
-   one of its segments; Vinyl's a row of names, the open one in cream on a mustard line. Then the open tab's sections, or what a search
-   found in every tab, each section headed by its tab's name first: on a bit of the screen in Studio, in muted cream in Vinyl. */
+/* Settings' search, beside its heading, and its tabs under it, the open one lit. Then the open tab's sections, or what a search
+   found in every tab, each section headed by its tab's name first. */
 .settings-search {
     flex: 0 1 400px;
     min-width: 240px;
@@ -1495,48 +1011,11 @@ a {
     outline-offset: -4px;
 }
 
-[data-theme="vinyl"] .settings-tabs {
-    align-self: stretch;
-    gap: 4px 32px;
-    padding: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: inset 0 -1px 0 var(--seam);
-}
-
-[data-theme="vinyl"] .settings-tab {
-    min-height: 52px;
-    padding: 0;
-    border-radius: 0;
-    color: var(--ink-muted);
-    font-family: var(--font-bebas);
-    font-size: 28px;
-    line-height: 28px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-    text-transform: none;
-}
-
-[data-theme="vinyl"] .settings-tab[aria-selected="true"] {
-    background: none;
-    color: var(--ink);
-    box-shadow: inset 0 -3px 0 var(--accent);
-}
-
-[data-theme="vinyl"] .settings-tab:focus-visible {
-    outline-color: var(--focus);
-    outline-offset: 2px;
-}
-
 /* The sections, spaced as the screen spaces what's on it; those of a tab that isn't open, or that nothing was found in, hidden. */
 .settings-panel {
     display: flex;
     flex-direction: column;
     gap: 24px;
-}
-
-[data-theme="vinyl"] .settings-panel {
-    gap: 28px;
 }
 
 .feedback-options .control-row + .control-row {
@@ -1581,18 +1060,6 @@ a {
     color: var(--ink-muted);
 }
 
-[data-theme="vinyl"] .settings-found-in {
-    padding: 0;
-    border-radius: 0;
-    background: none;
-    color: var(--ink-muted);
-}
-
-/* A section named like its tab is headed by the tab alone: in Vinyl, as any section's heading is. */
-[data-theme="vinyl"] .settings-found-in:only-child {
-    color: var(--accent);
-}
-
 /* The look picker: each choice is drawn in its own look. */
 .look-picker {
     display: grid;
@@ -1635,22 +1102,6 @@ a {
 
 .look-option-name {
     font-family: var(--mu-name);
-}
-
-/* Each card is styled by its own data-theme, not the page's, so a Studio card inside the Vinyl page stays Studio. */
-.look-option[data-theme="studio"] .look-option-name {
-    font-size: 24px;
-    line-height: 28px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.look-option[data-theme="vinyl"] .look-option-name {
-    font-size: 36px;
-    line-height: 36px;
-    font-weight: 400;
-    text-transform: none;
 }
 
 .look-option-text {
@@ -1702,23 +1153,12 @@ a {
     color: var(--ink-muted);
 }
 
-[data-theme="vinyl"] .control-label {
-    font-size: 13px;
-    letter-spacing: 0.1em;
-}
-
 .control-value {
     font-family: var(--mu-figure);
     font-size: 16px;
     line-height: 22px;
     font-weight: 700;
     color: var(--ink);
-}
-
-[data-theme="vinyl"] .control-value {
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
 }
 
 .control-range {
@@ -1757,21 +1197,10 @@ a {
     color: var(--ink);
 }
 
-[data-theme="vinyl"] .tempo-figure {
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
-}
-
 .reading-bar .tempo-figure {
     font-size: 22px;
     line-height: 26px;
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .reading-bar .tempo-figure {
-    font-size: 30px;
-    line-height: 32px;
 }
 
 .reading-bar .tempo-control .mu-btn {
@@ -1852,17 +1281,6 @@ a {
     box-shadow: 0 0 10px var(--meter-on);
 }
 
-[data-theme="vinyl"] .play-mode-option {
-    font-size: 13px;
-    letter-spacing: 0.12em;
-}
-
-[data-theme="vinyl"] .play-mode-option[aria-checked="true"] {
-    background: var(--accent);
-    color: var(--on-accent);
-    box-shadow: none;
-}
-
 .control-row .mu-toggle {
     min-width: 96px;
 }
@@ -1917,25 +1335,6 @@ a.mu-btn {
     color: var(--accent);
 }
 
-[data-theme="vinyl"] .tool-card {
-    border-top: 3px solid var(--accent);
-}
-
-[data-theme="vinyl"] .tool-card-name {
-    font-size: 40px;
-    line-height: 40px;
-    font-weight: 400;
-    text-transform: none;
-}
-
-[data-theme="vinyl"] .tool-card-text {
-    color: var(--on-surface);
-}
-
-[data-theme="vinyl"] .tool-card-meta {
-    font-size: 13px;
-}
-
 /* The metronome's screen: the tempo big, a lamp per beat. */
 .metro-tempo {
     margin: 4px 0 0;
@@ -1959,12 +1358,6 @@ a.mu-btn {
     color: var(--on-screen-muted);
 }
 
-[data-theme="vinyl"] .metro-bpm {
-    font-size: 120px;
-    line-height: 100px;
-    font-weight: 400;
-}
-
 .metro-beats {
     display: flex;
     flex-wrap: wrap;
@@ -1986,10 +1379,6 @@ a.mu-btn {
 .metro-beat.on {
     background: var(--meter-on);
     box-shadow: 0 0 10px var(--meter-on);
-}
-
-[data-theme="vinyl"] .metro-beat {
-    border-radius: 0;
 }
 
 /* The keyboard check: the notes on a screen, and the checks beside it. */
@@ -2198,10 +1587,6 @@ a.mu-btn {
     will-change: transform, opacity;
 }
 
-[data-theme="vinyl"] .sheet-cursor {
-    background: var(--accent-2);
-}
-
 .sheet-music .mark-right,
 .sheet-music .mark-right g {
     fill: var(--mark-right);
@@ -2298,8 +1683,7 @@ a.mu-btn {
     fill: var(--mark-meant);
 }
 
-/* Where a sheet sits: on its own, as wide as the bar above it and with its corners. Studio lays the paper straight on the
-   panel with a soft shadow; Vinyl on the teal with the sleeve's. */
+/* Where a sheet sits: on its own, as wide as the bar beside it and with its corners, the paper on the panel with a soft shadow. */
 .sheet-frame {
     border-radius: var(--mu-r-panel);
 }
@@ -2307,10 +1691,6 @@ a.mu-btn {
 .sheet-frame .sheet {
     border-radius: var(--mu-r-panel);
     box-shadow: 0 0 0 1px var(--sheet-edge), 0 3px 10px var(--sheet-edge);
-}
-
-[data-theme="vinyl"] .sheet-frame .sheet {
-    box-shadow: var(--shadow-sleeve);
 }
 
 .sheet-frame-page {
@@ -2349,11 +1729,6 @@ a.mu-btn {
     line-height: 32px;
 }
 
-[data-theme="vinyl"] .reading-on .page-title {
-    font-size: 48px;
-    line-height: 46px;
-}
-
 .reading-start {
     max-width: 760px;
 }
@@ -2366,10 +1741,6 @@ a.mu-btn {
     border-radius: var(--mu-r-panel);
     background: var(--screen);
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .reading-bar {
-    background: var(--surface);
 }
 
 .reading-bar .mu-readout-value {
@@ -2426,12 +1797,6 @@ a.mu-btn {
     box-shadow: 0 0 10px var(--meter-on);
 }
 
-[data-theme="vinyl"] .count-in-beat {
-    border-radius: 0;
-    font-size: 24px;
-    font-weight: 400;
-}
-
 .summary {
     display: flex;
     flex-direction: column;
@@ -2461,7 +1826,7 @@ a.mu-btn {
    how long notes were held), a line on expression where the music marks it, and the bars, folded into a strip that opens into
    a map, bar by bar. Its charts use two colours a look, what went right and what fell short, told apart in colour blindness
    and in lightness too, with a fill (solid, hatched, hollow) and a label for each kind. */
-:root, [data-theme="studio"] {
+:root {
     --chart-good: #ffb547;
     --chart-bad: #ff5a36;
     /* Off the beat in the quick review: the second kind of mistake, told from the first by more than its place. */
@@ -2474,21 +1839,6 @@ a.mu-btn {
     --sum-words: 400 13px/19px var(--font-mono);
     --sum-small: 400 12px/16px var(--font-mono);
     --sum-tiny: 700 10.5px/14px var(--font-mono);
-}
-
-[data-theme="vinyl"] {
-    --chart-good: #f1e4c8;
-    --chart-bad: #f08458;
-    /* Off the beat in the quick review: the second kind of mistake, told from the first by more than its place. */
-    --chart-beat: #e5a823;
-    --chart-off: #2f6162;
-    --chart-band: rgba(241, 228, 200, 0.09);
-    --chart-r: 0;
-    --sum-big: 400 76px/68px var(--font-bebas);
-    --sum-lead: 500 17px/24px var(--font-sans);
-    --sum-words: 500 14px/20px var(--font-sans);
-    --sum-small: 500 13px/18px var(--font-sans);
-    --sum-tiny: 600 11px/14px var(--font-sans);
 }
 
 .sum {
@@ -2587,11 +1937,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     line-height: 32px;
     letter-spacing: 0;
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .qr-label b {
-    font-size: 40px;
-    line-height: 36px;
 }
 
 .qr-label small,
@@ -3813,12 +3158,8 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
 }
 
 @media (max-width: 900px) {
-    :root, [data-theme="studio"] {
+    :root {
         --sum-big: 700 38px/42px var(--font-mono);
-    }
-
-    [data-theme="vinyl"] {
-        --sum-big: 400 58px/54px var(--font-bebas);
     }
 
     .sum-panels {
@@ -3903,10 +3244,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     color: var(--note-miss);
 }
 
-[data-theme="studio"] .drill-feedback.wrong {
-    color: var(--mark-wrong);
-}
-
 .tool-card-off {
     opacity: 0.55;
 }
@@ -3916,20 +3253,11 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     justify-content: space-between;
 }
 
-[data-theme="vinyl"] .today-head {
-    justify-content: flex-end;
-}
-
 .today-hero {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
     gap: 24px;
     align-items: start;
-}
-
-[data-theme="vinyl"] .today-hero {
-    grid-template-columns: 400px minmax(0, 1fr);
-    gap: 36px;
 }
 
 .today-art {
@@ -3972,7 +3300,7 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
 }
 
 /* Today's figures, each as wide as its words, spread across the row: "Right in time, last 3" is wider than a level or the
-   minutes, and an even share of the row cuts it off in Vinyl. */
+   minutes. */
 .today-foot .mu-readouts {
     flex: 1;
     grid-template-columns: repeat(3, auto);
@@ -4025,44 +3353,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     font-weight: 700;
 }
 
-.vinyl-art {
-    position: relative;
-    /* The record's right edge: it sits 100 px in from the sleeve and is 300 px across. */
-    width: 400px;
-    height: 320px;
-    flex: none;
-}
-
-.vinyl-record { position: absolute; left: 100px; top: 0; }
-.vinyl-record .disc { fill: var(--disc); }
-.vinyl-record .groove { fill: none; stroke: var(--disc-detail); stroke-width: 1.5; }
-.vinyl-record .arc { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; }
-.vinyl-record .label { fill: var(--label); }
-.vinyl-record .hole { fill: var(--ground); }
-
-.vinyl-sleeve {
-    position: absolute;
-    left: 0;
-    top: 12px;
-    width: 300px;
-    height: 300px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--card);
-    color: var(--on-card);
-    box-shadow: var(--shadow-sleeve);
-}
-
-.vinyl-sleeve .art { position: absolute; left: 0; top: 0; }
-.vinyl-sleeve .art-1 { fill: var(--accent-2); }
-.vinyl-sleeve .art-2 { fill: var(--accent); }
-.vinyl-sleeve p, .vinyl-sleeve h1 { position: relative; margin: 0; }
-.vinyl-sleeve .date { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
-.vinyl-sleeve h1 { margin-top: 6px; font-family: var(--font-bebas); font-size: 104px; line-height: 88px; font-weight: 400; letter-spacing: 0.01em; }
-.vinyl-sleeve .line { margin-top: 10px; max-width: 190px; font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 600; }
-
 .text-field {
     max-width: 560px;
     min-height: 48px;
@@ -4076,8 +3366,7 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
 }
 
 @media (orientation: portrait) {
-    .today-hero,
-    [data-theme="vinyl"] .today-hero {
+    .today-hero {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -4108,11 +3397,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     line-height: 54px;
 }
 
-[data-theme="vinyl"] .you-hero {
-    font-size: 64px;
-    line-height: 60px;
-}
-
 .trend {
     margin: 0;
     padding: 14px 16px;
@@ -4122,10 +3406,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     border-radius: var(--mu-r-panel);
     background: var(--screen);
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .trend {
-    background: var(--surface);
 }
 
 .trend-head {
@@ -4141,11 +3421,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     line-height: 28px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-}
-
-[data-theme="vinyl"] .trend-now {
-    font-weight: 400;
-    font-size: 30px;
 }
 
 .trend-chart {
@@ -4172,10 +3447,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     fill: var(--accent);
     stroke: var(--screen);
     stroke-width: 2;
-}
-
-[data-theme="vinyl"] .trend-point {
-    stroke: var(--surface);
 }
 
 .trend-text {
@@ -4303,11 +3574,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     stroke: var(--accent);
 }
 
-[data-theme="vinyl"] .trend-point-partial {
-    fill: var(--surface);
-    stroke: var(--accent);
-}
-
 .spot-frame .sheet {
     max-width: 640px;
     margin: 0 auto;
@@ -4390,11 +3656,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     font-variant-numeric: tabular-nums;
 }
 
-[data-theme="vinyl"] .piece-level {
-    font-weight: 400;
-    font-size: 26px;
-}
-
 .piece-tags {
     grid-area: tags;
     justify-self: end;
@@ -4438,13 +3699,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     color: inherit;
 }
 
-[data-theme="vinyl"] .library-removed {
-    border-radius: 0;
-    background: var(--surface);
-    color: var(--ink);
-    box-shadow: var(--shadow-sleeve);
-}
-
 /* The Library's home: its search across the page, then shelves of ways in (composers, periods, kinds, levels, lists), each a
    key with how many pieces it holds. A long list starts with the same keys for its groups. */
 .library-filters .text-field.library-search {
@@ -4465,20 +3719,12 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     font-size: 14px;
 }
 
-[data-theme="vinyl"] .shelf-chip {
-    font-size: 19px;
-}
-
 .shelf-count {
     font-family: var(--mu-figure);
     font-size: 13px;
     font-weight: 400;
     color: var(--ink-muted);
     font-variant-numeric: tabular-nums;
-}
-
-[data-theme="vinyl"] .shelf-count {
-    font-size: 17px;
 }
 
 .shelf-more {
@@ -4512,14 +3758,8 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     height: 44px;
     min-height: 44px;
     padding: 0;
-    font-family: var(--font-sans);
+    font-family: var(--mu-ui);
     font-size: 15px;
-}
-
-[data-theme="vinyl"] .piece-hear {
-    font-family: var(--font-sans);
-    font-size: 15px;
-    letter-spacing: 0;
 }
 
 .piece-hear[aria-pressed="true"] {
@@ -4551,11 +3791,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
 .piece-bar > [data-action="convert-pdf"],
 .piece-bar > [data-action="back-to-sheet"] {
     margin-left: 0;
-}
-
-/* Vinyl's keys and switch are wider than Studio's: its bar keeps them closer. */
-[data-theme="vinyl"] .piece-bar {
-    gap: 16px;
 }
 
 .piece-frame {
@@ -4636,10 +3871,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-[data-theme="vinyl"] .bar-band {
-    border-radius: 0;
-}
-
 .bar-tab {
     position: absolute;
     display: flex;
@@ -4650,11 +3881,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     background: var(--screen);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
     pointer-events: auto;
-}
-
-[data-theme="vinyl"] .bar-tab {
-    border-radius: 0;
-    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
 }
 
 .bar-tab-label {
@@ -4669,13 +3895,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .bar-tab-label {
-    font-family: var(--mu-figure);
-    font-size: 21px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
 }
 
 .bar-tab-label svg {
@@ -4749,12 +3968,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     pointer-events: none;
 }
 
-[data-theme="vinyl"] .bar-bubble {
-    padding: 4px 12px;
-    border-radius: 0;
-    font-size: 22px;
-}
-
 /* The strip, under the piece's bar: a cell a bar, each line's first marked, the bars on screen boxed, the start a pointer over
    its bar, and any loop filled, with a slim handle at each end. */
 .bar-strip {
@@ -4787,10 +4000,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     color: var(--on-screen-muted);
 }
 
-[data-theme="vinyl"] .bar-cell {
-    font-size: 15px;
-}
-
 .bar-cell-line {
     border-left: 2px solid var(--on-screen-muted);
     color: var(--on-screen);
@@ -4805,10 +4014,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     border-radius: 6px;
     background: color-mix(in srgb, var(--on-screen) 12%, transparent);
     pointer-events: none;
-}
-
-[data-theme="vinyl"] .bar-window {
-    border-radius: 0;
 }
 
 .bar-strip-loop {
@@ -4839,11 +4044,6 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     content: "";
     position: absolute;
     inset: -8px -14px;
-}
-
-[data-theme="vinyl"] .bar-strip-loop,
-[data-theme="vinyl"] .bar-strip-handle {
-    border-radius: 0;
 }
 
 .bar-strip-start {
@@ -4972,12 +4172,6 @@ html[data-full] .bar-strip {
     animation: sheet-wait-in 0.15s ease-out 0.15s both;
 }
 
-[data-theme="vinyl"] .piece-wait {
-    border-radius: 0;
-    background: var(--ground);
-    color: var(--ink);
-}
-
 .piece-wait-what {
     font-size: 16px;
     line-height: 22px;
@@ -5080,49 +4274,24 @@ html[data-full] .bar-strip {
     text-transform: none;
 }
 
-[data-theme="vinyl"] .piece .page-title-long {
-    font-size: 46px;
-    line-height: 44px;
-}
-
-/* The way back at a piece's head, by the name of where it goes. */
+/* The way back, first in every screen's head: a key like the head's others (a mu-btn), named for where it goes, its chevron
+   before the name. */
 .way-back {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    min-height: 34px;
-    margin: 0 0 10px;
-    padding: 0 13px 0 9px;
-    border: 1.5px solid var(--button-edge);
-    border-radius: var(--mu-r-control);
-    background: var(--button);
-    color: var(--on-button);
-    box-shadow: var(--shadow-cap);
-    font-family: var(--mu-print);
-    font-size: 11px;
-    line-height: 16px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    gap: 9px;
     white-space: nowrap;
-    cursor: pointer;
 }
 
 .way-back::before {
     content: "";
-    width: 7px;
-    height: 7px;
+    flex: none;
+    width: 8px;
+    height: 8px;
     margin-left: 3px;
-    border-left: 2.5px solid var(--accent);
-    border-bottom: 2.5px solid var(--accent);
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
     transform: rotate(45deg);
-}
-
-[data-theme="vinyl"] .way-back {
-    min-height: 30px;
-    padding: 0 12px 0 8px;
-    font-size: 12px;
-    letter-spacing: 0.18em;
 }
 
 .piece-frame-hidden {
@@ -5557,10 +4726,6 @@ html[data-full] .piece .summary {
     white-space: nowrap;
 }
 
-[data-theme="vinyl"] .tempo-pop {
-    background: var(--surface);
-}
-
 /* Listen without a piano that takes notes from the tablet: the key looks off, and a tap says what it needs, under it. Start
    with no piano plugged in is the same, said under the bar's end. */
 .play-listen,
@@ -5640,7 +4805,6 @@ html[data-full] .piece .summary {
     max-width: 192px;
 }
 
-
 /* Settings › Claude: the key on this tablet, masked, as a figure on a little screen; how to add one, with the command to type; and
    what this month's reads cost. */
 .key-figure {
@@ -5659,14 +4823,7 @@ html[data-full] .piece .summary {
     white-space: nowrap;
 }
 
-[data-theme="vinyl"] .key-figure {
-    border-radius: 0;
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1.5px var(--ink-faint);
-}
-
-.key-figure.none,
-[data-theme="vinyl"] .key-figure.none {
+.key-figure.none {
     background: none;
     color: var(--ink-muted);
     box-shadow: inset 0 0 0 1.5px var(--seam);
@@ -5720,12 +4877,6 @@ html[data-full] .piece .summary {
     user-select: all;
 }
 
-[data-theme="vinyl"] .key-command {
-    border-radius: 0;
-    background: #0f2a2b;
-    color: var(--ink);
-}
-
 .spend {
     flex: 1;
     min-width: 0;
@@ -5747,13 +4898,6 @@ html[data-full] .piece .summary {
     line-height: 30px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-}
-
-[data-theme="vinyl"] .spend-total {
-    font-size: 38px;
-    line-height: 38px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .spend-ledger {
@@ -5782,12 +4926,6 @@ html[data-full] .piece .summary {
     white-space: nowrap;
 }
 
-[data-theme="vinyl"] .spend-cost {
-    font-size: 20px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
-}
-
 /* Settings › Updates: the newest release, its name as a figure like this month's cost in Claude's section, and its changes as a
    short list (Kit/Playground.Updates). */
 .update-release {
@@ -5811,13 +4949,6 @@ html[data-full] .piece .summary {
     font-size: 26px;
     line-height: 30px;
     font-weight: 700;
-}
-
-[data-theme="vinyl"] .update-title {
-    font-size: 38px;
-    line-height: 38px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .update-release > .mu-btn {
@@ -5856,10 +4987,6 @@ html[data-full] .piece .summary {
     box-shadow: 0 0 6px var(--accent);
 }
 
-[data-theme="vinyl"] .copies-held-head > .mu-led {
-    box-shadow: none;
-}
-
 .copies-held-head {
     margin: 0;
     display: flex;
@@ -5872,12 +4999,6 @@ html[data-full] .piece .summary {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink);
-}
-
-[data-theme="vinyl"] .copies-held-head {
-    font-size: 13px;
-    letter-spacing: 0.1em;
-    color: var(--accent);
 }
 
 .copies-progress {
@@ -5959,35 +5080,10 @@ html[data-full] .piece .summary {
     overflow-wrap: anywhere;
 }
 
-[data-theme="vinyl"] .copy-choice {
-    border-color: var(--ink-faint);
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .copy-choice[aria-pressed="true"] {
-    border-color: var(--accent);
-}
-
-[data-theme="vinyl"] .copy-when {
-    font-size: 24px;
-    line-height: 26px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-}
-
-[data-theme="vinyl"] .copy-choice[aria-pressed="true"] .copy-when {
-    color: var(--accent);
-}
-
-[data-theme="vinyl"] .copy-where {
-    font-size: 13px;
-}
-
 /* Reading a PDF's notes with Claude, in the music's place (Transcription/ReadNotes): what it will cost, each system's steps while
    it reads, then each system's print over the reading engraved, its doubtful bars tinted on both. A system's step is a lamp:
    waiting, working, done, in doubt or failed. */
-:root,
-[data-theme="studio"] {
+:root {
     --pdfread-wait: #bdb8ae;
     --pdfread-now: #ffb547;
     --pdfread-done: #46c35b;
@@ -6003,22 +5099,6 @@ html[data-full] .piece .summary {
     --pdfread-label-spacing: 0.12em;
 }
 
-[data-theme="vinyl"] {
-    --pdfread-wait: #2f6162;
-    --pdfread-now: #f1e4c8;
-    --pdfread-done: #f1e4c8;
-    --pdfread-doubt: #e5a823;
-    --pdfread-fail: #f08458;
-    --pdfread-glow: 0 0 0;
-    --pdfread-tint: rgba(229, 168, 35, 0.2);
-    --pdfread-tint-edge: #b07d0c;
-    --pdfread-tag: #e5a823;
-    --on-pdfread-tag: #173b3d;
-    --pdfread-panel-shadow: none;
-    --pdfread-label: 600 12px/16px var(--font-sans);
-    --pdfread-label-spacing: 0.14em;
-}
-
 /* The music's stage steps aside while the reading has the piece. */
 .piece-stage-gone {
     display: none;
@@ -6032,10 +5112,6 @@ html[data-full] .piece .summary {
 
 .options-rule {
     border-top: 1px dashed var(--seam);
-}
-
-[data-theme="vinyl"] .options-rule {
-    border-top-style: solid;
 }
 
 /* The PDF, open out of sight, that systems are cut from. */
@@ -6115,10 +5191,6 @@ html[data-full] .piece .summary {
     overflow: hidden;
 }
 
-[data-theme="vinyl"] .pdfread-page {
-    box-shadow: 6px 6px 0 #0f2a2b;
-}
-
 .pdfread-page img {
     display: block;
     width: 100%;
@@ -6175,12 +5247,6 @@ html[data-full] .piece .summary {
     box-shadow: var(--shadow-bezel);
 }
 
-[data-theme="vinyl"] .pdfread-screen {
-    border-radius: 0;
-    background: var(--ground);
-    box-shadow: inset 0 0 0 1.5px var(--seam);
-}
-
 /* While it reads: a row for each system, its picture, its three steps as lamps, and what it's doing in words. */
 .pdfread-progress {
     display: flex;
@@ -6212,30 +5278,6 @@ html[data-full] .piece .summary {
     box-shadow: var(--shadow-cap);
 }
 
-[data-theme="vinyl"] .pdfread-row {
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    border-top: 3px solid var(--seam);
-    padding: 12px 0 4px;
-}
-
-[data-theme="vinyl"] .pdfread-row[data-step="now"] {
-    border-top-color: var(--ink);
-}
-
-[data-theme="vinyl"] .pdfread-row[data-step="done"] {
-    border-top-color: var(--ink-faint);
-}
-
-[data-theme="vinyl"] .pdfread-row[data-step="doubt"] {
-    border-top-color: var(--pdfread-doubt);
-}
-
-[data-theme="vinyl"] .pdfread-row[data-step="fail"] {
-    border-top-color: var(--pdfread-fail);
-}
-
 .pdfread-thumb {
     display: block;
     width: 100%;
@@ -6256,14 +5298,6 @@ html[data-full] .piece .summary {
 .pdfread-name strong {
     font-size: 16px;
     line-height: 22px;
-}
-
-[data-theme="vinyl"] .pdfread-name strong {
-    font-family: var(--font-bebas);
-    font-size: 24px;
-    line-height: 26px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
 }
 
 .pdfread-name span,
@@ -6304,29 +5338,12 @@ html[data-full] .piece .summary {
     color: var(--ink-muted);
 }
 
-[data-theme="vinyl"] .pdfread-stage {
-    width: 72px;
-    padding: 4px 0;
-    border-radius: 0;
-    background: none;
-    font-family: var(--font-sans);
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 600;
-}
-
 .pdfread-lamp {
     width: 9px;
     height: 9px;
     flex: none;
     border-radius: 50%;
     background: var(--pdfread-wait);
-}
-
-[data-theme="vinyl"] .pdfread-stage .pdfread-lamp {
-    width: 100%;
-    height: 4px;
-    border-radius: 0;
 }
 
 .pdfread-lamp.now {
@@ -6347,10 +5364,6 @@ html[data-full] .piece .summary {
 .pdfread-lamp.fail {
     background: var(--pdfread-fail);
     box-shadow: var(--pdfread-glow) var(--pdfread-fail);
-}
-
-[data-theme="vinyl"] .pdfread-stage .pdfread-lamp.now {
-    background: repeating-linear-gradient(90deg, var(--pdfread-now) 0 6px, transparent 6px 10px);
 }
 
 .pdfread-says {
@@ -6529,10 +5542,6 @@ html[data-full] .piece .summary {
     color: var(--on-surface);
 }
 
-[data-theme="vinyl"] .pdfread-status {
-    font-size: 13px;
-}
-
 .pdfread-quote {
     margin: 0;
     padding: 12px 14px;
@@ -6541,13 +5550,6 @@ html[data-full] .piece .summary {
     font-size: 15px;
     line-height: 22px;
     color: var(--ink);
-}
-
-[data-theme="vinyl"] .pdfread-quote {
-    border-radius: 0;
-    background: none;
-    box-shadow: inset 3px 0 0 var(--pdfread-doubt);
-    padding: 2px 0 2px 14px;
 }
 
 .pdfread-quote b {
@@ -6594,11 +5596,6 @@ html[data-full] .piece .summary {
     box-shadow: none;
 }
 
-[data-theme="vinyl"] .pdfread-error {
-    box-shadow: inset 0 3px 0 var(--pdfread-fail);
-    padding-top: 21px;
-}
-
 .pdfread-error h3 {
     margin: 0;
     display: flex;
@@ -6606,14 +5603,6 @@ html[data-full] .piece .summary {
     gap: 10px;
     font-size: 18px;
     line-height: 24px;
-}
-
-[data-theme="vinyl"] .pdfread-error h3 {
-    font-family: var(--font-bebas);
-    font-size: 30px;
-    line-height: 30px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .pdfread-error p {
@@ -6728,11 +5717,6 @@ html[data-full] .piece .summary {
     text-decoration: none;
 }
 
-[data-theme="vinyl"] .ex-card {
-    border-radius: 0;
-    box-shadow: none;
-}
-
 .ex-shape {
     display: block;
     width: 100%;
@@ -6741,16 +5725,8 @@ html[data-full] .piece .summary {
     background: color-mix(in srgb, var(--on-card) 5%, transparent);
 }
 
-[data-theme="vinyl"] .ex-shape {
-    border-radius: 0;
-}
-
 .ex-shape-right {
     fill: var(--accent);
-}
-
-[data-theme="vinyl"] .ex-shape-right {
-    fill: var(--accent-2);
 }
 
 .ex-shape-left {
@@ -6783,13 +5759,6 @@ html[data-full] .piece .summary {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
-}
-
-[data-theme="vinyl"] .ex-card-name {
-    font-size: 21px;
-    line-height: 22px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .ex-card-meta {
@@ -6864,10 +5833,6 @@ html[data-full] .piece .summary {
 .ex-add[aria-pressed="true"] {
     background: var(--accent);
     color: var(--on-accent);
-}
-
-[data-theme="vinyl"] .ex-add {
-    border-radius: 0;
 }
 
 .ex-add:focus-visible {
@@ -7065,19 +6030,6 @@ html[data-full] .piece .summary {
     color: var(--on-screen-muted);
 }
 
-[data-theme="vinyl"] .practice-clock,
-[data-theme="vinyl"] .play-foot .mu-readout {
-    background: var(--surface);
-    border-radius: 0;
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .practice-clock .mu-readout-value,
-[data-theme="vinyl"] .play-foot .mu-readout-value {
-    font-size: 28px;
-    line-height: 30px;
-}
-
 /* Full screen's Finish practice: first in a practice's bar, the level between it and the piece's tools, its words on two lines
    where the bar is short of room, as any key's. Only while the page is full screen, which has no clocks: upright, the bar's
    title row loses them and their Finish practice too, so the title has its row to itself. In landscape it's first before a
@@ -7128,12 +6080,6 @@ html:not([data-full]) .piece-finish {
     color: var(--on-screen);
 }
 
-[data-theme="vinyl"] .pause-title {
-    font-size: 44px;
-    line-height: 44px;
-    font-weight: 400;
-}
-
 .pause-line {
     margin: 0;
     font: var(--sum-lead);
@@ -7182,10 +6128,6 @@ html:not([data-full]) .piece-finish {
     font: 700 23px/30px var(--font-grotesk);
     color: var(--on-screen);
     text-wrap: pretty;
-}
-
-[data-theme="vinyl"] .look-headline {
-    font: 600 23px/30px var(--font-sans);
 }
 
 /* Its lines: what each is about (as long as "Since 3 November"), then its words. One that's neither good news nor something to
@@ -7423,16 +6365,6 @@ html:not([data-full]) .piece-finish {
     font-size: 20px;
 }
 
-[data-theme="vinyl"] .look-total {
-    font-size: 15px;
-    font-weight: 600;
-}
-
-[data-theme="vinyl"] .look-total b {
-    font-size: 26px;
-    font-weight: 400;
-}
-
 .look-row {
     display: grid;
     grid-template-columns: 230px minmax(0, 1fr) 220px 110px;
@@ -7460,13 +6392,6 @@ html:not([data-full]) .piece-finish {
     line-height: 26px;
     font-weight: 700;
     color: var(--on-screen);
-}
-
-[data-theme="vinyl"] .look-bars {
-    font-size: 30px;
-    line-height: 30px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .look-spark {
@@ -7512,10 +6437,6 @@ html:not([data-full]) .piece-finish {
     stroke-width: 2;
 }
 
-[data-theme="vinyl"] .look-end {
-    fill: var(--surface);
-}
-
 .look-fig {
     font-family: var(--mu-figure);
     font-size: 18px;
@@ -7528,22 +6449,10 @@ html:not([data-full]) .piece-finish {
     font-size: 22px;
 }
 
-[data-theme="vinyl"] .look-fig {
-    font-size: 24px;
-    line-height: 26px;
-    letter-spacing: 0.03em;
-}
-
-[data-theme="vinyl"] .look-fig b {
-    font-size: 28px;
-    font-weight: 400;
-}
-
 .look-arrow {
     color: var(--on-screen-muted);
     padding: 0 2px;
 }
-
 
 /* The in-depth review, taking the screen: its head and figures, its lines beside its bars, the music of the bar picked under
    them, and its keys. */
@@ -7580,12 +6489,6 @@ html:not([data-full]) .piece-finish {
     color: var(--on-screen);
     text-transform: uppercase;
     letter-spacing: 0.02em;
-}
-
-[data-theme="vinyl"] .review-name {
-    font-size: 44px;
-    line-height: 42px;
-    font-weight: 400;
 }
 
 .review-figures {
@@ -7628,10 +6531,6 @@ html:not([data-full]) .piece-finish {
 .review-cell.picked {
     outline: 3px solid var(--accent);
     outline-offset: 2px;
-}
-
-[data-theme="vinyl"] .review-cell {
-    border-radius: 0;
 }
 
 .review-nums {
@@ -7680,10 +6579,6 @@ html:not([data-full]) .piece-finish {
     fill: color-mix(in srgb, var(--accent) 10%, transparent);
     stroke: var(--accent);
     stroke-width: 3px;
-}
-
-[data-theme="vinyl"] .sheet-outline {
-    stroke: var(--accent-2);
 }
 
 /* Play: a slim strip over the music, and its quick review at the bottom. */
@@ -7771,13 +6666,6 @@ html:not([data-full]) .piece-finish {
     bottom: 84px;
 }
 
-[data-theme="vinyl"] .lib > .lib-said {
-    border-radius: 0;
-    background: var(--card);
-    color: var(--on-card);
-    box-shadow: var(--shadow-sleeve);
-}
-
 @keyframes lib-said {
     0%, 88% {
         opacity: 1;
@@ -7811,10 +6699,6 @@ html:not([data-full]) .piece-finish {
     min-width: 0;
 }
 
-[data-theme="vinyl"] .head-search {
-    width: 320px;
-}
-
 .head-tools .mu-btn {
     flex: none;
     white-space: nowrap;
@@ -7826,10 +6710,6 @@ html:not([data-full]) .piece-finish {
     display: grid;
     grid-template-columns: 236px minmax(0, 1fr);
     border-top: 1px solid var(--seam);
-}
-
-[data-theme="vinyl"] .lib > .lib-cols {
-    grid-template-columns: 208px minmax(0, 1fr);
 }
 
 /* A column: it scrolls by itself, and what's in it keeps its own height. */
@@ -7848,12 +6728,7 @@ html:not([data-full]) .piece-finish {
     flex: none;
 }
 
-[data-theme="vinyl"] .lib-col {
-    padding: 14px 14px 28px;
-}
-
-.lib-list,
-[data-theme="vinyl"] .lib-list {
+.lib-list {
     padding-left: 0;
     padding-right: 14px;
 }
@@ -7871,15 +6746,6 @@ html:not([data-full]) .piece-finish {
 
 .col-title:first-child {
     margin-top: 0;
-}
-
-[data-theme="vinyl"] .col-title {
-    font-family: var(--font-bebas);
-    font-size: 20px;
-    line-height: 22px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    color: var(--accent);
 }
 
 /* A row of a column: its name and, at its end, how many it holds. What's chosen is the row turned over, as the rail's keys
@@ -7928,26 +6794,6 @@ html:not([data-full]) .piece-finish {
     color: color-mix(in srgb, var(--on-key-dark) 70%, transparent);
 }
 
-[data-theme="vinyl"] .col-item {
-    border-radius: 0;
-}
-
-[data-theme="vinyl"] .col-item .n {
-    font-size: 17px;
-}
-
-[data-theme="vinyl"] .col-item[aria-current] {
-    background: var(--card);
-    color: var(--on-card);
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .col-item[aria-current] small,
-[data-theme="vinyl"] .col-item[aria-current] .n,
-[data-theme="vinyl"] .col-item[aria-current] .work-no {
-    color: color-mix(in srgb, var(--on-card) 70%, transparent);
-}
-
 .col-item.shelf-own {
     font-weight: 700;
 }
@@ -7976,20 +6822,6 @@ html:not([data-full]) .piece-finish {
 .col-by a[aria-current] {
     color: var(--ink);
     border-bottom-color: var(--ink);
-}
-
-[data-theme="vinyl"] .col-by {
-    gap: 0 12px;
-    font-family: var(--font-bebas);
-    font-size: 16px;
-    line-height: 20px;
-    font-weight: 400;
-    letter-spacing: 0.08em;
-}
-
-[data-theme="vinyl"] .col-by a[aria-current] {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
 }
 
 .col-find {
@@ -8045,17 +6877,6 @@ html:not([data-full]) .piece-finish {
     padding: 0 14px;
 }
 
-[data-theme="vinyl"] .lib-main-head .settings-tabs {
-    align-self: stretch;
-    gap: 4px 22px;
-}
-
-[data-theme="vinyl"] .lib-main-head .settings-tab {
-    min-height: 44px;
-    font-size: 22px;
-    line-height: 24px;
-}
-
 .tab-n {
     margin-left: 8px;
     font-family: var(--mu-figure);
@@ -8072,21 +6893,9 @@ html:not([data-full]) .piece-finish {
     overflow-wrap: anywhere;
 }
 
-[data-theme="vinyl"] .col-head {
-    font-size: 40px;
-    line-height: 38px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-}
-
 .col-head.small {
     font-size: 20px;
     line-height: 26px;
-}
-
-[data-theme="vinyl"] .col-head.small {
-    font-size: 30px;
-    line-height: 30px;
 }
 
 .col-sub {
@@ -8125,10 +6934,6 @@ html:not([data-full]) .piece-finish {
     min-height: 40px;
     padding: 0 14px;
     font-size: 14px;
-}
-
-[data-theme="vinyl"] .mu-btn.lb-small {
-    font-size: 19px;
 }
 
 .mu-toggle.lb-small {
@@ -8194,12 +6999,6 @@ html:not([data-full]) .piece-finish {
     color: var(--ink-faint);
 }
 
-[data-theme="vinyl"] .work-no {
-    font-size: 24px;
-    line-height: 22px;
-    font-weight: 400;
-}
-
 /* A piece's row: the key that plays its opening, its number, its name over a line about it, its level and its star. */
 .mov-list {
     margin: 0;
@@ -8224,12 +7023,6 @@ html:not([data-full]) .piece-finish {
     font-weight: 700;
     text-align: right;
     color: var(--ink-muted);
-}
-
-[data-theme="vinyl"] .mov-no {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: 700;
 }
 
 /* A row with no number gives its room to the name. */
@@ -8377,11 +7170,6 @@ html:not([data-full]) .piece-finish {
     white-space: nowrap;
 }
 
-[data-theme="vinyl"] .work-levels {
-    font-size: 22px;
-    font-weight: 400;
-}
-
 .work-chev {
     width: 9px;
     height: 9px;
@@ -8407,11 +7195,6 @@ html:not([data-full]) .piece-finish {
 
 .work[data-open] + .work {
     border-top: 0;
-}
-
-[data-theme="vinyl"] .work[data-open] {
-    border-radius: 0;
-    box-shadow: none;
 }
 
 .only-upright {
@@ -8530,10 +7313,6 @@ button.up-artist {
     background: rgba(20, 18, 16, 0.4);
 }
 
-[data-theme="vinyl"] .lb-scrim {
-    background: rgba(8, 24, 25, 0.55);
-}
-
 .lb-sheet {
     position: fixed;
     top: 0;
@@ -8561,11 +7340,6 @@ button.up-artist {
 .lb-sheet .page-title {
     font-size: 26px;
     line-height: 32px;
-}
-
-[data-theme="vinyl"] .lb-sheet .page-title {
-    font-size: 48px;
-    line-height: 46px;
 }
 
 .lb-field {
@@ -8639,10 +7413,6 @@ button.up-artist {
     color: var(--mark-wrong);
 }
 
-[data-theme="vinyl"] .text-key.away {
-    color: var(--note-miss);
-}
-
 .sheet-keys {
     margin-top: auto;
     display: flex;
@@ -8688,12 +7458,6 @@ button.up-artist {
     top: 22dvh;
 }
 
-[data-theme="vinyl"] .lb-menu {
-    border-radius: 0;
-    background: var(--card);
-    color: var(--on-card);
-}
-
 .menu-title {
     margin: 8px 12px 6px;
     font-family: var(--mu-print);
@@ -8704,11 +7468,6 @@ button.up-artist {
     text-transform: uppercase;
     color: var(--ink-muted);
     overflow-wrap: anywhere;
-}
-
-[data-theme="vinyl"] .menu-title {
-    font-size: 12px;
-    color: color-mix(in srgb, var(--on-card) 68%, transparent);
 }
 
 .lb-menu > button {
@@ -8728,17 +7487,9 @@ button.up-artist {
     cursor: pointer;
 }
 
-[data-theme="vinyl"] .lb-menu > button {
-    border-radius: 0;
-}
-
 .lb-menu [aria-checked="true"] > .mu-led {
     background: var(--live);
     box-shadow: 0 0 6px var(--live);
-}
-
-[data-theme="vinyl"] .lb-menu [aria-checked="false"] > .mu-led {
-    background: color-mix(in srgb, var(--on-card) 26%, transparent);
 }
 
 .lb-menu hr {
@@ -8746,10 +7497,6 @@ button.up-artist {
     margin: 4px 0;
     border: 0;
     border-top: 1px solid var(--seam);
-}
-
-[data-theme="vinyl"] .lb-menu hr {
-    border-top-color: color-mix(in srgb, var(--on-card) 20%, transparent);
 }
 
 .lb-menu-new {
@@ -8828,13 +7575,6 @@ button.up-artist {
     box-shadow: var(--shadow-cap);
 }
 
-[data-theme="vinyl"] .rep-card {
-    padding: 18px 20px 20px;
-    border-radius: 0;
-    border-top: 3px solid var(--accent);
-    box-shadow: none;
-}
-
 .rep-top {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -8859,14 +7599,6 @@ button.up-artist {
     overflow-wrap: anywhere;
 }
 
-[data-theme="vinyl"] .rep-kicker {
-    min-height: 16px;
-    font-size: 12px;
-    line-height: 16px;
-    letter-spacing: 0.16em;
-    color: var(--accent);
-}
-
 .rep-done {
     color: var(--accent);
 }
@@ -8883,13 +7615,6 @@ button.up-artist {
 .rep-title a {
     color: inherit;
     text-decoration: none;
-}
-
-[data-theme="vinyl"] .rep-title {
-    font-size: 30px;
-    line-height: 29px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
 }
 
 .rep-meter {
@@ -8912,26 +7637,6 @@ button.up-artist {
 }
 
 .rep-meter > span.s2 {
-    background: var(--meter-on);
-}
-
-[data-theme="vinyl"] .rep-meter {
-    gap: 2px;
-    padding: 0;
-    background: none;
-}
-
-[data-theme="vinyl"] .rep-meter > span {
-    height: 8px;
-    border-radius: 0;
-    background: var(--seam);
-}
-
-[data-theme="vinyl"] .rep-meter > span.s1 {
-    background: color-mix(in srgb, var(--meter-on) 45%, var(--seam));
-}
-
-[data-theme="vinyl"] .rep-meter > span.s2 {
     background: var(--meter-on);
 }
 
@@ -9000,10 +7705,6 @@ button.up-artist {
     color: var(--accent);
 }
 
-[data-theme="vinyl"] .rt-today {
-    color: var(--accent-2);
-}
-
 .rt-days > span {
     height: 9px;
 }
@@ -9057,10 +7758,6 @@ button.up-artist {
     color: var(--accent);
 }
 
-[data-theme="vinyl"] .rt-track[data-state="now"] .rt-no {
-    color: var(--accent-2);
-}
-
 .rt-track .ex-shape {
     width: 108px;
 }
@@ -9086,13 +7783,6 @@ button.up-artist {
     font-size: 17px;
     line-height: 22px;
     font-weight: 700;
-}
-
-[data-theme="vinyl"] .rt-name b {
-    font-size: 23px;
-    line-height: 24px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
 }
 
 .rt-name span,
@@ -9141,12 +7831,6 @@ button.up-artist {
     background: var(--surface);
     color: var(--on-surface);
     box-shadow: var(--shadow-cap);
-}
-
-[data-theme="vinyl"] .rt-panel {
-    border-radius: 0;
-    border-top: 3px solid var(--accent);
-    box-shadow: none;
 }
 
 .rt-panel .section-title {
@@ -9222,12 +7906,6 @@ button.up-artist {
     text-decoration: none;
 }
 
-[data-theme="vinyl"] .today-rep-item {
-    border-radius: 0;
-    box-shadow: none;
-    border-top: 3px solid var(--seam);
-}
-
 .today-rep-item b {
     font-size: 16px;
     line-height: 21px;
@@ -9262,13 +7940,11 @@ button.up-artist {
 }
 
 @media (orientation: portrait) {
-    .head-search,
-    [data-theme="vinyl"] .head-search {
+    .head-search {
         width: 260px;
     }
 
-    .lib > .lib-cols,
-    [data-theme="vinyl"] .lib > .lib-cols {
+    .lib > .lib-cols {
         grid-template-columns: 204px minmax(0, 1fr);
     }
 
@@ -9324,9 +8000,8 @@ button.up-artist {
 /* ---------------------------------------------------------------------------------------------------------------------------
    Choosing what to play (an exercise, Scales, Arpeggios, Finger independence): a card above the play bar says what's chosen,
    the key lit on a small keyboard and named, the hands drawn, the rest a word each with its picture; Change opens every choice
-   over the music: the key on an octave of the piano with its keys named, the hands as hands, the rest as keys. They're
-   Studio's keycaps with their lamps, smaller than the keys that act, a key held down when it's chosen; Vinyl's are square
-   outlined keys, the chosen one mustard.
+   over the music: the key on an octave of the piano with its keys named, the rest as keys, smaller than the keys that act, a
+   key held down when it's chosen.
    --------------------------------------------------------------------------------------------------------------------------- */
 
 .practice-choice {
@@ -9354,11 +8029,6 @@ button.up-artist {
     box-shadow: var(--shadow-cap);
 }
 
-[data-theme="vinyl"] .choice-card {
-    border-radius: 0;
-    border-top: 3px solid var(--accent);
-}
-
 .choice-card-key {
     display: grid;
 }
@@ -9371,13 +8041,6 @@ button.up-artist {
     line-height: 26px;
     font-weight: 700;
     color: var(--on-surface);
-}
-
-[data-theme="vinyl"] .choice-card-key .exercise-key {
-    font-size: 30px;
-    line-height: 30px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
 }
 
 .choice-card-key small,
@@ -9485,24 +8148,6 @@ button.up-artist {
     background: var(--accent-2);
 }
 
-[data-theme="vinyl"] .mini-keys {
-    border-radius: 0;
-    background: #121212;
-}
-
-[data-theme="vinyl"] .mini-keys i {
-    border-radius: 0;
-    background: var(--card);
-}
-
-[data-theme="vinyl"] .mini-keys b {
-    background: #121212;
-}
-
-[data-theme="vinyl"] .mini-keys .on {
-    background: var(--accent);
-}
-
 /* Change, over the music (which stays drawn underneath), as the options cover it. */
 .change-panel {
     position: absolute;
@@ -9520,12 +8165,6 @@ button.up-artist {
     background: var(--surface);
     color: var(--on-surface);
     box-shadow: 0 0 0 1px var(--seam), 0 18px 40px rgba(0, 0, 0, 0.18);
-}
-
-[data-theme="vinyl"] .change-panel {
-    border-radius: 0;
-    box-shadow: none;
-    border-top: 3px solid var(--accent);
 }
 
 /* The music under Change is hidden, as under the options: drawn still, so it needn't be again, but none of its frame showing. */
@@ -9621,32 +8260,6 @@ button.up-artist {
     letter-spacing: 0;
 }
 
-[data-theme="vinyl"] :is(.change-panel, .choice-panel, .piece-options) .mu-toggle {
-    border-radius: 0;
-}
-
-[data-theme="vinyl"] :is(.change-panel, .choice-panel, .piece-options) .mu-toggle.choice-icon {
-    font-size: 11px;
-    letter-spacing: 0.04em;
-}
-
-[data-theme="vinyl"] :is(.change-panel, .choice-panel, .piece-options) .mu-toggle.choice-pad {
-    font-size: 24px;
-    line-height: 24px;
-}
-
-[data-theme="vinyl"] :is(.change-panel, .choice-panel, .piece-options) .mu-toggle[aria-pressed="true"] {
-    transform: none;
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] :is(.change-panel, .choice-panel, .piece-options) .mu-toggle[aria-pressed="true"] > .mu-led {
-    background: var(--on-accent);
-}
-
 /* A screen whose choices are the screen until it starts (Endless notes, Sight-read before a passage, the metronome): the same
    keys on a panel of their own, in the page. */
 .choice-panel {
@@ -9660,12 +8273,6 @@ button.up-artist {
     background: var(--surface);
     color: var(--on-surface);
     box-shadow: var(--shadow-cap);
-}
-
-[data-theme="vinyl"] .choice-panel {
-    border-radius: 0;
-    box-shadow: none;
-    border-top: 3px solid var(--accent);
 }
 
 .choice-panel .control-row {
@@ -9775,69 +8382,21 @@ button.up-artist {
     color: var(--on-surface);
 }
 
-[data-theme="vinyl"] .key-piano {
-    border-radius: 0;
-    background: #121212;
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .key-piano-white {
-    border-radius: 0;
-    background: var(--card);
-    color: var(--on-card);
-}
-
-[data-theme="vinyl"] .key-piano-black {
-    border-radius: 0;
-    background: #121212;
-    color: color-mix(in srgb, var(--card) 70%, transparent);
-}
-
-[data-theme="vinyl"] .key-piano [aria-pressed="true"] {
-    background: var(--accent);
-    color: var(--on-accent);
-    box-shadow: none;
-}
-
-[data-theme="vinyl"] .key-piano-white:disabled {
-    background: color-mix(in srgb, var(--card) 45%, #121212);
-    color: color-mix(in srgb, var(--on-card) 60%, transparent);
-}
-
-[data-theme="vinyl"] .key-piano-black:disabled {
-    background: #2a2a2a;
-}
-
-[data-theme="vinyl"] .key-piano-name {
-    font-size: 30px;
-    line-height: 30px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-}
-
 /* ---------------------------------------------------------------------------------------------------------------------------
    Motion: how Prima opens, how a screen and what's on it arrive, and how a wait looks.
 
-   One curve for whatever arrives (the play summary's), and each look's own pace: Studio's keys and lamps are quick and travel
-   little; Vinyl's print is a touch slower and comes a little further, like a sleeve slid out. Only opacity and transform move,
+   One curve for whatever arrives (the play summary's): keys and lamps are quick and travel little. Only opacity and transform move,
    so the browser moves them on a thread of its own, and nothing new moves while a run plays. Android's Remove animations
    (prefers-reduced-motion) keeps the fades, quicker, and stills everything else (at the end).
    --------------------------------------------------------------------------------------------------------------------------- */
 
-:root, [data-theme="studio"] {
+:root {
     --ease-arrive: cubic-bezier(0.2, 0.7, 0.2, 1);
     --t-lamp: 120ms;
     --t-pop: 140ms;
     --t-arrive: 180ms;
     --t-step: 28ms;
     --rise: 6px;
-}
-
-[data-theme="vinyl"] {
-    --t-pop: 180ms;
-    --t-arrive: 240ms;
-    --t-step: 36ms;
-    --rise: 10px;
 }
 
 @keyframes arrive {
@@ -9853,10 +8412,9 @@ button.up-artist {
     }
 }
 
-
 /* Opening: Android's splash, then the page's own mark in the same place (index.html) while .NET starts and the first screen is
-   read, then the screen. Studio's mark is the icon's display with the play cursor going over its staff, each note lighting as it
-   passes; Vinyl's is Today's record turning. The layout fades it as its first screen is drawn and takes it away after
+   read, then the screen: Porcelain's and Night's card with a staff, each note lighting in the accent as it's reached. The layout
+   fades it as its first screen is drawn and takes it away after
    (MainLayout.razor.js); under Blazor's own bar, should Prima stop answering before then. */
 .opening {
     position: fixed;
@@ -9875,42 +8433,8 @@ button.up-artist {
 }
 
 /* Sized as Android draws the splash: its 108-unit image scaled to 192 dp, so the hand-over doesn't move. */
-.opening-mark {
-    width: 192px;
-    height: 192px;
-}
-
-.opening-mark .cursor {
-    animation: opening-cursor 1.4s linear infinite;
-}
-
-.opening-mark .note {
-    fill: #7a5c2c;
-    animation: opening-note 1.4s linear infinite;
-}
-
-.opening-mark .stem {
-    stroke: #7a5c2c;
-    animation: opening-stem 1.4s linear infinite;
-}
 
 /* The cursor starts where the splash has it, half way across, over the second note: each note lights as it passes. */
-.opening-mark .cursor,
-.opening-mark .n1 {
-    animation-delay: -0.68s;
-}
-
-.opening-mark .n2 {
-    animation-delay: -0.3s;
-}
-
-.opening-mark .n3 {
-    animation-delay: 0.08s;
-}
-
-.opening-mark .lamp {
-    animation: opening-lamp 1.4s ease-in-out infinite;
-}
 
 @keyframes opening-cursor {
     from { transform: translateX(-2px); }
@@ -9933,27 +8457,13 @@ button.up-artist {
     50% { opacity: 0.35; }
 }
 
-/* The record as Vinyl's splash draws it: 68 of its 108 units across. */
-.opening-record {
-    width: 124px;
-    height: 124px;
-    animation: opening-turn 1.8s linear infinite;
-}
-
-.opening-record .disc { fill: var(--disc); }
-.opening-record .groove { fill: none; stroke: var(--disc-detail); stroke-width: 1.5; }
-.opening-record .arc { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
-.opening-record .label { fill: var(--label); }
-.opening-record .print { fill: var(--on-label); }
-.opening-record .hole { fill: var(--ground); }
-
 @keyframes opening-turn {
     to { transform: rotate(1turn); }
 }
 
 /* As Prima opens (data-opening on <html>, until the first screen has had time to arrive): the rail slides in from its edge and
-   the screen comes after it, Today with its one moment (Studio's knob sweeping round once, as an instrument does as it's switched
-   on, and settling at the tempo; Vinyl's record coming out of its sleeve). Every screen after it builds the rail again, which
+   the screen comes after it, Today with its one moment (the tempo knob sweeping round once, as an instrument does as it's
+   switched on, and settling at the tempo). Every screen after it builds the rail again, which
    then doesn't move. */
 @keyframes rail-in {
     from {
@@ -9983,14 +8493,9 @@ button.up-artist {
     100% { transform: rotate(0deg); }
 }
 
-[data-opening] .vinyl-record {
-    animation: record-out 800ms var(--ease-arrive) 220ms backwards;
-}
-
 @keyframes record-out {
     from { transform: translateX(-96px) rotate(-120deg); }
 }
-
 
 /* A screen arrives: rising a little into place as it fades in. The rail stays as it was. Only what's drawn new moves, so a
    screen that redraws in place (a filter, a search) doesn't come in again. */
@@ -10052,7 +8557,6 @@ button.up-artist {
     animation: arrive var(--t-arrive) var(--ease-arrive) 60ms backwards;
 }
 
-
 /* A wait in the shape of what's coming (Waiting.razor): the screen's own rows and cards, empty and faint, in their places, a light
    passing over them from the first to the last the way the light crosses the sheet's paper while it waits. They show after a
    moment, as the paper's wait does, so a screen that's quick never shows them, and the screen's things take their places as
@@ -10103,18 +8607,13 @@ button.up-artist {
     min-height: 44px;
 }
 
-[data-theme="vinyl"] :is(.wait-line, .wait-shape) {
-    border-radius: 0;
-}
-
 @keyframes wait-light {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
 }
 
-
-/* A small wait on a key or a line ("Testing", "Checking", "Exporting", "Asking Claude"), in place of the "…" (Busy.razor): Studio's
-   LCD with three of the meter's segments taking turns; Vinyl's little record turning. */
+/* A small wait on a key or a line ("Testing", "Checking", "Exporting", "Asking Claude"), in place of the "…" (Busy.razor): three
+   segments taking turns. */
 .busy {
     flex: none;
     display: inline-flex;
@@ -10141,41 +8640,12 @@ button.up-artist {
     55%, 100% { opacity: 0.2; }
 }
 
-[data-theme="vinyl"] .busy {
-    position: relative;
-    width: 17px;
-    height: 17px;
-    padding: 0;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle, var(--label) 0 3.6px, transparent 4.2px),
-        repeating-radial-gradient(circle, var(--disc) 0 1.6px, var(--disc-detail) 1.6px 2.2px);
-    animation: opening-turn 1.8s linear infinite;
-}
-
-[data-theme="vinyl"] .busy > i {
-    display: none;
-}
-
-[data-theme="vinyl"] .busy::after {
-    content: "";
-    position: absolute;
-    top: 0.5px;
-    left: 50%;
-    width: 2.5px;
-    height: 4px;
-    margin-left: -1.25px;
-    border-radius: 1px;
-    background: var(--accent);
-}
-
 /* A wait said with its mark: the words beside it, in the line's own type. */
 .busy-line {
     display: inline-flex;
     align-items: center;
     gap: 8px;
 }
-
 
 /* Claude at work (Writing.razor): notes written onto a staff one after another, the newest in the display's bright ink, settling
    as the next comes, the oldest going as the line comes round again, for as long as the answer takes. It says something is
@@ -10235,7 +8705,6 @@ button.up-artist {
     font-variant-numeric: tabular-nums;
 }
 
-
 /* Something counted as it goes (the collection stored, an update downloaded, a PDF's batches read): each segment lights as it's
    reached, and the last one lit breathes while the next is on its way. */
 .mu-meter > span {
@@ -10261,7 +8730,6 @@ button.up-artist {
     height: 6px;
 }
 
-
 /* The keys: a lamp warms up and cools down rather than switching; a key that turns off while a run plays (Options, the metronome)
    dims rather than blinks; a pressed key's colour follows it. */
 .mu-led {
@@ -10277,7 +8745,7 @@ button.up-artist {
     transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
 }
 
-/* What opens from a key comes out of it: a little drop and growth from where it's anchored (Studio), a short slide down (Vinyl). */
+/* What opens from a key comes out of it: a little drop and growth from where it's anchored. */
 @keyframes pop {
     from {
         opacity: 0;
@@ -10301,10 +8769,6 @@ button.up-artist {
 .lb-menu {
     transform-origin: top right;
     animation: pop var(--t-pop) var(--ease-arrive) backwards;
-}
-
-[data-theme="vinyl"] :is(.tempo-pop, .lb-menu) {
-    animation-name: pop-flat;
 }
 
 /* The bar as a run starts and ends: what comes into it (the run's figures and Stop; then the result and Play again) fades in where
@@ -10367,7 +8831,6 @@ button.up-artist {
     animation-duration: 220ms;
 }
 
-
 /* Reading a PDF: the system being read has its lamp breathing; a batch's state has the row's width, so a line with its mark
    doesn't wrap. */
 .pdfread-lamp.now {
@@ -10378,11 +8841,9 @@ button.up-artist {
     grid-column: 2 / -1;
 }
 
-
 /* Android's Remove animations: nothing travels, turns or sweeps. Things still fade in, quicker, and a wait is its shape, still. */
 @media (prefers-reduced-motion: reduce) {
-    :root,
-    [data-theme="vinyl"] {
+    :root {
         --rise: 0px;
         --t-arrive: 120ms;
         --t-step: 0ms;
@@ -10393,9 +8854,6 @@ button.up-artist {
         animation-name: appear;
     }
 
-    [data-opening] :is(.studio-knob .pointer, .vinyl-record),
-    .opening :is(.opening-mark, .opening-record) *,
-    .opening .opening-record,
     :is(.tempo-pop, .lb-menu) {
         animation: none;
     }
@@ -10438,8 +8896,7 @@ button.up-artist {
    and for a list's keys, and one accent for the key to press: red, or the one chosen in Settings (data-accent on <html>). Night
    is the same in near-black layers told apart by hairlines, the paper a shade softer, the chosen tinted in the accent.
 
-   Studio's rules are the starting point (both show Studio's words and pieces, as any look but Vinyl does); what follows quiets
-   them: no keycap shadows, no amber screen, no typewriter capitals, no lamps beside a choice. The rules are under
+   The base layer's rules are the starting point (its words and pieces, first drawn for Studio); what follows quiets them: no keycap shadows, no amber screen, no typewriter capitals, no lamps beside a choice. The rules are under
    html[data-theme^="porcelain"], for the page in either; the colours are tokens on each look's own data-theme, so a choice card
    in Settings wears its own. The fonts ship with the app (fonts/, under the SIL Open Font License).
    --------------------------------------------------------------------------------------------------------------------------- */
@@ -10843,31 +9300,6 @@ html[data-theme^="porcelain"] .control-row .mu-toggle {
     min-width: 88px;
 }
 
-/* The way back: words with a chevron, no key. */
-html[data-theme^="porcelain"] .way-back {
-    min-height: 30px;
-    margin: 0 0 8px -6px;
-    padding: 0 10px 0 6px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ink-muted);
-    box-shadow: none;
-    font-family: var(--font-pc-sans);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-}
-
-html[data-theme^="porcelain"] .way-back::before {
-    width: 7px;
-    height: 7px;
-    border-left-width: 2px;
-    border-bottom-width: 2px;
-    border-color: currentColor;
-}
-
 /* Two- or three-way choices (the mode, Settings' tabs): a white thumb on a grey track. */
 html[data-theme^="porcelain"] :is(.play-mode, .settings-tabs) {
     padding: 3px;
@@ -10942,7 +9374,7 @@ html[data-theme^="porcelain"] .play-mode:not(.play-loop) > .play-mode-option[rol
     transform: translateX(22px);
 }
 
-/* Panels (the play bar, Today's next passage, the reviews): the look's own white card, where Studio had its amber screen. */
+/* Panels (the play bar, Today's next passage, the reviews): the look's own white card, over the base layer's dark screen. */
 html[data-theme^="porcelain"] :is(.mu-screen, .reading-bar, .bar-strip) {
     border-radius: 24px;
     background: var(--screen);
@@ -11301,10 +9733,6 @@ html[data-theme^="porcelain"] .opening-porcelain {
     display: block;
 }
 
-html[data-theme^="porcelain"] .opening-mark {
-    display: none;
-}
-
 .opening-porcelain .card { fill: var(--surface); stroke: var(--seam); stroke-width: 0.8; }
 .opening-porcelain .staff { stroke: var(--ink); stroke-opacity: 0.35; stroke-width: 0.9; fill: none; }
 .opening-porcelain .clef { fill: var(--ink); }
@@ -11350,16 +9778,33 @@ html[data-theme^="porcelain"] .opening-mark {
     min-width: 0;
 }
 
-/* The way back on the name's line, at its left, as the wireframes drew it (the owner, 28 November 2026: "Why is the back button
-   still above the title?"): level with the name's foot, in every look. */
-.page-head > .way-back {
-    flex: none;
-    align-self: flex-end;
+/* The head is one row, as the wireframes drew it (the owner, 28 November 2026: "We had a really cool wireframe. Why are we not
+   just using that?"): the way back, a key as About is; the name with its printed line after it on the same line (under it
+   where the name is long); the keys; all centred on each other. */
+.page-head {
+    align-items: center;
 }
 
-html body .page-head > .way-back {
-    margin-top: 0;
-    margin-bottom: 4px;
+.page-head > .way-back {
+    flex: none;
+    margin: 0;
+}
+
+.page-head-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 16px;
+    row-gap: 0;
+}
+
+.page-head-name > .page-title {
+    margin: 0;
+    min-width: 0;
+}
+
+.page-head-name > .page-kicker {
+    min-width: 0;
 }
 
 /* A search among the head's keys keeps its width, giving way only where the screen is narrow (Settings'). */
@@ -11467,7 +9912,7 @@ html body .page-head > .way-back {
 }
 
 /* Play is the last key of the run's and keeps the row's end: where a row is short of room its words take two lines first ("Loop
-   bars 13–16 from bar 15"), and where it's shorter still (Vinyl's wider rail at 1280 px) Play takes the next row, at its end. */
+   bars 13–16 from bar 15"), and where it's shorter still Play takes the next row, at its end. */
 .play-bar.piece-bar > .play-start {
     flex: 1 1 140px;
     min-width: 140px;

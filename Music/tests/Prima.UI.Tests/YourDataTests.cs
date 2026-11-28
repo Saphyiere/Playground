@@ -142,7 +142,7 @@ public class YourDataTests
         (options.MusicFont, options.SheetSize, options.Lyrics, options.Welcomed) = ("Bravura", 1, false, true);
         (options.SoftVelocity, options.LoudVelocity) = (30, 110);
         await host.Store.SaveAsync(options);
-        looks.Choose(Look.Vinyl);
+        looks.Choose(Look.Night);
         var copy = await sync.CopyAsync(ct: Ct);
         var view = AppAndData(host);
 
@@ -156,7 +156,7 @@ public class YourDataTests
         Assert.Equal(OnTheScreen(new PrimaSettings()), OnTheScreen(options));
         Assert.Null(reset.CalibratedOn);
         Assert.False(reset.Welcomed);
-        Assert.Equal(Look.Studio, looks.Current);
+        Assert.Equal(Look.Porcelain, looks.Current);
         Assert.False((await host.Store.GetSettingsAsync()).ContainsKey("Look"));
         // What's measured elsewhere stays: the touch, from Keyboard check.
         Assert.Equal(((int?)30, (int?)110), (reset.SoftVelocity, reset.LoudVelocity));

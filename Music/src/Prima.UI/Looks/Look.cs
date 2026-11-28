@@ -3,28 +3,23 @@ using System.Globalization;
 namespace Prima.UI.Looks;
 
 /// <summary>
-/// Prima's looks, its own rather than the Kit's. Studio is a music workstation: warm grey, an amber LCD and one orange key.
-/// Vinyl is a record sleeve: deep teal, cream type and mustard. Porcelain is white cards on soft shadows, serif names and
-/// figures, black for what's chosen and an accent colour you choose; Night is Porcelain in the dark, with the same accent. The
-/// page follows <see cref="Id"/> in data-theme (prima.css), and the sheet music stays black on paper in every look.
+/// Prima's looks, its own rather than the Kit's: Porcelain, white cards on soft shadows, serif names and figures, black for
+/// what's chosen and an accent colour you choose; and Night, Porcelain in the dark, with the same accent. The page follows
+/// <see cref="Id"/> in data-theme (prima.css), and the sheet music stays black on paper in both. Studio and Vinyl, the first
+/// two, are gone (the owner, 28 November 2026: "We're only doing porcelain and it's dark mode").
 /// </summary>
 public sealed record Look(string Id, string Name, string Description, bool Dark, string Ground)
 {
-    public static readonly Look Studio = new("studio", "Studio", "A music workstation: warm grey keys, an amber screen and one orange key.", false, "#DCD9D2");
-    public static readonly Look Vinyl = new("vinyl", "Vinyl", "A record sleeve: deep teal, cream type and a mustard needle.", true, "#173B3D");
     public static readonly Look Porcelain = new("porcelain", "Porcelain", "White cards on soft shadows, serif titles, and an accent colour you choose.", false, "#F2F2F2");
     public static readonly Look Night = new("porcelain-night", "Night", "Porcelain in the dark: near-black layers, the paper a shade softer, the same accent.", true, "#101114");
 
-    public static IReadOnlyList<Look> All { get; } = [Studio, Vinyl, Porcelain, Night];
+    public static IReadOnlyList<Look> All { get; } = [Porcelain, Night];
 
-    /// <summary>The look with this id, or Studio for an unknown or missing one.</summary>
-    public static Look FromId(string? id) => All.FirstOrDefault(l => l.Id == id) ?? Studio;
+    /// <summary>The look with this id, or Porcelain for an unknown or missing one (Studio's or Vinyl's, kept from before).</summary>
+    public static Look FromId(string? id) => All.FirstOrDefault(l => l.Id == id) ?? Porcelain;
 
-    /// <summary>Whether its accent is the one chosen in Settings: Porcelain's and Night's are; Studio and Vinyl have their own.</summary>
-    public bool TakesAccent => this == Porcelain || this == Night;
-
-    /// <summary>A day as this look prints it: "Thu 05 Nov" on Studio's panel (and Porcelain's), "Thursday · 5 November" on Vinyl's sleeve.</summary>
-    public string Day(DateOnly day) => day.ToString(Id == Vinyl.Id ? "dddd · d MMMM" : "ddd dd MMM", CultureInfo.InvariantCulture);
+    /// <summary>A day as the looks print it: "Thu 05 Nov".</summary>
+    public string Day(DateOnly day) => day.ToString("ddd dd MMM", CultureInfo.InvariantCulture);
 }
 
 /// <summary>

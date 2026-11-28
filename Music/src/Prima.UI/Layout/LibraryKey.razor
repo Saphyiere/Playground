@@ -4,7 +4,7 @@
 
 @* The rail's Library key, lit anywhere in the Library. From a piece or another screen it goes back to the list as it was left (its
    search, its filter and where it was scrolled to); from one of the Library's lists, to the Library's home. *@
-<a class="mu-nav-item" href="@Href" aria-current="@(InLibrary ? "page" : null)"><span class="mu-nav-code">B1</span><span>Library</span></a>
+<a class="mu-nav-item" href="@Href" aria-current="@(InLibrary ? "page" : null)"><span>Library</span></a>
 
 @code {
     protected override void OnInitialized() => Nav.LocationChanged += Moved;

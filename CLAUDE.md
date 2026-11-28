@@ -34,7 +34,8 @@ storage: never in the repo, a build, an app's settings or SQLite, or the web vie
 
 A change the owner will see is checked rendered before it's done, in both of the app's looks at its devices' sizes, with
 before-and-after screenshots when it shouldn't change anything else. Workout: Logbook and Telemetry at phone width, 390 px.
-Prima (Music): its looks (Porcelain, Night, Studio, Vinyl) on the tablet, landscape 1280 × 800 and portrait 800 × 1280. Only the devices can test the watch
+Prima (Music): Porcelain and Night on the tablet, landscape 1280 × 800 and portrait 800 × 1280, with motion on (the preview's
+headless Chrome asks for reduced motion unless told otherwise, and a rule can hide behind that). Only the devices can test the watch
 or the MIDI keyboard: say what's left for the owner to try.
 
 Each app's screens have a preview host: its real UI as a Blazor Server page, against sample data in a SQLite file. For the
@@ -53,7 +54,7 @@ script doesn't blur a field the way a finger does, so tap a form's Save with `re
 the same way.
 
 Prima's is `Music/tools/Prima.Preview` on http://127.0.0.1:5299, with its scenarios in its Program.cs. Its Library reads the
-music in `Music/library` (kept in the repo, prepared by its tool) and stores it the first time it's opened. Its looks are switched in `settings?tab=look` with `{"tapSel": ".look-option[data-theme=porcelain]"}` (or `porcelain-night`, `studio`, `vinyl`), and Porcelain's accent there by tapping its name (`Blue`). Build it
+music in `Music/library` (kept in the repo, prepared by its tool) and stores it the first time it's opened. Its looks are switched in `settings?tab=look` with `{"tapSel": ".look-option[data-theme=porcelain]"}` (or `porcelain-night`), and Porcelain's accent there by tapping its name (`Blue`). Build it
 with `dotnet build Music/src/Prima.Tablet/Prima.Tablet.csproj`, and test with `dotnet test --project Music/tests/Prima.Core.Tests`.
 
 ## Working alongside other sessions
@@ -74,9 +75,8 @@ panel, mono readouts on rulers), switched in its Settings. They live in [Kit](Ki
 shared pieces in `kit.css`, and the shared components. An app's own screens get their rules in the app's stylesheet, in the Kit's
 tokens. A change to the Kit reaches every app that uses it: check each app's screens, and say so in the commit message.
 
-Prima has its own looks, all in `Music/src/Prima.UI/wwwroot/prima.css`: **Porcelain** (white cards on soft shadows over a light
+Prima has two looks, both in `Music/src/Prima.UI/wwwroot/prima.css`: **Porcelain** (white cards on soft shadows over a light
 grey, Instrument Serif for names and figures, Instrument Sans for words, black for what's chosen, one accent colour chosen in
 Settings, red unless changed) and its dark version **Night** (near-black layers and hairlines, the same accent), at the file's
-end under `html[data-theme^="porcelain"]`; and **Studio** (a music workstation: warm grey, an amber LCD, one orange key) and
-**Vinyl** (a record sleeve: teal, cream, mustard) from its design system. Sheet music is black on paper in every look. It uses
-the Kit only for the way back and the settings store.
+end under `html[data-theme^="porcelain"]`, over the base layer before it. Studio and Vinyl are gone (28 November 2026): add no
+rules for them. Sheet music is black on paper in both. It uses the Kit only for the way back and the settings store.

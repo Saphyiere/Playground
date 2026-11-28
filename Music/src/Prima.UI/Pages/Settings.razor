@@ -227,19 +227,16 @@ else if (!finder.FoundAny)
             }
         </div>
     </Setting>
-    @* Porcelain's and Night's accent: the key to press, where you are, what's lit. Studio and Vinyl have their own. *@
-    @if (Current.TakesAccent)
-    {
-        <Setting Name="Accent" Words="@($"Accent colour color {string.Join(' ', Accent.All.Select(a => a.Name))}")" Note="The key to press, where you are and what's lit, in Porcelain and Night alike.">
-            <div class="control-row">
-                <span class="control-label">Accent</span>
-                @foreach (var accent in Accent.All)
-                {
-                    <button type="button" class="mu-toggle accent-choice" aria-pressed="@On(accent == LookSetting.CurrentAccent)" @onclick="() => LookSetting.ChooseAccent(accent)"><span class="accent-dot" style="--swatch: @accent.Color"></span>@accent.Name</button>
-                }
-            </div>
-        </Setting>
-    }
+    @* The accent both wear: the key to press, where you are, what's lit. *@
+    <Setting Name="Accent" Words="@($"Accent colour color {string.Join(' ', Accent.All.Select(a => a.Name))}")" Note="The key to press, where you are and what's lit, in Porcelain and Night alike.">
+        <div class="control-row">
+            <span class="control-label">Accent</span>
+            @foreach (var accent in Accent.All)
+            {
+                <button type="button" class="mu-toggle accent-choice" aria-pressed="@On(accent == LookSetting.CurrentAccent)" @onclick="() => LookSetting.ChooseAccent(accent)"><span class="accent-dot" style="--swatch: @accent.Color"></span>@accent.Name</button>
+            }
+        </div>
+    </Setting>
 </SettingsSection>
 
 @* The font and the size, with the two bars that show them, are one setting: a search for either shows both, and the music. *@
@@ -520,7 +517,7 @@ else if (!finder.FoundAny)
 </div>
 
 @code {
-    [CascadingParameter] public Look Current { get; set; } = Look.Studio;
+    [CascadingParameter] public Look Current { get; set; } = Look.Porcelain;
 
     /// <summary>The tab open, as the address has it (<see cref="SettingsFinder.Tabs"/>' ids); none, or one there isn't, is the first.</summary>
     [SupplyParameterFromQuery(Name = "tab")] public string? TabInAddress { get; set; }

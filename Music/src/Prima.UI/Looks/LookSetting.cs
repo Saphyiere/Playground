@@ -9,7 +9,7 @@ namespace Prima.UI.Looks;
 /// </summary>
 public class LookSetting(ISettingStore store)
 {
-    /// <summary>The look's setting in the data file, which Reset settings takes back to none (Studio).</summary>
+    /// <summary>The look's setting in the data file, which Reset settings takes back to none (Porcelain).</summary>
     internal const string Key = "Look";
 
     /// <summary>The accent's, which Reset settings takes back to none (red).</summary>
@@ -17,7 +17,7 @@ public class LookSetting(ISettingStore store)
 
     private Task? loading;
 
-    public Look Current { get; private set; } = Look.Studio;
+    public Look Current { get; private set; } = Look.Porcelain;
 
     /// <summary>The accent Porcelain and Night wear.</summary>
     public Accent CurrentAccent { get; private set; } = Accent.Red;

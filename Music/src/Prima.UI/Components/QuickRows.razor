@@ -1,7 +1,7 @@
 @using Prima.Core.Practice
 @*
-    After a run: a row for each kind of mistake, wrong notes and off the beat, each named with its total, and in it a column a bar
-    with its count over it; flat where the bar was clean, hatched where the run didn't play it. Under them the bars' numbers, the
+    After a run: a row for each kind of mistake, wrong notes and off the beat (that one only when there was any), each named with
+    its total, and in it a column a bar with its count over it; flat where the bar was clean, hatched where the run didn't play it. Under them the bars' numbers, the
     ones the words name picked out. A long piece's columns are narrow: their counts show over the bars named, and its numbers go
     every five.
 *@
@@ -9,6 +9,9 @@
     @foreach (var notes in new[] { true, false })
     {
         var total = Bars.OfType<BarCount>().Sum(b => notes ? b.Notes : b.Beat);
+        // Nothing off the beat (or nothing timed, in Wait for me): no row for it, which saves the room. The owner, 28 November
+        // 2026: "you can hide the offbeat if there's no offbeat data, so we could save a little room".
+        if (!notes && (total == 0 || !Timed)) continue;
         var kind = notes ? "qr-kind-notes" : "qr-kind-beat";
         <span class="qr-key @kind">
             <span class="qr-name"><i aria-hidden="true"></i>@(notes ? "Wrong notes" : "Off the beat")</span>

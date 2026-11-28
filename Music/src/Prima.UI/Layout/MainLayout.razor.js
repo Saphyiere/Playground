@@ -19,6 +19,6 @@ export function showLook(id, accent) {
         localStorage.setItem("look", id);
         localStorage.setItem("accent", accent ?? "red");
     } catch {
-        // No storage: the next start shows Studio until the saved look loads.
+        // No storage: the next start shows Porcelain until the saved look loads.
     }
 }

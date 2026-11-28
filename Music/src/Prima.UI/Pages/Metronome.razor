@@ -9,7 +9,7 @@
 
 <section class="mu-screen metro-screen" aria-label="Metronome">
     <div class="mu-screen-head"><span>Tempo</span><span>@meter.Name · @StageName(stage)</span></div>
-    <p class="metro-tempo"><span class="metro-bpm">@bpm.ToString(Look.Id == "vinyl" ? "0" : "000", CultureInfo.InvariantCulture)</span><span class="metro-unit">BPM</span></p>
+    <p class="metro-tempo"><span class="metro-bpm">@bpm.ToString("000", CultureInfo.InvariantCulture)</span><span class="metro-unit">BPM</span></p>
     <div class="metro-beats" aria-hidden="true">
         @for (var i = 0; i < meter.Beats; i++)
         {
@@ -82,7 +82,7 @@
     // 6/8 counts two dotted-quarter beats a bar.
     private static readonly MeterChoice[] Meters = [new("2/4", 2), new("3/4", 3), new("4/4", 4), new("6/8", 2)];
 
-    [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+    [CascadingParameter] public Look Look { get; set; } = Look.Porcelain;
 
     private int bpm = 72;
     private MeterChoice meter = Meters[2];

@@ -5,10 +5,9 @@ using Prima.UI.Storage;
 namespace Prima.Tablet;
 
 /// <summary>
-/// Dresses the tablet around the page for the look: the status and navigation bar icons (dark on Studio and Porcelain, light on
-/// Vinyl and Night), the background shown while the page loads, and Android's splash at the next start (Vinyl's record on teal,
-/// Porcelain's and Night's card with a staff; Studio's is the app's own). The look's id is also kept in Preferences, which the
-/// next start can read before the app's own settings are open.
+/// Dresses the tablet around the page for the look: the status and navigation bar icons (dark on Porcelain, light on Night), the
+/// background shown while the page loads, and Android's splash at the next start (Porcelain's or Night's card with a staff). The
+/// look's id is also kept in Preferences, which the next start can read before the app's own settings are open.
 /// </summary>
 public sealed class TabletLookSetting(PrimaStore store) : LookSetting(store)
 {
@@ -36,14 +35,11 @@ public sealed class TabletLookSetting(PrimaStore store) : LookSetting(store)
         });
     }
 
-    // Android keeps the splash chosen here for every start after this one (from Android 13); none chosen is the app's own.
+    // Android keeps the splash chosen here for every start after this one (from Android 13); before one's chosen, the app's own.
     private static void ChooseSplash(Look look)
     {
         if (!OperatingSystem.IsAndroidVersionAtLeast(33) || Platform.CurrentActivity is not { } activity) return;
-        var splash = look == Look.Vinyl ? Resource.Style.Prima_Splash_Vinyl
-            : look == Look.Porcelain ? Resource.Style.Prima_Splash_Porcelain
-            : look == Look.Night ? Resource.Style.Prima_Splash_Night
-            : Android.Content.Res.Resources.IdNull;
+        var splash = look == Look.Night ? Resource.Style.Prima_Splash_Night : Resource.Style.Prima_Splash_Porcelain;
         try
         {
             activity.SplashScreen.SetSplashScreenTheme(splash);

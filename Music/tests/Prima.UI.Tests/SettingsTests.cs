@@ -156,8 +156,10 @@ public class SettingsTests
         static string Pressed(IRenderedComponent<Settings> view, string name) =>
             view.FindAll(".accent-choice").Single(b => b.TextContent.Trim() == name).GetAttribute("aria-pressed") ?? "";
 
-        var studio = host.Context.Render<Settings>(p => p.AddCascadingValue(Look.Studio));
-        Assert.Empty(studio.FindAll(".accent-choice"));
+        // Porcelain and Night are the only looks (28 November 2026), each choice drawn in its own.
+        Assert.Equal([Look.Porcelain, Look.Night], Look.All);
+        Assert.Equal(Look.Porcelain, Look.FromId("studio"));
+        Assert.Equal(Look.Porcelain, Look.FromId("vinyl"));
 
         var porcelain = host.Context.Render<Settings>(p => p.AddCascadingValue(Look.Porcelain));
         Assert.Equal(Accent.All.Select(a => a.Name), porcelain.FindAll(".accent-choice").Select(b => b.TextContent.Trim()));
@@ -363,7 +365,7 @@ public class SettingsTests
         // The settings, the look among them.
         (options.Name, options.CountInBars, options.Welcomed) = ("Ana", 2, true);
         await host.Store.SaveAsync(options);
-        host.Context.Services.GetRequiredService<LookSetting>().Choose(Look.Vinyl);
+        host.Context.Services.GetRequiredService<LookSetting>().Choose(Look.Night);
         // The playing: levels and tracks, a note card and its answer, a passage, a practice day, a routine followed today and a
         // request, a sight-reading passage from the piece read, a session on the piece yesterday whose run left something to do
         // next, and the piece's place, tempo and hand.
@@ -421,7 +423,7 @@ public class SettingsTests
         Assert.False(saved.ContainsKey($"Library.Hands.{piece.Id}"));
         // The settings and the Library are as they were.
         Assert.Equal("pages", saved[$"Library.View.{piece.Id}"]);
-        Assert.Equal("vinyl", saved["Look"]);
+        Assert.Equal("porcelain-night", saved["Look"]);
         var settings = new PrimaSettings();
         await host.Store.LoadAsync(settings);
         Assert.Equal(("Ana", 2, true), (settings.Name, settings.CountInBars, settings.Welcomed));

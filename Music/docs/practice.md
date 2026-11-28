@@ -78,8 +78,8 @@ say is on the chart under them. Everything below is a pick *(pick)*, its thresho
 
 - **Two kinds of mistake**, everywhere: **wrong notes** (wrong, missed, or a wrong key put right at once; in Wait for me a
   chord a key at a time too) and **off the beat** (a right note more than a tenth of a beat early or late, once your lean is
-  taken out; In time only). Wrong notes are the chart's red; off the beat its second colour (Studio's yellow, Vinyl's
-  mustard), so the two differ by more than their place. A bar not played is hatched on every chart. Notes let go early,
+  taken out; In time only). Wrong notes are the chart's red; off the beat its second colour, so the two differ by more
+  than their place. A bar not played is hatched on every chart. Notes let go early,
   touch and pedal stay in Details. Tempos are metronome marks (♩ 69): a cold reader took a bare "69" on a key for a score.
 - **After a run** (a piece's, under the music; not a loop): one box. In its left column the figure, **Correct and on time**,
   with the run before's under it ("previous run 92%"; after a stop, the bars it counts); then one sentence and the keys; under

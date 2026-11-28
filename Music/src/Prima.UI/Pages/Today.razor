@@ -13,29 +13,20 @@
 
 <PageTitle>Prima</PageTitle>
 
-<PageHead Title="Today" Kicker="@($"{Look.Day(Day0)} · {(Settings.Name is { Length: > 0 } name ? name : "practice")}")" Class="today-head" NameClass="mu-studio-only">
+<PageHead Title="Today" Kicker="@($"{Look.Day(Day0)} · {(Settings.Name is { Length: > 0 } name ? name : "practice")}")" Class="today-head">
     <a class="mu-btn" href="history">Practice history</a>
     <KeyboardLamp Class="today-lamp" />
 </PageHead>
 
 <div class="today-hero">
     <div class="today-art">
-        <div class="studio-knob mu-studio-only">
+        <div class="studio-knob">
             <svg viewBox="0 0 128 128" width="120" height="120" role="img" aria-label="@($"Tempo knob at {reading?.Tempo ?? 60:0} beats a minute")"><path class="tick" d="M64 4V12M106.4 21.6L100.8 27.2M124 64H116M21.6 21.6L27.2 27.2M4 64H12M21.6 106.4L27.2 100.8M106.4 106.4L100.8 100.8"></path><circle class="body" cx="64" cy="64" r="46"></circle><circle class="cap" cx="64" cy="64" r="38"></circle><path class="pointer" d="@KnobPointer()"></path></svg>
             <div class="studio-knob-text"><p class="studio-print">Tempo</p><p class="studio-tempo">@((reading?.Tempo ?? 60).ToString("000", CultureInfo.InvariantCulture))</p><p class="studio-print">Level @(reading?.Level ?? 1)</p></div>
         </div>
-        <div class="vinyl-art mu-vinyl-only">
-            <svg class="vinyl-record" viewBox="0 0 300 300" width="300" height="300" aria-hidden="true"><circle class="disc" cx="150" cy="150" r="148"></circle><circle class="groove" cx="150" cy="150" r="138"></circle><circle class="groove" cx="150" cy="150" r="124"></circle><circle class="groove" cx="150" cy="150" r="110"></circle><circle class="groove" cx="150" cy="150" r="96"></circle><circle class="groove" cx="150" cy="150" r="82"></circle><circle class="groove" cx="150" cy="150" r="68"></circle><path class="arc" d="@RecordArc()"></path><circle class="label" cx="150" cy="150" r="50"></circle><circle class="hole" cx="150" cy="150" r="4"></circle></svg>
-            <div class="vinyl-sleeve">
-                <svg class="art" viewBox="0 0 300 300" width="300" height="300" aria-hidden="true"><circle class="art-1" cx="232" cy="304" r="100"></circle><path class="art-2" d="M0 300V212A88 88 0 0 1 88 300Z"></path></svg>
-                <p class="date">@Look.Day(Day0)</p>
-                <h1>Today</h1>
-                <p class="line">@SleeveLine()</p>
-            </div>
-        </div>
         <div class="today-controls">
             <div class="home-group">
-                <p class="mu-meter-head"><span>Week · @($"{streak?.MinutesThisWeek ?? 0:0}")/@(Settings.DailyMinutes * 7) min</span><span><span class="mu-studio-only">Streak @((streak?.Days ?? 0).ToString("00", CultureInfo.InvariantCulture))</span><span class="mu-vinyl-only">@(streak?.Days ?? 0) days in a row</span></span></p>
+                <p class="mu-meter-head"><span>Week · @($"{streak?.MinutesThisWeek ?? 0:0}")/@(Settings.DailyMinutes * 7) min</span><span>Streak @((streak?.Days ?? 0).ToString("00", CultureInfo.InvariantCulture))</span></p>
                 <div class="mu-meter" role="img" aria-label="@($"{streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week")">
                     @for (var i = 0; i < 14; i++)
                     {
@@ -77,7 +68,7 @@
     else
     {
     <section class="mu-screen today-screen" aria-label="Up next">
-        <div class="mu-screen-head"><span><span class="mu-studio-only">Sight-read ▸ up next</span><span class="mu-vinyl-only">Up next</span></span><span>@NextPassage?.Description</span></div>
+        <div class="mu-screen-head"><span>Sight-read ▸ up next</span><span>@NextPassage?.Description</span></div>
         @if (NextPassage is not null)
         {
             <Sheet Mei="@nextMei" Measures="@nextMeasures" Scale="0.8" Class="today-sheet" />
@@ -101,7 +92,7 @@
             var step = plan.Steps[i];
             var state = Done(step.Kind) ? "done" : step == NextStep ? "now" : null;
             <a class="mu-step" href="@StepHref(step)" data-state="@state" @onclick="() => Clicked(step)" @onclick:preventDefault="step.Kind == StepKind.Pause">
-                <span class="mu-step-meta"><span class="mu-led"></span><span>@((i + 1).ToString("00", CultureInfo.InvariantCulture)) · <span class="mu-studio-only">@(step.Minutes)′</span><span class="mu-vinyl-only">@(step.Minutes):00</span></span><span class="mu-step-mark" aria-hidden="true"></span></span>
+                <span class="mu-step-meta"><span class="mu-led"></span><span>@((i + 1).ToString("00", CultureInfo.InvariantCulture)) · @(step.Minutes)′</span><span class="mu-step-mark" aria-hidden="true"></span></span>
                 <span class="mu-step-name">@step.Name</span>
                 <span class="today-step-detail">@(pausing && step.Kind == StepKind.Pause ? $"{pauseLeft} s: stand up, shake out your hands, look away" : step.Detail)</span>
             </a>
@@ -146,7 +137,7 @@
 }
 
 @code {
-    [CascadingParameter] public Look Look { get; set; } = Look.Studio;
+    [CascadingParameter] public Look Look { get; set; } = Look.Porcelain;
 
     // The repertoire's pieces played last, as Today shows them.
     private List<(PieceRecord Piece, PieceRun? Last)> kept = [];
@@ -286,7 +277,6 @@
 
     private string StreakWords() => streak?.LastPracticed is null ? "Your practice time appears here." : $"{streak.DaysThisWeek} of the last 7 days. {(streak?.FreezesBanked ?? 0) switch { 0 => "No freezes banked yet: one comes every 7 practiced days.", 1 => "One freeze banked for a missed day.", var n => $"{n} freezes banked for missed days." }}";
 
-    private string SleeveLine() => streak?.LastPracticed is null ? $"Daily goal · {Settings.DailyMinutes} min" : streak.BreakNote(Day0) ?? $"{streak.Days} {(streak.Days == 1 ? "day" : "days")} in a row. {streak?.MinutesThisWeek ?? 0:0} of {Settings.DailyMinutes * 7} minutes this week.";
 
     private string KnobPointer()
     {
@@ -296,17 +286,6 @@
         return FormattableString.Invariant($"M64 64L{64 + 34 * Math.Cos(angle):0.#} {64 - 34 * Math.Sin(angle):0.#}");
     }
 
-    // The record's arc: how much of today's plan is done.
-    private string RecordArc()
-    {
-        var share = plan is null ? 0 : plan.Steps.Count(s => Done(s.Kind)) / (double)plan.Steps.Count;
-        // An arc that ends where it starts draws nothing, so the whole day done is two halves.
-        if (share >= 1) return "M150 5A145 145 0 1 1 150 295A145 145 0 1 1 150 5";
-
-        var angle = Math.Max(0.02, share) * 2 * Math.PI;
-        var (x, y) = (150 + 145 * Math.Sin(angle), 150 - 145 * Math.Cos(angle));
-        return FormattableString.Invariant($"M150 5A145 145 0 {(angle > Math.PI ? 1 : 0)} 1 {x:0.#} {y:0.#}");
-    }
 
     private string DaySummary()
     {
