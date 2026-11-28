@@ -9965,8 +9965,13 @@ html[data-theme^="porcelain"] .opening-porcelain {
     margin: 0;
 }
 
+/* Done stays in sight at the panel's foot while its groups scroll above it. */
 .play-more .change-panel-end {
     grid-column: 1 / -1;
+    position: sticky;
+    bottom: 0;
+    padding-top: 10px;
+    background: inherit;
 }
 
 .play-more .control-row {
