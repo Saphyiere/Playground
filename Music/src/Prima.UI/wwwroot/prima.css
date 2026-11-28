@@ -1797,6 +1797,26 @@ a.mu-btn {
     box-shadow: 0 0 10px var(--meter-on);
 }
 
+/* Clean times round in a row (Lock in's spot, a loop of yours with Lock in): a dot each, lit as they come, all put out by a slip.
+   The count-in's colours, a row of the readout's own height. */
+.play-streak-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 1lh;
+}
+
+.play-streak-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--meter-off);
+}
+
+.play-streak-dot.on {
+    background: var(--meter-on);
+}
+
 .summary {
     display: flex;
     flex-direction: column;
@@ -2255,6 +2275,17 @@ html[data-theme="porcelain-night"] :is(.qr, .look-back) {
     margin: 0;
     font: var(--sum-words);
     color: var(--on-screen-muted);
+}
+
+/* The spots locked in, a line each under the session's words. */
+.qs-locks {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font: var(--sum-words);
+    color: var(--on-screen);
 }
 
 .qs-switches {

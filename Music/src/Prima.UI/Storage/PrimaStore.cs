@@ -52,6 +52,8 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     private const string PassFigureKey = "Practice.PassFigure";
     private const string PassWaitsKey = "Practice.PassWaits";
     private const string RunAgainKey = "Practice.RunAgain";
+    private const string LockCleanKey = "Practice.LockClean";
+    private const string SlipTimingKey = "Practice.SlipTiming";
 
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true }.ToString();
     private readonly Lock laneGate = new();
@@ -102,6 +104,8 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
         settings.PassFigure = saved.GetValueOrDefault(PassFigureKey) != "false";
         settings.PassWaits = saved.GetValueOrDefault(PassWaitsKey) == "true";
         settings.RunAgain = saved.GetValueOrDefault(RunAgainKey) == "true";
+        settings.LockClean = (int?)Number(LockCleanKey) is { } clean && Prima.Core.Practice.Slips.InARow.Contains(clean) ? clean : defaults.LockClean;
+        settings.SlipTiming = saved.GetValueOrDefault(SlipTimingKey) == "true";
     }
 
     /// <summary>
@@ -115,7 +119,7 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
     {
         keys = new[]
         {
-            NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey,
+            NameKey, MinutesKey, CueKey, ClefsKey, CountInKey, LookKey, CursorKey, LiveMarksKey, AfterRunKey, PassFigureKey, PassWaitsKey, RunAgainKey, LetterNamesKey, LockCleanKey, SlipTimingKey,
             SendToPianoKey, PianoButtonsKey, OffsetKey, SpreadKey, CalibratedKey, ClickOnPianoKey, ClickSoundKey, PianoClickKey, ClickVolumeKey,
             LookSetting.Key, LookSetting.AccentKey, MusicFontKey, SheetSizeKey, LyricsKey, WelcomedKey,
         },
@@ -156,6 +160,8 @@ public sealed partial class PrimaStore(string databasePath) : ISettingStore
             (PassFigureKey, settings.PassFigure ? "true" : "false"),
             (PassWaitsKey, settings.PassWaits ? "true" : "false"),
             (RunAgainKey, settings.RunAgain ? "true" : "false"),
+            (LockCleanKey, settings.LockClean.ToString(CultureInfo.InvariantCulture)),
+            (SlipTimingKey, settings.SlipTiming ? "true" : "false"),
         ];
         await using var transaction = (SqliteTransaction)await c.BeginTransactionAsync();
         foreach (var (key, value) in values)

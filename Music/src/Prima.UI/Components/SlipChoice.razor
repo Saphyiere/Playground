@@ -1,10 +1,14 @@
+@inject PrimaSettings Settings
+@inject PrimaStore Store
 @using Prima.Core.Practice
 
 @*
     When I slip, in a piece's More: what a wrong or missed note does to a run In time, kept for the piece. Keep going plays on
     through it, as a run always has; Back a bar stops the click and, a moment later, counts you in from the bar before, inside a
-    loop if one is set. The owner, 28 November 2026: "90% of the time you're going to want to go one bar back and redo that … if
-    I make a mistake, stop it, count me in again".
+    loop if one is set; Lock in stops it the same way, then goes round that bar with one either side until it's clean so many
+    times in a row (3, 5 or 7, the same for every piece), and on. Timing too, for Lock in, has a note off the beat spoil a time
+    round (never stop one). The owner, 28 November 2026: "if I make a mistake, stop it, count me in again … you have to play
+    through that loop 7 times in a row until you get it perfect. And then it continues playing".
 *@
 <div class="more-group slip-choice" role="group" aria-label="When I slip">
     <h3 class="more-head">When I slip</h3>
@@ -14,6 +18,17 @@
             <button type="button" class="mu-toggle" data-piano="off" data-slip="@key" aria-pressed="@On(Way == way)" @onclick="() => WayChanged.InvokeAsync(way)"><span class="mu-led"></span>@name</button>
         }
     </div>
+    @if (Way == SlipWay.LockIn)
+    {
+        <div class="control-row">
+            <span class="control-label">In a row</span>
+            @foreach (var times in Slips.InARow)
+            {
+                <button type="button" class="mu-toggle" data-piano="off" data-clean="@times" aria-pressed="@On(Settings.LockClean == times)" @onclick="() => Save(() => Settings.LockClean = times)"><span class="mu-led"></span>@times</button>
+            }
+        </div>
+        <SettingSwitch Label="Timing too" Value="Settings.SlipTiming" Changed="on => Save(() => Settings.SlipTiming = on)" />
+    }
     <p class="section-note">@Note</p>
 </div>
 
@@ -23,13 +38,21 @@
 
     [Parameter] public EventCallback<SlipWay> WayChanged { get; set; }
 
-    private static readonly (SlipWay Way, string Name, string Key)[] Ways = [(SlipWay.KeepGoing, "Keep going", "keep"), (SlipWay.BackABar, "Back a bar", "back")];
+    private static readonly (SlipWay Way, string Name, string Key)[] Ways = [(SlipWay.KeepGoing, "Keep going", "keep"), (SlipWay.BackABar, "Back a bar", "back"), (SlipWay.LockIn, "Lock in", "lock")];
 
     private static string On(bool on) => on ? "true" : "false";
 
     private string Note => Way switch
     {
         SlipWay.BackABar => "Timed, a wrong or missed note stops the click, and a moment later it counts you in from the bar before: inside your loop, if one's set.",
+        SlipWay.LockIn => $"Timed, a wrong or missed note stops the click, and that bar with one either side goes round until it's clean {Settings.LockClean} times in a row; then on. Two slips in a row go a notch slower; after ten it's let go. Your own loop stays your loop, and ends at {Settings.LockClean} clean in a row.{(Settings.SlipTiming ? " A note off the beat spoils a time round too." : "")}",
         _ => "Timed, a wrong or missed note is played through.",
     };
+
+    // Kept for every piece.
+    private Task Save(Action change)
+    {
+        change();
+        return Store.SaveAsync(Settings);
+    }
 }

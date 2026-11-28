@@ -474,8 +474,18 @@ a PDF plays out; this is what came of it.
   leaves its mark on the music whatever the marks are set to, and a second later counts in from the bar before, inside the
   loop if one is set. It's the same go: what was played up to each slip is kept with the rest as one run from where it
   started, each note showing the worst it was played, so the review and the look back see the slip where it was, and the
-  piece's own start bar doesn't move. Stop in the second after a slip ends the go there. Wait for me has no click to stop, and
-  plays through. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  piece's own start bar doesn't move. Stop in the second after a slip ends the go there. **Lock in** stops it the same way, then
+  counts in on the slip's bar with one either side (never outside your loop), which goes round until it's played clean so many
+  times in a row (**In a row**: 3, 5 or 7, the same for every piece; 7 to start with), a dot each on the bar lit as they come and
+  all put out by a slip, which counts in on the spot's first bar again. Two spoiled times round in a row take it a notch slower;
+  after ten spoiled it's let go (a line over the bar's end says so each time), and the run goes on from the bar after it. At the
+  number, it counts in from the spot's first bar and plays on at your own tempo. The spot is kept as a loop of its own, every
+  time round in it (those a slip cut short too) and how it ended; the go round it is one run as with Back a bar. Your own loop,
+  no bigger than a spot, is the spot; a bigger one has its spots inside it and goes on round itself after each, and it's
+  counted too: at the number clean in a row it ends, its review saying **Locked in: 7 clean in a row at ♩ 76**, with **A notch
+  faster** (the loop again, a notch up) and **Play on** (the loop off, from its first bar). With **Timing too** a note off the
+  beat spoils a time round (it never stops one). A tap on a bar or ‹ Bar leaves a spot as it was. Wait for me has no click to
+  stop, and plays through. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as
@@ -1024,7 +1034,9 @@ legend alone and the chart").
   with wrong notes and timing, bar 21 with wrong notes"), and a switch: **Where it went wrong**, a row for each run through the
   piece with each bar's count of one kind (**Notes** or **Timing**), or **Over time**, each run and each time round a loop in
   order, as high as it went correct and on time. **Next** loops the first place a notch under the tempo you ended at, with
-  **Practice it**.
+  **Practice it**, which counts the loop to two clean times round in a row (two dots on the bar) and ends it there, saying
+  "Done: 2 clean in a row", with A notch faster and Play on. A line for each spot Lock in went round says how it ended ("Bars
+  8–10: 7 clean in a row at ♩ 72, after 3 that went wrong").
 
 The rules (`QuickReview` in Prima.Core, tested sentence by sentence) and the research behind them are in
 [practice.md](practice.md).

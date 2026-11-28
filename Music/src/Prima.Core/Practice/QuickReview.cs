@@ -134,6 +134,12 @@ public sealed record QuickSession(string Head, IReadOnlyList<SessionPlace> Place
 
     /// <summary>The bars it names, to pick out on the heat map.</summary>
     public IReadOnlyList<int> Named => [.. Places.SelectMany(p => Enumerable.Range(p.From, p.To - p.From + 1))];
+
+    /// <summary>
+    /// Each spot Lock in went round, and each loop counted to its clean times round in a row (your own with Lock in, Practice it),
+    /// in the order played, in words: "Bars 8–10: 7 clean in a row at ♩ 72, after 3 that went wrong."
+    /// </summary>
+    public IReadOnlyList<Sentence> Locks { get; init; } = [];
 }
 
 /// <summary>
@@ -351,7 +357,8 @@ public static class QuickReview
     /// </summary>
     public static QuickSession Session(IEnumerable<PieceRun> runs, PieceShape shape)
     {
-        var units = Played.Of(runs, shape.LastBar);
+        var all = runs.ToList();
+        var units = Played.Of(all, shape.LastBar);
         var (firstBar, lastBar) = (shape.FirstBar, shape.LastBar);
         var throughs = units.Where(u => u.Run.Passes.Count == 0).ToList();
         var loops = units.Where(u => u.Run.Passes.Count > 0).Select(u => u.Run).Distinct().Count();
@@ -488,11 +495,37 @@ public static class QuickReview
         }
 
         return new(head, named, cameRight, w.Done(), sub.Length == 0 ? null : sub, firstBar, rows, groups, throughs.Count, loops,
-            units.Any(u => !u.InTime), nw.Done()) { NextLoop = nextLoop, NextTempo = nextTempo };
+            units.Any(u => !u.InTime), nw.Done())
+        {
+            NextLoop = nextLoop, NextTempo = nextTempo,
+            Locks = [.. all.Where(r => r.Lock is not null && r.To is not null).OrderBy(r => r.At).ThenBy(r => r.Id).Select(LockLine)],
+        };
+    }
+
+    // A spot Lock in went round, or a loop counted to its clean times round in a row: its bars, how many in a row and at what
+    // tempo, and how it ended: done (after how many that went wrong), let go, or stopped short of it.
+    private static Sentence LockLine(PieceRun run)
+    {
+        var locked = run.Lock!;
+        var wrong = run.Passes.Count(p => p.Right < p.Notes || p.Trouble.Any(t => t.NotRight > 0));
+        var inARow = run.Passes.Reverse().TakeWhile(p => p.Right == p.Notes && p.Trouble.All(t => t.NotRight == 0)).Count();
+        var at = run.Tempo is { } tempo ? $" at {Mark(tempo)}" : "";
+        var w = new Words().Place(BarWords.Capital(BarWords.Bars(run.From, run.To!.Value)));
+        if (locked.Done) w.Plain($": {locked.Needed} clean in a row{at}, {(wrong == 0 ? "none going wrong" : $"after {wrong} that went wrong")}.");
+        else if (locked.LetGo) w.Plain($" let go after {wrong} times round that went wrong{at}: still to fix.");
+        else w.Plain($": {Math.Min(inARow, locked.Needed)} clean in a row of {locked.Needed}{at} when you stopped.");
+        return w.Done();
     }
 
     /// <summary>A tempo as a metronome mark, so it isn't taken for a score: "♩ 69".</summary>
     public static string Mark(double tempo) => $"♩ {BarWords.Tempo(tempo)}";
+
+    /// <summary>
+    /// A loop counted to its clean times round in a row, in words: Lock in's "Locked in: 7 clean in a row at ♩ 76.", Practice it's
+    /// "Done: 2 clean in a row at ♩ 63.".
+    /// </summary>
+    public static Sentence Locked(int inARow, double? tempo, string lead = "Locked in") =>
+        new Words().Place(lead).Plain($": {inARow} clean in a row{(tempo is { } at ? $" at {Mark(at)}" : "")}.").Done();
 
     private static string Nth(int n) => $"{n}{(n % 100 is >= 11 and <= 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" })}";
 

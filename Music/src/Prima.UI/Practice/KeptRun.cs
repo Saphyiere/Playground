@@ -23,9 +23,11 @@ public static class KeptRun
     /// <param name="barOf">Each written note's bar, by its id on the sheet, for Wait for me's marks.</param>
     /// <param name="took">The seconds it took, its count-in too.</param>
     /// <param name="key">The key it was played in, from the one it's written in, and that key's name: none as written.</param>
+    /// <param name="locked">A loop counted to its clean times round in a row (Lock in on your loop, Practice it): how many, and how it ended.</param>
     public static string Measures(PlayOutcome how, int from, string hands, long? session, bool play, IReadOnlyDictionary<string, int> barOf, double? took = null,
-        (Transposition By, string Name)? key = null)
+        (Transposition By, string Name)? key = null, RunLock? locked = null)
     {
+        var lockIn = locked is null ? null : new { needed = locked.Needed, ended = locked.Ended };
         // Round a loop, its last bar and each pass, and the run's figures are its last pass's.
         var (to, passes) = (how.Loop?.To, how.Loop is null ? null : how.Passes.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime, seconds = p.Seconds is { } s ? Math.Round(s, 1) : (double?)null, trouble = Rows(p.Trouble) }));
         took = took is { } seconds ? Math.Round(seconds, 1) : null;
@@ -38,8 +40,27 @@ public static class KeptRun
         if (key is { } moved && moved.By.Moves) (transposed, keyName) = ([moved.By.Steps, moved.By.Semitones], moved.Name);
         object measures = how.InTime is { } r
             ? new { inTime = r.InTimeAccuracy, right = r.Right, wrong = r.Wrong, missed = r.Missed, extra = r.Extra, keptGoing = r.KeptGoing, holds = r.HoldsJudged, letGoEarly = r.LetGoEarly, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took,
-                timing = new[] { Math.Round(r.LeanMs, 1), Math.Round(r.SteadinessPercent, 1) }, marked = Marked(r), trouble, marks, transposed, key = keyName }
-            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took, trouble, marks, transposed, key = keyName };
+                timing = new[] { Math.Round(r.LeanMs, 1), Math.Round(r.SteadinessPercent, 1) }, marked = Marked(r), trouble, marks, transposed, key = keyName, lockIn }
+            : new { rightFirstTime = how.Wait!.RightFirstTime, notes = how.Wait.Notes, wrongKeys = how.Wait.WrongKeys, apart = how.Wait.Apart, seconds = how.Wait.Seconds, from, to, passes, stopped = how.Stopped, bar = how.Bar, hands, session, play = fromPlay, took, trouble, marks, transposed, key = keyName, lockIn };
+        return JsonSerializer.Serialize(measures);
+    }
+
+    /// <summary>
+    /// A spot Lock in went round, as its attempt keeps it: a loop on its bars, with every time round in order (those a slip cut
+    /// short too), its figures its last time round's, and how it ended (<see cref="RunLock"/>).
+    /// </summary>
+    public static string Lock(IReadOnlyList<PiecePass> tries, (int From, int To) spot, string hands, long? session, double took, RunLock locked,
+        (Transposition By, string Name)? key = null)
+    {
+        var last = tries[^1];
+        var moved = key is { By.Moves: true } k ? k : ((Transposition By, string Name)?)null;
+        var measures = new
+        {
+            inTime = last.RightInTime, right = last.Right, wrong = last.Trouble.Sum(t => t.Wrong + t.Slips), missed = last.Trouble.Sum(t => t.Missed), extra = last.Extra,
+            from = spot.From, to = spot.To, passes = tries.Select(p => new { right = p.Right, notes = p.Notes, inTime = p.RightInTime, trouble = Rows(p.Trouble) }),
+            stopped = true, bar = spot.To, hands, session, took = Math.Round(took, 1), trouble = Rows(last.Trouble),
+            transposed = moved is { } m ? new[] { m.By.Steps, m.By.Semitones } : null, key = moved?.Name, lockIn = new { needed = locked.Needed, ended = locked.Ended },
+        };
         return JsonSerializer.Serialize(measures);
     }
 

@@ -28,6 +28,12 @@ public sealed record PieceRun(DateTimeOffset At, DateOnly Day, bool InTime, doub
     /// </summary>
     public IReadOnlyList<PiecePass> Passes { get; init; } = [];
 
+    /// <summary>
+    /// A loop counted to a number of clean times round in a row: a spot Lock in went round (its times round then include those a
+    /// slip cut short), a loop of yours with Lock in, or Practice it's. None for any other run.
+    /// </summary>
+    public RunLock? Lock { get; init; }
+
     /// <summary>The piece from its start to its end: not from a later bar, round a loop, or stopped on the way.</summary>
     public bool Through => From <= 1 && !Stopped && To is null;
 
@@ -54,6 +60,17 @@ public sealed record PieceRun(DateTimeOffset At, DateOnly Day, bool InTime, doub
 
     /// <summary>That key's name, as it was named when played ("D major"); none as written.</summary>
     public string? KeyName { get; init; }
+}
+
+/// <summary>
+/// How a loop counted to its clean times round in a row went: the number asked for, and how it ended: "done" (that many in a
+/// row), "let go" (a spot spoiled too often to keep you there) or "stopped" (before either).
+/// </summary>
+public sealed record RunLock(int Needed, string Ended)
+{
+    public bool Done => Ended == "done";
+
+    public bool LetGo => Ended == "let go";
 }
 
 /// <summary>One time round a loop: the notes right (right first time, in Wait for me) of its notes, and In time the share right and in time.</summary>

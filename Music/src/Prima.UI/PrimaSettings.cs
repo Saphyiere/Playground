@@ -109,6 +109,12 @@ public sealed class PrimaSettings
     /// <summary>Whether a run in Practice that comes to its end goes again by itself, after its count-in.</summary>
     public bool RunAgain { get; set; }
 
+    /// <summary>Lock in's clean times round in a row, for every piece: 3, 5 or 7 (the owner's habit).</summary>
+    public int LockClean { get; set; } = Prima.Core.Practice.Slips.Habit;
+
+    /// <summary>Whether Lock in counts a note off the beat as spoiling a time round (never as a slip: timing never stops a run).</summary>
+    public bool SlipTiming { get; set; }
+
     /// <summary>The way of practicing the settings make up, or null when they've been changed from all three.</summary>
     public string? Way => Ways.FirstOrDefault(w => w.Value == (AfterRun, PassFigure, PassWaits)).Key;
 

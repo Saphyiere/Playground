@@ -85,6 +85,10 @@
         }
         @* Not the piano's go key: while a run plays, every key is music. *@
         <button type="button" class="mu-btn" @onclick="Stop">Stop</button>
+        @if (Saying is { } said)
+        {
+            <p class="tempo-pop play-why play-saying" role="status">@said</p>
+        }
     }
     else
     {
@@ -231,6 +235,9 @@
 
     /// <summary>Clean times round in a row so far and how many are wanted: dots among the run's readouts while it plays.</summary>
     [Parameter] public (int Clean, int Of)? Streak { get; set; }
+
+    /// <summary>A line over the bar's end while a run plays, from the screen: what Lock in is doing ("Bars 13–15 until 7 clean in a row").</summary>
+    [Parameter] public string? Saying { get; set; }
 
     /// <summary>How long a run cut at a slip waits, the click stopped, before it counts in again: a moment to see the slip.</summary>
     [Parameter] public TimeSpan CutPause { get; set; } = TimeSpan.FromSeconds(1);

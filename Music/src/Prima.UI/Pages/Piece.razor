@@ -297,7 +297,8 @@ else
         {
             <section class="summary" aria-label="How it went">
                 <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" OnBar="StartAt" OnLoop="@(bars => { StartAt(bars.From); SetLoop(bars.To); })"
-                             FirstBar="FirstBar" LastBar="LastBar" Tempo="tempo" Previous="previousFigure" OnAgain="SetTempo" />
+                             FirstBar="FirstBar" LastBar="LastBar" Tempo="tempo" Previous="previousFigure" OnAgain="SetTempo"
+                             Locked="LockedWords" OnFaster="Faster" OnPlayOn="PlayOn" />
             </section>
         }
         @if (stage == Stage.Play && played is { InTime: { } result } && !playing)
@@ -462,7 +463,7 @@ else
                        OriginalTempo="originalTempo" OnExplain="EventCallback.Factory.Create(this, ToggleExplain)" Explaining="explain" OnFullScreen="ToggleFullScreen"
                        Hands="@(twoHands ? AllHands : null)" Hand="@HandOf(handStaff)" HandChanged="h => SetHands(StaffOf(h))"
                        Loop="@(loopTo is not null)" OnLoop="LoopOnBar" LoopOnLabel="Loop: on. The bars chosen go round until you stop" LoopOffLabel="Loop: off. On, it goes round the bar chosen"
-                       OnSlip="SlipStops" OnPass="Passed" Streak="StreakShown">
+                       OnSlip="SlipStops" OnPass="Passed" Streak="StreakShown" Saying="@lockSaying">
                 <Tools>
                     @if (view == View.Pages && !playing)
                     {
@@ -1226,6 +1227,8 @@ else
     {
         if (play is null) return;
 
+        // Round Lock in's spot, a bar tapped or ‹ Bar leaves it, kept as it was.
+        await LeaveSpot();
         Seek(bar);
         if (music is null) return;
 
@@ -1361,7 +1364,7 @@ else
     private async Task Finished(PlayOutcome how)
     {
         // A go slips cut: its parts and its end as one run.
-        how = await WholeGo(how);
+        (how, var keep) = await GoEnded(how);
         // How the run before went, for under this one's figure: runs, not a loop's times round; on a page just opened, the session's
         // last one kept.
         if (how is { Loop: null, InTime: { Expected: > 0 } timed })
@@ -1377,7 +1380,7 @@ else
         if (stage == Stage.Practice) clock?.RunEnded(DateTimeOffset.Now);
         if (stage == Stage.Play) played = how;
         // Stopped before a key that could be judged (in the count-in, or with nothing played): there's no run to keep.
-        var kept = how is not { InTime: null, Wait: null or { Notes: 0 } };
+        var kept = keep && how is not { InTime: null, Wait: null or { Notes: 0 } };
         if (kept) await Keep(how);
         if (stage != Stage.Practice) return;
 
@@ -1417,7 +1420,8 @@ else
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var (right, notes, clean) = KeptRun.Figures(how);
-        var measures = KeptRun.Measures(how, RunFrom(), RunHands(), stage == Stage.Practice ? session?.Id : null, stage == Stage.Play, expected.ToDictionary(n => n.Id, n => n.Bar), (DateTime.Now - started).TotalSeconds, RunKey);
+        var measures = KeptRun.Measures(how, RunFrom(), RunHands(), stage == Stage.Practice ? session?.Id : null, stage == Stage.Play, expected.ToDictionary(n => n.Id, n => n.Bar), (DateTime.Now - started).TotalSeconds, RunKey,
+            locked: LoopLock(how));
         lastRun = await Store.AddAttemptAsync(new AttemptRecord(0, DateTimeOffset.Now, today, "piece", how.Mode == PlayMode.InTime ? "in time" : "wait", Id, LevelNow, how.Mode == PlayMode.InTime ? tempo : null, null, null, KeptRun.Keys(how), null, measures, notes == 0 ? null : right / (double)notes, clean, null));
         // Practice's minutes are its clock's, counted as it goes; Play's are its run's.
         if (stage != Stage.Practice) await Store.AddMinutesAsync(today, (DateTime.Now - started).TotalMinutes);
@@ -1513,8 +1517,8 @@ else
 
     // Keep practicing, from the look back: the same session carries on.
     // The look back's Practice it: Next's bars looped at its tempo (or, with nothing to fix, the piece a notch faster), In time,
-    // and the session carried on.
-    private async Task PracticeIt(((int From, int To)? Bars, double? Tempo) next)
+    // and the session carried on. The loop is counted to two clean times round in a row, as its words say (Piece.Slips.cs).
+    private async Task PracticeIt(((int From, int To)? Bars, double? Tempo, bool Timing) next)
     {
         if (sheet is not null)
         {
@@ -1527,6 +1531,7 @@ else
             chosen = bars.From > FirstBar;
             StartAt(bars.From);
             SetLoop(bars.To);
+            CountToTwo(bars, next.Timing);
         }
         else
         {

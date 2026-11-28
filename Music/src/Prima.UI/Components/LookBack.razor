@@ -18,6 +18,16 @@
             {
                 <p class="qs-sub">@sub</p>
             }
+            @if (take.Locks.Count > 0)
+            {
+                @* Each spot Lock in went round, and each loop counted to its clean times round in a row, in the order played. *@
+                <ul class="qs-locks" aria-label="Locked in">
+                    @foreach (var line in take.Locks)
+                    {
+                        <li><QuickWords Sentence="line" /></li>
+                    }
+                </ul>
+            }
             <div class="qs-switches">
                 <div class="play-mode" role="radiogroup" aria-label="Show">
                     <button type="button" role="radio" class="play-mode-option" data-piano="off" aria-checked="@On(!overTime)" @onclick="() => overTime = false">Where it went wrong</button>
@@ -57,7 +67,7 @@
             <p class="qr-said"><QuickWords Sentence="next.Next" /></p>
             @if (OnPractice.HasDelegate)
             {
-                <button type="button" class="mu-btn mu-primary" data-action="practice-it" data-piano="off" @onclick="() => OnPractice.InvokeAsync((next.NextLoop, next.NextTempo))">Practice it</button>
+                <button type="button" class="mu-btn mu-primary" data-action="practice-it" data-piano="off" @onclick="() => OnPractice.InvokeAsync((next.NextLoop, next.NextTempo, NeedsTiming(next)))">Practice it</button>
             }
         </section>
     }
@@ -165,8 +175,11 @@
 
     [Parameter] public int? LastBar { get; set; }
 
-    /// <summary>Next's Practice it: its bars looped (or none) at its tempo, the session carried on.</summary>
-    [Parameter] public EventCallback<((int From, int To)? Bars, double? Tempo)> OnPractice { get; set; }
+    /// <summary>
+    /// Next's Practice it: its bars looped (or none) at its tempo, the session carried on, and whether the place needs its timing
+    /// (so a note off the beat spoils a time round as it's counted to two clean in a row).
+    /// </summary>
+    [Parameter] public EventCallback<((int From, int To)? Bars, double? Tempo, bool Timing)> OnPractice { get; set; }
 
     // The session's quick review, which view is shown (the heat map or the timeline) and which kind the heat map counts.
     private QuickSession? quick;
@@ -193,6 +206,9 @@
     }
 
     private static string On(bool on) => on ? "true" : "false";
+
+    // Whether Next's place needs its timing (timing alone, or wrong notes and timing): Practice it counts a note off the beat then.
+    private static bool NeedsTiming(QuickSession next) => next.Places.FirstOrDefault()?.Needs.Contains("timing") == true;
 
     // The lines' drawing size, which scales to its box.
     private const double Width = 360;

@@ -94,6 +94,46 @@ public class CleanStreakTests
         Assert.Equal((76, 72), (spot.StartTempo, spot.Tempo));
     }
 
+    // A spot or a loop counted to its clean times round in a row, kept: its bars, tempo, times round (a pass of one note is a
+    // slip that cut the time round short) and how it ended.
+    private static PieceRun Locked(int minute, int from, int to, double tempo, RunLock locked, params PiecePass[] passes) =>
+        new(new DateTimeOffset(2026, 11, 28, 18, minute, 0, TimeSpan.Zero), new DateOnly(2026, 11, 28), true, tempo, "both", from, true, to, passes[^1].Right, passes[^1].Notes, passes[^1].RightInTime)
+        { To = to, Passes = passes, Lock = locked };
+
+    private static PiecePass Slip(int bar) => new(0, 1, 0) { Trouble = [new BarTrouble(bar, 1, 0, 0, 0)] };
+
+    private static PiecePass Clean() => new(12, 12, 1);
+
+    [Fact]
+    public void TheLookBackSaysHowEachSpotLockedInEnded()
+    {
+        var through = new PieceRun(new DateTimeOffset(2026, 11, 28, 18, 0, 0, TimeSpan.Zero), new DateOnly(2026, 11, 28), true, 76, "both", 1, false, null, 95, 100, 0.95)
+        {
+            Trouble = [new BarTrouble(9, 2, 0, 0, 0)],
+        };
+        var runs = new[]
+        {
+            through,
+            Locked(2, 8, 10, 72, new RunLock(3, "done"), Slip(9), Slip(8), Clean(), Clean(), Clean()),
+            Locked(5, 20, 22, 63, new RunLock(7, "let go"), [.. Enumerable.Range(0, 10).Select(_ => Slip(21))]),
+            Locked(9, 13, 16, 76, new RunLock(7, "stopped"), Slip(14), Clean(), Clean()),
+            Locked(12, 9, 10, 63, new RunLock(2, "done"), Clean(), Clean()),
+        };
+
+        var session = QuickReview.Session(runs, new PieceShape(1, 32, null));
+
+        Assert.Equal(
+        [
+            "Bars 8–10: 3 clean in a row at ♩ 72, after 2 that went wrong.",
+            "Bars 20–22 let go after 10 times round that went wrong at ♩ 63: still to fix.",
+            "Bars 13–16: 2 clean in a row of 7 at ♩ 76 when you stopped.",
+            "Bars 9–10: 2 clean in a row at ♩ 63, none going wrong.",
+        ], session.Locks.Select(s => s.ToString()));
+        Assert.Equal(Said.Place, session.Locks[0].Parts[0].As);
+        Assert.Equal("Locked in: 7 clean in a row at ♩ 76.", QuickReview.Locked(7, 76).ToString());
+        Assert.Equal("Done: 2 clean in a row at ♩ 63.", QuickReview.Locked(2, 63, "Done").ToString());
+    }
+
     [Fact]
     public void ALockedSpotSpoiledTenTimesIsLetGo()
     {

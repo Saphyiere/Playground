@@ -20,10 +20,22 @@ else if (Outcome?.InTime is { } timed)
             <section class="mu-screen qr" aria-label="In short">
                 <div class="qr-top">
                     <span class="mu-readout-label qr-label">Loop by loop<span class="qr-fig"><b>@loopTake.Rounds</b><i>@(loopTake.Rounds == 1 ? "time round" : "times round")</i></span><small>@BarWords.Bars(loopTake.From, loopTake.To)@(loopTake.Tempo is { } loopTempo ? $" · {QuickReview.Mark(loopTempo)}" : "")</small></span>
-                    <p class="qr-said"><QuickWords Sentence="loopTake.Said" /></p>
+                    <p class="qr-said"><QuickWords Sentence="@(Locked ?? loopTake.Said)" /></p>
                     <div class="qr-keys">
-                        @* Its keys in the order the words give them: no better, a notch slower first; otherwise the bars still wrong. *@
-                        @if (loopTake.Trend is LoopTrend.NoBetter or LoopTrend.Worse)
+                        @* Its keys in the order the words give them: no better, a notch slower first; otherwise the bars still wrong.
+                           Counted to its clean times round in a row (Lock in), a notch faster or play on. *@
+                        @if (Locked is not null)
+                        {
+                            @if (OnFaster.HasDelegate && Tempo is { } lockedTempo)
+                            {
+                                <button type="button" class="mu-btn" data-action="faster" data-piano="off" @onclick="() => OnFaster.InvokeAsync()">A notch faster, @QuickReview.Mark(Prima.Core.Timing.TempoMarks.Up(lockedTempo))</button>
+                            }
+                            @if (OnPlayOn.HasDelegate)
+                            {
+                                <button type="button" class="mu-btn" data-action="play-on" data-piano="off" @onclick="() => OnPlayOn.InvokeAsync()">Play on</button>
+                            }
+                        }
+                        else if (loopTake.Trend is LoopTrend.NoBetter or LoopTrend.Worse)
                         {
                             @LoopAgain(loopTake)
                             @LoopNarrow(loopTake)
@@ -396,6 +408,16 @@ else if (Outcome?.Wait is { } reviewed)
 
     /// <summary>Going again at the tempo the review gives: a notch faster, slower, or the same.</summary>
     [Parameter] public EventCallback<double> OnAgain { get; set; }
+
+    /// <summary>
+    /// A loop counted to its clean times round in a row (Lock in on your loop): what it says in place of the loop's own words
+    /// ("Locked in: 7 clean in a row at ♩ 76."), with its keys: the same loop a notch faster, or play on from its first bar.
+    /// </summary>
+    [Parameter] public Sentence? Locked { get; set; }
+
+    [Parameter] public EventCallback OnFaster { get; set; }
+
+    [Parameter] public EventCallback OnPlayOn { get; set; }
 
     // The quick review, a run's or a loop's, and the tempo it was worked out at.
     private QuickRun? quickRun;

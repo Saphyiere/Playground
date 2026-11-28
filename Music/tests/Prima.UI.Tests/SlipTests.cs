@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Prima.Core.Music;
 using Prima.Core.Practice;
+using Prima.Core.Timing;
 using Prima.UI.Components;
 using Prima.UI.Pages;
 using Prima.UI.Practice;
+using Prima.UI.Storage;
 
 namespace Prima.UI.Tests;
 
@@ -164,5 +166,155 @@ public class SlipTests
         Assert.Equal((1, false, 20, 21), (runs[0].From, runs[0].Stopped, runs[0].Right, runs[0].Notes));
         Assert.Equal([(3, 1)], runs[0].Trouble.Where(t => t.NotRight > 0).Select(t => (t.Bar, t.Wrong)));
         Assert.Equal("Play", view.Find(".play-start").TextContent.Trim());
+    }
+
+    // The four bars as a piece in a practice session, In time, with More open.
+    private static async Task<(IRenderedComponent<Piece> View, IRenderedComponent<PlayAlong> Bar, PieceRecord Piece)> Practicing(ComponentHost host)
+    {
+        var piece = await host.AddPiece();
+        await host.Store.SavePieceAsync(piece, MeiWriter.Write(FourBars()), []);
+        await host.Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), "time");
+        await host.Store.StartSessionAsync(piece.Id, "custom", DateTimeOffset.Now);
+        var view = host.Context.Render<Piece>(p => p.Add(c => c.Id, piece.Id));
+        view.WaitForElement(".pause-keys .mu-primary");
+        await view.InvokeAsync(() => view.Find(".pause-keys .mu-primary").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.NotNull(view.FindComponent<PlayAlong>().Instance.Music));
+        await view.InvokeAsync(() => view.Find("[data-action=more]").ClickAsync(new MouseEventArgs()));
+        return (view, view.FindComponent<PlayAlong>(), piece);
+    }
+
+    // The run that's taken the one before's place, once it's under way.
+    private static async Task<PlaySession> Next(SessionRegistry registry, PlaySession before)
+    {
+        await Until(() => registry.Current is { Phase: Phase.CountIn or Phase.Playing } now && !ReferenceEquals(now, before));
+        return registry.Current!;
+    }
+
+    // The piece's runs kept, once there are so many.
+    private static async Task<List<PieceRun>> Kept(ComponentHost host, PieceRecord piece, int count)
+    {
+        List<PieceRun> runs = [];
+        await Until(() => (runs = [.. host.Store.GetPieceRunsAsync(piece.Id).GetAwaiter().GetResult().Select(r => r.Run)]).Count >= count);
+        return runs;
+    }
+
+    [Fact]
+    public async Task Lock_in_goes_round_the_slip_with_a_bar_either_side_a_notch_slower_after_two_slips_until_clean_so_many_times_then_on()
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        var (view, bar, piece) = await Practicing(host);
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+        // Lock in, three clean in a row: kept for every piece.
+        await view.InvokeAsync(() => view.Find("[data-slip=lock]").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Find("[data-clean='3']").ClickAsync(new MouseEventArgs()));
+        view.WaitForAssertion(() => Assert.Equal("true", view.Find("[data-clean='3']").GetAttribute("aria-pressed")));
+        Assert.Contains(view.FindAll(".slip-choice .control-label"), l => l.TextContent == "Timing too");
+        var settings = await host.Store.GetSettingsAsync();
+        Assert.Equal(("lock", "3"), (settings["Library.Slip.test"], settings["Practice.LockClean"]));
+        var own = bar.Instance.Tempo;
+
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var first = registry.Current!;
+        await Play(bar, piano, clock, first, 9, wrong: 8);
+
+        // Bars 2 to 4 go round, twelve notes a time round, the bar saying so.
+        var spot = await Next(registry, first);
+        Assert.Equal(12 * 50, spot.Expected.Count);
+        Assert.Equal("Bars 2–4 until 3 clean in a row", view.Find(".play-saying").TextContent);
+        Assert.Equal(3, view.FindAll(".play-streak-dot").Count);
+        // Two slips in a row: counted in again each time, then a notch slower.
+        await Play(bar, piano, clock, spot, 1, wrong: 0);
+        var again = await Next(registry, spot);
+        Assert.Equal(own, bar.Instance.Tempo);
+        await Play(bar, piano, clock, again, 1, wrong: 0);
+        var slower = await Next(registry, again);
+        Assert.Equal(TempoMarks.Down(own), bar.Instance.Tempo);
+        Assert.Empty(view.FindAll(".play-streak-dot.on"));
+
+        // Three clean times round (and the fourth's first note, so the third is scored): on from bar 2 to the end, at your tempo.
+        await Play(bar, piano, clock, slower, 37);
+        var on = await Next(registry, slower);
+        Assert.Equal(12, on.Expected.Count);
+        Assert.Equal(own, bar.Instance.Tempo);
+        await Play(bar, piano, clock, on, 12);
+        clock.NowNs = on.TimeAt(on.Expected.Max(e => e.Beat + e.Beats) + 2);
+
+        // Kept: the spot as a loop with every time round, those the slips cut short too, and the go as one run from bar 1.
+        var runs = await Kept(host, piece, 2);
+        var (locked, go) = (runs.Single(r => r.Lock is not null), runs.Single(r => r.Lock is null));
+        Assert.Equal((2, 4, 3, "done"), (locked.From, locked.To, locked.Lock!.Needed, locked.Lock.Ended));
+        Assert.Equal([(0, 1), (0, 1), (12, 12), (12, 12), (12, 12)], locked.Passes.Select(p => (p.Right, p.Notes)));
+        Assert.Equal(TempoMarks.Down(own), locked.Tempo);
+        Assert.Equal((1, false, 20, 21), (go.From, go.Stopped, go.Right, go.Notes));
+    }
+
+    [Fact]
+    public async Task Lock_in_on_your_own_loop_ends_it_at_so_many_clean_in_a_row_with_a_notch_faster_or_play_on()
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        host.Context.Services.GetRequiredService<PrimaSettings>().LockClean = 3;
+        var (view, bar, piece) = await Practicing(host);
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+        await view.InvokeAsync(() => view.Find("[data-slip=lock]").ClickAsync(new MouseEventArgs()));
+        await view.InvokeAsync(() => view.Instance.Looped(1, 2));
+
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var loop = registry.Current!;
+        Assert.Equal(8 * 50, loop.Expected.Count);
+        // Three clean times round, and the fourth's first note.
+        await Play(bar, piano, clock, loop, 25);
+
+        // The run ends at the third, and the review says so, with a notch faster and play on.
+        view.WaitForAssertion(() => Assert.Equal("Locked in: 3 clean in a row at ♩ 72.", view.Find(".summary .qr-said").TextContent.Trim()));
+        Assert.False(bar.Instance.Running);
+        Assert.Equal("A notch faster, ♩ 76", view.Find("[data-action=faster]").TextContent.Trim());
+        var runs = await Kept(host, piece, 1);
+        Assert.Equal((1, 2, 3, "done"), (runs[0].From, runs[0].To, runs[0].Lock!.Needed, runs[0].Lock!.Ended));
+        Assert.Equal(3, runs[0].Passes.Count);
+
+        // Play on: the loop off, from its first bar to the end.
+        await view.InvokeAsync(() => view.Find("[data-action=play-on]").ClickAsync(new MouseEventArgs()));
+        var on = await Next(registry, loop);
+        Assert.Equal(16, on.Expected.Count);
+        Assert.Null(bar.Instance.Music!.LoopBars);
+    }
+
+    [Fact]
+    public async Task Practice_it_counts_its_loop_to_two_clean_in_a_row_and_the_look_back_says_so()
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        var (view, bar, piece) = await Practicing(host);
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+
+        // A run through, bar 3's first note wrong, played on through it (Keep going).
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var run = registry.Current!;
+        await Play(bar, piano, clock, run, 16, wrong: 8);
+        clock.NowNs = run.TimeAt(run.Expected.Max(e => e.Beat + e.Beats) + 2);
+        await Until(() => !bar.Instance.Running);
+        await Kept(host, piece, 1);
+
+        // The look back's Next loops bar 3 a notch under the tempo it ended at, until two times round in a row are clean.
+        await view.InvokeAsync(() => view.FindAll("button").First(b => b.TextContent.Trim() == "Finish practice").ClickAsync(new MouseEventArgs()));
+        view.WaitForElement("[data-action=practice-it]");
+        Assert.Contains("until two times round in a row are clean", view.Find(".qs-next").TextContent);
+        await view.InvokeAsync(() => view.Find("[data-action=practice-it]").ClickAsync(new MouseEventArgs()));
+        bar = view.FindComponent<PlayAlong>();
+        view.WaitForAssertion(() => Assert.Equal(1, bar.Instance.Music?.LoopBars));
+
+        // Two clean times round, the dots lit as they come: done, said so, with a notch faster and play on.
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var loop = registry.Current!;
+        view.WaitForAssertion(() => Assert.Equal(2, view.FindAll(".play-streak-dot").Count));
+        await Play(bar, piano, clock, loop, 9);
+        view.WaitForAssertion(() => Assert.Equal($"Done: 2 clean in a row at {QuickReview.Mark(TempoMarks.Down(72))}.", view.Find(".summary .qr-said").TextContent.Trim()));
+        Assert.NotEmpty(view.FindAll("[data-action=faster]"));
+
+        // The look back says how the loop went.
+        var runs = await Kept(host, piece, 2);
+        Assert.Equal((3, 3, 2, "done"), (runs[^1].From, runs[^1].To, runs[^1].Lock!.Needed, runs[^1].Lock!.Ended));
     }
 }

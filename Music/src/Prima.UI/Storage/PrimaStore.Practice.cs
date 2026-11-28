@@ -192,6 +192,9 @@ public sealed partial class PrimaStore
                 Id = r.Id, Session = session, Play = play, Trouble = TroubleOf(measures), To = to, Passes = passes,
                 Seconds = Number(measures, "took") ?? (inTime ? null : Number(measures, "seconds")), Timing = timing, Marked = marked,
                 Transposed = transposed, KeyName = measures.TryGetProperty("key", out var key) && key.ValueKind == JsonValueKind.String ? key.GetString() : null,
+                // Kept since 28 November: a loop counted to its clean times round in a row (Lock in, Practice it), and how it ended.
+                Lock = measures.TryGetProperty("lockIn", out var locked) && locked.ValueKind == JsonValueKind.Object && locked.TryGetProperty("needed", out var needed)
+                    ? new RunLock(needed.GetInt32(), locked.TryGetProperty("ended", out var ended) ? ended.GetString() ?? "stopped" : "stopped") : null,
             };
             return (r.SetId, run);
         }).ToList();

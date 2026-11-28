@@ -67,10 +67,12 @@ under it, which Settings lets you change one by one (More has the ways and wheth
 - Whatever you choose, every run and every pass is kept, with what went wrong in each bar and the marks it left, so the look
   back and the in-depth review have them all.
 
-## When I slip: Keep going, Back a bar
+## When I slip: Keep going, Back a bar, Lock in
 
 The owner, 28 November: "if I make a mistake, stop it, count me in again … 90% of the time you're going to want to go one bar
-back and redo that". A row in the piece's More, **When I slip**, kept for each piece; Keep going until it's changed.
+back and redo that … you have to play through that loop 7 times in a row until you get it perfect. And then it continues
+playing … if I'm only focusing on a piece of music in a loop, I only want to focus in that loop". A row in the piece's More,
+**When I slip**, kept for each piece; Keep going until it's changed.
 
 - **A slip** is a note heard wrong or missed as it's played: a wrong key at once, a missed note when its window shuts (four
   tenths of a beat, 0.12 to 0.30 s). An extra key away from any note is only heard in the run's review afterwards, so it
@@ -84,7 +86,29 @@ back and redo that". A row in the piece's More, **When I slip**, kept for each p
   part's notes scored together (a bar played again counts twice), every time round in order round a loop, and on the music
   each note marked the worst it was played, so the slip still shows after the bar was played right. The review and the look
   back see the slip where it was. The piece's own start bar and loop don't move.
+- **Lock in**: stopped as with Back a bar, then the slip's bar with one either side (never outside your loop or the piece) goes
+  round, without a pause between times round, until it's clean so many times in a row: **In a row**, 3, 5 or 7, the same for
+  every piece, 7 to start with (the owner's habit; teachers use three to seven, and no study fixes a number: Gebrian 2024 asks
+  five at least). A dot each on the bar, lit as they come; a slip puts them all out, and counts in on the spot's first bar
+  again. A line over the bar's end says what it's doing for a few seconds: "Bars 8–10 until 7 clean in a row".
+  - Two spoiled times round in a row go a notch slower (the metronome's marks, 76 → 72), for as long as the spot goes round.
+  - After ten spoiled in all it's let go, rather than keep you there: the run goes on from the bar after it at your tempo (past
+    the piece's end, the go ends).
+  - At the number, "7 clean in a row: on from bar 8": it counts in from the spot's first bar and plays on at your tempo.
+  - The spot is kept as a loop of its own (its bars, every time round in order, those a slip cut short too, its tempo, and how
+    it ended: done, let go or stopped), so the look back sees it; the go round it is one run, as with Back a bar. Stopped round
+    a spot, the review shows the spot's Loop by loop, and the go before it is kept as a run stopped at its slip.
+  - **Your own loop** stays your loop: no bigger than a spot, it is the spot; bigger, its spots are inside it, and after each it
+    goes on round itself from the spot's first bar. It's counted too, and at the number clean in a row the run ends, its review
+    saying "Locked in: 7 clean in a row at ♩ 76." with **A notch faster** (the same loop a notch up, counted afresh) and **Play
+    on** (the loop off, from its first bar to the end). Where a loop waits after each pass, its count carries on from run to
+    run while it's the same loop.
+  - **Timing too** (off to start with) has a note off the beat spoil a time round. It never stops a run.
+  - A tap on a bar, or ‹ Bar, while a spot goes round leaves it, kept as it was, at your tempo.
 - *(pick)* About a second's pause, the length of a breath, before the count-in; the count-in is the usual one.
+- Evidence (the research, 28 November): Duke, Simmons & Cash 2009, the share of correct tries predicted the next day's playing,
+  and the best pianists fixed errors where they were, slowly, until they stuck; Mishra 2002, going back to the start after
+  every error was what the slower memorizers did.
 
 ## The quick review: after a run, round a loop, after a session
 
@@ -144,7 +168,14 @@ say is on the chart under them. Everything below is a pick *(pick)*, its thresho
     right and the first and last runs through, with their tempos.
   - **Next**: the first place looped a notch under the tempo you ended at, until two times round in a row are clean, with
     **Practice it** (the loop, the tempo and Timed set, and the session carried on); with nothing to fix, the piece a notch
-    faster.
+    faster. Practice it's loop is counted, whatever When I slip is set to: two dots on the bar, lit as clean times round come
+    (a note off the beat spoils one where the place needs its timing), and at two in a row the run ends, its review saying
+    "Done: 2 clean in a row at ♩ 63." with **A notch faster** and **Play on**, as Lock in's own loop does. It's counted while
+    the loop is still those bars.
+  - **Locked in**: under the words, a line for each spot Lock in went round and each loop counted to its clean times round in
+    a row, in the order played: "Bars 8–10: 7 clean in a row at ♩ 72, after 3 that went wrong.", "Bars 20–22 let go after 10
+    times round that went wrong at ♩ 63: still to fix.", "Bars 13–16: 2 clean in a row of 7 at ♩ 76 when you stopped." Its
+    times round are on the timeline with the other loops', a slip's cut short among them.
   - Keys: **Keep practicing**, **Details** (the in-depth review) and **Done**. **Passages and results**, each stretch's line
     from first to last, stays folded under it.
 - **Loudness** against the dynamics and crescendos isn't judged any more, in the review or in Details. A marking has no fixed
@@ -197,9 +228,11 @@ say is on the chart under them. Everything below is a pick *(pick)*, its thresho
   pause's cover over it), the look back, the in-depth review, and Play (full screen, with its strip).
 - **When I slip**: the play bar stops a run at a slip when its screen gives it `OnSlip`, scores what was played up to it as a
   run stopped there (round a loop, the time round it cut short as `CutShort`), and counts in again with the music the screen
-  gives back, keeping the marks; the screen's own `Cut()` moves a run on the same way. The piece's page keeps the parts
-  (`Piece.Slips.cs`) and `Go.Join` makes them one run with its end. `CleanStreak` and `Slips` in Prima.Core count clean times
-  round and name the bars a slip goes back to.
+  gives back, keeping the marks; the screen's own `Cut()` moves a run on the same way, and `OnPass` tells it each time round
+  as it's scored. The piece's page keeps the parts and the spots (`Piece.Slips.cs`) and `Go.Join` makes the parts one run with
+  its end. `CleanStreak`, `LockedSpot` and `Slips` in Prima.Core count clean times round, go a notch slower or let a spot go,
+  and name the bars a slip goes back to or locks; a spot is kept by `KeptRun.Lock`, and a run's `Lock` (`RunLock`) says how
+  a counted loop ended.
 - Checked in the preview, both looks, the tablet's landscape and portrait: the front, a session's runs and loops, Finish
   practice mid-loop, the look back and the in-depth review, Play and its quick review, leaving and coming back to the cover,
   and the three ways, Wait after each pass and Go again. The rebuilt look back: the thirteen pretend sessions in Studio,
@@ -208,7 +241,10 @@ say is on the chart under them. Everything below is a pick *(pick)*, its thresho
   looks, landscape and portrait, played by the preview's stand-in, whose `hard`, `hardRight`, `hardLean` and `hardSpread`
   make a run stumble in chosen bars, in its notes or its timing. Back a bar (28 November): the Minuet played wrong from bar 9,
   the stop with the slip marked, the count-in from bar 8 and the go's review after Stop, in Porcelain and Night, landscape and
-  portrait, with motion on.
+  portrait, with motion on. Lock in the same way: the spot on bars 8–10 named over the bar, two slips round it and a notch
+  slower (♩ 72), the dots filling, three clean and on from bar 8 at ♩ 76; a loop of bars 9–10 of your own ending at three
+  clean in a row with A notch faster and Play on; and the look back's line for the spot, then Practice it's loop counted to
+  two clean in a row.
 
 ## Left for the tablet
 
@@ -222,8 +258,9 @@ Only the tablet and the piano can show these:
   pianist's mistakes are tidier than a person's);
 - Again at, Loop bars and Practice it with the piano plugged in: the tempo and the loop as they say, and the go key
   starting them;
-- Back a bar with real hands: false stops (a key brushed, a chord a hair apart, a grace note), and how the stop, the second's
-  pause and the count-in feel.
+- Back a bar and Lock in with real hands: false stops (a key brushed, a chord a hair apart, a grace note), how the stop, the
+  second's pause and the count-in feel, and whether seven clean in a row is too many for a spot, or ten spoiled too few to let
+  it go.
 
 ## Decided
 
