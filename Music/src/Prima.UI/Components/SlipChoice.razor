@@ -22,10 +22,12 @@
     {
         <div class="control-row">
             <span class="control-label">In a row</span>
-            @foreach (var times in Slips.InARow)
-            {
-                <button type="button" class="mu-toggle" data-piano="off" data-clean="@times" aria-pressed="@On(Settings.LockClean == times)" @onclick="() => Save(() => Settings.LockClean = times)"><span class="mu-led"></span>@times</button>
-            }
+            <div class="choice-set">
+                @foreach (var times in Slips.InARow)
+                {
+                    <button type="button" class="mu-toggle choice-pad" data-piano="off" data-clean="@times" aria-pressed="@On(Settings.LockClean == times)" @onclick="() => Save(() => Settings.LockClean = times)"><span class="mu-led"></span>@times</button>
+                }
+            </div>
         </div>
         <SettingSwitch Label="Timing too" Value="Settings.SlipTiming" Changed="on => Save(() => Settings.SlipTiming = on)" />
     }

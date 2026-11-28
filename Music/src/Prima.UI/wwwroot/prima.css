@@ -10122,6 +10122,7 @@ html[data-theme^="porcelain"] .pause-title {
     align-content: start;
     align-items: start;
     gap: 18px 36px;
+    padding-bottom: 0;
 }
 
 .play-more .more-group {
@@ -10135,12 +10136,14 @@ html[data-theme^="porcelain"] .pause-title {
     margin: 0;
 }
 
-/* Done stays in sight at the panel's foot while its groups scroll above it. */
+/* Done stays in sight at the panel's foot while its groups scroll above it: on a strip of the panel's own ground, across the
+   whole panel and down to its edge (the panel's foot room is the strip's), so nothing scrolls by beside Done or under it. */
 .play-more .change-panel-end {
     grid-column: 1 / -1;
     position: sticky;
     bottom: 0;
-    padding-top: 10px;
+    margin: 0;
+    padding: 10px 0 20px;
     background: inherit;
 }
 
