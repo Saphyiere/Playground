@@ -97,7 +97,8 @@ playing … if I'm only focusing on a piece of music in a loop, I only want to f
   - At the number, "7 clean in a row: on from bar 8": it counts in from the spot's first bar and plays on at your tempo.
   - The spot is kept as a loop of its own (its bars, every time round in order, those a slip cut short too, its tempo, and how
     it ended: done, let go or stopped), so the look back sees it; the go round it is one run, as with Back a bar. Stopped round
-    a spot, the review shows the spot's Loop by loop, and the go before it is kept as a run stopped at its slip.
+    a spot, the review shows the spot's Loop by loop, and the go before it is kept as a run stopped at its slip; stopped in the
+    second after the slip that locks it, before it's gone round at all, there's no spot, only that run.
   - **Your own loop** stays your loop: no bigger than a spot, it is the spot; bigger, its spots are inside it, and after each it
     goes on round itself from the spot's first bar. It's counted too, and at the number clean in a row the run ends, its review
     saying "Locked in: 7 clean in a row at ♩ 76." with **A notch faster** (the same loop a notch up, counted afresh) and **Play

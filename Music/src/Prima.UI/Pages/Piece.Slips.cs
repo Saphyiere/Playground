@@ -272,10 +272,16 @@ public partial class Piece
         passesSeen = end.Passes.Count;
         if (parts.Count > 0 && ReferenceEquals(parts[^1], end)) parts.RemoveAt(parts.Count - 1);
 
+        // Stopped in the moment after a slip round a spot, that time round is among its tries already.
+        if (spot is not null && end.CutShort is { } cut && !(spotTries.Count > 0 && ReferenceEquals(spotTries[^1], cut))) spotTries.Add(cut);
+        if (spot is not null && spotTries.Count == 0)
+        {
+            // Stopped in the moment after the slip that locked it, before it went round at all: no spot, the go up to that slip.
+            (spot, lockSaying) = (null, null);
+            RunTempo(ownTempo);
+        }
         if (spot is { } s)
         {
-            // Stopped in the moment after a slip round it, that time round is among its tries already.
-            if (end.CutShort is { } cut && !(spotTries.Count > 0 && ReferenceEquals(spotTries[^1], cut))) spotTries.Add(cut);
             var tries = spotTries.ToList();
             lockSaying = null;
             RunTempo(ownTempo);

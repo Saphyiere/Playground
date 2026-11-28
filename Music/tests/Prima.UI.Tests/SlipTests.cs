@@ -37,6 +37,9 @@ public class SlipTests
             var (at, key) = (run.TimeAt(note.Beat), i == wrong ? note.Midi + 2 : note.Midi);
             clock.NowNs = at;
             await view.InvokeAsync(() => piano.Play(key, at));
+            // The key judged before the clock moves on: judged after, by a tick that came first, its note's time had passed with
+            // nothing played for it, a slip no player made (only a test's clock jumps).
+            await view.InvokeAsync(() => { });
             clock.NowNs = run.TimeAt(note.Beat + note.Beats) - 30_000_000;
             await view.InvokeAsync(() => piano.Release(key, clock.NowNs));
         }
@@ -165,7 +168,7 @@ public class SlipTests
         Assert.Single(runs);
         Assert.Equal((1, false, 20, 21), (runs[0].From, runs[0].Stopped, runs[0].Right, runs[0].Notes));
         Assert.Equal([(3, 1)], runs[0].Trouble.Where(t => t.NotRight > 0).Select(t => (t.Bar, t.Wrong)));
-        Assert.Equal("Play", view.Find(".play-start").TextContent.Trim());
+        view.WaitForAssertion(() => Assert.Equal("Play", view.Find(".play-start").TextContent.Trim()));
     }
 
     // The four bars as a piece in a practice session, In time, with More open.
@@ -242,11 +245,56 @@ public class SlipTests
 
         // Kept: the spot as a loop with every time round, those the slips cut short too, and the go as one run from bar 1.
         var runs = await Kept(host, piece, 2);
+        Assert.True(runs.Count == 2 && runs.Count(r => r.Lock is not null) == 1, string.Join(" / ", runs.Select(r =>
+            $"{r.From}-{r.To ?? r.Bar} {(r.Stopped ? "stopped" : "end")} {r.Lock?.Ended} {r.Right}/{r.Notes} passes [{string.Join(",", r.Passes.Select(p => $"{p.Right}/{p.Notes}"))}] trouble [{string.Join(",", r.Trouble.Select(t => $"{t.Bar}:{t.Wrong}w{t.Missed}m"))}]")));
         var (locked, go) = (runs.Single(r => r.Lock is not null), runs.Single(r => r.Lock is null));
         Assert.Equal((2, 4, 3, "done"), (locked.From, locked.To, locked.Lock!.Needed, locked.Lock.Ended));
         Assert.Equal([(0, 1), (0, 1), (12, 12), (12, 12), (12, 12)], locked.Passes.Select(p => (p.Right, p.Notes)));
         Assert.Equal(TempoMarks.Down(own), locked.Tempo);
         Assert.Equal((1, false, 20, 21), (go.From, go.Stopped, go.Right, go.Notes));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Stopped_round_a_spot_the_piece_still_starts_where_it_did_and_the_spot_is_kept(bool inThePause)
+    {
+        var (piano, clock) = (new TestPiano(plugged: true), new SetClock());
+        await using var host = new ComponentHost(keyboard: piano, clock: clock);
+        var (view, bar, piece) = await Practicing(host);
+        var registry = host.Context.Services.GetRequiredService<SessionRegistry>();
+        await view.InvokeAsync(() => view.Find("[data-slip=lock]").ClickAsync(new MouseEventArgs()));
+        Assert.Equal("Play", view.Find(".play-start").TextContent.Trim());
+
+        await view.InvokeAsync(() => bar.Instance.Start());
+        var first = registry.Current!;
+        await Play(bar, piano, clock, first, 9, wrong: 8);
+        if (!inThePause)
+        {
+            // Round the spot, bars 2 to 4, a time round and a bit.
+            var spot = await Next(registry, first);
+            await Play(bar, piano, clock, spot, 14);
+        }
+        else await Until(() => view.FindAll(".play-bar[data-cut]").Count > 0);
+        await view.InvokeAsync(bar.Instance.StopAndSaveAsync);
+        await Until(() => !bar.Instance.Running && view.FindAll(".summary").Count > 0);
+
+        // The piece starts from bar 1 still, nothing chosen on its music. The go up to the slip is kept as a run stopped there, and
+        // the spot as a loop of its own once it went round (stopped before it did, there's no spot to keep).
+        view.WaitForAssertion(() => Assert.Equal("Play", view.Find(".play-start").TextContent.Trim()));
+        Assert.False(host.Browser.BarChoices[^1].GetProperty("lit").GetBoolean());
+        Assert.Equal(1, host.Browser.BarChoices[^1].GetProperty("from").GetInt32());
+        var runs = await Kept(host, piece, inThePause ? 1 : 2);
+        var go = runs.Single(r => r.Lock is null);
+        Assert.Equal((1, true, 3), (go.From, go.Stopped, go.Bar));
+        Assert.Equal([(3, 1)], go.Trouble.Where(t => t.NotRight > 0).Select(t => (t.Bar, t.Wrong)));
+        if (inThePause)
+        {
+            Assert.Single(runs);
+            return;
+        }
+        var locked = runs.Single(r => r.Lock is not null);
+        Assert.Equal((2, 4, "stopped"), (locked.From, locked.To, locked.Lock!.Ended));
     }
 
     [Fact]

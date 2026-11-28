@@ -684,10 +684,15 @@
         IReadOnlyList<(int Midi, double Beat, double Beats)>? piano = listen ? [.. music.Notes.Select(n => (n.Midi, Beat(n), n.Sounds / (double)music.BeatTicks)), .. music.PianoPart ?? []] : music.PianoPart;
         var run = session = new PlaySession(Click, Keyboard, Clock, Registry);
         var completion = savedCompletion;
+        // Its end is handled once: the change its count-in ending told can come to be handled after it has ended (a busy screen,
+        // a run cut short), and then found it ended too.
+        var ended = false;
         run.Changed += () => _ = InvokeAsync(async () =>
         {
             if (run.Phase == Phase.Done)
             {
+                if (ended) return;
+                ended = true;
                 if (cut is { } at && at.Run == run)
                 {
                     await Cutting(run, music, at, completion, version);
