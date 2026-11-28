@@ -76,8 +76,10 @@ public partial class Piece
         var writtenText = writtenMei;
         (mei, score) = to.Moves ? await Task.Run(() => Moved(writtenText, to)) : (writtenText, asRead);
         expected = score.Expected();
-        (meiDocument, measureIds, explained, outcome, waitedLoop) = (null, null, null, null, null);
+        (meiDocument, measureIds, outcome, waitedLoop) = (null, null, null, null);
         waited = [];
+        // What's this read the music in the key before: its keys, notes and names are read again.
+        ForgetMusic();
         StartAt(from);
         if (to.Moves) _ = GradeKey(score, to);
     }

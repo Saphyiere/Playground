@@ -19,8 +19,12 @@ public partial class Piece
     // What's this is on: the music marks what there is to tap, and a tap says what it is.
     private bool explain => WhatsThis.On;
 
-    // The piece's own, from its music as it's read already and its title and work, found when first asked.
-    private MusicExplainer? Explainer => explainer ??= mei is null || score is null ? null : new MusicExplainer(mei, score, piece?.Title, piece?.Work);
+    // The piece's own, from its music as it's read already, found when first asked: in the key it's played in, which its title
+    // names only as written.
+    private MusicExplainer? Explainer => explainer ??= mei is null || score is null ? null : new MusicExplainer(mei, score, transposed.Moves ? [] : [piece?.Title, piece?.Work]);
+
+    // The music moved to another key: what was read from it goes.
+    private void ForgetMusic() => (explainer, labelled) = (null, null);
 
     private IReadOnlyList<KeyStretch> KeyStretches => Explainer?.Keys ?? [];
 
