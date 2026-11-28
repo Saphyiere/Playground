@@ -9,7 +9,8 @@ namespace Prima.Core.Music;
 /// Humdrum or ABC file, keeping every id. It reads bars in written order with their repeat signs and endings (which
 /// <see cref="Score.PlayOrder"/> follows), staves and layers, notes, chords and rests through beams, tuplets and grace groups,
 /// durations by value or by ticks, ties (as attributes or tie elements), accidentals as written or implied (by the key, by an
-/// earlier one in the bar, or marked as gestural), and key, metre and clef changes. A note under an 8va, 15ma or 8vb line is read
+/// earlier one in the bar, or marked as gestural), and key, metre and clef changes, a key's mode where the file says it
+/// (<see cref="Score.StatedModes"/>). A note under an 8va, 15ma or 8vb line is read
 /// at the octave it sounds (its oct.ges, which Verovio writes from MusicXML), keeping the one it's printed in as the tone's
 /// <see cref="Tone.Ottava"/>; the line itself Verovio engraves. A note without a pitch, like a drum part's, isn't played: it takes
 /// its time as an unseen rest, and the drum part's own marks aren't read. A piece's slurs, dynamics, hairpins, pedal
@@ -27,10 +28,16 @@ public static class MeiReader
         var score = document.Descendants(Mei + "score").First();
         var title = document.Descendants(Mei + "title").FirstOrDefault()?.Value.Trim();
         var firstDef = score.Element(Mei + "scoreDef");
-        var key = ReadKey(firstDef) ?? new Key(0);
+        var opening = ReadKey(firstDef);
+        var key = opening?.Key ?? new Key(0);
         var meter = ReadMeter(firstDef) ?? new Meter(4, 4);
         var ppq = Ppq(firstDef) ?? 0;
         var (startKey, startMeter) = (key, meter);
+        // The bars whose key's mode the file states (MusicXML's <mode>, which Verovio keeps on the key signature).
+        var stated = new List<int>();
+        if (opening is { Stated: true }) stated.Add(0);
+        // The clefs staff definitions set: at the start where a staff isn't treble over bass, and before any later bar.
+        var staffClefs = StaffClefs(firstDef).Where(c => c.Clef != (c.Staff == 1 ? Clef.Treble : Clef.Bass)).Select(c => (0, c.Staff, c.Clef)).ToList();
         var staffCount = firstDef?.Descendants(Mei + "staffDef").Count() ?? 2;
 
         // Tie elements sit in the bar where the tie starts, so they're gathered from the whole score first.
@@ -48,6 +55,7 @@ public static class MeiReader
         // The staves with notes that have no pitch: a drum part's.
         var unpitched = new HashSet<int>();
         Key? newKey = null;
+        var newStated = false;
         Meter? newMeter = null;
         var number = 0;
         var startsNext = false;
@@ -55,7 +63,8 @@ public static class MeiReader
         {
             if (element.Name == Mei + "scoreDef")
             {
-                if (ReadKey(element) is { } k) newKey = key = k;
+                staffClefs.AddRange(StaffClefs(element).Select(c => (bars.Count, c.Staff, c.Clef)));
+                if (ReadKey(element) is { } k) (newKey, key, newStated) = (k.Key, k.Key, k.Stated);
                 if (ReadMeter(element) is { } m) newMeter = meter = m;
                 ppq = Ppq(element) ?? ppq;
                 continue;
@@ -105,12 +114,15 @@ public static class MeiReader
                 if ((printed ?? (double?)mark.Attribute("midi.bpm")) is { } perMinute and >= 20 and <= 300) tempos.Add((start, perMinute));
             }
             var tempoMarks = tempos.OrderBy(t => t.Start).ToList();
-            var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter, Tempos = tempoMarks };
+            // Fine, in words or as the file's own mark: where a D.C. or D.S. ends the music.
+            var fine = element.Elements(Mei + "dir").Any(d => Regex.IsMatch(d.Value.Trim(), @"^fine\b", RegexOptions.IgnoreCase)) || element.Descendants(Mei + "repeatMark").Any(r => (string?)r.Attribute("func") == "fine");
+            var bar = new Bar(number, voices) { Length = pickup ? length : null, NewKey = newKey, NewMeter = newMeter, Tempos = tempoMarks, Fine = fine };
             controls.AddRange(element.Elements().Where(e => e.Name.LocalName is "slur" or "dynam" or "hairpin" or "pedal" or "trill" or "mordent" or "turn" or "arpeg" or "fermata").Select(e => (bars.Count, e)));
             meters.Add(meter);
+            if (newKey is not null && newStated && !stated.Contains(bars.Count)) stated.Add(bars.Count);
             bars.Add(bar with { RepeatStart = repeatStart, RepeatEnd = repeatEnd, Endings = endings });
             startsNext = right == "rptboth";
-            (newKey, newMeter) = (null, null);
+            (newKey, newMeter, newStated) = (null, null, false);
         }
 
         // The marks: on a note (startid), or by the beat (tstamp, the metre's beats from 1), tied to the note at or before it on its
@@ -173,7 +185,7 @@ public static class MeiReader
             }
         }
 
-        return new Score(startKey, startMeter, bars) { Title = string.IsNullOrEmpty(title) ? null : title, RhythmOnly = staffCount == 1, FileMarks = fileMarks };
+        return new Score(startKey, startMeter, bars) { Title = string.IsNullOrEmpty(title) ? null : title, RhythmOnly = staffCount == 1, FileMarks = fileMarks, StatedModes = stated, StaffClefs = staffClefs };
     }
 
     /// <summary>The MEI with its bars numbered as <see cref="Read"/> numbers them, so the bar numbers printed are the ones Prima says.</summary>
@@ -220,14 +232,32 @@ public static class MeiReader
 
     private static int? Ppq(XElement? def) => (int?)def?.Attribute("ppq") ?? (int?)def?.Descendants(Mei + "staffDef").FirstOrDefault()?.Attribute("ppq");
 
-    private static Key? ReadKey(XElement? def)
+    // A key signature, and its mode where the file says it (key.mode, or the keySig's own mode, as Verovio writes MusicXML's
+    // <mode>): minor, or major otherwise. The signature is MEI 4's key.sig, MEI 5's keysig (the Open Hymnal's hymns), or a keySig.
+    private static (Key Key, bool Stated)? ReadKey(XElement? def)
     {
-        var sig = (string?)def?.Attribute("key.sig") ?? (string?)def?.Descendants(Mei + "keySig").FirstOrDefault()?.Attribute("sig") ?? (string?)def?.Descendants(Mei + "staffDef").FirstOrDefault()?.Attribute("key.sig");
+        static string? Sig(XElement? e) => (string?)e?.Attribute("key.sig") ?? (string?)e?.Attribute("keysig");
+        var sig = Sig(def) ?? (string?)def?.Descendants(Mei + "keySig").FirstOrDefault()?.Attribute("sig") ?? Sig(def?.Descendants(Mei + "staffDef").FirstOrDefault());
         if (sig is null) return null;
-        if (sig is "0" or "") return new Key(0);
+
+        var mode = (string?)def?.Attribute("key.mode") ?? (string?)def?.Descendants(Mei + "keySig").FirstOrDefault(k => k.Attribute("mode") is not null)?.Attribute("mode")
+            ?? (string?)def?.Descendants(Mei + "staffDef").FirstOrDefault(s => s.Attribute("key.mode") is not null)?.Attribute("key.mode");
+        var (minor, stated) = (mode == "minor", mode is "major" or "minor");
+        if (sig is "0" or "") return (new Key(0, minor), stated);
 
         var count = int.Parse(sig[..^1], CultureInfo.InvariantCulture);
-        return new Key(sig.EndsWith('f') ? -count : count);
+        return (new Key(sig.EndsWith('f') ? -count : count, minor), stated);
+    }
+
+    // The clefs a scoreDef's staff definitions set, by staff: clef.shape, or a clef element in the staffDef. F is the bass clef;
+    // any other is read as the treble (a C clef is rare in piano music).
+    private static IEnumerable<(int Staff, Clef Clef)> StaffClefs(XElement? def)
+    {
+        foreach (var staff in def?.Descendants(Mei + "staffDef") ?? [])
+        {
+            var shape = (string?)staff.Attribute("clef.shape") ?? (string?)staff.Element(Mei + "clef")?.Attribute("shape");
+            if (shape is not null && (int?)staff.Attribute("n") is { } n && shape != "perc") yield return (n, shape == "F" ? Clef.Bass : Clef.Treble);
+        }
     }
 
     private static Meter? ReadMeter(XElement? def)
@@ -323,9 +353,15 @@ public static class MeiReader
             var gestural = (string?)note.Attribute("accid.ges") ?? (string?)accid?.Attribute("accid.ges");
             // An accidental lasts the bar on its line or space, so the bar's earlier ones are found by the printed octave.
             int alter;
+            var carried = accidentals.TryGetValue((step, octave), out var earlier);
             if (written is not null) alter = Alter(written);
             else if (gestural is not null) alter = Alter(gestural);
-            else alter = accidentals.TryGetValue((step, octave), out var earlier) ? earlier : key.AlterOf(step);
+            else alter = carried ? earlier : key.AlterOf(step);
+            // Where it comes from, for a reader: printed here, earlier in the bar, the signature's, or none printed in this bar.
+            var spelling = written is not null ? Spelling.Written
+                : carried && earlier == alter ? Spelling.Carried
+                : alter == key.AlterOf(step) ? alter == 0 ? Spelling.Plain : Spelling.Signature
+                : Spelling.Tied;
             if (written is not null) accidentals[(step, octave)] = alter;
 
             var id = IdOf(note);
@@ -333,6 +369,7 @@ public static class MeiReader
             return new Tone(id, new Spelled(step, alter, sounds))
             {
                 Ottava = sounds - octave,
+                Spelling = spelling,
                 Finger = fingers.TryGetValue(id, out var finger) ? finger : null,
                 TieToNext = tie is "i" or "m" || tied.Any(t => t.Start == id),
                 TiedFromPrevious = tie is "t" or "m" || tied.Any(t => t.End == id),

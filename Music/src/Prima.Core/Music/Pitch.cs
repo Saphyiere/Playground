@@ -89,6 +89,22 @@ public readonly record struct Key(int Fifths, bool Minor = false)
         return best;
     }
 
+    /// <summary>The sharps or flats its signature prints, in their order on the staff: F♯ C♯ for two sharps, B♭ for one flat.</summary>
+    public IReadOnlyList<Spelled> Accidentals => Fifths > 0 ? [.. SharpOrder.Take(Fifths).Select(s => new Spelled(s, 1, 4))] : [.. FlatOrder.Take(-Fifths).Select(s => new Spelled(s, -1, 4))];
+
+    /// <summary>Its signature in words: "2 sharps, F♯ C♯", "1 flat, B♭", "no sharps or flats".</summary>
+    public string Signature
+    {
+        get
+        {
+            if (Fifths == 0) return "no sharps or flats";
+
+            var count = Math.Abs(Fifths);
+            var names = Accidentals.Select(a => $"{a.Step}{(a.Alter > 0 ? "♯" : "♭")}");
+            return $"{count} {(Fifths > 0 ? "sharp" : "flat")}{(count == 1 ? "" : "s")}, {string.Join(" ", names)}";
+        }
+    }
+
     /// <summary>The key's name, like "G major" or "F♯ minor".</summary>
     public string Name
     {

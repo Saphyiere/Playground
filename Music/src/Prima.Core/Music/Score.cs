@@ -16,6 +16,25 @@ public enum Articulation
     Tenuto,
 }
 
+/// <summary>Where a printed note's sharp or flat comes from, or its natural: what a reader has to keep in mind to play it.</summary>
+public enum Spelling
+{
+    /// <summary>A plain letter: no sharp or flat on it from anything.</summary>
+    Plain,
+
+    /// <summary>The key signature's sharp or flat.</summary>
+    Signature,
+
+    /// <summary>Its own sharp, flat or natural, printed in front of it.</summary>
+    Written,
+
+    /// <summary>One printed earlier in the bar on the same line or space, which lasts to the bar line.</summary>
+    Carried,
+
+    /// <summary>Held over a bar line by a tie (or kept by the file without being printed), so none is printed in this bar.</summary>
+    Tied,
+}
+
 /// <summary>
 /// One pitch of a note or chord, as it sounds: the key to play. Under an octave line it's printed an octave or two from there, at
 /// <see cref="Written"/>. Its id is the one the sheet's SVG carries, so marks find it.
@@ -33,6 +52,9 @@ public sealed record Tone(string Id, Spelled Pitch)
 
     /// <summary>The octave line it's under, as octaves it sounds above its printed note: 1 an 8va, 2 a 15ma, -1 an 8vb, -2 a 15mb.</summary>
     public int Ottava { get; init; }
+
+    /// <summary>Where its sharp, flat or natural comes from, as a piece's file prints it (<see cref="MeiReader"/>); plain otherwise.</summary>
+    public Spelling Spelling { get; init; }
 
     /// <summary>The note as printed, so its place on the staff: the pitch, moved back by the octave line it's under.</summary>
     public Spelled Written => Pitch with { Octave = Pitch.Octave - Ottava };
@@ -89,6 +111,9 @@ public sealed record Bar(int Number, IReadOnlyList<Voice> Voices)
 
     /// <summary>In a first or second ending: the times through the repeat that play the bar (none: every time).</summary>
     public IReadOnlyList<int> Endings { get; init; } = [];
+
+    /// <summary>Marked Fine: where the music ends, played on from a D.C. or a D.S., though more is written after it.</summary>
+    public bool Fine { get; init; }
 
     /// <summary>
     /// The tempo marks in it, in order: ticks into the bar, and the tempo each sets, in quarter notes a minute (a printed ♩. = 60 is
@@ -157,6 +182,47 @@ public sealed record Score(Key Key, Meter Meter, IReadOnlyList<Bar> Bars)
 
     /// <summary>All the marks: the score's own and its file's.</summary>
     public IEnumerable<Mark> AllMarks => Marks.Concat(FileMarks);
+
+    /// <summary>
+    /// Where the file says which of its signature's two keys the music is in (MusicXML's mode, kept by Verovio on the key
+    /// signature): the bars a key starts at, as indexes into <see cref="Bars"/>, 0 for the opening key. There the key's
+    /// <see cref="Key.Minor"/> is the file's; anywhere else it's major until <see cref="KeyFinder"/> says.
+    /// </summary>
+    public IReadOnlyList<int> StatedModes { get; init; } = [];
+
+    /// <summary>
+    /// The clefs the file's staff definitions set, as indexes into <see cref="Bars"/>: each staff's at the start (0), where it isn't
+    /// treble over bass (a left hand starting in the treble clef), and any a later one sets before a bar. A clef changed within a
+    /// bar is that voice's <see cref="ClefChange"/>.
+    /// </summary>
+    public IReadOnlyList<(int Bar, int Staff, Clef Clef)> StaffClefs { get; init; } = [];
+
+    /// <summary>
+    /// Every note's tones, each with the clef it's printed in and its bar's index: a staff's clef from the start (<see
+    /// cref="StaffClefs"/>, else treble over bass) changed by its staff definitions and by any clef change at or before the note,
+    /// in any of the staff's voices.
+    /// </summary>
+    public IEnumerable<(int Bar, int Staff, Notes Notes, Tone Tone, Clef Clef)> TonesWithClefs()
+    {
+        var clefs = new Dictionary<int, Clef> { [1] = Clef.Treble, [2] = Clef.Bass };
+        for (var i = 0; i < Bars.Count; i++)
+        {
+            foreach (var set in StaffClefs.Where(c => c.Bar == i)) clefs[set.Staff] = set.Clef;
+            var bar = Bars[i];
+            var changes = bar.Voices.SelectMany(v => v.Events.OfType<ClefChange>().Select(c => (v.Staff, c.Start, c.Clef))).ToList();
+            foreach (var voice in bar.Voices)
+            {
+                var open = clefs.GetValueOrDefault(voice.Staff, voice.Staff == 1 ? Clef.Treble : Clef.Bass);
+                foreach (var notes in voice.Events.OfType<Notes>())
+                {
+                    var at = changes.Where(c => c.Staff == voice.Staff && c.Start <= notes.Start).OrderBy(c => c.Start).Select(c => (Clef?)c.Clef).LastOrDefault() ?? open;
+                    foreach (var tone in notes.Tones) yield return (i, voice.Staff, notes, tone, at);
+                }
+            }
+            // The bar's last change on each staff carries on into the next bar.
+            foreach (var staff in changes.Select(c => c.Staff).Distinct()) clefs[staff] = changes.Where(c => c.Staff == staff).MaxBy(c => c.Start).Clef;
+        }
+    }
 
     /// <summary>The metre in force at each bar, in order.</summary>
     public IEnumerable<(Bar Bar, Key Key, Meter Meter)> WithSignatures()
