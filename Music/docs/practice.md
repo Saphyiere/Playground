@@ -67,6 +67,25 @@ under it, which Settings lets you change one by one (More has the ways and wheth
 - Whatever you choose, every run and every pass is kept, with what went wrong in each bar and the marks it left, so the look
   back and the in-depth review have them all.
 
+## When I slip: Keep going, Back a bar
+
+The owner, 28 November: "if I make a mistake, stop it, count me in again … 90% of the time you're going to want to go one bar
+back and redo that". A row in the piece's More, **When I slip**, kept for each piece; Keep going until it's changed.
+
+- **A slip** is a note heard wrong or missed as it's played: a wrong key at once, a missed note when its window shuts (four
+  tenths of a beat, 0.12 to 0.30 s). An extra key away from any note is only heard in the run's review afterwards, so it
+  never stops a run. Timing never stops one either. In time only: Wait for me waits at the note anyway.
+- **Keep going** plays on, as a run always has.
+- **Back a bar**: the click stops at the slip (a wrong key's run stops 0.15 s later, so the rest of its chord lands), its mark
+  stays on the music even with Mark notes as I play off, and the bar keeps its running look; a second later it counts in from
+  the bar before the slip, inside the loop if one is set (a slip in the loop's first bar counts in from there). Stop in that
+  second ends the go at the slip; taps and ‹ Bar are ignored until it's counting in.
+- **One go**: what was played up to each slip is a part of the go, and the go is kept as one run from where it started: every
+  part's notes scored together (a bar played again counts twice), every time round in order round a loop, and on the music
+  each note marked the worst it was played, so the slip still shows after the bar was played right. The review and the look
+  back see the slip where it was. The piece's own start bar and loop don't move.
+- *(pick)* About a second's pause, the length of a breath, before the count-in; the count-in is the usual one.
+
 ## The quick review: after a run, round a loop, after a session
 
 Rebuilt on 28 November, the third time, from the owner: the review "just doesn't help", "I hit 96% notes. Okay, like, what
@@ -176,13 +195,20 @@ say is on the chart under them. Everything below is a pick *(pick)*, its thresho
   everywhere, and `TempoMarks` has the metronome's marks a tempo moves by, which the tempo control uses too.
 - **The piece's page** has five states: the front, Practice (the page as it was, with the clocks and Finish practice, and the
   pause's cover over it), the look back, the in-depth review, and Play (full screen, with its strip).
+- **When I slip**: the play bar stops a run at a slip when its screen gives it `OnSlip`, scores what was played up to it as a
+  run stopped there (round a loop, the time round it cut short as `CutShort`), and counts in again with the music the screen
+  gives back, keeping the marks; the screen's own `Cut()` moves a run on the same way. The piece's page keeps the parts
+  (`Piece.Slips.cs`) and `Go.Join` makes them one run with its end. `CleanStreak` and `Slips` in Prima.Core count clean times
+  round and name the bars a slip goes back to.
 - Checked in the preview, both looks, the tablet's landscape and portrait: the front, a session's runs and loops, Finish
   practice mid-loop, the look back and the in-depth review, Play and its quick review, leaving and coming back to the cover,
   and the three ways, Wait after each pass and Go again. The rebuilt look back: the thirteen pretend sessions in Studio,
   four of them in Vinyl and in portrait in both looks; Practice it into a session set up for its step; and the front's Next
   and Start there. The quick review (28 November): seven kinds of run, two loops, two pretend sessions and Für Elise, in both
   looks, landscape and portrait, played by the preview's stand-in, whose `hard`, `hardRight`, `hardLean` and `hardSpread`
-  make a run stumble in chosen bars, in its notes or its timing.
+  make a run stumble in chosen bars, in its notes or its timing. Back a bar (28 November): the Minuet played wrong from bar 9,
+  the stop with the slip marked, the count-in from bar 8 and the go's review after Stop, in Porcelain and Night, landscape and
+  portrait, with motion on.
 
 ## Left for the tablet
 
@@ -195,7 +221,9 @@ Only the tablet and the piano can show these:
 - the quick review after real runs, loops and sessions: whether its sentences name the bars you'd name (the pretend
   pianist's mistakes are tidier than a person's);
 - Again at, Loop bars and Practice it with the piano plugged in: the tempo and the loop as they say, and the go key
-  starting them.
+  starting them;
+- Back a bar with real hands: false stops (a key brushed, a chord a hair apart, a grace note), and how the stop, the second's
+  pause and the count-in feel.
 
 ## Decided
 

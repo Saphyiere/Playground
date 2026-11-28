@@ -1,0 +1,35 @@
+@using Prima.Core.Practice
+
+@*
+    When I slip, in a piece's More: what a wrong or missed note does to a run In time, kept for the piece. Keep going plays on
+    through it, as a run always has; Back a bar stops the click and, a moment later, counts you in from the bar before, inside a
+    loop if one is set. The owner, 28 November 2026: "90% of the time you're going to want to go one bar back and redo that … if
+    I make a mistake, stop it, count me in again".
+*@
+<div class="more-group slip-choice" role="group" aria-label="When I slip">
+    <h3 class="more-head">When I slip</h3>
+    <div class="control-row">
+        @foreach (var (way, name, key) in Ways)
+        {
+            <button type="button" class="mu-toggle" data-piano="off" data-slip="@key" aria-pressed="@On(Way == way)" @onclick="() => WayChanged.InvokeAsync(way)"><span class="mu-led"></span>@name</button>
+        }
+    </div>
+    <p class="section-note">@Note</p>
+</div>
+
+@code {
+    /// <summary>The piece's way with a slip.</summary>
+    [Parameter] public SlipWay Way { get; set; }
+
+    [Parameter] public EventCallback<SlipWay> WayChanged { get; set; }
+
+    private static readonly (SlipWay Way, string Name, string Key)[] Ways = [(SlipWay.KeepGoing, "Keep going", "keep"), (SlipWay.BackABar, "Back a bar", "back")];
+
+    private static string On(bool on) => on ? "true" : "false";
+
+    private string Note => Way switch
+    {
+        SlipWay.BackABar => "Timed, a wrong or missed note stops the click, and a moment later it counts you in from the bar before: inside your loop, if one's set.",
+        _ => "Timed, a wrong or missed note is played through.",
+    };
+}

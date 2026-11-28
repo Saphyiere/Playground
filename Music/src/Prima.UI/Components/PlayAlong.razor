@@ -24,8 +24,9 @@
     goes or play along.
 *@
 
-@* While a run plays (its count-in too) the bar says so, and nothing new moves on the screen (prima.css, Motion). *@
-<section class="reading-bar play-bar piece-bar @BarClass" aria-label="Playing" data-running="@(Running || moving)">
+@* While a run plays (its count-in too) the bar says so, and nothing new moves on the screen (prima.css, Motion); and from a slip
+   until the run counts in again, that it's been cut there. *@
+<section class="reading-bar play-bar piece-bar @BarClass" aria-label="Playing" data-running="@(Running || moving)" data-cut="@(cut is not null ? "" : null)">
     @if (session is { Phase: Phase.CountIn })
     {
         <CountIn Session="session" />
@@ -63,6 +64,19 @@
                 var low = done.RightInTime is { } inTime ? inTime < 0.8 : done.Right < done.Notes * 0.9;
                 <div class="mu-readout @(low ? "miss" : "")"><span class="mu-readout-label">@(loop is not null ? "Last pass" : "Last run")</span><span class="mu-readout-value">@(done.RightInTime is null ? $"{done.Right}/{done.Notes}" : $"{now * 100:0}%")@way</span></div>
             }
+        }
+        @if (Streak is { Of: > 0 } streak)
+        {
+            @* Clean times round in a row (Lock in's, Practice it's): a dot each, lit as they come, all put out by a slip. *@
+            <div class="mu-readout play-streak" role="img" aria-label="@($"{streak.Clean} of {streak.Of} clean in a row")">
+                <span class="mu-readout-label">In a row</span>
+                <span class="mu-readout-value play-streak-dots">
+                    @for (var i = 0; i < streak.Of; i++)
+                    {
+                        <span class="play-streak-dot @(i < streak.Clean ? "on" : null)"></span>
+                    }
+                </span>
+            </div>
         }
         <span class="play-bar-gap play-bar-gap-portrait" aria-hidden="true"></span>
         @if (OnBack.HasDelegate)
@@ -202,6 +216,27 @@
 
     /// <summary>Back while a run plays, given the bar it's at: a screen that can start again from an earlier bar offers it.</summary>
     [Parameter] public EventCallback<int> OnBack { get; set; }
+
+    /// <summary>
+    /// A slip stops the run (Back a bar, Lock in). In time, the first note heard wrong or missed as it's played stops it there: the
+    /// click at once (a moment after a wrong key, for the rest of its chord), its mark staying on the music whatever Settings say.
+    /// The screen is given what was played up to the slip, as a run stopped there, and gives back the music to count in again with
+    /// a moment later, the same go at the piece; or none, and the run ends at the slip. The screen's own <see cref="Cut"/> asks it
+    /// the same. Null: a slip is played through, as it always was.
+    /// </summary>
+    [Parameter] public Func<PlayOutcome, Task<PlayMusic?>>? OnSlip { get; set; }
+
+    /// <summary>Round a loop In time, each time round as it's scored while the run goes on, for a screen counting clean ones.</summary>
+    [Parameter] public EventCallback<PiecePass> OnPass { get; set; }
+
+    /// <summary>Clean times round in a row so far and how many are wanted: dots among the run's readouts while it plays.</summary>
+    [Parameter] public (int Clean, int Of)? Streak { get; set; }
+
+    /// <summary>How long a run cut at a slip waits, the click stopped, before it counts in again: a moment to see the slip.</summary>
+    [Parameter] public TimeSpan CutPause { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>Whether the run starting is the same go counted in again after a cut (a slip), not one started anew.</summary>
+    public bool Continuing { get; private set; }
 
     /// <summary>Listen beside Start: the piano plays the music, its notes and its piano part (Duet's), with nothing judged.</summary>
     [Parameter] public bool ShowListen { get; set; }
@@ -367,6 +402,14 @@
     // Each note's bar on the sheet, by its id, for what went wrong in each bar of a pass; and the seconds since the music started.
     private Dictionary<string, int> barOf = [];
     private int seconds;
+    // Where a run is being cut, to go on from elsewhere: at a slip, the note slipped on (the last that counts, by its tick) and its
+    // bar; or where the screen moved it on, with no tick. The moment's pause after it, which Stop cuts short; whether the run
+    // counting in after it keeps the marks so far; and how many of the run's times round the screen has been told of.
+    private sealed record RunCut(PlaySession Run, long? Tick, int Bar);
+    private RunCut? cut;
+    private CancellationTokenSource? pausing;
+    private bool keepMarks;
+    private int passesTold;
 
     private string ModeKey => ModeKeyOf(Name);
 
@@ -571,7 +614,7 @@
         // A run stopped to start again (back a bar) leaves nothing ticking.
         session?.Dispose();
         ticker?.Dispose();
-        (session, wait, playing, stoppedNs, last, ticker, listening) = (null, null, music, null, null, null, listen);
+        (session, wait, playing, stoppedNs, last, ticker, listening, cut) = (null, null, music, null, null, null, listen, null);
         savedCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!ReferenceEquals(indexedScore, music.Score))
         {
@@ -585,10 +628,14 @@
             notes = sourceNotes.ToDictionary(n => n.Id);
             barOf = sourceNotes.GroupBy(n => n.WrittenId).ToDictionary(g => g.Key, g => g.First().Bar);
         }
-        drawn.Clear();
+        // Counted in again after a cut, the marks so far stay (the slip's among them), each note taking its new mark as it's
+        // played again.
+        var keep = keepMarks;
+        keepMarks = false;
+        if (!keep) drawn.Clear();
         heard.Clear();
         hinted = null;
-        await sheet.ClearMarks();
+        if (!keep) await sheet.ClearMarks();
         if (disposed || version != generation)
         {
             savedCompletion?.TrySetResult();
@@ -599,7 +646,7 @@
         // Every bar the run plays and when, a bar with nothing to play too: the bar the readout names, and the cursor's path.
         var bars = music.Score.BarTimes(music.Order ?? [.. Enumerable.Range(0, music.Score.Bars.Count)]);
         passes.Clear();
-        (loop, passMarks) = (null, []);
+        (loop, passMarks, passesTold) = (null, [], 0);
         if (music.LoopBars is { } count && !listen)
         {
             loop = (music.Score.Bars[bars[0].Index].Number, music.Score.Bars[bars[count - 1].Index].Number);
@@ -639,6 +686,11 @@
         {
             if (run.Phase == Phase.Done)
             {
+                if (cut is { } at && at.Run == run)
+                {
+                    await Cutting(run, music, at, completion, version);
+                    return;
+                }
                 try { await Ended(run); completion.TrySetResult(); }
                 catch (Exception error) { completion.TrySetException(error); throw; }
                 if (!disposed && run == session && version == generation) await Round(music);
@@ -659,7 +711,7 @@
         var (timeAt, heardAt) = Judged(run, music);
         var live = listen || RhythmOnly ? null : new LiveJudge(music.Notes, timeAt, music.BeatTicks, 60e9 / Tempo, Settings.TimingOffsetMs, music.Ornamented, music.Rolled);
         if (live is not null) run.KeyDown += (key, at) => _ = InvokeAsync(() => version == generation && run == session
-            ? Draw(live.Play(key, heardAt(at)) is { } mark ? [mark] : []) : Task.CompletedTask);
+            ? Judge(run, live.Play(key, heardAt(at)) is { } mark ? [mark] : []) : Task.CompletedTask);
         var tickQueued = 0;
         ticker = new Timer(_ =>
         {
@@ -678,14 +730,16 @@
                         (bar, seconds) = (at, elapsed);
                         StateHasChanged();
                     }
-                    if (live is not null) await Draw(live.Due(heardAt(now)));
+                    if (live is not null) await Judge(run, live.Due(heardAt(now)));
                     // Round a loop, a time round is scored once the next has begun and a late key for its last note has had its chance.
                     var next = passFrom + (passes.Count + 1) * passTicks;
-                    if (version != generation || loop is null || live is null || passes.Count >= fullPassesAvailable || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
+                    if (version != generation || run != session || cut is not null || loop is null || live is null || passes.Count >= fullPassesAvailable || now - Settings.TimingOffsetMs * 1e6 < run.TimeAt(next / (double)music.BeatTicks - from) + Grading.WindowNs(60e9 / Tempo)) return;
 
-                    var pass = Pass(music, run, passes.Count, expression: false);
-                    passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes) });
+                    passes.Add(PassOf(Pass(music, run, passes.Count, expression: false)));
                     StateHasChanged();
+                    // The screen told, as each comes: Lock in's dots, Practice it's.
+                    passesTold = passes.Count;
+                    await OnPass.InvokeAsync(passes[^1]);
                 }
                 finally { Volatile.Write(ref tickQueued, 0); }
             });
@@ -738,6 +792,8 @@
     {
         stopping = true;
         requestedMove = null;
+        // Stopped in the moment after a cut: the run ends where it was cut.
+        pausing?.Cancel();
         try
         {
             if (moveTask is { } move) await move;
@@ -817,11 +873,7 @@
         if (loop is not null && due.Count > 0)
         {
             passes.RemoveRange(Math.Min(whole, passes.Count), Math.Max(0, passes.Count - whole));
-            while (passes.Count < whole)
-            {
-                var pass = Pass(music, run, passes.Count, expression: false);
-                passes.Add(new PiecePass(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes) });
-            }
+            while (passes.Count < whole) passes.Add(PassOf(Pass(music, run, passes.Count, expression: false)));
             if (whole > 0)
             {
                 result = Pass(music, run, whole - 1, expression: true);
@@ -830,17 +882,158 @@
                 resultKeys = [.. run.Played.Where(p => p.OnNs >= opens && p.OnNs < closes)];
             }
         }
-        List<SheetMark> marks = [.. (result?.Notes ?? []).Select(n => n.Outcome switch
-        {
-            Outcome.Wrong when n.Played is { } key => MarkOf(music, n.Id, LiveKind.Wrong, key, 0),
-            Outcome.Missed => MarkOf(music, n.Id, LiveKind.Missed, null, 0),
-            _ when n.Band == Band.Off => MarkOf(music, n.Id, n.ErrorPercent < 0 ? LiveKind.Early : LiveKind.Late, null, n.ErrorPercent ?? 0),
-            _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
-        })];
+        var marks = MarksOf(music, result);
         if (result is not null && sheet is not null) await sheet.ShowMarks(marks);
         last = new PlayOutcome(PlayMode.InTime, result, null, run.Played, stoppedNs is not null, bar) { TimeAt = b => run.TimeAt(b - from), Loop = loop, Passes = [.. passes], Marks = marks, Judged = resultKeys };
         StateHasChanged();
         await OnFinished.InvokeAsync(last);
+    }
+
+    // The marks a result leaves on the music: a wrong note's key, a missed note, one off the beat early or late, the rest right.
+    private List<SheetMark> MarksOf(PlayMusic music, PassageResult? result) => [.. (result?.Notes ?? []).Select(n => n.Outcome switch
+    {
+        Outcome.Wrong when n.Played is { } key => MarkOf(music, n.Id, LiveKind.Wrong, key, 0),
+        Outcome.Missed => MarkOf(music, n.Id, LiveKind.Missed, null, 0),
+        _ when n.Band == Band.Off => MarkOf(music, n.Id, n.ErrorPercent < 0 ? LiveKind.Early : LiveKind.Late, null, n.ErrorPercent ?? 0),
+        _ => MarkOf(music, n.Id, LiveKind.Right, null, 0),
+    })];
+
+    // A time round In time as the bar and the screen keep it: right of its notes, right in time, what went wrong in each bar, and
+    // the keys extra.
+    private static PiecePass PassOf(PassageResult pass) => new(pass.Right, pass.Expected, pass.InTimeAccuracy) { Trouble = Trouble.Of(pass.Notes), Extra = pass.Extra };
+
+    // Notes judged as they're played: marked, and where a slip stops the run, the first wrong or missed one stops it. A wrong key's
+    // chord comes with it, so the run stops a moment after, with the rest of its keys.
+    private async Task Judge(PlaySession run, IReadOnlyList<LiveMark> marks)
+    {
+        await Draw(marks);
+        if (OnSlip is null || cut is not null || run != session || !Running) return;
+        if (marks.FirstOrDefault(m => m.Kind is LiveKind.Wrong or LiveKind.Missed) is not { } slipped || !notes.TryGetValue(slipped.Id, out var note)) return;
+
+        cut = new RunCut(run, note.Tick, note.Bar);
+        if (playing is { } music && SheetOf() is { } sheet && !Settings.LiveMarks)
+        {
+            // Its mark shows whatever Settings say of the marks while you play: it's why the click stopped.
+            await sheet.MarkLive([MarkOf(music, slipped.Id, slipped.Kind, slipped.Played, slipped.ErrorPercent)]);
+        }
+        if (slipped.Kind == LiveKind.Wrong) await Task.Delay(TimeSpan.FromTicks(WaitJudge.TogetherNs / 100));
+        else await Task.Yield();
+        if (cut?.Run == run && run == session) run.Finish();
+    }
+
+    /// <summary>
+    /// Cuts the run where it is to go on from elsewhere, as a slip does: <see cref="OnSlip"/> is given what it played and says where
+    /// (Lock in's spot clean so many times in a row, let go, or going a notch slower). A bar whose slips don't stop it stops.
+    /// </summary>
+    public async Task Cut()
+    {
+        if (OnSlip is null)
+        {
+            await Stop();
+            return;
+        }
+        if (cut is not null || session is not { Phase: Phase.CountIn or Phase.Playing } run) return;
+
+        cut = new RunCut(run, null, bar);
+        // Not in the middle of what asked for it (a time round's being told, say): the run ends once that's done.
+        await Task.Yield();
+        if (cut?.Run == run && run == session) run.Finish();
+    }
+
+    // A run cut to go on from elsewhere: at a slip, or where the screen moved it on. What it played is scored as a run stopped there
+    // and given to the screen (round a loop, any times round it played to their end that the screen hadn't been told of first),
+    // its marks left as they were drawn; then, a moment later with the click stopped, it counts in again with the music the screen
+    // gives, the same go at the piece. Stopped meanwhile, left, or given none, the run ends where it was cut.
+    private async Task Cutting(PlaySession run, PlayMusic music, RunCut at, TaskCompletionSource completion, long version)
+    {
+        PlayOutcome? part = null;
+        moving = true;
+        try
+        {
+            ticker?.Dispose();
+            ticker = null;
+            if (SheetOf() is { } sheet) await sheet.StopCursor();
+            part = last = Part(run, music, at);
+            StateHasChanged();
+            foreach (var pass in part.Passes.Skip(passesTold).ToList())
+            {
+                passesTold++;
+                await OnPass.InvokeAsync(pass);
+            }
+            var next = !disposed && version == generation && OnSlip is { } ask ? await ask(part) : null;
+            if (next is not null && !disposed && version == generation)
+            {
+                pausing = new CancellationTokenSource();
+                StateHasChanged();
+                try { await Task.Delay(CutPause, pausing.Token); }
+                catch (OperationCanceledException) { }
+                if (!disposed && version == generation)
+                {
+                    (cut, keepMarks, Continuing) = (null, true, true);
+                    completion.TrySetResult();
+                    try
+                    {
+                        if (await Run(next, listen: false, again: true)) return;
+                    }
+                    finally { Continuing = false; }
+                }
+            }
+        }
+        finally
+        {
+            moving = false;
+            pausing = null;
+        }
+
+        // Stopped, left, or with nowhere to go on: the run ends where it was cut.
+        cut = null;
+        keepMarks = false;
+        if (disposed || part is null)
+        {
+            completion.TrySetResult();
+            return;
+        }
+        StateHasChanged();
+        try { await OnFinished.InvokeAsync(part); completion.TrySetResult(); }
+        catch (Exception error) { completion.TrySetException(error); throw; }
+    }
+
+    // What a run cut short played, scored as a run stopped there. At a slip, its notes up to the one slipped on (its chord's with
+    // it), and round a loop the time round it cut short as a pass of its own; moved on by the screen, the notes due by the last key
+    // played, and round a loop its times round played to their end, the run's result the last one's.
+    private PlayOutcome Part(PlaySession run, PlayMusic music, RunCut at)
+    {
+        var from = music.FromTick / (double)music.BeatTicks;
+        var beatNs = 60e9 / Tempo;
+        var (timeAt, heardAt) = Judged(run, music);
+        var damper = run.Damper.Select(d => (heardAt(d.DownNs), heardAt(d.UpNs))).ToList();
+        PassageResult? Score(IReadOnlyList<ExpectedNote> due, IEnumerable<PlayedNote> keys) => due.Count == 0 ? null : PassageScorer.Score(due, timeAt, music.BeatTicks, beatNs, beatNs * music.Score.Meter.Beats,
+            [.. keys.Select(p => p with { OnNs = heardAt(p.OnNs), OffNs = heardAt(p.OffNs) })], Settings.TimingOffsetMs, music.Ornamented, damper, null, null, music.Rolled);
+        var lastKey = run.Played.Count == 0 ? long.MinValue : (long)(run.Played.Max(p => p.OnNs) - Settings.TimingOffsetMs * 1e6 + Grading.WindowNs(beatNs));
+        List<ExpectedNote> due = at.Tick is { } tick ? [.. music.Notes.Where(n => n.Tick <= tick)] : [.. music.Notes.TakeWhile(n => run.TimeAt(n.Tick / (double)music.BeatTicks - from) <= lastKey)];
+
+        PassageResult? result;
+        PiecePass? cutShort = null;
+        if (loop is null) result = Score(due, run.Played);
+        else
+        {
+            // Round a loop: the times round before the slip's (or all the screen moved on after), each scored by itself; at a slip,
+            // the time round it cut short, from its first note to the slip, with its own keys.
+            var whole = at.Tick is { } slipped ? (slipped < passFrom ? 0 : (int)Math.Min(fullPassesAvailable, (slipped - passFrom) / passTicks)) : passes.Count;
+            while (passes.Count < whole) passes.Add(PassOf(Pass(music, run, passes.Count, expression: false)));
+            if (at.Tick is not null)
+            {
+                var start = due.Count > 0 && due[^1].Tick < passFrom ? long.MinValue : passFrom + passes.Count * passTicks;
+                var opens = start == long.MinValue ? long.MinValue : PassKeys(music, run, passes.Count).Opens;
+                result = Score([.. due.Where(n => n.Tick >= start)], run.Played.Where(p => p.OnNs >= opens));
+                cutShort = result is null ? null : PassOf(result);
+            }
+            else result = passes.Count > 0 ? Pass(music, run, passes.Count - 1, expression: false) : Score(due, run.Played);
+        }
+        return new PlayOutcome(PlayMode.InTime, result, null, run.Played, true, at.Bar)
+        {
+            TimeAt = b => run.TimeAt(b - from), Loop = loop, Passes = [.. passes], Marks = MarksOf(music, result), Judged = run.Played, CutShort = cutShort, Slipped = at.Tick is not null,
+        };
     }
 
     // When a time round a loop's own keys come, on the system clock: from half a window before its first note to half a window
@@ -1001,6 +1194,7 @@
         generation++;
         requestedMove = null;
         disposed = true;
+        pausing?.Cancel();
         StopMetronome();
         Lifecycle.Pausing -= Hush;
         Keyboard.Received -= Heard;

@@ -467,7 +467,14 @@ a PDF plays out; this is what came of it.
   run plays, tapping a bar, on the music or the strip, starts it again from there, and **‹ Bar** goes back a bar (in a loop, to
   its start): it's the same go, moved, so what was played before it isn't judged or kept as a run of its own, and its time
   carries on. The bar stays as it plays all the while, never showing Start for a moment between: Wait for me waits at the bar
-  tapped at once, and In time counts in to it. More can't be opened while a run plays, and looks off then. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
+  tapped at once, and In time counts in to it. More can't be opened while a run plays, and looks off then. **When I slip**, in
+  More and kept for the piece, says what a wrong or missed note does to a run In time: **Keep going** plays on through it, as a
+  run always has; **Back a bar** stops the click at the slip (a moment after a wrong key, so the rest of its chord is kept),
+  leaves its mark on the music whatever the marks are set to, and a second later counts in from the bar before, inside the
+  loop if one is set. It's the same go: what was played up to each slip is kept with the rest as one run from where it
+  started, each note showing the worst it was played, so the review and the look back see the slip where it was, and the
+  piece's own start bar doesn't move. Stop in the second after a slip ends the go there. Wait for me has no click to stop, and
+  plays through. **Play along**, with one hand chosen, has the piano play the other In time. **Listen**, beside Play, has
   the piano play the piece, to hear how it goes: from the start bar (or round the loop) at the tempo, after a bar of count-in
   so you can join in, the click then quiet and the cursor moving with it. It plays what a run would sound like with your part
   played right: the hand chosen, the other too with play along, or both. Nothing is marked or kept; taps and ‹ Bar move it as

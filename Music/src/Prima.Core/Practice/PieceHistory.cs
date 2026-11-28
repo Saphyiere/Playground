@@ -64,6 +64,9 @@ public sealed record PiecePass(int Right, int Notes, double? RightInTime)
 
     /// <summary>In Wait for me, the seconds it took at your own pace, from its first key to its last; unknown before 15 November.</summary>
     public double? Seconds { get; init; }
+
+    /// <summary>In time, keys played that weren't any of its notes: they spoil a time round for Lock in. Not kept.</summary>
+    public int Extra { get; init; }
 }
 
 /// <summary>

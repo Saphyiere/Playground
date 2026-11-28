@@ -440,7 +440,8 @@ else
                        EarlierPasses="@(waitedLoop is { } w && (w.From, w.To, w.Hand) == (from, loopTo, handStaff) ? waited : [])" StartLabel="@StartLabel" CanStart="Playable" OnStarting="Starting" OnFinished="Finished" OnBack="Back" ShowListen="true" OnListened="Listened"
                        OriginalTempo="originalTempo" OnExplain="EventCallback.Factory.Create(this, ToggleExplain)" Explaining="explain" OnFullScreen="ToggleFullScreen"
                        Hands="@(twoHands ? AllHands : null)" Hand="@HandOf(handStaff)" HandChanged="h => SetHands(StaffOf(h))"
-                       Loop="@(loopTo is not null)" OnLoop="LoopOnBar" LoopOnLabel="Loop: on. The bars chosen go round until you stop" LoopOffLabel="Loop: off. On, it goes round the bar chosen">
+                       Loop="@(loopTo is not null)" OnLoop="LoopOnBar" LoopOnLabel="Loop: on. The bars chosen go round until you stop" LoopOffLabel="Loop: off. On, it goes round the bar chosen"
+                       OnSlip="SlipStops" OnPass="Passed" Streak="StreakShown">
                 <Tools>
                     @if (view == View.Pages && !playing)
                     {
@@ -468,6 +469,8 @@ else
                     @printKey
                 </MoreMusic>
                 <More>
+                    @* When I slip: what a wrong or missed note does to a run, kept for the piece (Piece.Slips.cs). *@
+                    <SlipChoice Way="slipWay" WayChanged="SetSlipWay" />
                     <div class="more-group" role="group" aria-label="After a run">
                         <h3 class="more-head">After a run</h3>
                         <FeedbackPreset Way="@Settings.Way" Chosen="UseWay" />
@@ -724,6 +727,7 @@ else
                 var stored = await Store.GetSettingsAsync();
                 view = stored.GetValueOrDefault(ViewKey) == "pages" ? View.Pages : View.Scroll;
                 handStaff = twoHands ? stored.GetValueOrDefault(HandsKey) switch { "right" => 1, "left" => 2, _ => null } : null;
+                slipWay = SlipWayOf(stored.GetValueOrDefault(SlipKey));
                 StartAt(FirstBar);
                 latestRun = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run).MaxBy(r => (r.At, r.Id));
                 // A session left going is paused, to carry on or finish; one left until another day (played before today, and longer
@@ -1115,22 +1119,31 @@ else
     // the piano the other hand's notes.
     private void StartAt(int bar)
     {
-        if (score is null || !barStarts.TryGetValue(bar, out var start)) return;
+        if (score is null || !barStarts.ContainsKey(bar)) return;
 
         from = bar;
         if (loopTo is { } to) loopTo = Math.Max(to, bar);
+        music = MusicOf(bar, loopTo);
+        wholeLoop = music?.LoopBars is not null ? music : null;
+        cueBar = null;
+    }
+
+    // The music from a bar, for the hand chosen (and the other hand's for the piano, with play along): to the end, or round a loop
+    // to its last bar, as many times round as asked (fifty unless said, or one where a loop waits after each pass).
+    private PlayMusic? MusicOf(int bar, int? last, int? times = null)
+    {
+        if (score is null || !barStarts.TryGetValue(bar, out var start)) return null;
+
         var first = bar - FirstBar;
-        var loop = loopTo is { } last ? score.LoopOrder(first, last - FirstBar) : null;
-        var passes = stage == Stage.Practice && Settings.PassWaits ? 1 : 50;
+        var loop = last is { } end ? score.LoopOrder(first, end - FirstBar) : null;
+        var passes = times ?? (stage == Stage.Practice && Settings.PassWaits ? 1 : 50);
         IReadOnlyList<int> order = loop is null ? score.PlayOrder(first) : [.. Enumerable.Repeat(loop, passes).SelectMany(r => r)];
         var notes = score.Performed(order);
         var beatZero = Math.Max(0, start);
         double Beats(long ticks) => ticks / (double)score.Meter.BeatTicks;
         var otherHand = playAlong && handStaff is { } staff ? notes.Where(n => n.Staff != staff) : null;
         var other = otherHand?.Select(n => (n.Midi, Beats(n.Tick - beatZero), Beats(n.Sounds))).ToList();
-        music = new PlayMusic(score, notes.Where(n => handStaff is null || n.Staff == handStaff).ToArray(), beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
-        wholeLoop = loop is not null ? music : null;
-        cueBar = null;
+        return new PlayMusic(score, notes.Where(n => handStaff is null || n.Staff == handStaff).ToArray(), beatZero) { PianoPart = other, Order = order, LoopBars = loop?.Count };
     }
 
     private void Seek(int bar)
@@ -1298,7 +1311,10 @@ else
     // The run plays in the scrolling view, a line at a time: for the run, so a piece kept in Pages opens in Pages the next time.
     private async Task Starting()
     {
-        (playing, outcome, started, about, explain, explained) = (true, null, restarting ? started : DateTime.Now, false, false, null);
+        // The same go when it's moved to another bar or counted in again after a slip: its time carries on.
+        var same = restarting || play?.Continuing == true;
+        NewGo(same);
+        (playing, outcome, started, about, explain, explained) = (true, null, same ? started : DateTime.Now, false, false, null);
         if (stage == Stage.Practice) clock?.RunStarted(DateTimeOffset.Now);
         if (stage == Stage.Play) played = null;
         if (view == View.Scroll) return;
@@ -1311,6 +1327,8 @@ else
 
     private async Task Finished(PlayOutcome how)
     {
+        // A go slips cut: its parts and its end as one run.
+        how = await WholeGo(how);
         // How the run before went, for under this one's figure: runs, not a loop's times round; on a page just opened, the session's
         // last one kept.
         if (how is { Loop: null, InTime: { Expected: > 0 } timed })

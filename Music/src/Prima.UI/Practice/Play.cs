@@ -158,6 +158,62 @@ public sealed record PlayOutcome(PlayMode Mode, PassageResult? InTime, WaitResul
     /// ends, its passes. What a run counts as, and whether its result is of the music whole.
     /// </summary>
     public int TimesThrough => Loop is null ? Stopped ? 0 : 1 : Passes.Count;
+
+    /// <summary>A run cut to go on from elsewhere (<see cref="PlayAlong.OnSlip"/>): whether a slip cut it, not the screen.</summary>
+    public bool Slipped { get; init; }
+
+    /// <summary>Round a loop, the time round a slip cut short: what was played of it, up to the slip, as a pass.</summary>
+    public PiecePass? CutShort { get; init; }
+}
+
+/// <summary>
+/// A go at a piece that slips cut and counted in again (Back a bar, Lock in) as one run: its parts, each up to a slip, and its end.
+/// All its notes are scored together; round a loop it's its last time round, as a loop's run is, with every time round in order
+/// (those a slip cut short too); and on the music each note shows the worst it was played.
+/// </summary>
+public static class Go
+{
+    public static PlayOutcome Join(IReadOnlyList<PlayOutcome> parts, PlayOutcome end)
+    {
+        if (parts.Count == 0) return end;
+
+        var all = parts.Append(end).ToList();
+        var loop = end.Loop ?? parts.LastOrDefault(p => p.Loop is not null)?.Loop;
+        var results = all.Select(p => p.InTime).OfType<PassageResult>().ToList();
+        var result = loop is not null ? all.LastOrDefault(p => p.InTime is not null)?.InTime : Joined(results);
+        // Stopped before a key could be judged after a slip: the go ended at that slip.
+        var ended = end is { InTime: null, Wait: null } ? parts[^1] : end;
+        return end with
+        {
+            InTime = result, Played = [.. all.SelectMany(p => p.Played)], Stopped = ended.Stopped, Bar = ended.Bar, Loop = loop,
+            Passes = [.. all.SelectMany(p => p.CutShort is { } cut ? [.. p.Passes, cut] : p.Passes)], Marks = Worst(all.SelectMany(p => p.Marks)),
+            Judged = end.InTime is null ? ended.Judged : end.Judged, Slipped = false, CutShort = null,
+        };
+    }
+
+    // The parts' results as one: every note, the keys extra, and their timing by how many notes each had.
+    private static PassageResult? Joined(IReadOnlyList<PassageResult> results)
+    {
+        if (results.Count <= 1) return results.FirstOrDefault();
+
+        var notes = results.Sum(r => r.Expected);
+        double Mean(Func<PassageResult, double> of) => notes == 0 ? 0 : results.Sum(r => of(r) * r.Expected) / notes;
+        var last = results[^1];
+        return new PassageResult([.. results.SelectMany(r => r.Notes)], results.Sum(r => r.Extra), Mean(r => r.LeanMs), Mean(r => r.LeanPercent), Mean(r => r.SteadinessPercent),
+            Mean(r => r.CorrectPerMinute), last.KeptGoing, null, Mean(r => r.RmsMs), results.SelectMany(r => r.ErrorsPerBar).GroupBy(e => e.Key).ToDictionary(g => g.Key, g => g.Sum(e => e.Value)),
+            last.ChordSpreadMs)
+        {
+            Dynamics = [.. results.SelectMany(r => r.Dynamics)], Hairpins = [.. results.SelectMany(r => r.Hairpins)], Pedal = [.. results.SelectMany(r => r.Pedal)],
+            ExtraPedal = [.. results.SelectMany(r => r.ExtraPedal).Distinct()], TouchVaries = results.Any(r => r.TouchVaries), Staves = last.Staves,
+            HandsApartMs = last.HandsApartMs, HandsApartSdMs = last.HandsApartSdMs,
+        };
+    }
+
+    // Each note's worst mark of the go: wrong, missed, a chord's notes apart, off the beat, then right; of two as bad, the later.
+    private static List<SheetMark> Worst(IEnumerable<SheetMark> marks) => [.. marks.Select((m, i) => (Mark: m, At: i)).GroupBy(x => x.Mark.Id)
+        .Select(g => g.OrderByDescending(x => Rank(x.Mark.Kind)).ThenByDescending(x => x.At).First().Mark)];
+
+    private static int Rank(string kind) => kind switch { "wrong" => 4, "missed" => 3, "apart" => 2, "early" or "late" => 1, _ => 0 };
 }
 
 /// <summary>What went wrong in each bar of a run or a pass that had something wrong.</summary>
