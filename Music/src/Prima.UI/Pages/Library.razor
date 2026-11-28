@@ -19,8 +19,8 @@
    other versions of it, or a list of pieces. Each column scrolls by itself. *@
 <div class="lib">
     <PageHead Title="Library" Kicker="@(loaded ? Counted() : "\u00a0")">
-        <input class="text-field head-search" type="search" placeholder="Find a piece or a composer" aria-label="Find a piece" value="@search" @oninput="Typed" />
-        <button type="button" class="mu-btn" @onclick="Import">Import files</button>
+        <input class="text-field head-search" type="search" placeholder="Find a piece or a composer" aria-label="Find a piece" data-explain="library-search" value="@search" @oninput="Typed" />
+        <button type="button" class="mu-btn" data-explain="import" @onclick="Import">Import files</button>
     </PageHead>
 
     @if (Prep.Running)

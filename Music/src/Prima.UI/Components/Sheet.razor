@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @inject IClock Clock
 @inject PrimaSettings Settings
+@inject Prima.UI.Glossary.WhatsThis WhatsThis
 
 @* Sheet music, engraved by Verovio from MEI: black on paper in both looks. The marks are drawn over it, and the cursor is a
    line of its own over both, so it can move without the music under it being painted again. A whole piece's paper waits
@@ -67,12 +68,20 @@
     [Parameter] public EventCallback<string> OnBarTapped { get; set; }
 
     /// <summary>
-    /// What's this: the signs in view are marked, and a tap says what's printed within a finger's reach of it instead of choosing
-    /// a bar (<see cref="OnSymbolsTapped"/>: the nearest few, the nearest first).
+    /// What's this, on (every sheet follows it): the signs in view are marked, and a tap says what's printed within a finger's
+    /// reach of it instead of choosing a note or a bar. A screen that says more of its music (a piece, its key and names) is told
+    /// the nearest few, the nearest first; any other sheet says what they are itself, from its own music.
     /// </summary>
-    [Parameter] public bool Explain { get; set; }
-
     [Parameter] public EventCallback<IReadOnlyList<SheetSymbol>> OnSymbolsTapped { get; set; }
+
+    /// <summary>Whether it follows What's this; not a glossary entry's picture, shown by What's this itself.</summary>
+    [Parameter] public bool Explains { get; set; } = true;
+
+    private bool Explain => Explains && WhatsThis.On;
+
+    // What a tap on this sheet's own music says, made from the music it has when first asked.
+    private Prima.UI.Glossary.MusicExplainer? own;
+    private string? ownOf;
 
     /// <summary>The notes' names to print over them (under them on a lower staff), drawn a line at a time as it comes into view; none, none.</summary>
     [Parameter] public IReadOnlyList<NoteLabel>? NoteLabels { get; set; }
@@ -91,6 +100,13 @@
 
     private bool explained;
     private IReadOnlyList<NoteLabel>? labelled;
+
+    protected override void OnInitialized() => WhatsThis.Changed += Explained;
+
+    private void Explained()
+    {
+        if (explained != Explain) _ = InvokeAsync(StateHasChanged);
+    }
 
     // The music as Verovio is given it (SongWords), kept for the MEI and the lyrics setting it was made for: a page turned, or the
     // sheet drawn again at another size, needn't make it again.
@@ -195,7 +211,15 @@
     public Task BarTapped(string id) => disposed ? Task.CompletedTask : OnBarTapped.InvokeAsync(id);
 
     [JSInvokable]
-    public Task SymbolsTapped(SheetSymbol[] near) => disposed ? Task.CompletedTask : OnSymbolsTapped.InvokeAsync(near);
+    public Task SymbolsTapped(SheetSymbol[] near)
+    {
+        if (disposed) return Task.CompletedTask;
+        if (OnSymbolsTapped.HasDelegate) return OnSymbolsTapped.InvokeAsync(near);
+
+        if (!ReferenceEquals(ownOf, Mei)) (own, ownOf) = (new Prima.UI.Glossary.MusicExplainer(Mei), Mei);
+        WhatsThis.Show(own!.Tapped(near, WhatsThis.Show));
+        return Task.CompletedTask;
+    }
 
     private string[][]? Labels() => NoteLabels?.Select(l => new[] { l.Id, l.Text }).ToArray();
 
@@ -279,6 +303,7 @@
     {
         if (disposed) return;
         disposed = true;
+        WhatsThis.Changed -= Explained;
         var owned = module;
         module = null;
         try

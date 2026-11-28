@@ -58,9 +58,10 @@ public class WhatsThisTests
         await Tap(view, ".page-head .whats-this-key");
 
         view.WaitForAssertion(() => Assert.Equal("B minor", view.Find(".whats-this-key-name").TextContent.Trim()));
-        Assert.Equal("2 sharps, F♯ C♯. It ends on B.", view.Find(".whats-this-key .whats-this-words").TextContent.Trim());
+        Assert.Equal("2 sharps, F♯ C♯. It ends on B.", view.Find(".whats-this-key-block .whats-this-words").TextContent.Trim());
         Assert.Equal([true], host.Browser.Explaining);
-        Assert.True(view.FindComponent<Sheet>().Instance.Explain);
+        // The music marks what there is to tap: told as it's drawn, or after.
+        view.WaitForAssertion(() => Assert.True(host.Browser.SheetsExplaining.LastOrDefault() || host.Browser.Renders.Last().Options.GetProperty("explain").GetBoolean()));
         Assert.Null(view.FindComponent<Sheet>().Instance.NoteLabels);
 
         // The hard ones: the A over the staff and the B under the bass staff, each by its octave (two sharps aren't enough to make
@@ -113,6 +114,35 @@ public class WhatsThisTests
         // More: its glossary entry, in place.
         await Tap(view, ".explain-card-more");
         view.WaitForAssertion(() => Assert.Equal("Slur", view.Find(".explain-entry .explain-card-name").TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task AnySheetSaysWhatsOnItsOwnMusic()
+    {
+        // An exercise's or a drill's passage: a sheet with nobody to tell, in A minor (no sharps or flats, ending on A).
+        await using var host = new ComponentHost();
+        var score = new Score(new Prima.Core.Music.Key(0), new Meter(4, 4),
+        [
+            new Bar(1, [new Voice(1, [new Notes("e", 0, 960, [new Tone("e5", new Spelled(Step.E, 0, 5))]), new Notes("g", 960, 960, [new Tone("g5", new Spelled(Step.G, 1, 5))])]), new Voice(2, [new Notes("a", 0, 1920, [new Tone("a2", new Spelled(Step.A, 0, 2))])])]),
+            new Bar(2, [new Voice(1, [new Notes("end", 0, 1920, [new Tone("a4", new Spelled(Step.A, 0, 4))])]), new Voice(2, [new Notes("low", 0, 1920, [new Tone("a1", new Spelled(Step.A, 0, 2))])])]),
+        ]);
+        var mei = MeiWriter.Write(score);
+        var view = host.Context.Render(b =>
+        {
+            b.OpenComponent<WhatsThisLayer>(0);
+            b.CloseComponent();
+            b.OpenComponent<Sheet>(1);
+            b.AddAttribute(2, nameof(Sheet.Mei), mei);
+            b.CloseComponent();
+        });
+        var whatsThis = host.Context.Services.GetRequiredService<WhatsThis>();
+        await view.InvokeAsync(() => whatsThis.SetAsync(true));
+
+        await view.InvokeAsync(() => view.FindComponent<Sheet>().Instance.SymbolsTapped([new SheetSymbol("g5", "note", null)]));
+        view.WaitForAssertion(() => Assert.Equal("G♯5", view.Find(".explain-card-name").TextContent.Trim()));
+        Assert.Equal(["Just above the treble staff.", "It's sharp by its own sign."], view.FindAll(".explain-card p").Select(p => p.TextContent.Trim()));
+        await view.InvokeAsync(() => view.FindComponent<Sheet>().Instance.SymbolsTapped([new SheetSymbol("k", "keySig", "m1")]));
+        view.WaitForAssertion(() => Assert.Contains("The music here is in A minor.", view.FindAll(".explain-card p").Select(p => p.TextContent.Trim())));
     }
 
     [Fact]

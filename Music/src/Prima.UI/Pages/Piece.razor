@@ -50,7 +50,7 @@ else
             <Microsoft.AspNetCore.Components.Sections.SectionContent SectionName="whats-this">
                 <div class="whats-this-row">
                     <span class="control-label">Key</span>
-                    <div class="whats-this-key">
+                    <div class="whats-this-key-block">
                         <b class="whats-this-key-name">@KeyName(here)</b>
                         <span class="whats-this-words">@KeyWords(here)</span>
                         @if (KeyStretches.Count > 1)
@@ -248,7 +248,7 @@ else
                 {
                     @* The sheet is there from the first, its paper waiting while the music is still being read (no music yet), then
                        while it's laid out; its lines show as they're drawn. *@
-                    <Sheet @ref="sheet" Mei="@SheetMusic" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnProgress="Progressed" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" Explain="explain" OnSymbolsTapped="SymbolsTapped" NoteLabels="Labels()" />
+                    <Sheet @ref="sheet" Mei="@SheetMusic" Layout="@(view == View.Pages ? "page" : "scroll")" Page="page" Class="@(HandName is { } hand ? $"piece-sheet hands-{hand}" : "piece-sheet")" Lyrics="Settings.Lyrics" OnPages="Pages" OnPainted="Painted" OnProgress="Progressed" OnBarTapped="@(id => BarOf(id) is { } bar ? Chose(bar) : Task.CompletedTask)" OnSymbolsTapped="SymbolsTapped" NoteLabels="Labels()" />
                 }
                 @* A PDF's pages turn by its outer thirds too. A notation piece's thirds are its bars, to tap, so it turns by a swipe, ‹ ›
                    or the piano. *@

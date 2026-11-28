@@ -94,7 +94,7 @@ test("its own keys and cards, and the music, are left alone", () => {
     const key = new Element({ "data-explain-keep": "", class: "mu-btn whats-this-key" });
     const card = new Element({ "data-explain-keep": "", class: "explain-card" });
     const choice = new Element({ class: "mu-btn" }, card);
-    const sheet = new Element({ class: "sheet piece-sheet" });
+    const sheet = new Element({ class: "sheet sheet-explain piece-sheet" });
     const note = new Element({ class: "notehead" }, sheet);
     api.on(dotnet);
 

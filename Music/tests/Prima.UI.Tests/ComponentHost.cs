@@ -213,8 +213,9 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
     public List<string> Marks { get; } = [];
     /// <summary>The notes' names sheets were given to print, in order: each note's [id, name], or none.</summary>
     public List<string[][]?> NamesGiven { get; } = [];
-    /// <summary>What's this turned on (true) and off, in order.</summary>
+    /// <summary>What's this turned on (true) and off, in order, and sheets told it had.</summary>
     public List<bool> Explaining { get; } = [];
+    public List<bool> SheetsExplaining { get; } = [];
     /// <summary>
     /// A whole piece's sheet says it's drawn as soon as it's asked to draw, as a short piece's is. Off, nothing is said: the paper
     /// waits, and a test says how far the drawing has got itself (the sheet's Progress).
@@ -258,6 +259,7 @@ internal sealed class BrowserCalls : IJSRuntime, IJSObjectReference
         if (identifier is "showMarks" or "markLive" or "clearMarks") lock (Marks) Marks.Add(identifier);
         if (identifier == "names") lock (NamesGiven) NamesGiven.Add((string[][]?)args![1]);
         if (identifier is "on" or "off") lock (Explaining) Explaining.Add(identifier == "on");
+        if (identifier == "explain") lock (SheetsExplaining) SheetsExplaining.Add((bool)args![1]!);
         if (identifier == "cursorStart" && args?.ElementAtOrDefault(7) is { } path)
             CursorPaths.Add(JsonSerializer.SerializeToElement(path));
         if (identifier == "stop") SheetStops++;

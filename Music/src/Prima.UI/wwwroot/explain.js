@@ -1,11 +1,11 @@
 // What's this, on every screen. While it's on, a tap says what's tapped instead of pressing it: every tap, touch and press is
 // caught on its way down (in the capture phase, on the window, before Blazor's handlers or a link see it), and a tap on what's
 // marked data-explain asks .NET for its card. What What's this draws itself (data-explain-keep: its key, its panel, its cards)
-// and the music, which says what's printed on it by itself, are left alone. A tap made by a script (the piano's keys pressing
+// and music explaining itself (a sheet with What's this on, .sheet-explain) are left alone. A tap made by a script (the piano's keys pressing
 // a button) is stopped too, and says nothing.
 
 let dotnet = null;
-const kept = "[data-explain-keep], .sheet";
+const kept = "[data-explain-keep], .sheet-explain";
 const caught = ["click", "pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "dblclick", "contextmenu"];
 
 function guard(event) {

@@ -9919,9 +9919,22 @@ html[data-theme^="porcelain"] .pause-title {
     min-width: 0;
 }
 
-/* A search among the head's keys keeps its width, giving way only where the screen is narrow (Settings'). */
-.page-head > .page-head-keys:has(> input) {
+/* A head whose name and keys don't both fit on a row (Routines' four keys upright): the name keeps its words whole, and the keys
+   go on to a second row under their first rather than over the name. */
+.page-head > .page-head-name {
+    flex: 1 1 0;
+    min-width: min-content;
+}
+
+.page-head > .page-head-keys:not(:has(> input)) {
     flex: 0 1 auto;
+    min-width: 0;
+}
+
+/* A search among the head's keys keeps its width, and the keys their row: the name gives way, its printed line going under it. */
+.page-head > .page-head-keys:has(> input) {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     min-width: 0;
 }
 
@@ -10198,9 +10211,17 @@ html[data-theme^="porcelain"] .pause-title {
 /* What's this, on every screen: its key in every head (on the bar in full screen), lit while it's on; what a tap can explain
    ringed in the accent; a small panel by the key with the screen's own lines; a card beside what's tapped, pointing at it; a
    glossary entry opened in place. Nothing under them moves: they float over the screen. */
-.whats-this-key[aria-pressed="true"] {
+.whats-this-key {
+    width: 46px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+}
+
+html[data-theme^="porcelain"] .whats-this-key[aria-pressed="true"] {
     background: var(--pc-sel-bg);
     color: var(--pc-sel-fg);
+    box-shadow: none;
 }
 
 html[data-explaining] [data-explain] {
@@ -10230,10 +10251,16 @@ html[data-explaining] [data-explain] {
     animation: arrive var(--t-arrive) var(--ease-arrive) backwards;
 }
 
-/* In full screen the head is gone: the panel stands over the bar, where its key is. */
+/* In full screen the head is gone: the panel stands over the bar, where its key is (two rows of it upright). */
 html[data-full] .whats-this {
     top: auto;
-    bottom: calc(var(--whats-this-over-bar, 92px));
+    bottom: 92px;
+}
+
+@media (orientation: portrait) {
+    html[data-full] .whats-this {
+        bottom: 172px;
+    }
 }
 
 .whats-this-head,
@@ -10256,7 +10283,7 @@ html[data-full] .whats-this {
     gap: 10px;
 }
 
-.whats-this-key {
+.whats-this-key-block {
     display: flex;
     flex-direction: column;
     gap: 2px;
