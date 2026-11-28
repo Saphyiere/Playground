@@ -1,0 +1,90 @@
+@using Prima.Core.Practice
+@*
+    After a run: a row for each kind of mistake, wrong notes and off the beat, each named with its total, and in it a column a bar
+    with its count over it; flat where the bar was clean, hatched where the run didn't play it. Under them the bars' numbers, the
+    ones the words name picked out. A long piece's columns are narrow: their counts show over the bars named, and its numbers go
+    every five.
+*@
+<div class="qr-rows @(Long ? "qr-long" : "")" style="--n: @Bars.Count">
+    @foreach (var notes in new[] { true, false })
+    {
+        var total = Bars.OfType<BarCount>().Sum(b => notes ? b.Notes : b.Beat);
+        var kind = notes ? "qr-kind-notes" : "qr-kind-beat";
+        <span class="qr-key @kind">
+            <span class="qr-name"><i aria-hidden="true"></i>@(notes ? "Wrong notes" : "Off the beat")</span>
+            <b class="@(total == 0 ? "zero" : "")">@(notes || Timed ? total.ToString(CultureInfo.InvariantCulture) : "–")</b>
+        </span>
+        <div class="qr-cols @kind" role="img" aria-label="@Said(notes, total)">
+            @for (var i = 0; i < Bars.Count; i++)
+            {
+                var bar = Bars[i];
+                if (bar is null)
+                {
+                    <span class="qr-col qr-x"></span>
+                    continue;
+                }
+                var value = notes ? bar.Notes : bar.Beat;
+                if (value == 0 || (!notes && !Timed))
+                {
+                    <span class="qr-col"></span>
+                    continue;
+                }
+                <span class="qr-col"><i>@(Long && !Named.Contains(bar.Bar) ? "" : value.ToString(CultureInfo.InvariantCulture))</i><s style="height: @Height(value)"></s></span>
+            }
+        </div>
+    }
+    <span class="qr-key qr-axis">Bar</span>
+    <div class="qr-nums" aria-hidden="true">
+        @for (var i = 0; i < Bars.Count; i++)
+        {
+            var number = FirstBar + i;
+            <span class="@Shown(number, i) @(Named.Contains(number) ? "hot" : "")">@(number == 0 ? "↑" : number.ToString(CultureInfo.InvariantCulture))</span>
+        }
+    </div>
+</div>
+@if (Bars.Any(b => b is null))
+{
+    <div class="qr-legend"><span><i class="qr-x" aria-hidden="true"></i>not played</span></div>
+}
+
+@code {
+    /// <summary>Each bar from <see cref="FirstBar"/> on: its mistakes, or none where the run didn't play it.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<BarCount?> Bars { get; set; } = [];
+
+    [Parameter] public int FirstBar { get; set; } = 1;
+
+    /// <summary>The bars the words name, picked out.</summary>
+    [Parameter] public IReadOnlyList<int> Named { get; set; } = [];
+
+    /// <summary>Whether the run was In time; in Wait for me nothing is timed, and the timing row says so.</summary>
+    [Parameter] public bool Timed { get; set; } = true;
+
+    private bool Long => Bars.Count > 40;
+
+    // The tallest column's count, or three, so one or two mistakes don't fill the row.
+    private int Peak => Math.Max(3, Bars.OfType<BarCount>().Select(b => Math.Max(b.Notes, b.Beat)).DefaultIfEmpty(0).Max());
+
+    private string Height(int value) => $"{Math.Max(12, value * 100.0 / Peak).ToString("0.#", CultureInfo.InvariantCulture)}%";
+
+    // Which numbers show: every bar's on a short piece across the screen; upright, every fourth, the first and last, and every bar
+    // named or with a mistake; on a long piece every fifth (tenth upright) and the named stretch's ends.
+    private string Shown(int number, int i)
+    {
+        var end = i == 0 || i == Bars.Count - 1;
+        var named = Named.Contains(number);
+        var namedEnd = named && (!Named.Contains(number - 1) || !Named.Contains(number + 1));
+        var marked = Bars[i] is { Both: > 0 };
+        var wide = Long ? end || number % 5 == 0 || namedEnd : true;
+        var narrow = Long ? end || number % 10 == 0 || namedEnd : end || number % 4 == 0 || named || marked;
+        return $"{(wide ? "w" : "")} {(narrow ? "p" : "")}";
+    }
+
+    private string Said(bool notes, int total)
+    {
+        var what = notes ? "wrong notes" : "notes off the beat";
+        if (!notes && !Timed) return "Nothing timed in Wait for me";
+        if (total == 0) return $"No {what}";
+        var most = Bars.OfType<BarCount>().MaxBy(b => notes ? b.Notes : b.Beat)!;
+        return $"{total} {what}, most in bar {most.Bar}";
+    }
+}

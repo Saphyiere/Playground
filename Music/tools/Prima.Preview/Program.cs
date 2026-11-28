@@ -247,9 +247,11 @@ app.MapGet("/keys/tap-beats", (int from, int count, double? offset, double? spre
 // length, every chord rolled ("roll", the ms between its keys), a drift ("drift", ms a beat: -10 speeds up, 10 slows down), and
 // each key held a share of its note ("hold": 1.1 runs into the next, 0.5 is detached). In one go, ending the run, so a summary
 // can be screenshotted without waiting; or with "live", each note when it's due, as from the piano, so the sheet marks them
-// during the run.
-app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, double? drift, double? hold, StandInPlayer player) =>
-    Results.Text(player.Perform(new(right ?? 0.95, lean ?? -15, spread ?? 12, stop, live == true, slips, early, roll, drift, hold))));
+// during the run. "hard" plays some stretches worse, as a person stumbles in a few bars: their beats from the run's first
+// ("108-114;156-162"), with "hardRight" the share right there (0.4 unless said), and "hardLean" and "hardSpread" their timing
+// (the run's own unless said: hardLean=-70 rushes them, hardSpread=60 makes them uneven).
+app.MapGet("/keys/perform", (double? right, double? lean, double? spread, int? stop, bool? live, double? slips, double? early, int? roll, double? drift, double? hold, string? hard, double? hardRight, double? hardLean, double? hardSpread, StandInPlayer player) =>
+    Results.Text(player.Perform(new(right ?? 0.95, lean ?? -15, spread ?? 12, stop, live == true, slips, early, roll, drift, hold, hard, hardRight ?? 0.4, hardLean, hardSpread))));
 // Answers the drill item on screen: right, or wrong. A step's keys go down together, or with "apart" one at a time, that many
 // ms after the one before, as a chord played a note at a time.
 app.MapGet("/keys/answer", async (bool? right, int? apart, StandInPlayer player) => Results.Text(await player.Answer(right ?? true, apart)));

@@ -2464,6 +2464,8 @@ a.mu-btn {
 :root, [data-theme="studio"] {
     --chart-good: #ffb547;
     --chart-bad: #ff5a36;
+    /* Off the beat in the quick review: the second kind of mistake, told from the first by more than its place. */
+    --chart-beat: #ffd45e;
     --chart-off: #3a3229;
     --chart-band: rgba(255, 181, 71, 0.13);
     --chart-r: 2px;
@@ -2477,6 +2479,8 @@ a.mu-btn {
 [data-theme="vinyl"] {
     --chart-good: #f1e4c8;
     --chart-bad: #f08458;
+    /* Off the beat in the quick review: the second kind of mistake, told from the first by more than its place. */
+    --chart-beat: #e5a823;
     --chart-off: #2f6162;
     --chart-band: rgba(241, 228, 200, 0.09);
     --chart-r: 0;
@@ -2537,6 +2541,618 @@ a.mu-btn {
 
 .sum-more[aria-expanded="true"] .sum-chevron {
     transform: rotate(180deg);
+}
+
+/* The quick review after a run, round a loop and after a session (QuickReview): what it came to in a sentence, its first keys,
+   and a chart in two kinds of mistake, wrong notes in the chart's red and off the beat in its second colour, with every count on
+   its mark and every mark named, nothing shaded that a legend doesn't name. Hatched is a bar not played, on every chart. */
+.qr.mu-screen {
+    padding: 14px 22px 12px;
+    gap: 10px;
+}
+
+/* The top lines up with the chart under it: the figure over the rows' names, the words over the columns, the keys at the end. */
+.qr-top {
+    display: grid;
+    grid-template-columns: var(--qr-key, 122px) minmax(0, 1fr) auto;
+    column-gap: 14px;
+    align-items: center;
+}
+
+.qr-label {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.qr-label b {
+    font: var(--sum-big);
+    font-size: 30px;
+    line-height: 32px;
+    letter-spacing: 0;
+    color: var(--on-screen);
+}
+
+[data-theme="vinyl"] .qr-label b {
+    font-size: 40px;
+    line-height: 36px;
+}
+
+.qr-label small,
+.qr-fig i {
+    font: var(--sum-small);
+    font-style: normal;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--on-screen-muted);
+}
+
+.qr-fig {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.qr-said {
+    margin: 0;
+    font: var(--sum-lead);
+    color: var(--on-screen);
+    text-wrap: pretty;
+}
+
+.qr-said b,
+.look-headline b {
+    font-weight: 700;
+}
+
+.qr-notes {
+    color: var(--chart-bad);
+    font-weight: 700;
+}
+
+.qr-beat {
+    color: var(--chart-beat);
+    font-weight: 700;
+}
+
+.qr-keys {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.qr-keys .sum-more {
+    margin-left: 0;
+}
+
+/* After a run: a row a kind, named with its total; a column a bar, its count over it; the bars' numbers under them. */
+.qr-rows {
+    --qr-h: 46px;
+    --qr-gap: 4px;
+    display: grid;
+    grid-template-columns: var(--qr-key, 122px) minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 6px;
+    align-items: end;
+}
+
+.qr-rows.qr-long {
+    --qr-gap: 2px;
+}
+
+.qr-key {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 1px;
+    font: var(--sum-small);
+    color: var(--on-screen);
+}
+
+.qr-name i,
+.qr-legend i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    vertical-align: -1px;
+    border-radius: var(--chart-r);
+}
+
+.qr-key b {
+    font: var(--sum-lead);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.qr-key b.zero {
+    color: var(--on-screen-muted);
+}
+
+.qr-kind-notes {
+    --qr-kind: var(--chart-bad);
+}
+
+.qr-kind-beat {
+    --qr-kind: var(--chart-beat);
+}
+
+.qr-key.qr-kind-notes b,
+.qr-key.qr-kind-beat b {
+    color: var(--qr-kind);
+}
+
+/* A kind with nothing to count is grey, not its colour. */
+.qr-key.qr-kind-notes b.zero,
+.qr-key.qr-kind-beat b.zero {
+    color: var(--on-screen-muted);
+}
+
+.qr-name i,
+.qr-legend i.qr-kind-notes,
+.qr-legend i.qr-kind-beat {
+    background: var(--qr-kind);
+}
+
+.qr-key.qr-axis {
+    font: var(--sum-tiny);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--on-screen-muted);
+}
+
+.qr-cols,
+.qr-nums {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    column-gap: var(--qr-gap);
+}
+
+.qr-cols {
+    height: var(--qr-h);
+    align-items: end;
+    border-bottom: 1.5px solid var(--chart-off);
+}
+
+/* A column's room under its count: the count sits over the column, in the space at the top. */
+.qr-col {
+    height: 100%;
+    min-width: 0;
+    padding-top: 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.qr-col i {
+    display: block;
+    font: var(--sum-tiny);
+    font-style: normal;
+    line-height: 13px;
+    margin-bottom: 2px;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--qr-kind);
+}
+
+.qr-col s {
+    display: block;
+    flex: none;
+    text-decoration: none;
+    background: var(--qr-kind);
+    border-radius: var(--chart-r) var(--chart-r) 0 0;
+}
+
+.qr-x,
+.qr-legend i.qr-x {
+    background: repeating-linear-gradient(135deg, var(--chart-off) 0 1.5px, transparent 1.5px 6px);
+}
+
+.qr-legend i.qr-x {
+    box-shadow: inset 0 0 0 1px var(--chart-off);
+}
+
+.qr-nums span {
+    font: var(--sum-tiny);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--on-screen-muted);
+    visibility: hidden;
+}
+
+.qr-nums span.w {
+    visibility: visible;
+}
+
+.qr-nums span.hot {
+    color: var(--on-screen);
+}
+
+.qr-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+    padding-left: calc(var(--qr-key, 122px) + 14px);
+    font: var(--sum-small);
+    color: var(--on-screen-muted);
+}
+
+/* Loop by loop: a column a time round (wrong notes under, off the beat over, both together on top), each bar's count under it. */
+.ql {
+    display: grid;
+    grid-template-columns: var(--qr-key, 122px) repeat(var(--r), minmax(34px, 62px));
+    justify-content: start;
+    column-gap: 8px;
+    row-gap: 3px;
+    align-items: center;
+}
+
+.ql-col {
+    height: 46px;
+    padding-top: 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-self: end;
+    border-bottom: 1.5px solid var(--chart-off);
+}
+
+.ql-col i {
+    font: var(--sum-tiny);
+    font-style: normal;
+    line-height: 13px;
+    margin-bottom: 2px;
+    text-align: center;
+    color: var(--on-screen);
+}
+
+.ql-col s {
+    display: block;
+    flex: none;
+    text-decoration: none;
+}
+
+.ql-col s:first-of-type {
+    border-radius: var(--chart-r) var(--chart-r) 0 0;
+}
+
+.ql-notes {
+    background: var(--chart-bad);
+}
+
+.ql-beat {
+    background: var(--chart-beat);
+}
+
+.ql-key {
+    font: var(--sum-small);
+    white-space: nowrap;
+    color: var(--on-screen-muted);
+}
+
+.ql-key.hot {
+    font-weight: 700;
+    color: var(--on-screen);
+}
+
+.ql-key.ql-axis,
+.ql-num {
+    font: var(--sum-tiny);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--on-screen-muted);
+}
+
+.ql-num {
+    text-align: center;
+}
+
+.ql > b {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--chart-r);
+    font: var(--sum-words);
+    font-weight: 700;
+    color: var(--on-screen);
+}
+
+.ql > b.z {
+    font-weight: 400;
+    color: var(--on-screen-muted);
+    background: color-mix(in srgb, var(--on-screen) 5%, transparent);
+}
+
+.ql > b.g1 {
+    background: color-mix(in srgb, var(--on-screen) 16%, transparent);
+}
+
+.ql > b.g2 {
+    background: color-mix(in srgb, var(--on-screen) 30%, transparent);
+}
+
+.ql > b.g3 {
+    background: color-mix(in srgb, var(--on-screen) 50%, transparent);
+}
+
+.ql-legend {
+    padding-left: calc(var(--qr-key, 122px) + 8px);
+}
+
+.ql-legend .qr-kind-notes {
+    --qr-kind: var(--chart-bad);
+}
+
+/* After a session: its line under the headline, the two switches, and Next. */
+.qs-sub {
+    margin: 0;
+    font: var(--sum-words);
+    color: var(--on-screen-muted);
+}
+
+.qs-switches {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.qs-switches .play-mode {
+    margin-left: 0;
+}
+
+.qs-lens .qs-notes[aria-checked="true"] {
+    background: var(--chart-bad);
+    box-shadow: 0 0 10px var(--chart-bad);
+    color: var(--screen);
+}
+
+.qs-lens .qs-beat[aria-checked="true"] {
+    background: var(--chart-beat);
+    box-shadow: 0 0 10px var(--chart-beat);
+    color: var(--screen);
+}
+
+.qs-next.mu-screen {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 22px;
+}
+
+.qs-next .qr-said {
+    flex: 1;
+}
+
+/* Where it went wrong: a row a run, a cell a bar, its count printed in it; blank for none, hatched where not played. */
+.qh-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.qh-notes {
+    --qr-kind: var(--chart-bad);
+}
+
+.qh-beat {
+    --qr-kind: var(--chart-beat);
+}
+
+.qh {
+    display: grid;
+    grid-template-columns: 124px repeat(var(--n), minmax(0, 1fr));
+    gap: 3px;
+    align-items: center;
+}
+
+.qh-label {
+    padding-right: 6px;
+    white-space: nowrap;
+    font: var(--sum-tiny);
+    color: var(--on-screen-muted);
+}
+
+.qh-label.qh-axis {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--on-screen);
+}
+
+.qh-cell {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--chart-r);
+    font: var(--sum-tiny);
+    font-style: normal;
+    color: var(--on-screen);
+}
+
+.qh-0 {
+    background: var(--chart-off);
+}
+
+.qh-1 {
+    background: color-mix(in srgb, var(--qr-kind) 32%, var(--chart-off));
+}
+
+.qh-2 {
+    background: color-mix(in srgb, var(--qr-kind) 62%, var(--chart-off));
+}
+
+.qh-3 {
+    background: var(--qr-kind);
+    color: var(--screen);
+}
+
+.qh-x {
+    background: repeating-linear-gradient(135deg, var(--chart-off) 0 1.5px, transparent 1.5px 6px);
+}
+
+.qh-num {
+    text-align: center;
+    white-space: nowrap;
+    font: var(--sum-tiny);
+    color: var(--on-screen-muted);
+}
+
+.qh-num.hot {
+    color: var(--on-screen);
+}
+
+.qh-legend {
+    padding-left: 0;
+}
+
+.qh-legend i.qh-cell {
+    display: inline-flex;
+    width: 18px;
+    height: 16px;
+    margin-right: 6px;
+    vertical-align: -3px;
+}
+
+/* Over time: drawn in shares of its box. */
+.qt {
+    padding-left: 40px;
+}
+
+.qt-plot {
+    position: relative;
+    height: 136px;
+}
+
+.qt-grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px solid var(--chart-off);
+}
+
+.qt-y {
+    position: absolute;
+    right: 100%;
+    margin-right: 8px;
+    transform: translateY(50%);
+    font: var(--sum-tiny);
+    color: var(--on-screen-muted);
+}
+
+.qt-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.qt-lines polyline {
+    fill: none;
+    stroke: var(--on-screen);
+    stroke-width: 1.5;
+    opacity: 0.7;
+    vector-effect: non-scaling-stroke;
+}
+
+.qt-dot {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    transform: translate(-50%, 50%);
+}
+
+.qt-run {
+    background: var(--on-screen);
+}
+
+.qt-round {
+    width: 8px;
+    height: 8px;
+    background: var(--screen);
+    box-shadow: inset 0 0 0 2px var(--on-screen);
+}
+
+.qt-labels {
+    position: relative;
+    height: 36px;
+    margin-top: 6px;
+}
+
+.qt-label {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font: var(--sum-tiny);
+    color: var(--on-screen);
+}
+
+.qt-line-1 {
+    top: 15px;
+}
+
+.qt-legend {
+    padding-left: 0;
+}
+
+.qt-legend .qt-dot,
+.qt-legend i.qt-dot {
+    position: static;
+    display: inline-block;
+    transform: none;
+    margin-right: 6px;
+    vertical-align: -1px;
+    border-radius: 50%;
+}
+
+@media (orientation: portrait) {
+    .qr-top {
+        grid-template-columns: var(--qr-key, 118px) minmax(0, 1fr);
+        row-gap: 10px;
+    }
+
+    .qr-keys {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    .qr.mu-screen,
+    .look-back {
+        --qr-key: 118px;
+    }
+
+    .qr-rows {
+        --qr-h: 52px;
+        --qr-gap: 3px;
+    }
+
+    .qr-rows.qr-long {
+        --qr-gap: 1px;
+    }
+
+    .qr-nums span.w {
+        visibility: hidden;
+    }
+
+    .qr-nums span.p {
+        visibility: visible;
+    }
+
+    .qh-num.qh-wide {
+        visibility: hidden;
+    }
 }
 
 .sum-details {

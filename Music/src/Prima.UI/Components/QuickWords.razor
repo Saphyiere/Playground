@@ -1,0 +1,25 @@
+@using Prima.Core.Practice
+@* A quick review's sentence: the place it names in bold, and each count of a kind in the kind's colour, as on the chart under it. *@
+@foreach (var part in Sentence.Parts)
+{
+    if (part.As == Said.Place)
+    {
+        <b>@part.Text</b>
+    }
+    else if (part.As == Said.Notes)
+    {
+        <span class="qr-notes">@part.Text</span>
+    }
+    else if (part.As == Said.Beat)
+    {
+        <span class="qr-beat">@part.Text</span>
+    }
+    else
+    {
+        @part.Text
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public Sentence Sentence { get; set; } = null!;
+}

@@ -1,0 +1,54 @@
+@using Prima.Core.Practice
+@*
+    Loop by loop: a column for each time round, wrong notes under and off the beat over, the two together over it (the number the
+    words say), and under each column what each bar of the loop got wrong that time round, so each column of counts adds up to
+    the number over it and a bar coming right shows along its row.
+*@
+<div class="ql" style="--r: @Loop.Rounds">
+    <span class="ql-key">Mistakes</span>
+    @for (var r = 0; r < Loop.Rounds; r++)
+    {
+        var (notes, beat) = (Loop.Notes[r], Loop.Beat[r]);
+        <span class="ql-col" role="img" aria-label="@($"Time round {r + 1}: {notes} wrong notes, {beat} off the beat")">
+            <i>@(notes + beat)</i>
+            @if (beat > 0)
+            {
+                <s class="ql-beat" style="height: @Height(beat)"></s>
+            }
+            @if (notes > 0)
+            {
+                <s class="ql-notes" style="height: @Height(notes)"></s>
+            }
+        </span>
+    }
+    @for (var b = 0; b < Loop.Grid.Count; b++)
+    {
+        var bar = Loop.From + b;
+        <span class="ql-key @(Loop.Still.Contains(bar) ? "hot" : "")">@BarWords.Capital(BarWords.Bar(bar))</span>
+        @foreach (var count in Loop.Grid[b])
+        {
+            <b class="@Step(count)">@count</b>
+        }
+    }
+    <span class="ql-key ql-axis">Time round</span>
+    @for (var r = 0; r < Loop.Rounds; r++)
+    {
+        <span class="ql-num">@(r + 1)</span>
+    }
+</div>
+<div class="qr-legend ql-legend">
+    <span><i class="qr-kind-notes" aria-hidden="true"></i>wrong notes</span>
+    <span><i class="qr-kind-beat" aria-hidden="true"></i>off the beat</span>
+    <span>The number over a column is both together; under it, each bar that time round.</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public QuickLoop Loop { get; set; } = null!;
+
+    // The tallest time round's count, or three.
+    private int Peak => Math.Max(3, Loop.Totals.DefaultIfEmpty(0).Max());
+
+    private string Height(int value) => $"{Math.Max(9, value * 100.0 / Peak).ToString("0.#", CultureInfo.InvariantCulture)}%";
+
+    private static string Step(int count) => count switch { 0 => "z", 1 => "g1", <= 3 => "g2", _ => "g3" };
+}

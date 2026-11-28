@@ -1,0 +1,113 @@
+@using Prima.Core.Practice
+@*
+    Over time: each run (a dot) and each time round a loop (a ring), left to right in the order played, as high as how it went,
+    correct and on time: the figure after every run, and the one the words quote. A loop's times round are joined, and under each
+    group what was practised; a label that would touch the one before it takes a second line. Drawn in shares of its box, so it
+    fits the screen either way up; the lines' strokes keep their width as it stretches.
+*@
+<div class="qt" role="img" aria-label="@Aria">
+    <div class="qt-plot">
+        @foreach (var (level, y) in Grid)
+        {
+            <span class="qt-grid" style="bottom: @Pct(y)"></span>
+            <span class="qt-y" style="bottom: @Pct(y)">@($"{level * 100:0}%")</span>
+        }
+        <svg class="qt-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            @foreach (var points in Lines)
+            {
+                <polyline points="@points" />
+            }
+        </svg>
+        @foreach (var (x, y, loop) in Points)
+        {
+            <span class="qt-dot @(loop ? "qt-round" : "qt-run")" style="left: @Pct(x); bottom: @Pct(y)"></span>
+        }
+    </div>
+    <div class="qt-labels" aria-hidden="true">
+        @foreach (var (x, line, words) in Labels)
+        {
+            <span class="qt-label qt-line-@line" style="left: @Pct(x)">@words</span>
+        }
+    </div>
+</div>
+<div class="qr-legend qt-legend">
+    <span>Correct and on time, in order:</span>
+    <span><i class="qt-dot qt-run" aria-hidden="true"></i>a run</span>
+    <span><i class="qt-dot qt-round" aria-hidden="true"></i>a time round a loop</span>
+    @if (UntimedLeftOut)
+    {
+        <span>· runs in Wait for notes aren't timed, so they aren't here</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<TimeGroup> Groups { get; set; } = [];
+
+    /// <summary>Whether runs in Wait for notes were left out, which the legend then says.</summary>
+    [Parameter] public bool UntimedLeftOut { get; set; }
+
+    // A step's width on the line, in shares of it: a point each, and a gap between groups.
+    private double Step => 100.0 / Math.Max(1, Groups.Sum(g => g.Figures.Count) + Groups.Count - 1);
+
+    // The line's floor: a tenth under the lowest figure, to the tenth below.
+    private double Low => Math.Max(0, Math.Floor(Groups.SelectMany(g => g.Figures).DefaultIfEmpty(1).Min() * 10) / 10 - 0.05);
+
+    private double Y(double figure) => (figure - Low) / (1 - Low) * 100;
+
+    private IEnumerable<(double Level, double Y)> Grid
+    {
+        get
+        {
+            var by = Low < 0.6 ? 0.2 : 0.1;
+            for (var level = 1.0; level >= Low - 1e-9; level -= by) yield return (level, Y(level));
+        }
+    }
+
+    private IEnumerable<(double X, double Y, bool Loop)> Points => Placed.SelectMany(g => g.Xs.Select((x, i) => (x, Y(g.Group.Figures[i]), g.Group.Loop)));
+
+    private IEnumerable<string> Lines => Placed.Where(g => g.Group.Loop && g.Xs.Count > 1)
+        .Select(g => string.Join(" ", g.Xs.Select((x, i) => $"{Num(x)},{Num(100 - Y(g.Group.Figures[i]))}")));
+
+    // Each group's places along the line, from the half-step in.
+    private List<(TimeGroup Group, List<double> Xs)> Placed
+    {
+        get
+        {
+            var at = Step / 2;
+            var placed = new List<(TimeGroup, List<double>)>();
+            foreach (var group in Groups)
+            {
+                var xs = group.Figures.Select(_ => { var x = at; at += Step; return x; }).ToList();
+                at += Step;
+                placed.Add((group, xs));
+            }
+            return placed;
+        }
+    }
+
+    // A label under each group: a loop's with its times round ("21–24 ×6"). One that would touch the one before takes a second line,
+    // and one that would touch on both is left out. A letter is taken as 1.1% of the line, its width on the narrower screen.
+    private IEnumerable<(double X, int Line, string Words)> Labels
+    {
+        get
+        {
+            double[] ends = [double.NegativeInfinity, double.NegativeInfinity];
+            foreach (var (group, xs) in Placed)
+            {
+                var words = group.Loop ? $"{group.Label} ×{group.Figures.Count}" : group.Label;
+                var mid = (xs[0] + xs[^1]) / 2;
+                var half = words.Length * 1.1 / 2;
+                var line = mid - half > ends[0] + 1 ? 0 : mid - half > ends[1] + 1 ? 1 : -1;
+                if (line < 0) continue;
+                ends[line] = mid + half;
+                yield return (mid, line, words);
+            }
+        }
+    }
+
+    private string Aria => $"{Groups.Count(g => !g.Loop)} runs and {Groups.Where(g => g.Loop).Sum(g => g.Figures.Count)} times round loops, in order";
+
+    private static string Pct(double share) => $"{Num(share)}%";
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

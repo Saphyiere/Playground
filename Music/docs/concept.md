@@ -478,7 +478,7 @@ a PDF plays out; this is what came of it.
   one left paused until another day is finished that way, the piece opening on its front. The session is kept every half
   minute and as it pauses, and its playing time is the day's practice minutes as it's counted.
 - **Piece feedback** applies to all library pieces. Minimal keeps the score visible, Standard shows a short summary and loop results, and Detailed opens the full review and pauses between repeats. **Customize feedback** controls the summary, loop result and pause independently. **Repeat automatically** is a separate playback choice. A full review or a paused loop waits for the player.
-- **Finish practice** shows playing time, run count and the last passage, hand and tempo. One observation describes the last run or completed loop pass. **View bar** opens the relevant measure. **Passages and results** expands the passage breakdown. **View details** opens note and timing statistics and the bar map. **Keep practicing** resumes the same session.
+- **Finish practice** shows [the session's quick review](#the-quick-review): playing time, runs and loops, what the session came to and the places that still need help, the session run by run (**Where it went wrong**) or in order (**Over time**), and **Next** with **Practice it**. **Passages and results** expands the passage breakdown. **Details** opens the in-depth review. **Keep practicing** resumes the same session.
 - **Practice history** is available from Today, the profile, repertoire cards and each playable piece. It lists finished sessions by date and time, including short runs and standalone play-throughs. Opening a session shows its saved runs. Select a run or a bar to inspect its results and available note marks. Archive views read the saved records without restarting practice.
 - **Play through** starts at the beginning with both hands at the selected tempo. Afterward, the player can replay the piece, inspect the run or finish.
 
@@ -906,7 +906,9 @@ the next time it starts, as of when it happened.
     short: under nine tenths of it. Under a **slur**, a note let go more than about a tenth of a beat (60 ms at least) before
     the next note breaks the line (staccato under a slur, portato, is detached by design). An **accent**, or a sforzando, struck
     no harder than the notes within a beat of it, by 8 or more (velocity).
-  - **Loudness**: each dynamic's stretch at the middle of how hard its keys were struck, as a share of your soft-to-loud range,
+  - **Loudness**, worked out and kept with each run, but since 28 November neither shown nor said, here or in the summary's
+    details: a marking has no fixed level, a passage's marking can't be told from its loudness in recordings, and MIDI doesn't
+    say how loud a velocity is (the owner: it may come back later). As it's worked out: each dynamic's stretch at the middle of how hard its keys were struck, as a share of your soft-to-loud range,
     against the share it's played in (*pp* to 25%, *p* 10 to 40%, *mp* 30 to 55%, *mf* 45 to 70%, *f* 60 to 90%, *ff* from 75%,
     ours), and against the one before: marked louder or softer, it's played so by 5 or more. A dynamic is heard where it holds
     as written: from its mark to the first crescendo or diminuendo after it, not under one going on from before; under a
@@ -918,12 +920,13 @@ the next time it starts, as of when it happened.
 
 ### The summary
 
-The same after every run to a tempo (Sight-read, a Library piece; on an exercise or a technique drill, [a run's
-review](#a-runs-review)'s two lines take the few lines' place). First **a few lines**, to take in at a glance, each with
+After a run of a Library piece, [the quick review](#the-quick-review) comes first, and what's below is under its
+**Details**. After every other run to a tempo (Sight-read; on an exercise or a technique drill, [a run's
+review](#a-runs-review)'s two lines take the few lines' place), first **a few lines**, to take in at a glance, each with
 its bars: the **notes** (how many were right, what the others were, and the bars with the most of them) and the **timing**
 (the share of the right notes that were in time, since a wrong note has no timing to be out, and where it rushed, held back
 or was off the beat); then a line only for what there is to work on: notes
-**held** too short, **loud and soft**, **touch** and **pedal** not as marked, and the bar to **look at**, the one with the
+**held** too short, **touch** and **pedal** not as marked, and the bar to **look at**, the one with the
 most to fix, where a wrong or missed note counts as three of anything else (a note off the beat or let go early, a marking
 not played as asked, the pedal). Round a loop, a line comes first with each pass's figure (In time the share right in time,
 Wait for me the notes right first time; past a dozen passes, the first, the best and the last), and the rest is the last
@@ -937,11 +940,11 @@ leave it so): three panels, side by side:
 - **Held**: the share of judged notes held their length, and how long each was held, with the 80% line.
 
 Each says in a line what stands out (slips or misreadings; where you rushed; which bars you let go early in). Under them, where
-the music marks expression, a line says what wasn't as asked: a dynamic played nearer another, no change at the dynamics, a
-crescendo that didn't grow, staccato held long, gaps under slurs, accents no stronger, the pedal. Then **Bar by bar**: the bars
+the music marks expression, a line says what wasn't as asked: staccato held long, gaps under slurs, accents no stronger than
+the notes around them, the pedal (loud and soft against the dynamics isn't said: see Loudness, above). Then **Bar by bar**: the bars
 as one strip, brighter where there was more to fix, which opens (and stays open next time if you leave it so) into a map of
 the bars, both times through a repeat together: wrong and missed notes, how early or late each bar ran, notes let go early,
-then loudness against each bar's dynamic, touch (staccato, tenuto, accents, slurs) and the pedal, each only where it's marked.
+then touch (staccato, tenuto, accents, slurs) and the pedal, each only where it's marked.
 Tap a bar's number to read it in words; on a piece, **Play from bar** starts the next run there. Each look draws it in its
 own two colours, what went right and what fell short,
 told apart by colour blindness and by lightness too, and with a fill and a word for each kind.
@@ -954,6 +957,32 @@ rises under it; the timing rises from the beat outwards, the notes that were off
 down, the ones let go early last. The bars come in from **the one with the most to fix**: the worst three a moment apart,
 then the others in a run, then the bars with nothing to fix. The map's marks grow in the same order, whenever it opens, and
 the page follows it down as it does. With the tablet set to remove animations, everything is there at once.
+
+### The quick review
+
+After a run of a Library piece, round a loop on it, and after a session: what it came to in a sentence, the key to play next,
+and a chart under them in **two kinds of mistake**, **wrong notes** (wrong, missed, or a wrong key put right at once) and
+**off the beat** (a right note more than a tenth of a beat out, once your lean is taken out), each in its own colour, with every
+count on its mark, nothing where a bar was clean, and a bar not played hatched. Every number the words say is on the chart, and
+every mark on it is named on it (the owner, of the first drawings: "I should understand exactly what the chart is doing by the
+legend alone and the chart").
+
+- **After a run**: the figure, correct and on time, with the run before's under it; one sentence naming the place, what went
+  wrong there and what to do ("Bars 21–22 need help: 13 wrong notes. 2 more mistakes elsewhere."); its first key (**Loop
+  bars 21–22**, or **Again at ♩ 69**, which sets the tempo); and two rows, **Wrong notes** and **Off the beat**, a column a
+  bar. A clean run, timing alone (rushed or held back), mistakes all through, a stretch or half the piece, and a stop each
+  have their own sentence. **Details** opens the summary below.
+- **Round a loop**: **Loop by loop**, a column each time round with its mistakes (both kinds stacked, the two together on top),
+  and under each column what each bar got wrong that time round, so a bar coming right shows along its row. It's getting
+  better, no better or worse, and its keys follow: the bar still wrong, or a notch slower, or a notch faster once it's clean.
+- **After a session**: what it came to and the places that still need help, each with what it needs ("Bar 7 still needs help
+  with wrong notes and timing, bar 21 with wrong notes"), and a switch: **Where it went wrong**, a row for each run through the
+  piece with each bar's count of one kind (**Notes** or **Timing**), or **Over time**, each run and each time round a loop in
+  order, as high as it went correct and on time. **Next** loops the first place a notch under the tempo you ended at, with
+  **Practice it**.
+
+The rules (`QuickReview` in Prima.Core, tested sentence by sentence) and the research behind them are in
+[practice.md](practice.md).
 
 ### A run's review
 

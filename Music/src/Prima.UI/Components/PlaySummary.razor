@@ -14,6 +14,55 @@
 else if (Outcome?.InTime is { } timed)
 {
     <div class="sum">
+        @if (quickLoop is { } loopTake)
+        {
+            @* Round a loop: how it went, time round by time round, each bar under each. *@
+            <section class="mu-screen qr" aria-label="In short">
+                <div class="qr-top">
+                    <span class="mu-readout-label qr-label">Loop by loop<span class="qr-fig"><b>@loopTake.Rounds</b><i>@(loopTake.Rounds == 1 ? "time round" : "times round")</i></span><small>@BarWords.Bars(loopTake.From, loopTake.To)@(loopTake.Tempo is { } loopTempo ? $" · {QuickReview.Mark(loopTempo)}" : "")</small></span>
+                    <p class="qr-said"><QuickWords Sentence="loopTake.Said" /></p>
+                    <div class="qr-keys">
+                        @* Its keys in the order the words give them: no better, a notch slower first; otherwise the bars still wrong. *@
+                        @if (loopTake.Trend is LoopTrend.NoBetter or LoopTrend.Worse)
+                        {
+                            @LoopAgain(loopTake)
+                            @LoopNarrow(loopTake)
+                        }
+                        else
+                        {
+                            @LoopNarrow(loopTake)
+                            @LoopAgain(loopTake)
+                        }
+                        @DetailsKey
+                    </div>
+                </div>
+                <QuickLoopChart Loop="loopTake" />
+            </section>
+        }
+        else if (quickRun is { } runTake)
+        {
+            @* After a run: the figure, what it came to, its first keys, and the bars in two kinds under them. *@
+            <section class="mu-screen qr" aria-label="In short">
+                <div class="qr-top">
+                    <span class="mu-readout-label qr-label"><span>Correct and</span><span>on time</span><b>@($"{timed.InTimeAccuracy * 100:0}%")</b><small>@Under(runTake)</small></span>
+                    <p class="qr-said"><QuickWords Sentence="runTake.Said" /></p>
+                    <div class="qr-keys">
+                        @if (runTake.Loop is { } place && OnLoop.HasDelegate)
+                        {
+                            <button type="button" class="mu-btn" data-action="loop-place" data-piano="off" @onclick="() => OnLoop.InvokeAsync(place)">Loop @BarWords.Bars(place.From, place.To)</button>
+                        }
+                        @if (runTake.Again is { } runAgain && OnAgain.HasDelegate)
+                        {
+                            <button type="button" class="mu-btn" data-action="again" data-piano="off" @onclick="() => OnAgain.InvokeAsync(runAgain)">@Again(runAgain, runTempo)</button>
+                        }
+                        @DetailsKey
+                    </div>
+                </div>
+                <QuickRows Bars="runTake.Bars" FirstBar="runTake.FirstBar" Named="runTake.Named" />
+            </section>
+        }
+        else
+        {
         <section class="mu-screen sum-quick" aria-label="In short">
             @if (Review is { } review)
             {
@@ -31,6 +80,7 @@ else if (Outcome?.InTime is { } timed)
                 <button type="button" class="mu-btn sum-more" aria-expanded="@(details ? "true" : "false")" aria-controls="sum-details" @onclick="ToggleDetails">@(details ? "Hide details" : "Show details")<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
             </div>
         </section>
+        }
 
         @if (details)
         {
@@ -142,10 +192,6 @@ else if (Outcome?.InTime is { } timed)
                         {
                             <span class="sum-item"><span class="sum-key @(bad ? "bad" : "good")" aria-hidden="true"></span>@words</span>
                         }
-                        @if (rangeNote is not null)
-                        {
-                            <span class="sum-muted">@rangeNote</span>
-                        }
                     </section>
                 }
 
@@ -201,29 +247,10 @@ else if (Outcome?.InTime is { } timed)
                                         </div>
                                     }
                                 </div>
-                                @if (loudness || articulated || pedalled)
+                                @* Loudness against the dynamics isn't here: MIDI can't say how loud a marking is meant to be. *@
+                                @if (articulated || pedalled)
                                 {
                                     <div class="sum-lane rule"><span class="sum-label"><span class="mu-readout-label">Expression</span></span><span class="sum-rule"></span></div>
-                                }
-                                @if (loudness)
-                                {
-                                    <div class="sum-lane loudness" role="img" aria-label="How hard each bar's keys were struck, from your softest to your loudest, against the dynamic marked">
-                                        <span class="sum-label"><span class="mu-readout-label">Loudness</span><span class="sum-tiny">soft to loud</span></span>
-                                        @foreach (var bar in bars)
-                                        {
-                                            <div class="sum-cell @Picked(bar)" style="background-image: @bar.Band" title="@($"Bar {bar.Number}: {(bar.Dynamic is { } d ? $"marked {d}, " : "")}{(bar.Loud is { } l ? $"played at {l:0}% of your range" : "nothing played")}")">
-                                                @if (bar.Loud is { } level)
-                                                {
-                                                    <span class="spacer" style="height: @($"{level:0.#}%")"></span>
-                                                    <span class="dot @(bar.Dynamic is { } marked && !Within(marked, level) ? "bad" : "good") grow" style="--d: @bar.Delay"></span>
-                                                }
-                                                @if (bar.DynamicStarts)
-                                                {
-                                                    <span class="sum-dynamic">@bar.Dynamic</span>
-                                                }
-                                            </div>
-                                        }
-                                    </div>
                                 }
                                 @if (articulated)
                                 {
@@ -352,10 +379,33 @@ else if (Outcome?.Wait is { } reviewed)
     /// <summary>Starting the next run from a bar picked on the map; unset where a run can't start from a bar.</summary>
     [Parameter] public EventCallback<int> OnBar { get; set; }
 
-    // A bar on the map: its notes and timing, how they were held, and what its expression asked and got (each articulation
+    /// <summary>
+    /// A piece's first bar. With <see cref="LastBar"/> it makes the quick review: after a run, its bars in two kinds and what to play
+    /// next; round a loop, each time round. A bar a run didn't play is hatched.
+    /// </summary>
+    [Parameter] public int? FirstBar { get; set; }
+
+    /// <summary>A piece's last bar; set, the summary leads with the quick review.</summary>
+    [Parameter] public int? LastBar { get; set; }
+
+    /// <summary>The tempo the run was played at, for the review's words and its Again key.</summary>
+    [Parameter] public double? Tempo { get; set; }
+
+    /// <summary>How the run before went (correct and on time), shown under the figure.</summary>
+    [Parameter] public double? Previous { get; set; }
+
+    /// <summary>Going again at the tempo the review gives: a notch faster, slower, or the same.</summary>
+    [Parameter] public EventCallback<double> OnAgain { get; set; }
+
+    // The quick review, a run's or a loop's, and the tempo it was worked out at.
+    private QuickRun? quickRun;
+    private QuickLoop? quickLoop;
+    private double? runTempo;
+
+    // A bar on the map: its notes and timing, how they were held, and what its touch and pedal asked and got (each articulation
     // mark: staccato, tenuto, accent, or a gap under a slur, and whether it was played as asked). With repeats, its times through
-    // are together.
-    private sealed record BarView(int Number, int Wrong, int Missed, int Off, int Early, double? Error, double? Loud, string? Dynamic, bool DynamicStarts, IReadOnlyList<(string Kind, bool Bad)> Marks, Pedalling? Pedal, bool ExtraPedal)
+    // are together. Loudness against the dynamics isn't judged: MIDI can't say how loud a marking is meant to be.
+    private sealed record BarView(int Number, int Wrong, int Missed, int Off, int Early, double? Error, IReadOnlyList<(string Kind, bool Bad)> Marks, Pedalling? Pedal, bool ExtraPedal)
     {
         /// <summary>How much there was to fix in it, for which bar comes first and how bright it is on the strip. A wrong or missed
         /// note counts as three of anything else: a note off the beat or let go early, a marking not played as asked, the pedal.</summary>
@@ -363,9 +413,6 @@ else if (Outcome?.Wait is { } reviewed)
 
         /// <summary>Its shade in the folded strip, by how much there was to fix: nothing, some, more, most.</summary>
         public string Fill { get; init; } = "";
-
-        /// <summary>The share of your range its dynamic is played in, shaded behind it in the loudness lane.</summary>
-        public string Band { get; init; } = "none";
 
         /// <summary>What there was to fix in it, in words.</summary>
         public string Detail { get; init; } = "";
@@ -387,15 +434,13 @@ else if (Outcome?.Wait is { } reviewed)
     private string notesSaid = "";
     private string timingSaid = "";
     private string heldSaid = "";
-    // What wasn't as the music marks it, each line with what it's about: "Loud and soft", "Touch" or "Pedal".
+    // What wasn't as the music marks it, each line with what it's about: "Touch" or "Pedal".
     private List<(bool Bad, string About, string Words)> expression = [];
     // The run in short: the notes and the timing, then only what there is to work on.
     private string observation = "";
     private int? observationBar;
     private bool details;
-    private string? rangeNote;
     private bool repeated;
-    private bool loudness;
     private bool articulated;
     private bool pedalled;
     private bool open;
@@ -418,11 +463,25 @@ else if (Outcome?.Wait is { } reviewed)
         shown = Outcome;
         (open, details) = (Settings.BarMapOpen, Settings.SummaryDetails);
         (run, toStage, toScroll, toFollow) = (run + 1, details, false, false);
+        (quickRun, quickLoop, runTempo) = (null, null, Tempo);
         if (Outcome?.InTime is not { Expected: > 0 } timed) return;
 
         var notes = timed.Notes;
+        // A piece's quick review: round a loop each time round; otherwise the run, from its first bar to the one before it stopped.
+        if (LastBar is { } lastOfPiece && Review is null)
+        {
+            if (Outcome.Loop is { } loop)
+            {
+                if (Outcome.Passes.Count > 0) quickLoop = QuickReview.Loop(Outcome.Passes, loop.From, loop.To, Tempo, inTime: true);
+            }
+            else
+            {
+                var fromBar = notes.Min(n => n.Bar);
+                var toBar = Outcome.Stopped ? Math.Max(fromBar, Outcome.Bar - 1) : notes.Max(n => n.Bar);
+                quickRun = QuickReview.Run([.. Trouble.Of(notes).Where(t => t.Bar <= toBar)], true, Math.Min(FirstBar ?? fromBar, fromBar), Math.Max(lastOfPiece, toBar), fromBar, toBar, Outcome.Stopped, Tempo);
+            }
+        }
         var right = notes.Where(n => n.Outcome == NoteOutcome.Right).ToList();
-        var (soft, loud) = (Settings.SoftVelocity ?? 25, Settings.LoudVelocity ?? 105);
 
         // The timing panel: each right note's error after the lean, in steps of 2.5% of a beat from 20% early to 20% late.
         var counts = new int[16];
@@ -438,18 +497,11 @@ else if (Outcome?.Wait is { } reviewed)
         }
         heldPeak = Math.Max(1, heldBins.Max(b => b.Early + b.Held));
 
-        // The bars, from the first to the last of the run, both times through a repeat together; a bar's dynamic is the one marked over it.
+        // The bars, from the first to the last of the run, both times through a repeat together.
         var first = notes.Min(n => n.Bar);
         var last = notes.Max(n => n.Bar);
         var count = last - first + 1;
         repeated = notes.Any(n => n.Id.Contains('~'));
-        var dynamicOf = new Dictionary<int, string>();
-        var starts = new HashSet<int>();
-        foreach (var d in timed.Dynamics)
-        {
-            starts.Add(d.FromBar);
-            for (var b = d.FromBar; b <= d.ToBar; b++) dynamicOf.TryAdd(b, d.Level);
-        }
         var pedalOf = new Dictionary<int, Pedalling>();
         foreach (var p in timed.Pedal)
         {
@@ -460,21 +512,16 @@ else if (Outcome?.Wait is { } reviewed)
             var inBar = notes.Where(n => n.Bar == number).ToList();
             var heard = inBar.Where(n => n.Outcome == NoteOutcome.Right).ToList();
             var errors = heard.Where(n => n.ErrorPercent is not null).Select(n => n.ErrorPercent!.Value).ToList();
-            var velocities = heard.Where(n => n.Velocity is not null).Select(n => n.Velocity!.Value).ToList();
-            // Its loudness as a share of your soft-to-loud range.
-            double? level = timed.TouchVaries && velocities.Count > 0 ? Math.Clamp((velocities.Average() - soft) / Math.Max(1, loud - soft) * 100, 0, 100) : null;
             var marks = heard.Where(n => n.Asked != Articulation.None || n.Touch == Touch.GapUnderSlur)
                 .Select(n => (n.Touch == Touch.GapUnderSlur ? "gap" : n.Asked.ToString().ToLowerInvariant(), n.Touch is not null)).ToList();
-            var dynamic = dynamicOf.GetValueOrDefault(number);
             var bar = new BarView(number, inBar.Count(n => n.Outcome == NoteOutcome.Wrong), inBar.Count(n => n.Outcome == NoteOutcome.Missed), inBar.Count(n => n.Band == Band.Off), inBar.Count(n => n.LetGoEarly),
-                errors.Count == 0 ? null : errors.Average(), level, dynamic, starts.Contains(number), marks, pedalOf.TryGetValue(number, out var pedal) ? pedal : null, timed.ExtraPedal.Contains(number));
+                errors.Count == 0 ? null : errors.Average(), marks, pedalOf.TryGetValue(number, out var pedal) ? pedal : null, timed.ExtraPedal.Contains(number));
             var parts = new List<string>();
             if (bar.Wrong > 0) parts.Add($"{bar.Wrong} wrong");
             if (bar.Missed > 0) parts.Add($"{bar.Missed} missed");
             if (bar.Error is { } e && Math.Abs(e) > 5) parts.Add($"{Math.Abs(e):0}% of a beat {(e < 0 ? "early" : "late")} on average");
             if (bar.Early > 0) parts.Add($"{bar.Early} let go early");
             parts.AddRange(marks.Where(m => m.Item2).GroupBy(m => m).Select(g => Name(g.Key, g.Count())));
-            if (dynamic is not null && level is { } l && !Within(dynamic, l)) parts.Add($"{(Markings.Levels[dynamic].Low > l ? "soft" : "loud")} for its {dynamic}");
             if (bar.Pedal is { } p && p != Pedalling.Right) parts.Add($"pedal {Said(p)}");
             if (bar.ExtraPedal) parts.Add("pedalled with none marked");
             return bar with
@@ -486,9 +533,6 @@ else if (Outcome?.Wait is { } reviewed)
                     <= 6 => "color-mix(in srgb, var(--chart-bad) 68%, var(--chart-off))",
                     _ => "var(--chart-bad)",
                 },
-                Band = dynamic is not null && Markings.Levels.TryGetValue(dynamic, out var band)
-                    ? $"linear-gradient(to top, transparent {band.Low:0}%, var(--chart-band) {band.Low:0}%, var(--chart-band) {band.High:0}%, transparent {band.High:0}%)"
-                    : "none",
                 Detail = parts.Count == 0 ? "nothing to fix here." : string.Join(" · ", parts) + ".",
             };
         })];
@@ -504,7 +548,6 @@ else if (Outcome?.Wait is { } reviewed)
         var turns = toFix.Select((bar, rank) => (Bar: bar, At: 200 + Math.Min(rank, lead) * 150 + Math.Max(0, rank - lead) * step))
             .Concat(bars.Where(b => b.Total == 0).Select((b, i) => (Bar: b.Number, At: rest + i * sweep))).ToDictionary(t => t.Bar, t => t.At);
         bars = [.. bars.Select(b => b with { Delay = $"{turns[b.Number]:0}ms", Leads = toFix.Take(lead).Contains(b.Number) })];
-        loudness = timed.Dynamics.Count > 0;
         articulated = bars.Any(b => b.Marks.Count > 0);
         pedalled = timed.Pedal.Count > 0;
 
@@ -530,26 +573,9 @@ else if (Outcome?.Wait is { } reviewed)
             : timed.LetGoEarly == 0 ? "Every judged note held its length."
             : $"Let go early in {Listed(earlyBars)}.";
 
-        // Expression, where the music marks it: what wasn't as asked, or that it all was.
+        // Expression, where the music marks it: what wasn't as asked, or that it all was. Loud and soft against the dynamics and
+        // crescendos isn't judged (MIDI can't say how loud a marking is meant to be); an accent is still heard against its neighbours.
         expression = [];
-        // A line for each kind of thing, the first case named: a take at one loudness is one line, not one for each dynamic.
-        var far = timed.Dynamics.Where(d => d.Outcome is Loudness.TooLoud or Loudness.TooSoft).ToList();
-        if (far.FirstOrDefault() is { } firstFar)
-        {
-            var nearest = Markings.Levels.Where(l => l.Key != "fp").MinBy(l => Math.Abs((l.Value.Low + l.Value.High) / 2 - firstFar.LevelPercent)).Key;
-            expression.Add((true, "Loud and soft", $"Marked {firstFar.Level} in {BarsOf(firstFar.FromBar, firstFar.ToBar)}: you played nearer your {nearest}{(far.Count > 1 ? $", and {Count(far.Count - 1, "more dynamic")} too {(far.Skip(1).All(d => d.Outcome == Loudness.TooLoud) ? "loud" : far.Skip(1).All(d => d.Outcome == Loudness.TooSoft) ? "soft" : "loud or soft")}, {Listed([.. far.Skip(1).Select(d => d.FromBar).Distinct()])}" : "")}."));
-        }
-        var same = timed.Dynamics.Where(d => d.Outcome == Loudness.NoChange).ToList();
-        if (same.Count > 0) expression.Add((true, "Loud and soft", same.Count == 1 ? $"Marked {same[0].Level} in {BarsOf(same[0].FromBar, same[0].ToBar)}: no different from the dynamic before it."
-            : $"No change in loudness at {same.Count} of the dynamics marked, {Listed([.. same.Select(d => d.FromBar).Distinct()])}."));
-        foreach (var kind in timed.Hairpins.Where(h => h.Outcome != Swell.Right).GroupBy(h => h.Outcome))
-        {
-            var one = kind.First();
-            var what = one.Crescendo ? "crescendo" : "diminuendo";
-            expression.Add((true, "Loud and soft", kind.Count() == 1
-                ? $"The {what} in {BarsOf(one.FromBar, one.ToBar)} {(kind.Key == Swell.Flat ? one.Crescendo ? "didn't grow" : "didn't fade" : "went the other way")}."
-                : $"{kind.Count()} crescendos and diminuendos {(kind.Key == Swell.Flat ? "didn't change" : "went the other way")}, {Listed([.. kind.Select(h => h.FromBar).Distinct()])}."));
-        }
         foreach (var kind in notes.Where(n => n.Touch is not null).GroupBy(n => n.Touch!.Value))
         {
             var where = Listed([.. kind.Select(n => n.Bar).Distinct().Order()]);
@@ -566,13 +592,12 @@ else if (Outcome?.Wait is { } reviewed)
             expression.Add((true, "Pedal", $"Pedal {Said(kind.Key)} in {Listed([.. kind.Select(p => p.FromBar).Distinct().Order()])}."));
         }
         if (timed.ExtraPedal.Count > 0) expression.Add((true, "Pedal", $"Pedalled with none marked in {Listed([.. timed.ExtraPedal.Order()])}."));
-        var asked = timed.Dynamics.Count + timed.Hairpins.Count + timed.Pedal.Count + notes.Count(n => n.Asked != Articulation.None);
-        if (expression.Count == 0 && asked > 0) expression.Add((false, "Expression", "Loud and soft, touch and pedal as marked."));
-        if (!timed.TouchVaries && right.Count >= 2 && (timed.Dynamics.Count > 0 || notes.Any(n => n.Asked == Articulation.Accent)))
+        var asked = timed.Pedal.Count + notes.Count(n => n.Asked != Articulation.None);
+        if (expression.Count == 0 && asked > 0) expression.Add((false, "Expression", "Touch and pedal as marked."));
+        if (!timed.TouchVaries && right.Count >= 2 && notes.Any(n => n.Asked == Articulation.Accent))
         {
-            expression.Add((true, "Loud and soft", "Every key came in at one velocity: the piano's touch is set to Fixed, so loud and soft can't be judged."));
+            expression.Add((true, "Touch", "Every key came in at one velocity: the piano's touch is set to Fixed, so accents can't be heard."));
         }
-        rangeNote = loudness && Settings.SoftVelocity is null ? "Judged on a usual soft-to-loud range: measure yours in Tools, Keyboard check." : null;
 
         var relevantBar = Trouble.Of(timed.Notes).Where(b => b.Weight > 0).OrderByDescending(b => b.Weight).ThenBy(b => b.Bar).FirstOrDefault();
         observationBar = relevantBar?.Bar;
@@ -632,6 +657,29 @@ else if (Outcome?.Wait is { } reviewed)
         }
     }
 
+    // The quick review's key that opens the details, by the same setting as Show details.
+    private RenderFragment DetailsKey => @<button type="button" class="mu-btn sum-more" data-action="details" data-piano="off" aria-expanded="@(details ? "true" : "false")" aria-controls="sum-details" @onclick="ToggleDetails">Details<svg class="sum-chevron" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 5L7 9L11 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>;
+
+    // A loop's keys: the bars still wrong on their own, and the loop again at its tempo.
+    private RenderFragment LoopNarrow(QuickLoop take) => take.Narrow is { } narrow && OnLoop.HasDelegate
+        ? @<button type="button" class="mu-btn" data-action="loop-place" data-piano="off" @onclick="() => OnLoop.InvokeAsync(narrow)">Loop @BarWords.Bars(narrow.From, narrow.To)</button>
+        : @<text></text>;
+
+    private RenderFragment LoopAgain(QuickLoop take) => take.Again is { } again && OnAgain.HasDelegate
+        ? @<button type="button" class="mu-btn" data-action="again" data-piano="off" @onclick="() => OnAgain.InvokeAsync(again)">@Again(again, take.Tempo)</button>
+        : @<text></text>;
+
+    // The Again key's words: the tempo as a metronome mark, unless it's the one played.
+    private static string Again(double again, double? played) => played is { } at && Math.Round(at) == again ? "Again" : $"Again at {QuickReview.Mark(again)}";
+
+    // Under the figure: how the run before went, or after a stop, which bars the figure counts.
+    private string Under(QuickRun take)
+    {
+        if (take.Finding != RunFinding.Stopped) return Previous is { } before ? $"previous run {before * 100:0}%" : "";
+        var first = take.Bars.Select((bar, i) => (bar, Number: take.FirstBar + i)).FirstOrDefault(b => b.bar is not null).Number;
+        return BarWords.Bars(first, Math.Max(first, take.To - 1));
+    }
+
     private static string Percent(int part, int whole) => whole == 0 ? "–" : $"{part * 100.0 / whole:0}%";
 
     private static string Share(int count, int peak) => $"{count * 100.0 / peak:0.#}%";
@@ -655,8 +703,6 @@ else if (Outcome?.Wait is { } reviewed)
     private static string Lean(double? error, bool late) => error is { } e && (late ? e > 0 : e < 0) ? $"{Math.Min(48, Math.Abs(e) / 15 * 48):0.#}px" : "0px";
 
     private string Picked(BarView bar) => bar.Number == picked ? "picked" : "";
-
-    private static bool Within(string level, double share) => Markings.Levels.TryGetValue(level, out var band) && share >= band.Low && share <= band.High;
 
     // Some articulation marks in words: "2 staccato notes held long", "1 gap under a slur".
     private static string Name((string Kind, bool Bad) mark, int n) => mark.Kind switch

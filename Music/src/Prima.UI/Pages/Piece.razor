@@ -142,7 +142,8 @@ else
         }
         else if (stage == Stage.LookBack && session is not null && review is not null)
         {
-            <LookBack Session="session" Review="review" Runs="reviewed" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnViewBar="bar => OpenReview(Stage.LookBack, bar)" OnDone="Done" />
+            <LookBack Session="session" Review="review" Runs="reviewed" OnKeep="CarryOn" OnReview="() => OpenReview(Stage.LookBack)" OnViewBar="bar => OpenReview(Stage.LookBack, bar)" OnDone="Done"
+                      FirstBar="FirstBar" LastBar="LastBar" OnPractice="PracticeIt" />
         }
         else if (stage == Stage.Review && review is not null)
         {
@@ -391,7 +392,8 @@ else
         @if (outcome is not null && stage == Stage.Practice && Settings.AfterRun == "summary")
         {
             <section class="summary" aria-label="How it went">
-                <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" OnBar="StartAt" OnLoop="@(bars => { StartAt(bars.From); SetLoop(bars.To); })" />
+                <PlaySummary Outcome="outcome" StoppedAt="@($"bar {outcome.Bar}")" OnBar="StartAt" OnLoop="@(bars => { StartAt(bars.From); SetLoop(bars.To); })"
+                             FirstBar="FirstBar" LastBar="LastBar" Tempo="tempo" Previous="previousFigure" OnAgain="SetTempo" />
             </section>
         }
         @if (stage == Stage.Play && played is { InTime: { } result } && !playing)
@@ -629,6 +631,9 @@ else
     private List<string>? measureIds;
     private bool playing;
     private PlayOutcome? outcome;
+    // How the last run In time went (correct and on time), and the one before it, shown under a run's figure.
+    private double? lastFigure;
+    private double? previousFigure;
     private DateTime started;
     private TaskCompletionSource? repainted;
     private Timer? ticker;
@@ -1298,6 +1303,17 @@ else
 
     private async Task Finished(PlayOutcome how)
     {
+        // How the run before went, for under this one's figure: runs, not a loop's times round; on a page just opened, the session's
+        // last one kept.
+        if (how is { Loop: null, InTime: { Expected: > 0 } timed })
+        {
+            if (lastFigure is null && session is not null)
+            {
+                lastFigure = (await Store.GetPieceRunsAsync(Id)).Select(r => r.Run)
+                    .Where(r => r.Session == session.Id && r.InTime && r.Passes.Count == 0 && r.RightInTime is not null).OrderBy(r => r.At).LastOrDefault()?.RightInTime;
+            }
+            (previousFigure, lastFigure) = (lastFigure, timed.InTimeAccuracy);
+        }
         (playing, outcome) = (false, how);
         if (stage == Stage.Practice) clock?.RunEnded(DateTimeOffset.Now);
         if (stage == Stage.Play) played = how;
@@ -1437,6 +1453,32 @@ else
     }
 
     // Keep practicing, from the look back: the same session carries on.
+    // The look back's Practice it: Next's bars looped at its tempo (or, with nothing to fix, the piece a notch faster), In time,
+    // and the session carried on.
+    private async Task PracticeIt(((int From, int To)? Bars, double? Tempo) next)
+    {
+        if (sheet is not null)
+        {
+            await sheet.ClearMarks();
+            await sheet.Outline(null);
+        }
+        (picked, played, outcome) = (null, null, null);
+        if (next.Bars is { } bars && barStarts.ContainsKey(bars.From))
+        {
+            chosen = bars.From > FirstBar;
+            StartAt(bars.From);
+            SetLoop(bars.To);
+        }
+        else
+        {
+            (loopTo, chosen) = (null, false);
+            StartAt(FirstBar);
+        }
+        if (next.Tempo is { } at) await SetTempo(at);
+        await Store.SetSettingAsync(PlayAlong.ModeKeyOf("library"), "time");
+        if (session is not null) await CarryOn();
+    }
+
     private async Task CarryOn()
     {
         clock?.Resume(DateTimeOffset.Now);

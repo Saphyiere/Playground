@@ -1,0 +1,90 @@
+@using Prima.Core.Practice
+@*
+    Where it went wrong: a row for each run through the piece, in the order played, with its tempo; a cell for each bar, its count
+    of one kind of mistake printed in it and shaded by it, blank where there was none and hatched where the run didn't play the
+    bar. A piece of more than 40 bars goes down the page in lines of 30, as music does; to fit the screen its rows are the first two
+    runs and the last two (what the words are judged on), the runs between on the timeline. Otherwise up to eight: the first two and
+    the last six.
+*@
+<div class="qh-wrap @(Timing ? "qh-beat" : "qh-notes")">
+    @foreach (var (from, to) in Lines)
+    {
+        var n = to - from + 1;
+        <div class="qh" style="--n: @n">
+            @foreach (var row in Shown)
+            {
+                if (row is null)
+                {
+                    <span class="qh-label">…</span>
+                    @for (var i = 0; i < n; i++)
+                    {
+                        <span></span>
+                    }
+                    continue;
+                }
+                <span class="qh-label">Run @row.Number · @QuickReview.Mark(row.Tempo ?? 0)@Hand(row.Hands)@(Timing && !row.InTime ? " · not timed" : "")</span>
+                @for (var bar = from; bar <= to; bar++)
+                {
+                    var count = row.Bars[bar - FirstBar];
+                    if (count is null)
+                    {
+                        <span class="qh-cell qh-x"></span>
+                        continue;
+                    }
+                    var value = Timing ? row.InTime ? count.Beat : (int?)null : count.Notes;
+                    <span class="qh-cell @Step(value)">@(value is > 0 ? value.Value.ToString(CultureInfo.InvariantCulture) : "")</span>
+                }
+            }
+            <span class="qh-label qh-axis">Bar</span>
+            @for (var bar = from; bar <= to; bar++)
+            {
+                var shown = n <= 32 || bar == from || bar == to || bar % 5 == 0 || NamedEnd(bar);
+                <span class="qh-num @(Named.Contains(bar) ? "hot" : "") @(n <= 32 && bar % 4 != 0 && bar != from && bar != to && !Named.Contains(bar) ? "qh-wide" : "")">@(shown ? bar.ToString(CultureInfo.InvariantCulture) : "")</span>
+            }
+        </div>
+    }
+</div>
+<div class="qr-legend qh-legend @(Timing ? "qh-beat" : "qh-notes")">
+    <span>@(Timing ? "Notes off the beat" : "Wrong notes") in each bar, run by run:</span>
+    <span><i class="qh-cell qh-1">1</i>one</span>
+    <span><i class="qh-cell qh-2">2</i>two</span>
+    <span><i class="qh-cell qh-3">3</i>three or more</span>
+    <span><i class="qh-cell qh-0"></i>none</span>
+    <span><i class="qh-cell qh-x"></i>not played</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<HeatRow> Rows { get; set; } = [];
+
+    [Parameter] public int FirstBar { get; set; } = 1;
+
+    /// <summary>Off the beat's counts, not wrong notes'.</summary>
+    [Parameter] public bool Timing { get; set; }
+
+    /// <summary>The bars the words name, picked out among the numbers.</summary>
+    [Parameter] public IReadOnlyList<int> Named { get; set; } = [];
+
+    private int LastBar => FirstBar + (Rows.FirstOrDefault()?.Bars.Count ?? 1) - 1;
+
+    private bool Long => LastBar - FirstBar + 1 > 40;
+
+    private IEnumerable<(int From, int To)> Lines
+    {
+        get
+        {
+            var per = Long ? 30 : LastBar - FirstBar + 1;
+            for (var a = FirstBar; a <= LastBar; a += per) yield return (a, Math.Min(LastBar, a + per - 1));
+        }
+    }
+
+    // The rows shown, a gap (none) where runs are left out.
+    private IReadOnlyList<HeatRow?> Shown => Long && Rows.Count > 4 ? [.. Rows.Take(2), null, .. Rows.TakeLast(2)]
+        : Rows.Count > 8 ? [.. Rows.Take(2), null, .. Rows.TakeLast(6)]
+        : [.. Rows];
+
+    private bool NamedEnd(int bar) => Named.Contains(bar) && (!Named.Contains(bar - 1) || !Named.Contains(bar + 1));
+
+    private static string Hand(string hands) => hands switch { "left" => " LH", "right" => " RH", _ => "" };
+
+    private static string Step(int? value) => value switch { null => "qh-0", 0 => "qh-0", 1 => "qh-1", 2 => "qh-2", _ => "qh-3" };
+}

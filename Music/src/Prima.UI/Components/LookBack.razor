@@ -7,20 +7,60 @@
             <span class="mu-readout-label">@(Session is null ? "Saved run" : "Practice summary")</span>
             @if (Session is not null)
             {
-                <span class="look-total">@PieceWords.Duration(Session.Playing) playing · @BarWords.Count(Runs.Count, "run")</span>
+                <span class="look-total">@PieceWords.Duration(Session.Playing) playing · @(quick is { } counted ? $"{BarWords.Count(counted.Runs, "run")}{(counted.Loops > 0 ? $" · {BarWords.Count(counted.Loops, "loop")}" : "")}" : BarWords.Count(Runs.Count, "run"))</span>
             }
         </div>
-        @if (Runs.LastOrDefault() is { } lastRun)
+        @if (quick is { } take)
         {
-            @if (Runs.Count > 1) { <span class="mu-readout-label">Last run</span> }
-            <p class="look-headline">@PieceWords.How(lastRun)</p>
-            <p class="section-note">@PieceWords.Went(lastRun)</p>
+            @* The session in short, every number in it on the chart under it: where it went wrong, run by run, or how it went over time. *@
+            <p class="look-headline"><QuickWords Sentence="take.Said" /></p>
+            @if (take.Sub is { } sub)
+            {
+                <p class="qs-sub">@sub</p>
+            }
+            <div class="qs-switches">
+                <div class="play-mode" role="radiogroup" aria-label="Show">
+                    <button type="button" role="radio" class="play-mode-option" data-piano="off" aria-checked="@On(!overTime)" @onclick="() => overTime = false">Where it went wrong</button>
+                    <button type="button" role="radio" class="play-mode-option" data-piano="off" aria-checked="@On(overTime)" @onclick="() => overTime = true">Over time</button>
+                </div>
+                @if (!overTime && take.Rows.Count > 0)
+                {
+                    <div class="play-mode qs-lens" role="radiogroup" aria-label="Mistakes of">
+                        <button type="button" role="radio" class="play-mode-option qs-notes" data-piano="off" aria-checked="@On(!timing)" @onclick="() => timing = false">Notes</button>
+                        <button type="button" role="radio" class="play-mode-option qs-beat" data-piano="off" aria-checked="@On(timing)" @onclick="() => timing = true">Timing</button>
+                    </div>
+                }
+            </div>
+            @if (overTime)
+            {
+                <SessionTimeline Groups="take.Groups" UntimedLeftOut="take.UntimedLeftOut" />
+            }
+            else if (take.Rows.Count > 0)
+            {
+                <SessionHeat Rows="take.Rows" FirstBar="take.FirstBar" Timing="timing" Named="take.Named" />
+            }
+            else
+            {
+                <p class="section-note">No run through the piece in this session: its loops are under Over time.</p>
+            }
         }
         else
         {
             <p class="look-headline">No run recorded.</p>
         }
     </section>
+
+    @if (quick is { } next && next.Next.Parts.Count > 0)
+    {
+        <section class="mu-screen qs-next" aria-label="Next">
+            <span class="mu-readout-label">Next</span>
+            <p class="qr-said"><QuickWords Sentence="next.Next" /></p>
+            @if (OnPractice.HasDelegate)
+            {
+                <button type="button" class="mu-btn mu-primary" data-action="practice-it" data-piano="off" @onclick="() => OnPractice.InvokeAsync((next.NextLoop, next.NextTempo))">Practice it</button>
+            }
+        </section>
+    }
 
     @if (Review.Stretches.Count > 0)
     {
@@ -103,13 +143,9 @@
         {
             <button type="button" class="mu-btn" data-action="continue-practice" data-piano="off" @onclick="OnKeep">Keep practicing</button>
         }
-        @if (Runs.LastOrDefault() is { } run && PieceWords.Highlight(run) is { } highlight && OnViewBar.HasDelegate)
-        {
-            <button type="button" class="mu-btn" data-action="view-bar" data-piano="off" @onclick="() => OnViewBar.InvokeAsync(highlight.Bar)">View @PieceWords.Bar(highlight.Bar)</button>
-        }
         @if (Runs.Count > 0)
         {
-            <button type="button" class="mu-btn" data-action="review-details" data-piano="off" @onclick="OnReview">View details</button>
+            <button type="button" class="mu-btn" data-action="review-details" data-piano="off" @onclick="OnReview">Details</button>
         }
         <button type="button" class="mu-btn mu-primary" data-action="close-review" data-piano="off" @onclick="OnDone">Done</button>
     </div>
@@ -123,6 +159,40 @@
     [Parameter] public EventCallback<int> OnViewBar { get; set; }
     [Parameter] public EventCallback OnReview { get; set; }
     [Parameter] public EventCallback OnDone { get; set; }
+
+    /// <summary>The piece's first and last bars, for the heat map's columns; without them, the bars its runs reached.</summary>
+    [Parameter] public int? FirstBar { get; set; }
+
+    [Parameter] public int? LastBar { get; set; }
+
+    /// <summary>Next's Practice it: its bars looped (or none) at its tempo, the session carried on.</summary>
+    [Parameter] public EventCallback<((int From, int To)? Bars, double? Tempo)> OnPractice { get; set; }
+
+    // The session's quick review, which view is shown (the heat map or the timeline) and which kind the heat map counts.
+    private QuickSession? quick;
+    private (IReadOnlyList<PieceRun>? Runs, int? First, int? Last) reviewedFor;
+    private bool overTime;
+    private bool timing;
+
+    protected override void OnParametersSet()
+    {
+        // Worked out again for other runs, or once the piece's bars are known (the history reads its music after its runs).
+        if (ReferenceEquals(Runs, reviewedFor.Runs) && (FirstBar, LastBar) == (reviewedFor.First, reviewedFor.Last)) return;
+        reviewedFor = (Runs, FirstBar, LastBar);
+        if (Runs.Count == 0)
+        {
+            quick = null;
+            return;
+        }
+        var first = Math.Min(FirstBar ?? 1, Runs.Min(r => r.From));
+        var reached = Runs.SelectMany(r => r.Passes.SelectMany(p => p.Trouble).Concat(r.Trouble)).Select(t => t.Bar).DefaultIfEmpty(first).Max();
+        var last = Math.Max(LastBar ?? first, Math.Max(reached, Runs.Max(r => r.To ?? r.Bar ?? r.From)));
+        quick = QuickReview.Session(Runs, new PieceShape(first, last, null));
+        // It opens on where it went wrong, on the kind the first place needs; with no run through the piece, on the timeline.
+        (overTime, timing) = (quick.Rows.Count == 0, quick.OpensOnTiming);
+    }
+
+    private static string On(bool on) => on ? "true" : "false";
 
     // The lines' drawing size, which scales to its box.
     private const double Width = 360;

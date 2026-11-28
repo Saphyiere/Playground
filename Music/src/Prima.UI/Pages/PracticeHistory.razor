@@ -31,7 +31,8 @@ else if (selected is not null && review is not null)
     }
     else
     {
-        <LookBack Session="selected.Session" Runs="selected.Runs" Review="review" OnReview="() => OpenDetails()" OnViewBar="bar => OpenDetails(bar)" OnDone="Back" />
+        <LookBack Session="selected.Session" Runs="selected.Runs" Review="review" OnReview="() => OpenDetails()" OnViewBar="bar => OpenDetails(bar)" OnDone="Back"
+                  FirstBar="@(barNumbers.Count > 0 ? barNumbers[0] : null)" LastBar="@(barNumbers.Count > 0 ? barNumbers[^1] : null)" />
         @if (selected.Session is not null && selected.Runs.Count > 0)
         {
             <section class="settings-section">
